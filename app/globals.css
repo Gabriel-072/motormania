@@ -1,0 +1,341 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Global Styles */
+body {
+  background: linear-gradient(to bottom, #0a0a0a, #111827);
+  font-family: 'Exo 2', Arial, Helvetica, sans-serif;
+  color: #ffffff;
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* Add blurred circles as pseudo-elements on the body */
+body::before,
+body::after {
+  content: '';
+  position: fixed;
+  z-index: -1;
+}
+
+body::before {
+  top: 20%;
+  left: 10%;
+  width: 12rem;
+  height: 12rem;
+  background: rgba(245, 158, 11, 0.1);
+  border-radius: 50%;
+  filter: blur(5rem);
+  animation: pulse 4s infinite;
+}
+
+body::after {
+  bottom: 30%;
+  right: 15%;
+  width: 16rem;
+  height: 16rem;
+  background: rgba(34, 211, 238, 0.1);
+  border-radius: 50%;
+  filter: blur(5rem);
+  animation: pulse 4s infinite 1s;
+}
+
+/* Pulse Animation */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 0.8;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
+
+/* Announcement Bar Styles */
+.announcement-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  background-color: #000000;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: bold;
+  overflow: hidden;
+  white-space: nowrap;
+  z-index: 50;
+  height: 40px;
+}
+
+.announcement-text {
+  display: inline-block;
+  line-height: 40px;
+  animation: loop-move-left 20s linear infinite;
+}
+
+/* Animation inspired by Webflow's loop-move-left */
+@keyframes loop-move-left {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+/* Blurred edges with gradients */
+.announcement-bar::before,
+.announcement-bar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  width: 50px;
+  height: 100%;
+  pointer-events: none;
+}
+
+.announcement-bar::before {
+  left: 0;
+  background: linear-gradient(to right, #000000, transparent);
+}
+
+.announcement-bar::after {
+  right: 0;
+  background: linear-gradient(to left, #000000, transparent);
+}
+
+/* Pause animation on hover */
+.announcement-bar:hover .announcement-text {
+  animation-play-state: paused;
+}
+
+/* Infinite Scrolling Animations for Logos */
+.animate-scroll-left {
+  display: flex;
+  min-width: 100%;
+  animation: scroll-left var(--duration, 20s) linear infinite;
+}
+
+.animate-scroll-right {
+  display: flex;
+  min-width: 100%;
+  animation: scroll-right var(--duration, 20s) linear infinite;
+}
+
+@keyframes scroll-left {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes scroll-right {
+  0% {
+    transform: translateX(-50%);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+/* Ensure hover pause works */
+.animate-scroll-left:hover,
+.animate-scroll-right:hover {
+  animation-play-state: paused;
+}
+
+/* Pulse Glow Animation for Buttons */
+.animate-pulse-glow {
+  animation: pulse-glow 2s infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(245, 158, 11, 0.8);
+  }
+}
+
+/* Fade Mask for Infinite Logo Carousel */
+.fade-mask::before,
+.fade-mask::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  width: 50px;
+  height: 100%;
+  pointer-events: none;
+}
+
+.fade-mask::before {
+  left: 0;
+  background: linear-gradient(to right, #0a0a0a, transparent);
+}
+
+.fade-mask::after {
+  right: 0;
+  background: linear-gradient(to left, #0a0a0a, transparent);
+}
+
+/* Loading Animation Keyframes */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes expand {
+  from {
+    width: 0%;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .car-image {
+    transform: translateY(-18px) !important; /* Moves up 20% more than the original -15px on mobile */
+  }
+}
+
+/* Border Animation for Partner Cards */
+@property --border-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.animate-rotate-border {
+  animation: rotateBorder 4s linear infinite;
+  border-radius: 0.75rem;
+}
+
+@keyframes rotateBorder {
+  to {
+    --border-angle: 360deg;
+  }
+}
+
+/* Border Animation for Main Partner Image */
+@property --image-border-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.animate-image-border {
+  position: relative;
+  isolation: isolate; /* Creates a new stacking context */
+  background: #fff; /* Add background to prevent border bleed */
+}
+
+.animate-image-border::before {
+  content: '';
+  position: absolute;
+  inset: -3px; /* Simplified from individual offsets */
+  background: conic-gradient(
+    from var(--image-border-angle),
+    var(--gradient-from, #1A8C47) 0%,
+    var(--gradient-to, #48cae4) 25%,
+    var(--gradient-from, #1A8C47) 50%,
+    var(--gradient-to, #48cae4) 75%,
+    var(--gradient-from, #1A8C47) 100%
+  );
+  animation: rotateImageBorder 4s linear infinite;
+  z-index: -1;
+  border-radius: inherit; /* Inherit from parent */
+  filter: blur(2px); /* Softens the edge for smoother appearance */
+}
+
+@keyframes rotateImageBorder {
+  0% {
+    --image-border-angle: 0deg;
+  }
+  100% {
+    --image-border-angle: 360deg;
+  }
+}
+
+/* Tables CSS */
+.track-table-container {
+  background: linear-gradient(to bottom, #222, #333);
+  padding: 1rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+/* Add text shadow for better readability over gradients */
+.text-shadow-md {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+/* Flag waving animation */
+@keyframes wave {
+  0%, 100% {
+    transform: skew(0deg);
+  }
+  50% {
+    transform: skew(2deg);
+  }
+}
+
+.flag-image {
+  animation: wave 2s infinite ease-in-out;
+}
+
+/* Countdown animation for ticking effect */
+.countdown {
+  transition: all 0.3s ease;
+}
+
+/* Ensure images scale properly */
+.car-image, .driver-image {
+  max-width: 100%;
+  height: auto;
+  transform: translateY(20%);
+}
+
+/* From Uiverse.io by xXJollyHAKERXx */
+.spinner {
+  background-image: linear-gradient(rgb(186, 66, 255) 35%, rgb(0, 225, 255));
+  width: 100px;
+  height: 100px;
+  animation: spinning82341 1.7s linear infinite;
+  text-align: center;
+  border-radius: 50px;
+  filter: blur(1px);
+  box-shadow: 0px -5px 20px 0px rgb(186, 66, 255), 0px 5px 20px 0px rgb(0, 225, 255);
+}
+
+.spinner1 {
+  background-color: rgb(36, 36, 36);
+  width: 100px;
+  height: 100px;
+  border-radius: 50px;
+  filter: blur(10px);
+}
+
+@keyframes spinning82341 {
+  to {
+    transform: rotate(360deg);
+  }
+}
