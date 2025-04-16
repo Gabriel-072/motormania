@@ -58,3 +58,7 @@ out/
 *.zip
 
 *.zip
+
+#Functions
+
+supabase/functions/
