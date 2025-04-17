@@ -2,10 +2,11 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 
 export default function AuthRequiredModal({ show }: { show: boolean }) {
-  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const redirectUrl = searchParams.size > 0 ? `/mmc-go?${searchParams.toString()}` : '/mmc-go';
 
   if (!show) return null;
 
@@ -28,13 +29,13 @@ export default function AuthRequiredModal({ show }: { show: boolean }) {
 
           <div className="flex justify-center gap-4">
             <Link
-              href={`/sign-in?redirect_url=${encodeURIComponent(pathname)}`}
+              href={`/sign-in?redirect_url=${encodeURIComponent(redirectUrl)}`}
               className="bg-black text-white px-4 py-2 rounded hover:bg-gray-900"
             >
               Iniciar sesión
             </Link>
             <Link
-              href={`/sign-up?redirect_url=${encodeURIComponent(pathname)}`}
+              href={`/sign-up?redirect_url=${encodeURIComponent(redirectUrl)}`}
               className="bg-amber-500 px-4 py-2 rounded hover:bg-amber-400 text-black font-bold"
             >
               Registrarse
