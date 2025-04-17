@@ -45,7 +45,7 @@ const driverToTeam: Record<string, string> = {
   'Lance Stroll': 'Aston Martin',
   'Liam Lawson': 'RB',
   'Isack Hadjar': 'RB',
-  'Nico Hülkenberg': 'Sauber',
+  'Nico Hulkenberg': 'Sauber',
   'Gabriel Bortoleto': 'Sauber',
   'Pierre Gasly': 'Alpine',
   'Jack Doohan': 'Alpine',
@@ -61,32 +61,32 @@ const staticDrivers: string[] = Object.keys(driverToTeam);
 const driverBorderStyles: Record<string, { gradient: string; speed: string; direction: string }> = {
   'Max Verstappen': {
     gradient: 'conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #1e3a8a 20deg, #38bdf8 30deg, #1e3a8a 40deg, transparent 50deg, transparent 360deg)',
-    speed: '5s',
+    speed: '3s',
     direction: 'normal',
   },
   'Yuki Tsunoda': {
     gradient: 'conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #1e3a8a 20deg, #60a5fa 30deg, #1e3a8a 40deg, transparent 50deg, transparent 360deg)',
-    speed: '4.5s',
+    speed: '5.5s',
     direction: 'reverse',
   },
   'Lando Norris': {
     gradient: 'conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #ea580c 20deg, #facc15 30deg, #ea580c 40deg, transparent 50deg, transparent 360deg)',
-    speed: '6s',
+    speed: '3s',
     direction: 'normal',
   },
   'Oscar Piastri': {
     gradient: 'conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #ea580c 20deg, #fef08a 30deg, #ea580c 40deg, transparent 50deg, transparent 360deg)',
-    speed: '5.5s',
+    speed: '4s',
     direction: 'reverse',
   },
   'Lewis Hamilton': {
     gradient: 'conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #b91c1c 20deg, #f87171 30deg, #b91c1c 40deg, transparent 50deg, transparent 360deg)',
-    speed: '4s',
+    speed: '5s',
     direction: 'normal',
   },
   'Charles Leclerc': {
     gradient: 'conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #b91c1c 20deg, #fca5a5 30deg, #b91c1c 40deg, transparent 50deg, transparent 360deg)',
-    speed: '4.8s',
+    speed: '4s',
     direction: 'reverse',
   },
   'George Russell': {
@@ -111,17 +111,17 @@ const driverBorderStyles: Record<string, { gradient: string; speed: string; dire
   },
   'Liam Lawson': {
     gradient: 'conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #1e40af 20deg, #60a5fa 30deg, #1e40af 40deg, transparent 50deg, transparent 360deg)',
-    speed: '4s',
+    speed: '4.3s',
     direction: 'normal',
   },
   'Isack Hadjar': {
     gradient: 'conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #1e40af 20deg, #93c5fd 30deg, #1e40af 40deg, transparent 50deg, transparent 360deg)',
-    speed: '4.8s',
+    speed: '5.7s',
     direction: 'reverse',
   },
-  'Nico Hülkenberg': {
+  'Nico Hulkenberg': {
     gradient: 'conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #16a34a 20deg, #86efac 30deg, #16a34a 40deg, transparent 50deg, transparent 360deg)',
-    speed: '5s',
+    speed: '6s',
     direction: 'normal',
   },
   'Gabriel Bortoleto': {
@@ -131,27 +131,27 @@ const driverBorderStyles: Record<string, { gradient: string; speed: string; dire
   },
   'Pierre Gasly': {
     gradient: 'conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #1e3a8a 20deg, #db2777 30deg, #1e3a8a 40deg, transparent 50deg, transparent 360deg)',
-    speed: '6s',
+    speed: '5.5s',
     direction: 'normal',
   },
   'Jack Doohan': {
     gradient: 'conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #1e3a8a 20deg, #f9a8d4 30deg, #1e3a8a 40deg, transparent 50deg, transparent 360deg)',
-    speed: '5.5s',
+    speed: '7s',
     direction: 'reverse',
   },
   'Alex Albon': {
     gradient: 'conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #1e40af 20deg, #60a5fa 30deg, #1e40af 40deg, transparent 50deg, transparent 360deg)',
-    speed: '4s',
+    speed: '4.7s',
     direction: 'normal',
   },
   'Carlos Sainz': {
     gradient: 'conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #1e40af 20deg, #93c5fd 30deg, #1e40af 40deg, transparent 50deg, transparent 360deg)',
-    speed: '4.8s',
+    speed: '3.5s',
     direction: 'reverse',
   },
   'Oliver Bearman': {
     gradient: 'conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #4b5563 20deg, #9ca3af 30deg, #4b5563 40deg, transparent 50deg, transparent 360deg)',
-    speed: '5s',
+    speed: '6s',
     direction: 'normal',
   },
   'Esteban Ocon': {

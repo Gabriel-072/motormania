@@ -24,7 +24,7 @@ const soundManager = {
 const drivers = [
   'Max Verstappen', 'Yuki Tsunoda', 'Lando Norris', 'Oscar Piastri', 'Lewis Hamilton',
   'Charles Leclerc', 'George Russell', 'Kimi Antonelli', 'Fernando Alonso', 'Lance Stroll',
-  'Liam Lawson', 'Isack Hadjar', 'Nico Hülkenberg', 'Gabriel Bortoleto', 'Pierre Gasly',
+  'Liam Lawson', 'Isack Hadjar', 'Nico Hulkenberg', 'Gabriel Bortoleto', 'Pierre Gasly',
   'Jack Doohan', 'Alex Albon', 'Carlos Sainz', 'Oliver Bearman', 'Esteban Ocon'
 ];
 
@@ -33,7 +33,7 @@ const driverToTeam: Record<string, string> = {
   'Oscar Piastri': 'McLaren', 'Lewis Hamilton': 'Ferrari', 'Charles Leclerc': 'Ferrari',
   'George Russell': 'Mercedes', 'Kimi Antonelli': 'Mercedes', 'Fernando Alonso': 'Aston Martin',
   'Lance Stroll': 'Aston Martin', 'Liam Lawson': 'RB', 'Isack Hadjar': 'RB',
-  'Nico Hülkenberg': 'Sauber', 'Gabriel Bortoleto': 'Sauber', 'Pierre Gasly': 'Alpine',
+  'Nico Hulkenberg': 'Sauber', 'Gabriel Bortoleto': 'Sauber', 'Pierre Gasly': 'Alpine',
   'Jack Doohan': 'Alpine', 'Alex Albon': 'Williams', 'Carlos Sainz': 'Williams',
   'Oliver Bearman': 'Haas F1 Team', 'Esteban Ocon': 'Haas F1 Team'
 };

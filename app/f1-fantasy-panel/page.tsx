@@ -89,7 +89,7 @@ const driverToTeam: Record<string, string> = {
   'Lance Stroll': 'Aston Martin',
   'Yuki Tsunoda': 'Red Bull Racing',
   'Isack Hadjar': 'RB',
-  'Nico Hülkenberg': 'Sauber',
+  'Nico Hulkenberg': 'Sauber',
   'Gabriel Bortoleto': 'Sauber',
   'Pierre Gasly': 'Alpine',
   'Jack Doohan': 'Alpine',
