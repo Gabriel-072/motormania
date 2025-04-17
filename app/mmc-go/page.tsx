@@ -168,7 +168,7 @@ const soundManager = {
 
 export default function MMCGoPage() {
   const { getToken } = useAuth();
-  const { isSignedIn } = useUser();
+  const { isSignedIn, isLoaded } = useUser();
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [driverLines, setDriverLines] = useState<Record<string, number>>({});
   const [currentGp, setCurrentGp] = useState<GpSchedule | null>(null);
@@ -176,10 +176,10 @@ export default function MMCGoPage() {
   const [isQualyView, setIsQualyView] = useState(true);
   const [showFullModal, setShowFullModal] = useState(false);
   const [showRealtimeModal, setShowRealtimeModal] = useState(false);
-  const hasPlayedRev = useRef(false);
   const [isQualyEnabled, setIsQualyEnabled] = useState(true);
   const [isRaceEnabled, setIsRaceEnabled] = useState(true);
   const channelRef = useRef<any>(null);
+  const hasPlayedRev = useRef(false);
 
   const {
     picks,
@@ -194,10 +194,17 @@ export default function MMCGoPage() {
 
   // Fetch inicial del estado de picks_config
   useEffect(() => {
+    if (!isSignedIn || !isLoaded) return;
+
     const fetchStatus = async () => {
       try {
-        const token = await getToken({ template: 'supabase' });
-        if (!token) throw new Error('Token no encontrado');
+        let token = await getToken({ template: 'supabase' });
+        if (!token) {
+          // Retry after a short delay if token is not available
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          token = await getToken({ template: 'supabase' });
+          if (!token) throw new Error('Token no encontrado');
+        }
         const supabase = createAuthClient(token);
 
         const { data, error } = await supabase
@@ -217,14 +224,21 @@ export default function MMCGoPage() {
     };
 
     fetchStatus();
-  }, [getToken]);
+  }, [getToken, isSignedIn, isLoaded]);
 
   // Fetch de datos iniciales (líneas y GP)
   useEffect(() => {
+    if (!isSignedIn || !isLoaded) return;
+
     const fetchData = async () => {
       try {
-        const token = await getToken({ template: 'supabase' });
-        if (!token) throw new Error('Token no encontrado');
+        let token = await getToken({ template: 'supabase' });
+        if (!token) {
+          // Retry after a short delay if token is not available
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          token = await getToken({ template: 'supabase' });
+          if (!token) throw new Error('Token no encontrado');
+        }
         const supabase = createAuthClient(token);
 
         const { data: scheduleData, error: scheduleError } = await supabase
@@ -260,16 +274,23 @@ export default function MMCGoPage() {
     };
 
     fetchData();
-  }, [getToken, isQualyView]);
+  }, [getToken, isQualyView, isSignedIn, isLoaded]);
 
   // Suscripción a cambios en tiempo real
   useEffect(() => {
+    if (!isSignedIn || !isLoaded) return;
+
     let mounted = true;
 
     const subscribeToConfig = async () => {
       try {
-        const token = await getToken({ template: 'supabase' });
-        if (!token) throw new Error('Token no encontrado');
+        let token = await getToken({ template: 'supabase' });
+        if (!token) {
+          // Retry after a short delay if token is not available
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          token = await getToken({ template: 'supabase' });
+          if (!token) throw new Error('Token no encontrado');
+        }
         console.log('Supabase Token:', token);
         const supabase = createAuthClient(token);
 
@@ -318,13 +339,13 @@ export default function MMCGoPage() {
         console.log('📡 Canal de suscripción cerrado');
       }
     };
-  }, [getToken]);
+  }, [getToken, isSignedIn, isLoaded]);
 
   // Actualización de estado del sticky modal
   useEffect(() => {
     const totalPicks = picks.qualy.length + picks.race.length;
     setShowSticky(totalPicks >= 2);
-  }, [picks.qualy, picks.race]);
+  }, [picks.qualy, picks.race, setShowSticky]);
 
   // Cálculo del multiplicador y ganancia potencial
   useEffect(() => {
@@ -333,7 +354,7 @@ export default function MMCGoPage() {
     const multiplier = payoutCombos[totalPicks] || 0;
     setMultiplier(multiplier);
     setPotentialWin(multiplier * 10000);
-  }, [picks.qualy, picks.race]);
+  }, [picks.qualy, picks.race, setMultiplier, setPotentialWin]);
 
   // Reproducción del sonido al cargar los datos
   useEffect(() => {
@@ -374,6 +395,16 @@ export default function MMCGoPage() {
     soundManager.click.play();
     removePick(driver, currentSession);
   };
+
+  // Show loading animation until auth state is loaded
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-gray-950 to-gray-900 text-white font-exo2">
+        <Header />
+        <LoadingAnimation animationDuration={3} />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-950 to-gray-900 text-white font-exo2">

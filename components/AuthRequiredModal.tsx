@@ -2,8 +2,11 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 export default function AuthRequiredModal({ show }: { show: boolean }) {
+  const pathname = usePathname();
+
   if (!show) return null;
 
   return (
@@ -24,10 +27,16 @@ export default function AuthRequiredModal({ show }: { show: boolean }) {
           <p className="text-sm mb-4">Debes iniciar sesión o registrarte para usar MMC GO.</p>
 
           <div className="flex justify-center gap-4">
-            <Link href="/sign-in" className="bg-black text-white px-4 py-2 rounded hover:bg-gray-900">
+            <Link
+              href={`/sign-in?redirect_url=${encodeURIComponent(pathname)}`}
+              className="bg-black text-white px-4 py-2 rounded hover:bg-gray-900"
+            >
               Iniciar sesión
             </Link>
-            <Link href="/sign-up" className="bg-amber-500 px-4 py-2 rounded hover:bg-amber-400 text-black font-bold">
+            <Link
+              href={`/sign-up?redirect_url=${encodeURIComponent(pathname)}`}
+              className="bg-amber-500 px-4 py-2 rounded hover:bg-amber-400 text-black font-bold"
+            >
               Registrarse
             </Link>
           </div>
