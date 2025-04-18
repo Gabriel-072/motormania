@@ -15,6 +15,7 @@ import { PickSelection } from '../types/picks';
 import AuthRequiredModal from '@/components/AuthRequiredModal';
 import { toast } from 'sonner';
 import { Dialog } from '@headlessui/react';
+import AuthRequiredModalWrapper from '@/components/AuthRequiredModalWrapper';
 
 // TYPES
 type SessionType = 'qualy' | 'race';
@@ -408,7 +409,7 @@ export default function MMCGoPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-950 to-gray-900 text-white font-exo2">
-      <AuthRequiredModal show={!isSignedIn} />
+      <AuthRequiredModalWrapper show={!isSignedIn} />
       <Header />
       {!isDataLoaded ? (
         <LoadingAnimation animationDuration={3} />
