@@ -3,8 +3,9 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { Exo_2 } from "next/font/google";
 import { esES } from '@clerk/localizations';
 import { dark } from '@clerk/themes';
-import Header from '@/components/Header'; // Import client component
-import MovingBar from '@/components/MovingBar'; // Import client component
+import Header from '@/components/Header';
+import MovingBar from '@/components/MovingBar';
+import PixelTracker from '@/components/PixelTracker'; // 👈 asegurado aquí
 
 const exo2 = Exo_2({ subsets: ["latin"] });
 
@@ -49,9 +50,10 @@ export default function RootLayout({
     >
       <html lang="es-CO">
         <body className={exo2.className} suppressHydrationWarning>
+          <PixelTracker /> {/* 👈 Meta Pixel Tracking aquí */}
           <MovingBar />
           <Header />
-          <main className="pt-20">{children}</main> {/* Reduced from pt-28 to pt-20 */}
+          <main className="pt-20">{children}</main>
         </body>
       </html>
     </ClerkProvider>
