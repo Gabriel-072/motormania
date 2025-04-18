@@ -5,8 +5,9 @@ import { esES } from '@clerk/localizations';
 import { dark } from '@clerk/themes';
 import Header from '@/components/Header';
 import MovingBar from '@/components/MovingBar';
-import PixelTracker from '@/components/PixelTracker'; // 👈 asegurado aquí
-import RegistrationTracker from '@/components/RegistrationTracker'; // 👈 tracking global
+import PixelTracker from '@/components/PixelTracker';
+import RegistrationTracker from '@/components/RegistrationTracker';
+import { Suspense } from "react"; // ✅ necesario para evitar errores con useSearchParams
 
 const exo2 = Exo_2({ subsets: ["latin"] });
 
@@ -51,8 +52,10 @@ export default function RootLayout({
     >
       <html lang="es-CO">
         <body className={exo2.className} suppressHydrationWarning>
-          <PixelTracker /> {/* 👈 Meta Pixel Tracking aquí */}
-          <RegistrationTracker />
+          <PixelTracker />
+          <Suspense fallback={null}>
+            <RegistrationTracker />
+          </Suspense>
           <MovingBar />
           <Header />
           <main className="pt-20">{children}</main>
