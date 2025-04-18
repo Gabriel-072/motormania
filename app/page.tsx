@@ -596,18 +596,6 @@ export default function Home() {
           </SignedOut>
         </div>
       </section>
-
-      <footer className="py-6 px-4 text-center border-t border-gray-800/50">
-        <p className="text-gray-400 text-sm font-exo2">
-          © 2025 MotorManía Colombia. Todos los derechos reservados.
-          <br className="sm:hidden" />
-          <span className="inline-block mt-2 sm:mt-0">
-            <Link href="/terminos" className="hover:text-amber-400 transition">Términos</Link> 
-            {" | "}
-            <Link href="/privacidad" className="hover:text-amber-400 transition">Privacidad</Link>
-          </span>
-        </p>
-      </footer>
     </div>
   );
 }

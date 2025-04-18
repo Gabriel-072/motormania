@@ -42,7 +42,7 @@ export default function SignInPage() {
           {/* Sign-In Content */}
           <div className="bg-gradient-to-br from-gray-900 to-black p-4 sm:p-6 rounded-xl shadow-lg relative z-10 w-full max-w-md">
             <h1 className="text-2xl sm:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-cyan-400 to-purple-400 mb-6 sm:mb-8 font-exo2 text-center">
-              Inicia Sesión en MotorMania
+              Inicia Sesión en MotorManía
             </h1>
             <SignIn
               routing="path"

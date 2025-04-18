@@ -7,6 +7,7 @@ import Header from '@/components/Header';
 import MovingBar from '@/components/MovingBar';
 import PixelTracker from '@/components/PixelTracker';
 import RegistrationTracker from '@/components/RegistrationTracker';
+import Footer from "@/components/Footer";
 import { Suspense } from "react"; // ✅ necesario para evitar errores con useSearchParams
 
 const exo2 = Exo_2({ subsets: ["latin"] });
@@ -59,6 +60,7 @@ export default function RootLayout({
           <MovingBar />
           <Header />
           <main className="pt-20">{children}</main>
+          <Footer />
         </body>
       </html>
     </ClerkProvider>
