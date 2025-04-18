@@ -19,21 +19,25 @@ export function useRegistrationTracking() {
       !alreadyTracked &&
       typeof window !== 'undefined'
     ) {
-      // 🔥 Pixel normal
+      // 🎯 Meta Pixel estándar
       window.fbq?.('track', 'CompleteRegistration');
       window.fbq?.('trackCustom', 'RegistroMMC');
 
-      // 🔥 Conversions API
+      // 🔥 Meta CAPI
       fetch('/api/fb-track', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           event_name: 'CompleteRegistration',
           event_source_url: window.location.href,
+          // Opcional: puedes incluir hashed_email si lo tienes disponible en algún contexto
         }),
-      });
+      })
+        .then(res => res.json())
+        .then(res => console.log('📡 CAPI Event Sent:', res))
+        .catch(err => console.error('❌ Error CAPI:', err));
 
-      // ✅ Guardamos para que no se dispare de nuevo
+      // ✅ Marcar como enviado
       sessionStorage.setItem('mmc-registration-tracked', 'true');
     }
   }, [isSignedIn, isLoaded, searchParams]);
