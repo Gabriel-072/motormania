@@ -523,7 +523,7 @@ const handleSubmit = async () => {
       submission_year: today.getFullYear(),
     });
 
-    if (predError) throw new Error('Error al guardar predicción: ' + predError.message);
+    if (predError) throw new Error('Error al guardar predicción: ' + predError.message);    
 
     await fetch('/api/send-prediction-email', {
       method: 'POST',
@@ -549,15 +549,30 @@ const handleSubmit = async () => {
   }
 };
 
-  // SECTION: Modal Handlers
-  const openModal = (modal: string) => {
-    if (!submitted) {
-      soundManager.openMenu.play();
-      setActiveModal(modal);
-      setActiveSelectionModal(null);
-      setErrors([]);
+// SECTION: Modal Handlers
+const openModal = (modal: string) => {
+  if (!submitted) {
+    soundManager.openMenu.play();
+    setActiveModal(modal);
+    setActiveSelectionModal(null);
+    setErrors([]);
+
+    // ✅ TRACKING — Intención de predicción (Lead)
+    if (typeof window !== 'undefined' && window.fbq) {
+      window.fbq('track', 'Lead');
+      window.fbq('trackCustom', 'IntentoPrediccion');
     }
-  };
+
+    fetch('/api/fb-track', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        event_name: 'IntentoPrediccion',
+        event_source_url: window.location.href,
+      }),
+    }).catch((err) => console.error('Error tracking IntentoPrediccion:', err));
+  }
+};
 
   const closeModal = () => {
     if (activeModal === 'share') {

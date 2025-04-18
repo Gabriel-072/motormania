@@ -6,6 +6,7 @@ import { dark } from '@clerk/themes';
 import Header from '@/components/Header';
 import MovingBar from '@/components/MovingBar';
 import PixelTracker from '@/components/PixelTracker'; // 👈 asegurado aquí
+import RegistrationTracker from '@/components/RegistrationTracker'; // 👈 tracking global
 
 const exo2 = Exo_2({ subsets: ["latin"] });
 
@@ -51,6 +52,7 @@ export default function RootLayout({
       <html lang="es-CO">
         <body className={exo2.className} suppressHydrationWarning>
           <PixelTracker /> {/* 👈 Meta Pixel Tracking aquí */}
+          <RegistrationTracker />
           <MovingBar />
           <Header />
           <main className="pt-20">{children}</main>
