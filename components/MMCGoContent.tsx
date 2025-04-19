@@ -399,18 +399,14 @@ export default function MMCGoPage() {
   };
 
   // Show loading animation until auth state is loaded
-  if (!isLoaded) {
-    return (
-      <>
-        <LoadingAnimation text="Cargando tus picks..." animationDuration={4} />
-      </>
-    );
+  if (!isLoaded || typeof isSignedIn !== 'boolean') {
+    return <LoadingAnimation text="Cargando tu sesión..." animationDuration={3} />;
   }
   
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-950 to-gray-900 text-white font-exo2">
-      <AuthRequiredModalWrapper show={!isSignedIn} />
+      {isLoaded && !isSignedIn && <AuthRequiredModalWrapper show />}
       <Header />
       {!isDataLoaded ? (
   <LoadingAnimation text="Cargando MMC-GO..." animationDuration={3} />
