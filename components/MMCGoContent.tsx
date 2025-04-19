@@ -202,7 +202,7 @@ export default function MMCGoContent() {
       // Este delay da tiempo a Clerk para terminar su sincronización
       const timeout = setTimeout(() => {
         setHydrated(true);
-      }, 100);
+      }, 500);
 
       return () => clearTimeout(timeout);
     }
