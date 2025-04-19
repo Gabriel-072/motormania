@@ -168,7 +168,7 @@ const soundManager = {
   rev: new Howl({ src: ['/sounds/f1-rev.mp3'], volume: 0.3 }),
 };
 
-export default function MMCGoPage() {
+export default function MMCGoContent() {
   const { getToken } = useAuth();
   const { isSignedIn, isLoaded } = useUser();
   const [isDataLoaded, setIsDataLoaded] = useState(false);
@@ -252,7 +252,7 @@ export default function MMCGoPage() {
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;
     console.log('Ejecutando fetchData con isLoaded:', isLoaded, 'isSignedIn:', isSignedIn);
-    const timer = setTimeout(() => fetchData(), 100); // Retraso de 100ms
+    const timer = setTimeout(() => fetchData(), 500); // Retraso de 500ms
     return () => clearTimeout(timer);
   }, [isLoaded, isSignedIn, isQualyView]);
 
@@ -382,7 +382,10 @@ export default function MMCGoPage() {
       {!isDataLoaded ? (
         <LoadingAnimation text="Cargando MMC-GO..." animationDuration={3} />
       ) : (
-        <main className="container mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-24">
+        <main
+          key={`main-${isDataLoaded}`} // Forzar re-renderizado
+          className="container mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-24"
+        >
           <div className="text-center mb-6">
             <h1 className="text-3xl font-bold">MMC-GO: Picks</h1>
             <p className="text-sm text-gray-300">Selecciona pilotos para tu PICK</p>
