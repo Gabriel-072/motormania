@@ -180,6 +180,7 @@ export default function MMCGoContent() {
   const [showRealtimeModal, setShowRealtimeModal] = useState(false);
   const [isQualyEnabled, setIsQualyEnabled] = useState(true);
   const [isRaceEnabled, setIsRaceEnabled] = useState(true);
+  const [forceRender, setForceRender] = useState(0); // Forzar re-renderizado
   const channelRef = useRef<any>(null);
   const hasPlayedRev = useRef(false);
 
@@ -255,6 +256,14 @@ export default function MMCGoContent() {
     const timer = setTimeout(() => fetchData(), 500); // Retraso de 500ms
     return () => clearTimeout(timer);
   }, [isLoaded, isSignedIn, isQualyView]);
+
+  // Forzar re-renderizado tras carga inicial
+  useEffect(() => {
+    if (isDataLoaded) {
+      setForceRender((prev) => prev + 1); // Incrementar para forzar renderizado
+      console.log('Forzando re-renderizado con forceRender:', forceRender + 1);
+    }
+  }, [isDataLoaded]);
 
   // Suscripción a cambios en tiempo real
   useEffect(() => {
@@ -335,8 +344,8 @@ export default function MMCGoContent() {
 
   // Depuración del estado de renderizado
   useEffect(() => {
-    console.log('Estado de renderizado:', { isLoaded, isSignedIn, isDataLoaded });
-  }, [isLoaded, isSignedIn, isDataLoaded]);
+    console.log('Estado de renderizado:', { isLoaded, isSignedIn, isDataLoaded, forceRender });
+  }, [isLoaded, isSignedIn, isDataLoaded, forceRender]);
 
   const getUserPick = (driver: string) => {
     return picks[currentSession].find((p) => p.driver === driver)?.betterOrWorse || null;
@@ -383,7 +392,7 @@ export default function MMCGoContent() {
         <LoadingAnimation text="Cargando MMC-GO..." animationDuration={3} />
       ) : (
         <main
-          key={`main-${isDataLoaded}`} // Forzar re-renderizado
+          key={`main-${forceRender}`} // Forzar re-renderizado
           className="container mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-24"
         >
           <div className="text-center mb-6">
