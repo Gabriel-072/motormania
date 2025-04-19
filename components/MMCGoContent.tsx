@@ -164,13 +164,14 @@ const driverBorderStyles: Record<string, { gradient: string; speed: string; dire
 };
 
 const soundManager = {
-  click: new Howl({ src: ['/sounds/f1-click.mp3'], volume: 0.2 }),
+  click: new Howl({ src: ['/sounds/f1-click.mp3'], volume: 0.4 }),
   rev: new Howl({ src: ['/sounds/f1-rev.mp3'], volume: 0.3 }),
 };
 
 export default function MMCGoContent() {
   const { getToken } = useAuth();
   const { isSignedIn, isLoaded } = useUser();
+  const [hydrated, setHydrated] = useState(false);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [driverLines, setDriverLines] = useState<Record<string, number>>({});
   const [currentGp, setCurrentGp] = useState<GpSchedule | null>(null);
@@ -194,6 +195,18 @@ export default function MMCGoContent() {
     setMultiplier,
     setPotentialWin,
   } = useStickyStore();
+
+  // Forzar re-render después de autenticación
+  useEffect(() => {
+    if (isLoaded) {
+      // Este delay da tiempo a Clerk para terminar su sincronización
+      const timeout = setTimeout(() => {
+        setHydrated(true);
+      }, 100);
+
+      return () => clearTimeout(timeout);
+    }
+  }, [isLoaded]);
 
   // Función para cargar datos
   const fetchData = async () => {
@@ -380,7 +393,7 @@ export default function MMCGoContent() {
   };
 
   // Mostrar animación de carga hasta que el estado de autenticación esté listo
-  if (!isLoaded) {
+  if (!hydrated || !isLoaded) {
     return <LoadingAnimation text="Cargando autenticación..." animationDuration={4} />;
   }
 

@@ -2,7 +2,7 @@
 'use client';
 
 import { Suspense } from 'react';
-import AuthRequiredModal from './AuthRequiredModal';
+import AuthRequiredModal from '@/components/AuthRequiredModal';
 
 export default function AuthRequiredModalWrapper({ show }: { show: boolean }) {
   return (
