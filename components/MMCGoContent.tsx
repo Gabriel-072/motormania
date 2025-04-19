@@ -363,22 +363,31 @@ export default function MMCGoContent() {
 
   {/* Lineas 366 a 477 */}
 
-  // Depuración del estado de renderizado
-  useEffect(() => {
+// Depuración del estado de renderizado
+useEffect(() => {
     console.log('Estado de renderizado:', { isLoaded, isSignedIn, isDataLoaded, forceRender });
   }, [isLoaded, isSignedIn, isDataLoaded, forceRender]);
-
+  
+  const [showAuthModal, setShowAuthModal] = useState(false); // 👈 nuevo estado local
+  
   const getUserPick = (driver: string) => {
     return picks[currentSession].find((p) => p.driver === driver)?.betterOrWorse || null;
   };
-
+  
   const handlePick = (driver: string, betterOrWorse: 'mejor' | 'peor') => {
     if (!currentGp) return;
+  
+    // Mostrar modal si no está autenticado
+    if (!isSignedIn) {
+      setShowAuthModal(true);
+      return;
+    }
+  
     soundManager.click.play();
-
+  
     const line = driverLines[driver] ?? 10.5;
     const team = driverToTeam[driver] || 'Default';
-
+  
     const newPick: PickSelection = {
       driver,
       team,
@@ -387,43 +396,43 @@ export default function MMCGoContent() {
       gp_name: currentGp.gp_name,
       session_type: currentSession,
     };
-
+  
     const success = addPick(newPick);
     if (!success) {
       alert('Máximo 8 picks combinados entre Qualy y Carrera.');
       return;
     }
   };
-
+  
   const handleReset = (driver: string) => {
     soundManager.click.play();
     removePick(driver, currentSession);
   };
-
+  
   // Mostrar animación de carga hasta que el estado de autenticación esté listo
   if (!hydrated || !isLoaded) {
     return <LoadingAnimation text="Cargando autenticación..." animationDuration={4} />;
   }
-
+  
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-950 to-gray-900 text-white font-exo2">
       <Suspense fallback={<LoadingAnimation text="Sincronizando sesión..." animationDuration={2} />}>
-      <AuthRequiredModalWrapper show={!isSignedIn} />
+        <AuthRequiredModalWrapper show={showAuthModal} />
       </Suspense>
-
+  
       <Header />
       {!isDataLoaded ? (
         <LoadingAnimation text="Cargando MMC-GO..." animationDuration={3} />
       ) : (
         <main
-          key={`main-${forceRender}`} // Forzar re-renderizado
+          key={`main-${forceRender}`}
           className="container mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-24"
         >
           <div className="text-center mb-6">
             <h1 className="text-3xl font-bold">MMC-GO: Picks</h1>
             <p className="text-sm text-gray-300">Selecciona pilotos para tu PICK</p>
           </div>
-
+  
           {errors.length > 0 && (
             <div className="text-red-400 text-center mb-4">
               {errors.map((err, i) => (
@@ -431,13 +440,13 @@ export default function MMCGoContent() {
               ))}
             </div>
           )}
-
+  
           {picks.qualy.length + picks.race.length === 1 && (
             <div className="text-center text-sm text-amber-400 mb-4">
               Selecciona 1 pick más para activar tu jugada.
             </div>
           )}
-
+  
           <div className="flex justify-center gap-4 mb-6">
             {isQualyEnabled ? (
               <button
@@ -454,7 +463,7 @@ export default function MMCGoContent() {
                 Qualy (Desactivado)
               </span>
             )}
-
+  
             {isRaceEnabled ? (
               <button
                 onClick={() => {
@@ -474,8 +483,8 @@ export default function MMCGoContent() {
 
 {/* Lineas 477 a 570 */}
 
-          {/* Card Section with Gradient Container */}
-          <div className="bg-gradient-to-br from-gray-900 to-black p-4 sm:p-6 rounded-xl shadow-lg">
+                    {/* Card Section with Gradient Container */}
+                    <div className="bg-gradient-to-br from-gray-900 to-black p-4 sm:p-6 rounded-xl shadow-lg">
             <section className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-4">
               {staticDrivers.map((driver) => {
                 const image = `/images/pilots/${driver.toLowerCase().replace(/ /g, '-')}.png`;

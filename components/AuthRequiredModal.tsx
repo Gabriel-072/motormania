@@ -3,20 +3,25 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function AuthRequiredModal({ show }: { show: boolean }) {
   const searchParams = useSearchParams();
   const [isChecked, setIsChecked] = useState(false);
   const [redirectUrl, setRedirectUrl] = useState('/mmc-go');
 
-  // useMemo para evitar re-render innecesario
   useEffect(() => {
     if (searchParams) {
       const raw = searchParams.toString();
       setRedirectUrl(raw ? `/mmc-go?${raw}` : '/mmc-go');
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    if (show) {
+      console.log('🟢 Modal de autenticación renderizado');
+    }
+  }, [show]);
 
   if (!show) return null;
 
