@@ -1,5 +1,3 @@
-{/* Lineas 1 a 168 */}
-
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
