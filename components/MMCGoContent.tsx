@@ -240,16 +240,20 @@ export default function MMCGoPage() {
       });
       setDriverLines(map);
       setIsDataLoaded(true);
+      console.log('Datos cargados:', { configData, current, driverLines: map });
     } catch (err) {
       setErrors([(err as Error).message]);
       setIsDataLoaded(true);
+      console.error('Error en fetchData:', err);
     }
   };
 
-  // Cargar datos cuando la autenticación esté lista
+  // Cargar datos con retraso para esperar sincronización de Clerk
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;
-    fetchData();
+    console.log('Ejecutando fetchData con isLoaded:', isLoaded, 'isSignedIn:', isSignedIn);
+    const timer = setTimeout(() => fetchData(), 100); // Retraso de 100ms
+    return () => clearTimeout(timer);
   }, [isLoaded, isSignedIn, isQualyView]);
 
   // Suscripción a cambios en tiempo real
@@ -325,8 +329,14 @@ export default function MMCGoPage() {
     if (isDataLoaded && !hasPlayedRev.current) {
       soundManager.rev.play();
       hasPlayedRev.current = true;
+      console.log('Sonido rev reproducido');
     }
   }, [isDataLoaded]);
+
+  // Depuración del estado de renderizado
+  useEffect(() => {
+    console.log('Estado de renderizado:', { isLoaded, isSignedIn, isDataLoaded });
+  }, [isLoaded, isSignedIn, isDataLoaded]);
 
   const getUserPick = (driver: string) => {
     return picks[currentSession].find((p) => p.driver === driver)?.betterOrWorse || null;
