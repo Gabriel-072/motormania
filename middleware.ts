@@ -1,7 +1,16 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 
-const isPublicRoute = createRouteMatcher(['/', '/sign-in(.*)', '/api/webhooks(.*)']);
+const isPublicRoute = createRouteMatcher([
+  '/',
+  '/sign-in(.*)',
+  '/sign-up(.*)',
+  '/mmc-go(.*)',              // 👈 Añade tu ruta especial
+  '/api/webhooks(.*)',
+  '/f1-fantasy-panel(.*)',    // (opcional: otras rutas que no quieras proteger)
+  '/jugar-y-gana(.*)',
+]);
+
 const isProtectedRoute = createRouteMatcher(['/dashboard(.*)', '/api/entries(.*)']);
 
 export default clerkMiddleware(async (auth, req) => {
