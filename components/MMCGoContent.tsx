@@ -194,93 +194,67 @@ export default function MMCGoPage() {
     setPotentialWin,
   } = useStickyStore();
 
-  // Fetch inicial del estado de picks_config
-  useEffect(() => {
-    if (!isSignedIn || !isLoaded) return;
-
-    const fetchStatus = async () => {
-      try {
-        let token = await getToken({ template: 'supabase' });
-        if (!token) {
-          // Retry after a short delay if token is not available
-          await new Promise((resolve) => setTimeout(resolve, 500));
-          token = await getToken({ template: 'supabase' });
-          if (!token) throw new Error('Token no encontrado');
-        }
-        const supabase = createAuthClient(token);
-
-        const { data, error } = await supabase
-          .from('picks_config')
-          .select('is_qualy_enabled, is_race_enabled')
-          .eq('id', 'main')
-          .single();
-
-        if (error) throw error;
-
-        setIsQualyEnabled(data.is_qualy_enabled);
-        setIsRaceEnabled(data.is_race_enabled);
-      } catch (err) {
-        console.error('❌ Error al obtener estado de picks_config:', err);
-        setErrors(['No se pudo cargar la configuración inicial']);
+  // Función para cargar datos
+  const fetchData = async () => {
+    try {
+      let token = await getToken({ template: 'supabase' });
+      if (!token) {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        token = await getToken({ template: 'supabase' });
+        if (!token) throw new Error('Token no encontrado');
       }
-    };
+      const supabase = createAuthClient(token);
 
-    fetchStatus();
-  }, [getToken, isSignedIn, isLoaded]);
+      // Cargar configuración de picks
+      const { data: configData, error: configError } = await supabase
+        .from('picks_config')
+        .select('is_qualy_enabled, is_race_enabled')
+        .eq('id', 'main')
+        .single();
+      if (configError) throw configError;
+      setIsQualyEnabled(configData.is_qualy_enabled);
+      setIsRaceEnabled(configData.is_race_enabled);
 
-  // Fetch de datos iniciales (líneas y GP)
+      // Cargar GP y líneas
+      const { data: scheduleData, error: scheduleError } = await supabase
+        .from('gp_schedule')
+        .select('*')
+        .order('race_time');
+      if (scheduleError) throw new Error(scheduleError.message);
+
+      const now = new Date();
+      const current = scheduleData?.find((gp: GpSchedule) => new Date(gp.race_time) > now);
+      if (!current) return;
+      setCurrentGp(current);
+
+      const { data: linesData, error: linesError } = await supabase
+        .from('lines')
+        .select('driver, line')
+        .eq('gp_name', current.gp_name)
+        .eq('session_type', isQualyView ? 'qualy' : 'race');
+      if (linesError) throw new Error(linesError.message);
+
+      const map: Record<string, number> = {};
+      linesData?.forEach(({ driver, line }) => {
+        map[driver] = line;
+      });
+      setDriverLines(map);
+      setIsDataLoaded(true);
+    } catch (err) {
+      setErrors([(err as Error).message]);
+      setIsDataLoaded(true);
+    }
+  };
+
+  // Cargar datos cuando la autenticación esté lista
   useEffect(() => {
-    if (!isSignedIn || !isLoaded) return;
-
-    const fetchData = async () => {
-      try {
-        let token = await getToken({ template: 'supabase' });
-        if (!token) {
-          // Retry after a short delay if token is not available
-          await new Promise((resolve) => setTimeout(resolve, 500));
-          token = await getToken({ template: 'supabase' });
-          if (!token) throw new Error('Token no encontrado');
-        }
-        const supabase = createAuthClient(token);
-
-        const { data: scheduleData, error: scheduleError } = await supabase
-          .from('gp_schedule')
-          .select('*')
-          .order('race_time');
-
-        if (scheduleError) throw new Error(scheduleError.message);
-
-        const now = new Date();
-        const current = scheduleData?.find((gp: GpSchedule) => new Date(gp.race_time) > now);
-        if (!current) return;
-        setCurrentGp(current);
-
-        const { data: linesData, error: linesError } = await supabase
-          .from('lines')
-          .select('driver, line')
-          .eq('gp_name', current.gp_name)
-          .eq('session_type', isQualyView ? 'qualy' : 'race');
-
-        if (linesError) throw new Error(linesError.message);
-
-        const map: Record<string, number> = {};
-        linesData?.forEach(({ driver, line }) => {
-          map[driver] = line;
-        });
-        setDriverLines(map);
-        setIsDataLoaded(true);
-      } catch (err) {
-        setErrors([(err as Error).message]);
-        setIsDataLoaded(true);
-      }
-    };
-
+    if (!isLoaded || !isSignedIn) return;
     fetchData();
-  }, [getToken, isQualyView, isSignedIn, isLoaded]);
+  }, [isLoaded, isSignedIn, isQualyView]);
 
   // Suscripción a cambios en tiempo real
   useEffect(() => {
-    if (!isSignedIn || !isLoaded) return;
+    if (!isLoaded || !isSignedIn) return;
 
     let mounted = true;
 
@@ -288,15 +262,12 @@ export default function MMCGoPage() {
       try {
         let token = await getToken({ template: 'supabase' });
         if (!token) {
-          // Retry after a short delay if token is not available
           await new Promise((resolve) => setTimeout(resolve, 500));
           token = await getToken({ template: 'supabase' });
           if (!token) throw new Error('Token no encontrado');
         }
-        console.log('Supabase Token:', token);
         const supabase = createAuthClient(token);
 
-        console.log('Iniciando suscripción a Realtime');
         const channel = supabase
           .channel('realtime-picks-config')
           .on(
@@ -309,7 +280,6 @@ export default function MMCGoPage() {
             },
             (payload) => {
               if (!mounted) return;
-              console.log('⚡ Payload recibido:', JSON.stringify(payload, null, 2));
               const updated = payload.new as PicksConfig;
               setIsQualyEnabled(updated.is_qualy_enabled);
               setIsRaceEnabled(updated.is_race_enabled);
@@ -317,14 +287,7 @@ export default function MMCGoPage() {
               toast.success('⚡ Picks actualizados sin recargar');
             }
           )
-          .subscribe((status) => {
-            console.log('📡 Estado del canal:', status);
-            if (status === 'SUBSCRIBED') {
-              console.log('📡 Suscrito a picks_config en tiempo real');
-            } else if (status === 'CLOSED') {
-              console.log('📡 Canal cerrado');
-            }
-          });
+          .subscribe();
 
         channelRef.current = channel;
       } catch (err) {
@@ -338,10 +301,9 @@ export default function MMCGoPage() {
       mounted = false;
       if (channelRef.current) {
         channelRef.current.unsubscribe();
-        console.log('📡 Canal de suscripción cerrado');
       }
     };
-  }, [getToken, isSignedIn, isLoaded]);
+  }, [isLoaded, isSignedIn]);
 
   // Actualización de estado del sticky modal
   useEffect(() => {
@@ -398,19 +360,18 @@ export default function MMCGoPage() {
     removePick(driver, currentSession);
   };
 
-  // Show loading animation until auth state is loaded
-  if (!isLoaded || typeof isSignedIn !== 'boolean') {
-    return <LoadingAnimation text="Cargando tu sesión..." animationDuration={3} />;
+  // Mostrar animación de carga hasta que el estado de autenticación esté listo
+  if (!isLoaded) {
+    return <LoadingAnimation text="Cargando autenticación..." animationDuration={4} />;
   }
-  
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-950 to-gray-900 text-white font-exo2">
-      {isLoaded && !isSignedIn && <AuthRequiredModalWrapper show />}
+      <AuthRequiredModalWrapper show={!isSignedIn} />
       <Header />
       {!isDataLoaded ? (
-  <LoadingAnimation text="Cargando MMC-GO..." animationDuration={3} />
-) : (
+        <LoadingAnimation text="Cargando MMC-GO..." animationDuration={3} />
+      ) : (
         <main className="container mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-24">
           <div className="text-center mb-6">
             <h1 className="text-3xl font-bold">MMC-GO: Picks</h1>
