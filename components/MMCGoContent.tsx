@@ -200,6 +200,12 @@ export default function MMCGoContent() {
     setPotentialWin,
   } = useStickyStore();
 
+  {errors.length > 0 && (
+    <div className="text-red-500 text-center mt-4">
+      {errors.map((err, i) => <p key={i}>{err}</p>)}
+    </div>
+  )}
+
   // Forzar re-render después de autenticación
   useEffect(() => {
     if (isLoaded) {
@@ -215,6 +221,7 @@ export default function MMCGoContent() {
   // Función para cargar datos
   const fetchData = async () => {
     try {
+      console.log('🟡 fetchData iniciado...');
       let token = await getToken({ template: 'supabase' });
       if (!token) {
         await new Promise((resolve) => setTimeout(resolve, 500));
@@ -222,7 +229,7 @@ export default function MMCGoContent() {
         if (!token) throw new Error('Token no encontrado');
       }
       const supabase = createAuthClient(token);
-
+  
       // Cargar configuración de picks
       const { data: configData, error: configError } = await supabase
         .from('picks_config')
@@ -232,37 +239,43 @@ export default function MMCGoContent() {
       if (configError) throw configError;
       setIsQualyEnabled(configData.is_qualy_enabled);
       setIsRaceEnabled(configData.is_race_enabled);
-
+  
       // Cargar GP y líneas
       const { data: scheduleData, error: scheduleError } = await supabase
         .from('gp_schedule')
         .select('*')
         .order('race_time');
       if (scheduleError) throw new Error(scheduleError.message);
-
+  
       const now = new Date();
       const current = scheduleData?.find((gp: GpSchedule) => new Date(gp.race_time) > now);
-      if (!current) return;
+      if (!current) throw new Error('No se encontró un GP válido');
       setCurrentGp(current);
-
+  
       const { data: linesData, error: linesError } = await supabase
         .from('lines')
         .select('driver, line')
         .eq('gp_name', current.gp_name)
         .eq('session_type', isQualyView ? 'qualy' : 'race');
       if (linesError) throw new Error(linesError.message);
-
+  
       const map: Record<string, number> = {};
       linesData?.forEach(({ driver, line }) => {
         map[driver] = line;
       });
       setDriverLines(map);
+  
+      console.log('🎯 Datos cargados exitosamente:', {
+        configData,
+        currentGp: current.gp_name,
+        lines: map,
+      });
+  
       setIsDataLoaded(true);
-      console.log('Datos cargados:', { configData, current, driverLines: map });
-    } catch (err) {
-      setErrors([(err as Error).message]);
-      setIsDataLoaded(true);
-      console.error('Error en fetchData:', err);
+    } catch (err: any) {
+      console.error('❌ Error en fetchData:', err);
+      setErrors([err.message || 'Error inesperado']);
+      setIsDataLoaded(true); // ← aseguramos que no se quede cargando
     }
   };
 
