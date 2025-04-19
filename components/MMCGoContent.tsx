@@ -401,20 +401,20 @@ export default function MMCGoPage() {
   // Show loading animation until auth state is loaded
   if (!isLoaded) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-gray-950 to-gray-900 text-white font-exo2">
-        <Header />
-        <LoadingAnimation animationDuration={3} />
-      </div>
+      <>
+        <LoadingAnimation text="Cargando tus picks..." animationDuration={4} />
+      </>
     );
   }
+  
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-950 to-gray-900 text-white font-exo2">
       <AuthRequiredModalWrapper show={!isSignedIn} />
       <Header />
       {!isDataLoaded ? (
-        <LoadingAnimation animationDuration={3} />
-      ) : (
+  <LoadingAnimation text="Cargando MMC-GO..." animationDuration={3} />
+) : (
         <main className="container mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-24">
           <div className="text-center mb-6">
             <h1 className="text-3xl font-bold">MMC-GO: Picks</h1>
