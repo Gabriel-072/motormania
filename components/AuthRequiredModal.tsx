@@ -3,12 +3,20 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 
 export default function AuthRequiredModal({ show }: { show: boolean }) {
   const searchParams = useSearchParams();
-  const redirectUrl = searchParams.size > 0 ? `/mmc-go?${searchParams.toString()}` : '/mmc-go';
   const [isChecked, setIsChecked] = useState(false);
+  const [redirectUrl, setRedirectUrl] = useState('/mmc-go');
+
+  // useMemo para evitar re-render innecesario
+  useEffect(() => {
+    if (searchParams) {
+      const raw = searchParams.toString();
+      setRedirectUrl(raw ? `/mmc-go?${raw}` : '/mmc-go');
+    }
+  }, [searchParams]);
 
   if (!show) return null;
 

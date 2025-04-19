@@ -1,3 +1,5 @@
+{/* Lineas 1 a 168 */}
+
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -165,6 +167,8 @@ const driverBorderStyles: Record<string, { gradient: string; speed: string; dire
   },
 };
 
+{/* Lineas 170 a 270 */}
+
 const soundManager = {
   click: new Howl({ src: ['/sounds/f1-click.mp3'], volume: 0.4 }),
   rev: new Howl({ src: ['/sounds/f1-rev.mp3'], volume: 0.3 }),
@@ -264,6 +268,8 @@ export default function MMCGoContent() {
     }
   };
 
+{/* Lineas 270 a 366 */}
+
   // Cargar datos con retraso para esperar sincronización de Clerk
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;
@@ -356,6 +362,8 @@ export default function MMCGoContent() {
       console.log('Sonido rev reproducido');
     }
   }, [isDataLoaded]);
+
+  {/* Lineas 366 a 477 */}
 
   // Depuración del estado de renderizado
   useEffect(() => {
@@ -465,6 +473,8 @@ export default function MMCGoContent() {
               </span>
             )}
           </div>
+
+{/* Lineas 477 a 570 */}
 
           {/* Card Section with Gradient Container */}
           <div className="bg-gradient-to-br from-gray-900 to-black p-4 sm:p-6 rounded-xl shadow-lg">
