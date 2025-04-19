@@ -12,6 +12,7 @@ import Header from '@/components/Header';
 import LoadingAnimation from '@/components/LoadingAnimation';
 import Standings from '@/components/Standings';
 import { Howl } from 'howler';
+import { Suspense } from 'react';
 import { DriverStanding, ConstructorStanding, RookieStanding, DestructorStanding, Team } from '@/app/types/standings';
 
 // SECTION: Type Definitions

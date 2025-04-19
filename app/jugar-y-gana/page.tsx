@@ -1,7 +1,7 @@
 'use client';
 
 import { useUser } from '@clerk/nextjs';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import FantasyPageContent from '@/components/FantasyPageContent';
 import FantasyAuthRequiredModalWrapper from '@/components/FantasyAuthRequiredModalWrapper';
 import LoadingAnimation from '@/components/LoadingAnimation';
@@ -16,11 +16,17 @@ export default function JugarYGanaPage() {
     }
   }, [isLoaded, isSignedIn]);
 
-  if (!isLoaded) return <LoadingAnimation animationDuration={2} />;
+  if (!isLoaded) return <LoadingAnimation animationDuration={2} text="Cargando cuenta..." />;
 
   return (
     <>
-      {isSignedIn ? <FantasyPageContent /> : <FantasyAuthRequiredModalWrapper show={showModal} />}
+      <Suspense fallback={<LoadingAnimation animationDuration={2} text="Sincronizando sesión..." />}>
+        {isSignedIn ? (
+          <FantasyPageContent />
+        ) : (
+          <FantasyAuthRequiredModalWrapper show={showModal} />
+        )}
+      </Suspense>
     </>
   );
 }
