@@ -16,6 +16,7 @@ import AuthRequiredModal from '@/components/AuthRequiredModal';
 import { toast } from 'sonner';
 import { Dialog } from '@headlessui/react';
 import AuthRequiredModalWrapper from '@/components/AuthRequiredModalWrapper';
+import SuspenseWrapper from '@/components/SuspenseWrapper';
 import { useSearchParams } from 'next/navigation';
 
 // TYPES
@@ -399,7 +400,9 @@ export default function MMCGoContent() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-950 to-gray-900 text-white font-exo2">
-      <AuthRequiredModalWrapper show={!isSignedIn} />
+      <SuspenseWrapper fallback={null}>
+  <AuthRequiredModalWrapper show={!isSignedIn} />
+</SuspenseWrapper>
       <Header />
       {!isDataLoaded ? (
         <LoadingAnimation text="Cargando MMC-GO..." animationDuration={3} />
