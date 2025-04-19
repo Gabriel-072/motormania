@@ -37,7 +37,9 @@ export async function POST(req: NextRequest) {
   const referer = req.headers.get('referer') || '';
   const allowedDomains = [
     'https://www.motormaniacolombia.com',
-    'https://motormaniacolombia.com'
+    'https://motormaniacolombia.com',
+    'http://localhost:3000',
+    'https://mmc.ngrok.app'
   ];
 
   if (!allowedDomains.some(domain => referer.startsWith(domain))) {
