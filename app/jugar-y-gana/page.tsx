@@ -1,3 +1,4 @@
+// app/jugar-y-gana/page.tsx
 'use client';
 
 import { useUser } from '@clerk/nextjs';
@@ -12,7 +13,6 @@ export default function JugarYGanaPage() {
   const router = useRouter();
   const [showSignInModal, setShowSignInModal] = useState(false);
 
-  // Show loading animation while user data is being fetched
   if (!isLoaded) return <LoadingAnimation animationDuration={2} text="Cargando cuenta..." />;
 
   const handleSignIn = () => {
@@ -23,7 +23,6 @@ export default function JugarYGanaPage() {
     setShowSignInModal(false);
   };
 
-  // Expose a function to trigger the modal from child components
   const triggerSignInModal = () => {
     setShowSignInModal(true);
   };

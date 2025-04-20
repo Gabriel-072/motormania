@@ -38,10 +38,10 @@ export default function SignInModal({ onClose }: SignInModalProps) {
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="text-xl font-bold text-white mb-4 font-exo2 text-center">
-          Inicia sesión para continuar
+          Inicia sesión en MMC Fantasy
         </h2>
         <p className="text-gray-300 text-center mb-6 font-exo2">
-          Debes iniciar sesión para enviar tus predicciones en Jugar y Gana.
+          Debes iniciar sesión para enviar tus predicciones en MMC Fantasy.
         </p>
         <div className="flex flex-col sm:flex-row justify-center gap-4">
           <button

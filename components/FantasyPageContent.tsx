@@ -216,18 +216,23 @@ export default function JugarYGana({ triggerSignInModal }: JugarYGanaProps) {
     }
   }, [isLoaded]);
 
-  // SECTION: Fetch Data Function
-  const fetchData = useCallback(async () => {
+ // SECTION: Fetch Data Function
+ const fetchData = useCallback(async () => {
     const startTime = performance.now();
     const fetchErrors: string[] = [];
     const minDuration = 3000; // Minimum 3 seconds for loading animation
 
     try {
-      let token = await getToken({ template: 'supabase' });
-      if (!token) {
-        await new Promise((resolve) => setTimeout(resolve, 500));
+      let token: string | null = null;
+      if (isSignedIn) {
         token = await getToken({ template: 'supabase' });
-        if (!token) throw new Error('No se pudo obtener el token de autenticación.');
+        if (!token) {
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          token = await getToken({ template: 'supabase' });
+          if (!token) {
+            fetchErrors.push('No se pudo obtener el token de autenticación para usuario autenticado.');
+          }
+        }
       }
       const supabase = createAuthClient(token);
 
@@ -438,17 +443,24 @@ export default function JugarYGana({ triggerSignInModal }: JugarYGanaProps) {
     };
   }, [activeModal, activeSelectionModal]);
 
+
   // SECTION: Event Handlers
   const handleSelect = (position: keyof Prediction, value: string) => {
     const qualyPreds = [predictions.pole1, predictions.pole2, predictions.pole3];
     const racePreds = [predictions.gp1, predictions.gp2, predictions.gp3];
-    if (position.startsWith('pole') && qualyPreds.includes(value) && qualyPreds.indexOf(value) !== ['pole1', 'pole2', 'pole3'].indexOf(position)) {
-      setErrors([`Ya has seleccionado a ${value} para otra posición de QUAL
-
-Y.`]);
+    if (
+      position.startsWith('pole') &&
+      qualyPreds.includes(value) &&
+      qualyPreds.indexOf(value) !== ['pole1', 'pole2', 'pole3'].indexOf(position)
+    ) {
+      setErrors([`Ya has seleccionado a ${value} para otra posición de QUALY.`]);
       return;
     }
-    if (position.startsWith('gp') && racePreds.includes(value) && racePreds.indexOf(value) !== ['gp1', 'gp2', 'gp3'].indexOf(position)) {
+    if (
+      position.startsWith('gp') &&
+      racePreds.includes(value) &&
+      racePreds.indexOf(value) !== ['gp1', 'gp2', 'gp3'].indexOf(position)
+    ) {
       setErrors([`Ya has seleccionado a ${value} para otra posición de RACE.`]);
       return;
     }
@@ -554,10 +566,17 @@ Y.`]);
       setSubmitted(true);
       setSubmittedPredictions(allowedPredictions as Prediction);
       setPredictions({
-        pole1: '', pole2: '', pole3: '',
-        gp1: '', gp2: '', gp3: '',
-        fastest_pit_stop_team: '', fastest_lap_driver: '', driver_of_the_day: '',
-        first_team_to_pit: '', first_retirement: '',
+        pole1: '',
+        pole2: '',
+        pole3: '',
+        gp1: '',
+        gp2: '',
+        gp3: '',
+        fastest_pit_stop_team: '',
+        fastest_lap_driver: '',
+        driver_of_the_day: '',
+        first_team_to_pit: '',
+        first_retirement: '',
       });
       setActiveModal('share');
       soundManager.submit.play();

@@ -13,7 +13,7 @@ const StickyModal: React.FC<StickyModalProps> = ({ onFinish }) => {
   const combinedPicks = [...picks.qualy, ...picks.race];
   const totalPicks = combinedPicks.length;
   const isValid = totalPicks >= 2;
-  const wager = 10000;
+  const wager = 20000;
 
   const qualyCount = picks.qualy.length;
   const raceCount = picks.race.length;
@@ -34,7 +34,7 @@ const StickyModal: React.FC<StickyModalProps> = ({ onFinish }) => {
             <strong className="text-cyan-400">Multiplicador:</strong> {multiplier}X
           </span>
           <span>
-            <strong className="text-green-400">Ganancia Potencial:</strong> ${potentialWin.toLocaleString('es-CO')} COP
+            <strong className="text-green-400">Ganancia Potencial:</strong> ${potentialWin.toLocaleString('es-CO')} $MCOP
           </span>
           <span>
             <strong className="text-amber-400">Picks:</strong> {combinedPicks.length} &nbsp;
@@ -43,7 +43,7 @@ const StickyModal: React.FC<StickyModalProps> = ({ onFinish }) => {
           </span>
           {multiplier > 0 && (
             <span className="text-lime-400 font-bold">
-              ${wager.toLocaleString('es-CO')} gana ${(wager * multiplier).toLocaleString('es-CO')} COP
+              ${wager.toLocaleString('es-CO')} gana ${(wager * multiplier).toLocaleString('es-CO')} $MCOP
             </span>
           )}
         </div>
