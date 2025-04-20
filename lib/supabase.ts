@@ -1,13 +1,19 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from '@supabase/supabase-js';
 
+// Public Supabase client (for general use, no token required)
 export const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-export const createAuthClient = (jwt: string) =>
+// Authenticated Supabase client (supports both authenticated and unauthenticated access)
+export const createAuthClient = (jwt: string | null) =>
   createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { global: { headers: { Authorization: `Bearer ${jwt}` } } }
+    {
+      global: {
+        headers: jwt ? { Authorization: `Bearer ${jwt}` } : {},
+      },
+    }
   );

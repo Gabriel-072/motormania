@@ -12,13 +12,9 @@ import { createAuthClient } from '@/lib/supabase';
 import { useStickyStore } from '@/stores/stickyStore';
 import { Howl } from 'howler';
 import { PickSelection } from '@/app/types/picks';
-import AuthRequiredModal from '@/components/AuthRequiredModal';
 import { toast } from 'sonner';
 import { Dialog } from '@headlessui/react';
-import AuthRequiredModalWrapper from '@/components/AuthRequiredModalWrapper';
-import SuspenseWrapper from '@/components/SuspenseWrapper';
-import { Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 
 // TYPES
 type SessionType = 'qualy' | 'race';
@@ -165,8 +161,6 @@ const driverBorderStyles: Record<string, { gradient: string; speed: string; dire
   },
 };
 
-{/* Lineas 170 a 270 */}
-
 const soundManager = {
   click: new Howl({ src: ['/sounds/f1-click.mp3'], volume: 0.4 }),
   rev: new Howl({ src: ['/sounds/f1-rev.mp3'], volume: 0.3 }),
@@ -175,7 +169,7 @@ const soundManager = {
 export default function MMCGoContent() {
   const { getToken } = useAuth();
   const { isSignedIn, isLoaded } = useUser();
-  const [hydrated, setHydrated] = useState(false);
+  const router = useRouter();
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [driverLines, setDriverLines] = useState<Record<string, number>>({});
   const [currentGp, setCurrentGp] = useState<GpSchedule | null>(null);
@@ -183,9 +177,9 @@ export default function MMCGoContent() {
   const [isQualyView, setIsQualyView] = useState(true);
   const [showFullModal, setShowFullModal] = useState(false);
   const [showRealtimeModal, setShowRealtimeModal] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const [isQualyEnabled, setIsQualyEnabled] = useState(true);
   const [isRaceEnabled, setIsRaceEnabled] = useState(true);
-  const [forceRender, setForceRender] = useState(0); // Forzar re-renderizado
   const channelRef = useRef<any>(null);
   const hasPlayedRev = useRef(false);
 
@@ -200,37 +194,38 @@ export default function MMCGoContent() {
     setPotentialWin,
   } = useStickyStore();
 
-  {errors.length > 0 && (
-    <div className="text-red-500 text-center mt-4">
-      {errors.map((err, i) => <p key={i}>{err}</p>)}
-    </div>
-  )}
-
-  // Forzar re-render después de autenticación
+  // Restore picks from localStorage after login
   useEffect(() => {
-    if (isLoaded) {
-      // Este delay da tiempo a Clerk para terminar su sincronización
-      const timeout = setTimeout(() => {
-        setHydrated(true);
-      }, 500);
-
-      return () => clearTimeout(timeout);
+    if (isSignedIn) {
+      const savedPicks = localStorage.getItem('pendingPicks');
+      if (savedPicks) {
+        try {
+          const restoredPicks = JSON.parse(savedPicks);
+          useStickyStore.setState({ picks: restoredPicks });
+          setShowFullModal(true);
+          localStorage.removeItem('pendingPicks'); // Clear after restoration
+        } catch (error) {
+          console.error('Error restoring picks:', error);
+          localStorage.removeItem('pendingPicks'); // Clear on error to prevent stale data
+        }
+      }
     }
-  }, [isLoaded]);
+  }, [isSignedIn]);
 
-  // Función para cargar datos
   const fetchData = async () => {
     try {
       console.log('🟡 fetchData iniciado...');
-      let token = await getToken({ template: 'supabase' });
-      if (!token) {
-        await new Promise((resolve) => setTimeout(resolve, 500));
+      let token: string | null = null;
+      if (isSignedIn) {
         token = await getToken({ template: 'supabase' });
-        if (!token) throw new Error('Token no encontrado');
+        if (!token) {
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          token = await getToken({ template: 'supabase' });
+          if (!token) throw new Error('Token no encontrado');
+        }
       }
       const supabase = createAuthClient(token);
-  
-      // Cargar configuración de picks
+
       const { data: configData, error: configError } = await supabase
         .from('picks_config')
         .select('is_qualy_enabled, is_race_enabled')
@@ -239,65 +234,51 @@ export default function MMCGoContent() {
       if (configError) throw configError;
       setIsQualyEnabled(configData.is_qualy_enabled);
       setIsRaceEnabled(configData.is_race_enabled);
-  
-      // Cargar GP y líneas
+
       const { data: scheduleData, error: scheduleError } = await supabase
         .from('gp_schedule')
         .select('*')
         .order('race_time');
       if (scheduleError) throw new Error(scheduleError.message);
-  
+
       const now = new Date();
       const current = scheduleData?.find((gp: GpSchedule) => new Date(gp.race_time) > now);
       if (!current) throw new Error('No se encontró un GP válido');
       setCurrentGp(current);
-  
+
       const { data: linesData, error: linesError } = await supabase
         .from('lines')
         .select('driver, line')
         .eq('gp_name', current.gp_name)
         .eq('session_type', isQualyView ? 'qualy' : 'race');
       if (linesError) throw new Error(linesError.message);
-  
+
       const map: Record<string, number> = {};
       linesData?.forEach(({ driver, line }) => {
         map[driver] = line;
       });
       setDriverLines(map);
-  
+
       console.log('🎯 Datos cargados exitosamente:', {
         configData,
         currentGp: current.gp_name,
         lines: map,
       });
-  
+
       setIsDataLoaded(true);
     } catch (err: any) {
       console.error('❌ Error en fetchData:', err);
       setErrors([err.message || 'Error inesperado']);
-      setIsDataLoaded(true); // ← aseguramos que no se quede cargando
+      setIsDataLoaded(true);
     }
   };
 
-{/* Lineas 270 a 366 */}
-
-  // Cargar datos con retraso para esperar sincronización de Clerk
   useEffect(() => {
-    if (!isLoaded || !isSignedIn) return;
-    console.log('Ejecutando fetchData con isLoaded:', isLoaded, 'isSignedIn:', isSignedIn);
-    const timer = setTimeout(() => fetchData(), 500); // Retraso de 500ms
+    if (!isLoaded) return;
+    const timer = setTimeout(() => fetchData(), 500);
     return () => clearTimeout(timer);
-  }, [isLoaded, isSignedIn, isQualyView]);
+  }, [isLoaded, isQualyView]);
 
-  // Forzar re-renderizado tras carga inicial
-  useEffect(() => {
-    if (isDataLoaded) {
-      setForceRender((prev) => prev + 1); // Incrementar para forzar renderizado
-      console.log('Forzando re-renderizado con forceRender:', forceRender + 1);
-    }
-  }, [isDataLoaded]);
-
-  // Suscripción a cambios en tiempo real
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;
 
@@ -350,13 +331,11 @@ export default function MMCGoContent() {
     };
   }, [isLoaded, isSignedIn]);
 
-  // Actualización de estado del sticky modal
   useEffect(() => {
     const totalPicks = picks.qualy.length + picks.race.length;
     setShowSticky(totalPicks >= 2);
   }, [picks.qualy, picks.race, setShowSticky]);
 
-  // Cálculo del multiplicador y ganancia potencial
   useEffect(() => {
     const totalPicks = picks.qualy.length + picks.race.length;
     const payoutCombos: Record<number, number> = { 2: 3, 3: 6, 4: 10, 5: 20, 6: 35, 7: 60, 8: 100 };
@@ -365,7 +344,6 @@ export default function MMCGoContent() {
     setPotentialWin(multiplier * 10000);
   }, [picks.qualy, picks.race, setMultiplier, setPotentialWin]);
 
-  // Reproducción del sonido al cargar los datos
   useEffect(() => {
     if (isDataLoaded && !hasPlayedRev.current) {
       soundManager.rev.play();
@@ -374,33 +352,18 @@ export default function MMCGoContent() {
     }
   }, [isDataLoaded]);
 
-  {/* Lineas 366 a 477 */}
-
-// Depuración del estado de renderizado
-useEffect(() => {
-    console.log('Estado de renderizado:', { isLoaded, isSignedIn, isDataLoaded, forceRender });
-  }, [isLoaded, isSignedIn, isDataLoaded, forceRender]);
-  
-  const [showAuthModal, setShowAuthModal] = useState(false); // 👈 nuevo estado local
-  
   const getUserPick = (driver: string) => {
     return picks[currentSession].find((p) => p.driver === driver)?.betterOrWorse || null;
   };
-  
+
   const handlePick = (driver: string, betterOrWorse: 'mejor' | 'peor') => {
     if (!currentGp) return;
-  
-    // Mostrar modal si no está autenticado
-    if (!isSignedIn) {
-      setShowAuthModal(true);
-      return;
-    }
-  
+
     soundManager.click.play();
-  
+
     const line = driverLines[driver] ?? 10.5;
     const team = driverToTeam[driver] || 'Default';
-  
+
     const newPick: PickSelection = {
       driver,
       team,
@@ -409,43 +372,34 @@ useEffect(() => {
       gp_name: currentGp.gp_name,
       session_type: currentSession,
     };
-  
+
     const success = addPick(newPick);
     if (!success) {
       alert('Máximo 8 picks combinados entre Qualy y Carrera.');
-      return;
     }
   };
-  
+
   const handleReset = (driver: string) => {
     soundManager.click.play();
     removePick(driver, currentSession);
   };
-  
-  // Mostrar animación de carga hasta que el estado de autenticación esté listo
-  if (!hydrated || !isLoaded) {
+
+  if (!isLoaded) {
     return <LoadingAnimation text="Cargando autenticación..." animationDuration={4} />;
   }
-  
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-950 to-gray-900 text-white font-exo2">
-      <Suspense fallback={<LoadingAnimation text="Sincronizando sesión..." animationDuration={2} />}>
-        <AuthRequiredModalWrapper show={showAuthModal} />
-      </Suspense>
-  
       <Header />
       {!isDataLoaded ? (
         <LoadingAnimation text="Cargando MMC-GO..." animationDuration={3} />
       ) : (
-        <main
-          key={`main-${forceRender}`}
-          className="container mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-24"
-        >
+        <main className="container mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-24">
           <div className="text-center mb-6">
             <h1 className="text-3xl font-bold">MMC-GO: Picks</h1>
             <p className="text-sm text-gray-300">Selecciona pilotos para tu PICK</p>
           </div>
-  
+
           {errors.length > 0 && (
             <div className="text-red-400 text-center mb-4">
               {errors.map((err, i) => (
@@ -453,13 +407,13 @@ useEffect(() => {
               ))}
             </div>
           )}
-  
+
           {picks.qualy.length + picks.race.length === 1 && (
             <div className="text-center text-sm text-amber-400 mb-4">
               Selecciona 1 pick más para activar tu jugada.
             </div>
           )}
-  
+
           <div className="flex justify-center gap-4 mb-6">
             {isQualyEnabled ? (
               <button
@@ -476,7 +430,7 @@ useEffect(() => {
                 Qualy (Desactivado)
               </span>
             )}
-  
+
             {isRaceEnabled ? (
               <button
                 onClick={() => {
@@ -494,10 +448,7 @@ useEffect(() => {
             )}
           </div>
 
-{/* Lineas 477 a 570 */}
-
-                    {/* Card Section with Gradient Container */}
-                    <div className="bg-gradient-to-br from-gray-900 to-black p-4 sm:p-6 rounded-xl shadow-lg">
+          <div className="bg-gradient-to-br from-gray-900 to-black p-4 sm:p-6 rounded-xl shadow-lg">
             <section className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-4">
               {staticDrivers.map((driver) => {
                 const image = `/images/pilots/${driver.toLowerCase().replace(/ /g, '-')}.png`;
@@ -520,7 +471,6 @@ useEffect(() => {
                       whileHover={{ scale: 1.02 }}
                       className="relative bg-gray-800 p-4 rounded-lg shadow-md text-center transition-all duration-200"
                     >
-                      {/* Reset Button */}
                       {pick && (
                         <button
                           onClick={() => handleReset(driver)}
@@ -561,28 +511,62 @@ useEffect(() => {
             </section>
           </div>
 
-          <StickyModal onFinish={async () => setShowFullModal(true)} />
+          <StickyModal
+            onFinish={async () => {
+              if (!isSignedIn) {
+                setShowAuthModal(true);
+                return;
+              }
+              setShowFullModal(true);
+            }}
+          />
           {showFullModal && <FullModal isOpen={showFullModal} onClose={() => setShowFullModal(false)} />}
 
-          <Dialog open={showRealtimeModal} onClose={() => setShowRealtimeModal(false)} className="relative z-50">
-            <div className="fixed inset-0 bg-black/50" aria-hidden="true" />
-            <div className="fixed inset-0 flex items-center justify-center p-4">
-              <Dialog.Panel className="mx-auto max-w-sm rounded-xl bg-white p-6 text-black shadow-xl">
-                <Dialog.Title className="text-lg font-bold">⚡ Estado actualizado</Dialog.Title>
-                <Dialog.Description className="mt-1 text-sm text-gray-700">
-                  Picks habilitados o deshabilitados en tiempo real.
-                </Dialog.Description>
-                <div className="mt-4 text-right">
+          {showAuthModal && (
+            <Dialog open={true} onClose={() => setShowAuthModal(false)} className="relative z-50">
+              <div className="fixed inset-0 bg-black/50" aria-hidden="true" />
+              <div className="fixed inset-0 flex items-center justify-center p-4">
+                <Dialog.Panel className="mx-auto max-w-sm rounded-xl bg-white p-6 text-black shadow-xl text-center">
+                  <Dialog.Title className="text-lg font-bold mb-2">Inicia sesión</Dialog.Title>
+                  <Dialog.Description className="text-sm mb-4 text-gray-600">
+                    Debes iniciar sesión para confirmar tus picks en MMC GO.
+                  </Dialog.Description>
                   <button
-                    onClick={() => setShowRealtimeModal(false)}
-                    className="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded hover:bg-blue-700"
+                    onClick={() => {
+                      console.log('Initiating sign-in redirect to /sign-in?redirect_url=/mmc-go'); // Debug log
+                      localStorage.setItem('pendingPicks', JSON.stringify(picks));
+                      router.push(`/sign-in?redirect_url=${encodeURIComponent('/mmc-go')}`);
+                    }}
+                    className="px-4 py-2 bg-black text-white rounded hover:bg-gray-900 transition"
                   >
-                    Entendido
+                    Iniciar sesión
                   </button>
-                </div>
-              </Dialog.Panel>
-            </div>
-          </Dialog>
+                </Dialog.Panel>
+              </div>
+            </Dialog>
+          )}
+
+          {showRealtimeModal && (
+            <Dialog open={true} onClose={() => setShowRealtimeModal(false)} className="relative z-50">
+              <div className="fixed inset-0 bg-black/50" aria-hidden="true" />
+              <div className="fixed inset-0 flex items-center justify-center p-4">
+                <Dialog.Panel className="mx-auto max-w-sm rounded-xl bg-white p-6 text-black shadow-xl">
+                  <Dialog.Title className="text-lg font-bold">⚡ Estado actualizado</Dialog.Title>
+                  <Dialog.Description className="mt-1 text-sm text-gray-700">
+                    Picks habilitados o deshabilitados en tiempo real.
+                  </Dialog.Description>
+                  <div className="mt-4 text-right">
+                    <button
+                      onClick={() => setShowRealtimeModal(false)}
+                      className="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded hover:bg-blue-700"
+                    >
+                      Entendido
+                    </button>
+                  </div>
+                </Dialog.Panel>
+              </div>
+            </Dialog>
+          )}
         </main>
       )}
     </div>

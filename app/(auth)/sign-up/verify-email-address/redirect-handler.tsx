@@ -1,3 +1,4 @@
+// app/(auth)/sign-up/verify-email-address/redirect-handler.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -21,6 +22,7 @@ export default function VerifyEmailRedirectHandler() {
     if (!readyToRedirect) return;
 
     const redirectUrl = searchParams.get('redirect_url') || '/dashboard';
+    console.log('Redirecting to:', redirectUrl); // Debug log
     router.replace(redirectUrl);
   }, [readyToRedirect, searchParams, router]);
 

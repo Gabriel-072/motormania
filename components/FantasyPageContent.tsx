@@ -13,7 +13,6 @@ import LoadingAnimation from '@/components/LoadingAnimation';
 import Standings from '@/components/Standings';
 import { Howl } from 'howler';
 import { Suspense } from 'react';
-import AuthRequiredModalWrapper from '@/components/AuthRequiredModalWrapper';
 import { DriverStanding, ConstructorStanding, RookieStanding, DestructorStanding, Team } from '@/app/types/standings';
 
 // SECTION: Type Definitions
@@ -47,6 +46,11 @@ type RaceResult = {
   first_team_to_pit: string;
   first_retirement: string;
 };
+
+// SECTION: Props Interface
+interface JugarYGanaProps {
+  triggerSignInModal?: () => void; // Optional function to trigger sign-in modal
+}
 
 // SECTION: Static Drivers
 const staticDrivers: Driver[] = [
@@ -158,7 +162,7 @@ const instructions = {
 };
 
 // SECTION: Main Component
-export default function JugarYGana() {
+export default function JugarYGana({ triggerSignInModal }: JugarYGanaProps) {
   const { isSignedIn, user, isLoaded } = useUser();
   const { getToken } = useAuth();
   const router = useRouter();
@@ -439,7 +443,9 @@ export default function JugarYGana() {
     const qualyPreds = [predictions.pole1, predictions.pole2, predictions.pole3];
     const racePreds = [predictions.gp1, predictions.gp2, predictions.gp3];
     if (position.startsWith('pole') && qualyPreds.includes(value) && qualyPreds.indexOf(value) !== ['pole1', 'pole2', 'pole3'].indexOf(position)) {
-      setErrors([`Ya has seleccionado a ${value} para otra posición de QUALY.`]);
+      setErrors([`Ya has seleccionado a ${value} para otra posición de QUAL
+
+Y.`]);
       return;
     }
     if (position.startsWith('gp') && racePreds.includes(value) && racePreds.indexOf(value) !== ['gp1', 'gp2', 'gp3'].indexOf(position)) {
@@ -458,7 +464,15 @@ export default function JugarYGana() {
 
   const handleSubmit = async () => {
     if (!isSignedIn) {
-      setErrors(['Debes iniciar sesión para participar.']);
+      console.log('Triggering sign-in modal');
+      localStorage.setItem('pendingPredictions', JSON.stringify(predictions));
+      if (triggerSignInModal) {
+        triggerSignInModal(); // Show modal
+      } else {
+        // Fallback to redirect if modal trigger is unavailable
+        console.log('Falling back to redirect: /sign-in?redirect_url=/jugar-y-gana');
+        router.push(`/sign-in?redirect_url=${encodeURIComponent('/jugar-y-gana')}`);
+      }
       return;
     }
     if (!currentGp) {
@@ -766,16 +780,30 @@ export default function JugarYGana() {
     );
   };
 
+  // SECTION: Restore Predictions After Login
+  useEffect(() => {
+    if (isSignedIn) {
+      const savedPredictions = localStorage.getItem('pendingPredictions');
+      if (savedPredictions) {
+        try {
+          const restoredPredictions = JSON.parse(savedPredictions);
+          setPredictions(restoredPredictions);
+          setActiveModal('review'); // Open review modal to continue
+          localStorage.removeItem('pendingPredictions'); // Clear after restoration
+        } catch (error) {
+          console.error('Error restoring predictions:', error);
+          localStorage.removeItem('pendingPredictions'); // Clear on error
+        }
+      }
+    }
+  }, [isSignedIn]);
+
   // SECTION: JSX Return Statement
   if (!hydrated || !isLoaded) {
     return <LoadingAnimation text="Cargando autenticación..." animationDuration={4} />;
   }
-
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-950 to-gray-900 text-white overflow-hidden relative">
-      <Suspense fallback={<LoadingAnimation text="Sincronizando sesión..." animationDuration={2} />}>
-        <AuthRequiredModalWrapper show={!isSignedIn} />
-      </Suspense>
       <Header />
       {!isDataLoaded ? (
         <LoadingAnimation animationDuration={loadingDuration} />
@@ -1040,48 +1068,52 @@ export default function JugarYGana() {
                     Clasificación Pilotos 2025
                   </h2>
                   <div className="block md:hidden">
-                    {driverStandings.slice(0, 5).map((standing) => {
-                      const teamName = driverToTeam[standing.driver];
-                      const team = teams.find((team) => team.name === teamName);
-                      if (!team) {
-                        console.warn(`Team not found for driver ${standing.driver}: ${teamName}`);
-                      }
-                      return (
-                        <motion.div
-                          initial={{ opacity: 0, x: -20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ duration: 0.5, delay: standing.position * 0.1 }}
-                          key={standing.position}
-                          className="bg-gray-800 p-4 mb-2 rounded-lg flex items-center justify-between hover:bg-blue-800/50 transition-all duration-200"
-                        >
-                          <div className="flex items-center gap-2">
-                            <span className="text-amber-400 font-bold text-sm">{standing.position}</span>
-                            <Image
-                              src={team?.logo_url || '/images/team-logos/default-team.png'}
-                              alt={`${teamName || 'Equipo'} logo`}
-                              width={32}
-                              height={32}
-                              className="object-contain w-8 h-8 transition-transform duration-200 hover:scale-110"
-                            />
-                            <span className="text-white text-sm truncate">{standing.driver}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-gray-300 text-sm">{standing.points} pts</span>
-                            <span
-                              className={`text-sm ${
-                                standing.evolution.startsWith('↑')
-                                  ? 'text-green-400'
-                                  : standing.evolution.startsWith('↓')
-                                  ? 'text-red-400'
-                                  : 'text-gray-400'
-                              }`}
-                            >
-                              {standing.evolution}
-                            </span>
-                          </div>
-                        </motion.div>
-                      );
-                    })}
+                    {driverStandings.length > 0 ? (
+                      driverStandings.slice(0, 5).map((standing) => {
+                        const teamName = driverToTeam[standing.driver];
+                        const team = teams.find((team) => team.name === teamName);
+                        if (!team) {
+                          console.warn(`Team not found for driver ${standing.driver}: ${teamName}`);
+                        }
+                        return (
+                          <motion.div
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ duration: 0.5, delay: standing.position * 0.1 }}
+                            key={standing.position}
+                            className="bg-gray-800 p-4 mb-2 rounded-lg flex items-center justify-between hover:bg-blue-800/50 transition-all duration-200"
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="text-amber-400 font-bold text-sm">{standing.position}</span>
+                              <Image
+                                src={team?.logo_url || '/images/team-logos/default-team.png'}
+                                alt={`${teamName || 'Equipo'} logo`}
+                                width={32}
+                                height={32}
+                                className="object-contain w-8 h-8 transition-transform duration-200 hover:scale-110"
+                              />
+                              <span className="text-white text-sm truncate">{standing.driver}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-gray-300 text-sm">{standing.points} pts</span>
+                              <span
+                                className={`text-sm ${
+                                  standing.evolution.startsWith('↑')
+                                    ? 'text-green-400'
+                                    : standing.evolution.startsWith('↓')
+                                    ? 'text-red-400'
+                                    : 'text-gray-400'
+                                }`}
+                              >
+                                {standing.evolution}
+                              </span>
+                            </div>
+                          </motion.div>
+                        );
+                      })
+                    ) : (
+                      <p className="text-gray-400 font-exo2 text-sm text-center">Cargando clasificación...</p>
+                    )}
                   </div>
                   <div className="hidden md:block h-full">
                     <div className="max-h-[calc(100%-4rem)]">
@@ -1095,46 +1127,54 @@ export default function JugarYGana() {
                           </tr>
                         </thead>
                         <tbody>
-                          {driverStandings.slice(0, 7).map((standing) => {
-                            const teamName = driverToTeam[standing.driver];
-                            const team = teams.find((team) => team.name === teamName);
-                            if (!team) {
-                              console.warn(`Team not found for driver ${standing.driver}: ${teamName}`);
-                            }
-                            return (
-                              <motion.tr
-                                initial={{ opacity: 0, x: -20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ duration: 0.5, delay: standing.position * 0.1 }}
-                                key={standing.position}
-                                className="border-b border-amber-500/20 hover:bg-blue-800/50 hover:translate-y-[-2px] transition-all duration-200"
-                              >
-                                <td className="p-1 sm:p-2 text-amber-400 font-bold">{standing.position}</td>
-                                <td className="p-1 sm:p-2 flex items-center gap-1 sm:gap-2 truncate">
-                                  <Image
-                                    src={team?.logo_url || '/images/team-logos/default-team.png'}
-                                    alt={`${teamName || 'Equipo'} logo`}
-                                    width={32}
-                                    height={32}
-                                    className="object-contain w-8 h-8 transition-transform duration-200 hover:scale-110"
-                                  />
-                                  <span className="text-white text-sm">{standing.driver}</span>
-                                </td>
-                                <td className="p-1 sm:p-2 text-right text-gray-300">{standing.points}</td>
-                                <td
-                                  className={`p-1 sm:p-2 text-center ${
-                                    standing.evolution.startsWith('↑')
-                                      ? 'text-green-400'
-                                      : standing.evolution.startsWith('↓')
-                                      ? 'text-red-400'
-                                      : 'text-gray-400'
-                                  }`}
+                          {driverStandings.length > 0 ? (
+                            driverStandings.slice(0, 7).map((standing) => {
+                              const teamName = driverToTeam[standing.driver];
+                              const team = teams.find((team) => team.name === teamName);
+                              if (!team) {
+                                console.warn(`Team not found for driver ${standing.driver}: ${teamName}`);
+                              }
+                              return (
+                                <motion.tr
+                                  initial={{ opacity: 0, x: -20 }}
+                                  animate={{ opacity: 1, x: 0 }}
+                                  transition={{ duration: 0.5, delay: standing.position * 0.1 }}
+                                  key={standing.position}
+                                  className="border-b border-amber-500/20 hover:bg-blue-800/50 hover:translate-y-[-2px] transition-all duration-200"
                                 >
-                                  {standing.evolution}
-                                </td>
-                              </motion.tr>
-                            );
-                          })}
+                                  <td className="p-1 sm:p-2 text-amber-400 font-bold">{standing.position}</td>
+                                  <td className="p-1 sm:p-2 flex items-center gap-1 sm:gap-2 truncate">
+                                    <Image
+                                      src={team?.logo_url || '/images/team-logos/default-team.png'}
+                                      alt={`${teamName || 'Equipo'} logo`}
+                                      width={32}
+                                      height={32}
+                                      className="object-contain w-8 h-8 transition-transform duration-200 hover:scale-110"
+                                    />
+                                    <span className="text-white text-sm">{standing.driver}</span>
+                                  </td>
+                                  <td className="p-1 sm:p-2 text-right text-gray-300">{standing.points}</td>
+                                  <td
+                                    className={`p-1 sm:p-2 text-center ${
+                                      standing.evolution.startsWith('↑')
+                                        ? 'text-green-400'
+                                        : standing.evolution.startsWith('↓')
+                                        ? 'text-red-400'
+                                        : 'text-gray-400'
+                                    }`}
+                                  >
+                                    {standing.evolution}
+                                  </td>
+                                </motion.tr>
+                              );
+                            })
+                          ) : (
+                            <tr>
+                              <td colSpan={4} className="p-4 text-center text-gray-400">
+                                Cargando clasificación...
+                              </td>
+                            </tr>
+                          )}
                         </tbody>
                       </table>
                     </div>
@@ -1168,48 +1208,52 @@ export default function JugarYGana() {
                     Clasificación Constructores 2025
                   </h2>
                   <div className="block md:hidden">
-                    {constructorStandings.slice(0, 5).map((standing) => {
-                      const teamName = standing.constructor;
-                      const team = teams.find((team) => team.name === teamName);
-                      if (!team) {
-                        console.warn(`Team not found for constructor: ${teamName}`);
-                      }
-                      return (
-                        <motion.div
-                          initial={{ opacity: 0, x: -20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ duration: 0.5, delay: standing.position * 0.1 }}
-                          key={standing.position}
-                          className="bg-gray-800 p-4 mb-2 rounded-lg flex items-center justify-between hover:bg-blue-800/50 transition-all duration-200"
-                        >
-                          <div className="flex items-center gap-2">
-                            <span className="text-amber-400 font-bold text-sm">{standing.position}</span>
-                            <Image
-                              src={team?.logo_url || '/images/team-logos/default-team.png'}
-                              alt={`${teamName} logo`}
-                              width={32}
-                              height={32}
-                              className="object-contain w-8 h-8 transition-transform duration-200 hover:scale-110"
-                            />
-                            <span className="text-white text-sm truncate">{standing.constructor}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-gray-300 text-sm">{standing.points} pts</span>
-                            <span
-                              className={`text-sm ${
-                                standing.evolution.startsWith('↑')
-                                  ? 'text-green-400'
-                                  : standing.evolution.startsWith('↓')
-                                  ? 'text-red-400'
-                                  : 'text-gray-400'
-                              }`}
-                            >
-                              {standing.evolution}
-                            </span>
-                          </div>
-                        </motion.div>
-                      );
-                    })}
+                    {constructorStandings.length > 0 ? (
+                      constructorStandings.slice(0, 5).map((standing) => {
+                        const teamName = standing.constructor;
+                        const team = teams.find((team) => team.name === teamName);
+                        if (!team) {
+                          console.warn(`Team not found for constructor: ${teamName}`);
+                        }
+                        return (
+                          <motion.div
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ duration: 0.5, delay: standing.position * 0.1 }}
+                            key={standing.position}
+                            className="bg-gray-800 p-4 mb-2 rounded-lg flex items-center justify-between hover:bg-blue-800/50 transition-all duration-200"
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="text-amber-400 font-bold text-sm">{standing.position}</span>
+                              <Image
+                                src={team?.logo_url || '/images/team-logos/default-team.png'}
+                                alt={`${teamName} logo`}
+                                width={32}
+                                height={32}
+                                className="object-contain w-8 h-8 transition-transform duration-200 hover:scale-110"
+                              />
+                              <span className="text-white text-sm truncate">{standing.constructor}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-gray-300 text-sm">{standing.points} pts</span>
+                              <span
+                                className={`text-sm ${
+                                  standing.evolution.startsWith('↑')
+                                    ? 'text-green-400'
+                                    : standing.evolution.startsWith('↓')
+                                    ? 'text-red-400'
+                                    : 'text-gray-400'
+                                }`}
+                              >
+                                {standing.evolution}
+                              </span>
+                            </div>
+                          </motion.div>
+                        );
+                      })
+                    ) : (
+                      <p className="text-gray-400 font-exo2 text-sm text-center">Cargando clasificación...</p>
+                    )}
                   </div>
                   <div className="hidden md:block h-full">
                     <div className="max-h-[calc(100%-4rem)]">
@@ -1223,46 +1267,54 @@ export default function JugarYGana() {
                           </tr>
                         </thead>
                         <tbody>
-                          {constructorStandings.slice(0, 7).map((standing) => {
-                            const teamName = standing.constructor;
-                            const team = teams.find((team) => team.name === teamName);
-                            if (!team) {
-                              console.warn(`Team not found for constructor: ${teamName}`);
-                            }
-                            return (
-                              <motion.tr
-                                initial={{ opacity: 0, x: -20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ duration: 0.5, delay: standing.position * 0.1 }}
-                                key={standing.position}
-                                className="border-b border-amber-500/20 hover:bg-blue-800/50 hover:translate-y-[-2px] transition-all duration-200"
-                              >
-                                <td className="p-1 sm:p-2 text-amber-400 font-bold">{standing.position}</td>
-                                <td className="p-1 sm:p-2 flex items-center gap-1 sm:gap-2 truncate">
-                                  <Image
-                                    src={team?.logo_url || '/images/team-logos/default-team.png'}
-                                    alt={`${teamName} logo`}
-                                    width={32}
-                                    height={32}
-                                    className="object-contain w-8 h-8 transition-transform duration-200 hover:scale-110"
-                                  />
-                                  <span className="text-white text-sm">{standing.constructor}</span>
-                                </td>
-                                <td className="p-1 sm:p-2 text-right text-gray-300">{standing.points}</td>
-                                <td
-                                  className={`p-1 sm:p-2 text-center ${
-                                    standing.evolution.startsWith('↑')
-                                      ? 'text-green-400'
-                                      : standing.evolution.startsWith('↓')
-                                      ? 'text-red-400'
-                                      : 'text-gray-400'
-                                  }`}
+                          {constructorStandings.length > 0 ? (
+                            constructorStandings.slice(0, 7).map((standing) => {
+                              const teamName = standing.constructor;
+                              const team = teams.find((team) => team.name === teamName);
+                              if (!team) {
+                                console.warn(`Team not found for constructor: ${teamName}`);
+                              }
+                              return (
+                                <motion.tr
+                                  initial={{ opacity: 0, x: -20 }}
+                                  animate={{ opacity: 1, x: 0 }}
+                                  transition={{ duration: 0.5, delay: standing.position * 0.1 }}
+                                  key={standing.position}
+                                  className="border-b border-amber-500/20 hover:bg-blue-800/50 hover:translate-y-[-2px] transition-all duration-200"
                                 >
-                                  {standing.evolution}
-                                </td>
-                              </motion.tr>
-                            );
-                          })}
+                                  <td className="p-1 sm:p-2 text-amber-400 font-bold">{standing.position}</td>
+                                  <td className="p-1 sm:p-2 flex items-center gap-1 sm:gap-2 truncate">
+                                    <Image
+                                      src={team?.logo_url || '/images/team-logos/default-team.png'}
+                                      alt={`${teamName} logo`}
+                                      width={32}
+                                      height={32}
+                                      className="object-contain w-8 h-8 transition-transform duration-200 hover:scale-110"
+                                    />
+                                    <span className="text-white text-sm">{standing.constructor}</span>
+                                  </td>
+                                  <td className="p-1 sm:p-2 text-right text-gray-300">{standing.points}</td>
+                                  <td
+                                    className={`p-1 sm:p-2 text-center ${
+                                      standing.evolution.startsWith('↑')
+                                        ? 'text-green-400'
+                                        : standing.evolution.startsWith('↓')
+                                        ? 'text-red-400'
+                                        : 'text-gray-400'
+                                    }`}
+                                  >
+                                    {standing.evolution}
+                                  </td>
+                                </motion.tr>
+                              );
+                            })
+                          ) : (
+                            <tr>
+                              <td colSpan={4} className="p-4 text-center text-gray-400">
+                                Cargando clasificación...
+                              </td>
+                            </tr>
+                          )}
                         </tbody>
                       </table>
                     </div>
@@ -1283,8 +1335,8 @@ export default function JugarYGana() {
 
           {/* Row 3: Destructors, Rookies, Leaderboard */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Destructors 2025 */}
-            <div
+                        {/* Destructors 2025 */}
+                        <div
               className="animate-rotate-border rounded-xl p-0.5 md:animate-rotate-border"
               style={{
                 background: `conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #ea580c 20deg, #facc15 30deg, #ea580c 40deg, transparent 50deg, transparent 360deg)`,
@@ -1298,23 +1350,27 @@ export default function JugarYGana() {
                   Destructores 2025
                 </h2>
                 <div className="block md:hidden">
-                  {destructorStandings.slice(0, 5).map((standing) => (
-                    <motion.div
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ duration: 0.5, delay: standing.position * 0.1 }}
-                      key={standing.position}
-                      className="bg-gray-800 p-4 mb-2 rounded-lg flex items-center justify-between hover:bg-blue-800/50 transition-all duration-200"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="text-amber-400 font-bold text-sm">{standing.position}</span>
-                        <span className="text-white text-sm truncate">{standing.driver}</span>
-                      </div>
-                      <span className="text-gray-300 text-sm">
-                        {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(standing.total_costs)}
-                      </span>
-                    </motion.div>
-                  ))}
+                  {destructorStandings.length > 0 ? (
+                    destructorStandings.slice(0, 5).map((standing) => (
+                      <motion.div
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.5, delay: standing.position * 0.1 }}
+                        key={standing.position}
+                        className="bg-gray-800 p-4 mb-2 rounded-lg flex items-center justify-between hover:bg-blue-800/50 transition-all duration-200"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-amber-400 font-bold text-sm">{standing.position}</span>
+                          <span className="text-white text-sm truncate">{standing.driver}</span>
+                        </div>
+                        <span className="text-gray-300 text-sm">
+                          {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(standing.total_costs)}
+                        </span>
+                      </motion.div>
+                    ))
+                  ) : (
+                    <p className="text-gray-400 font-exo2 text-sm text-center">Cargando destructores...</p>
+                  )}
                 </div>
                 <div className="hidden md:block">
                   <table className="w-full text-white font-exo2 text-xs sm:text-sm table-fixed">
@@ -1326,28 +1382,36 @@ export default function JugarYGana() {
                       </tr>
                     </thead>
                     <tbody>
-                      {destructorStandings.slice(0, 5).map((standing) => (
-                        <motion.tr
-                          initial={{ opacity: 0, x: -20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ duration: 0.5, delay: standing.position * 0.1 }}
-                          key={standing.position}
-                          className="border-b border-amber-500/20 hover:bg-blue-800/50 hover:translate-y-[-2px] transition-all duration-200"
-                        >
-                          <td className="p-1 sm:p-2 text-amber-400 font-bold">{standing.position}</td>
-                          <td className="p-1 sm:p-2 text-white truncate">{standing.driver}</td>
-                          <td className="p-1 sm:p-2 text-right text-gray-300">
-                            {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(standing.total_costs)}
+                      {destructorStandings.length > 0 ? (
+                        destructorStandings.slice(0, 5).map((standing) => (
+                          <motion.tr
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ duration: 0.5, delay: standing.position * 0.1 }}
+                            key={standing.position}
+                            className="border-b border-amber-500/20 hover:bg-blue-800/50 hover:translate-y-[-2px] transition-all duration-200"
+                          >
+                            <td className="p-1 sm:p-2 text-amber-400 font-bold">{standing.position}</td>
+                            <td className="p-1 sm:p-2 text-white truncate">{standing.driver}</td>
+                            <td className="p-1 sm:p-2 text-right text-gray-300">
+                              {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(standing.total_costs)}
+                            </td>
+                          </motion.tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={3} className="p-4 text-center text-gray-400">
+                            Cargando destructores...
                           </td>
-                        </motion.tr>
-                      ))}
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
               </motion.div>
             </div>
-                        {/* Rookies 2025 */}
-                        <div
+            {/* Rookies 2025 */}
+            <div
               className="animate-rotate-border rounded-xl p-0.5 md:animate-rotate-border"
               style={{
                 background: `conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #db2777 20deg, #f9a8d4 30deg, #db2777 40deg, transparent 50deg, transparent 360deg)`,
@@ -1361,21 +1425,25 @@ export default function JugarYGana() {
                   Rookies 2025
                 </h2>
                 <div className="block md:hidden">
-                  {rookieStandings.slice(0, 5).map((standing) => (
-                    <motion.div
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ duration: 0.5, delay: standing.position * 0.1 }}
-                      key={standing.position}
-                      className="bg-gray-800 p-4 mb-2 rounded-lg flex items-center justify-between hover:bg-blue-800/50 transition-all duration-200"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="text-amber-400 font-bold text-sm">{standing.position}</span>
-                        <span className="text-white text-sm truncate">{standing.driver}</span>
-                      </div>
-                      <span className="text-gray-300 text-sm">{standing.points} pts</span>
-                    </motion.div>
-                  ))}
+                  {rookieStandings.length > 0 ? (
+                    rookieStandings.slice(0, 5).map((standing) => (
+                      <motion.div
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.5, delay: standing.position * 0.1 }}
+                        key={standing.position}
+                        className="bg-gray-800 p-4 mb-2 rounded-lg flex items-center justify-between hover:bg-blue-800/50 transition-all duration-200"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-amber-400 font-bold text-sm">{standing.position}</span>
+                          <span className="text-white text-sm truncate">{standing.driver}</span>
+                        </div>
+                        <span className="text-gray-300 text-sm">{standing.points} pts</span>
+                      </motion.div>
+                    ))
+                  ) : (
+                    <p className="text-gray-400 font-exo2 text-sm text-center">Cargando rookies...</p>
+                  )}
                 </div>
                 <div className="hidden md:block">
                   <table className="w-full text-white font-exo2 text-xs sm:text-sm table-fixed">
@@ -1387,19 +1455,27 @@ export default function JugarYGana() {
                       </tr>
                     </thead>
                     <tbody>
-                      {rookieStandings.slice(0, 5).map((standing) => (
-                        <motion.tr
-                          initial={{ opacity: 0, x: -20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ duration: 0.5, delay: standing.position * 0.1 }}
-                          key={standing.position}
-                          className="border-b border-amber-500/20 hover:bg-blue-800/50 hover:translate-y-[-2px] transition-all duration-200"
-                        >
-                          <td className="p-1 sm:p-2 text-amber-400 font-bold">{standing.position}</td>
-                          <td className="p-1 sm:p-2 text-white truncate">{standing.driver}</td>
-                          <td className="p-1 sm:p-2 text-right text-gray-300">{standing.points}</td>
-                        </motion.tr>
-                      ))}
+                      {rookieStandings.length > 0 ? (
+                        rookieStandings.slice(0, 5).map((standing) => (
+                          <motion.tr
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ duration: 0.5, delay: standing.position * 0.1 }}
+                            key={standing.position}
+                            className="border-b border-amber-500/20 hover:bg-blue-800/50 hover:translate-y-[-2px] transition-all duration-200"
+                          >
+                            <td className="p-1 sm:p-2 text-amber-400 font-bold">{standing.position}</td>
+                            <td className="p-1 sm:p-2 text-white truncate">{standing.driver}</td>
+                            <td className="p-1 sm:p-2 text-right text-gray-300">{standing.points}</td>
+                          </motion.tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={3} className="p-4 text-center text-gray-400">
+                            Cargando rookies...
+                          </td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
