@@ -360,31 +360,32 @@ export default function MMCGoContent() {
   const handlePick = (driver: string, betterOrWorse: 'mejor' | 'peor') => {
     if (!currentGp) return;
 
-    // 🎯 Tracking para intento de predicción
-    
-  if (picks.qualy.length + picks.race.length === 0) {
-    trackFBEvent('IntentoPicks');
-  }
+    // 🎯 Tracking for first pick (Lead and IntentoPick)
+    const totalPicks = picks.qualy.length + picks.race.length;
+    if (totalPicks === 0) {
+      trackFBEvent('Lead', { params: { page: 'mmc-go' } });
+      trackFBEvent('IntentoPick', { params: { page: 'mmc-go' } });
+    }
 
-  soundManager.click.play();
+    soundManager.click.play();
 
-  const line = driverLines[driver] ?? 10.5;
-  const team = driverToTeam[driver] || 'Default';
+    const line = driverLines[driver] ?? 10.5;
+    const team = driverToTeam[driver] || 'Default';
 
-  const newPick: PickSelection = {
-    driver,
-    team,
-    line,
-    betterOrWorse,
-    gp_name: currentGp.gp_name,
-    session_type: currentSession,
+    const newPick: PickSelection = {
+      driver,
+      team,
+      line,
+      betterOrWorse,
+      gp_name: currentGp.gp_name,
+      session_type: currentSession,
+    };
+
+    const success = addPick(newPick);
+    if (!success) {
+      alert('Máximo 8 picks combinados entre Qualy y Carrera.');
+    }
   };
-
-  const success = addPick(newPick);
-  if (!success) {
-    alert('Máximo 8 picks combinados entre Qualy y Carrera.');
-  }
-};  
 
   const handleReset = (driver: string) => {
     soundManager.click.play();
@@ -524,7 +525,6 @@ export default function MMCGoContent() {
                 setShowAuthModal(true);
                 return;
               }
-              trackFBEvent('PicksCompletados');
               setShowFullModal(true);
             }}
           />

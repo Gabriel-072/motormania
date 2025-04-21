@@ -31,7 +31,13 @@ const FullModal: React.FC<FullModalProps> = ({ isOpen, onClose }) => {
   const combinedPicks: PickSelection[] = [...(picks.qualy || []), ...(picks.race || [])];
 
   const payoutCombos: Record<number, number> = {
-    2: 3, 3: 6, 4: 10, 5: 20, 6: 35, 7: 60, 8: 100,
+    2: 3,
+    3: 6,
+    4: 10,
+    5: 20,
+    6: 35,
+    7: 60,
+    8: 100,
   };
 
   const safetyPayouts: Record<number, number[]> = {
@@ -90,37 +96,14 @@ const FullModal: React.FC<FullModalProps> = ({ isOpen, onClose }) => {
   const handleBoldPayment = async () => {
     if (!user) return;
     const orderId = `MMC-${Date.now()}`;
-  
-    // 🎯 Meta Pixel y Meta CAPI — Confirmación de Picks
-    trackFBEvent('PicksConfirmados', {
-      cantidadPicks: combinedPicks.length,
-      monto: amount,
-      modo: mode,
-      gp: combinedPicks[0]?.gp_name || 'Desconocido',
-    });
-  
-    fetch('/api/fb-track', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        event_name: 'PicksConfirmados',
-        event_source_url: window.location.href,
-        custom_data: {
-          cantidadPicks: combinedPicks.length,
-          monto: amount,
-          modo: mode,
-          gp: combinedPicks[0]?.gp_name || 'Desconocido',
-        },
-      }),
-    }).catch((err) => console.error('❌ Error tracking PicksConfirmados (CAPI):', err));
-  
+
     const response = await fetch('/api/bold/hash', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ orderId, amount, currency: 'COP' }),
     });
-  
-    const { hash } = await response.json();  
+
+    const { hash } = await response.json();
 
     openBoldCheckout({
       apiKey: process.env.NEXT_PUBLIC_BOLD_BUTTON_KEY!,
@@ -139,11 +122,11 @@ const FullModal: React.FC<FullModalProps> = ({ isOpen, onClose }) => {
         try {
           const token = await getToken({ template: 'supabase' });
           const supabase = createAuthClient(token!);
-      
-          const mmcCoins = Number((amount / 1000).toFixed(2)); // <-- ya es tipo numeric
-const fuelCoins = Number(amount.toFixed(2));
-const copAmount = Number(amount.toFixed(2)); // este también
-      
+
+          const mmcCoins = Number((amount / 1000).toFixed(2));
+          const fuelCoins = Number(amount.toFixed(2));
+          const copAmount = Number(amount.toFixed(2));
+
           // 1. Guardar picks
           const { data: insertedPick, error: pickError } = await supabase
             .from('picks')
@@ -160,13 +143,12 @@ const copAmount = Number(amount.toFixed(2)); // este también
             })
             .select()
             .single();
-      
+
           if (pickError) {
             console.error('❌ Error guardando pick:', pickError.message);
             return;
           }
-          
-      
+
           // 2. Registrar coin_purchases
           const { error: purchaseError } = await supabase
             .from('coin_purchases')
@@ -178,12 +160,12 @@ const copAmount = Number(amount.toFixed(2)); // este también
               payment_status: 'paid',
               package_id: null,
             });
-      
+
           if (purchaseError) {
             console.error('❌ Error registrando coin_purchases:', purchaseError.message);
             return;
           }
-      
+
           // 3. Actualizar saldos en wallet
           const { error: walletError } = await supabase.rpc('increment_wallet_balances', {
             uid: user.id,
@@ -191,12 +173,12 @@ const copAmount = Number(amount.toFixed(2)); // este también
             fuel_amount: fuelCoins,
             cop_amount: amount,
           });
-      
+
           if (walletError) {
             console.error('❌ Error actualizando wallet:', walletError.message);
             return;
           }
-      
+
           // 4. Enviar email de confirmación de monedas
           await fetch('/api/send-coins-confirmation', {
             method: 'POST',
@@ -208,7 +190,7 @@ const copAmount = Number(amount.toFixed(2)); // este también
               fc: fuelCoins,
             }),
           });
-      
+
           // 5. Enviar email de resumen de picks
           await fetch('/api/send-pick-confirmation', {
             method: 'POST',
@@ -222,12 +204,53 @@ const copAmount = Number(amount.toFixed(2)); // este también
               potential_win: (payoutCombos[combinedPicks.length] || 0) * amount,
             }),
           });
-      
+
+          // 🎯 Meta Pixel y Meta CAPI — PickConfirmado
+          const eventId = `evt_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
+          const email = user?.primaryEmailAddress?.emailAddress || '';
+
+          trackFBEvent('PickConfirmado', {
+            params: {
+              page: 'mmc-go',
+              cantidadPicks: combinedPicks.length,
+              monto: amount,
+              modo: mode,
+              gp: combinedPicks[0]?.gp_name || 'Desconocido',
+            },
+            email,
+            event_id: eventId,
+          });
+
+          try {
+            const capiResponse = await fetch('/api/fb-track', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                event_name: 'PickConfirmado',
+                event_id: eventId,
+                event_source_url: window.location.href,
+                params: {
+                  page: 'mmc-go',
+                  cantidadPicks: combinedPicks.length,
+                  monto: amount,
+                  modo: mode,
+                  gp: combinedPicks[0]?.gp_name || 'Desconocido',
+                },
+                email,
+              }),
+            });
+            if (!capiResponse.ok) {
+              console.error('❌ Failed to send CAPI event:', await capiResponse.text());
+            }
+          } catch (err) {
+            console.error('❌ Error sending CAPI event:', err);
+          }
+
           console.log('✅ Todo guardado y correos enviados');
         } catch (err) {
           console.error('❌ Error general en onSuccess:', err);
         }
-      }
+      },
     });
   };
 
@@ -363,7 +386,15 @@ const copAmount = Number(amount.toFixed(2)); // este también
                   ))
                 )}
               </div>
-              <button onClick={handleBoldPayment} disabled={!isValid} className={`w-full py-3 rounded-xl font-bold text-lg transition-all ${isValid ? 'bg-green-500 hover:bg-green-400 text-white' : 'bg-gray-700 text-gray-400 cursor-not-allowed'}`}>{error ? error : 'Confirmar y Pagar con Bold'}</button>
+              <button
+                onClick={handleBoldPayment}
+                disabled={!isValid}
+                className={`w-full py-3 rounded-xl font-bold text-lg transition-all ${
+                  isValid ? 'bg-green-500 hover:bg-green-400 text-white' : 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                }`}
+              >
+                {error ? error : 'Confirmar y Pagar con Bold'}
+              </button>
             </div>
           </motion.div>
         </motion.div>

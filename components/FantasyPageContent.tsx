@@ -13,7 +13,7 @@ import LoadingAnimation from '@/components/LoadingAnimation';
 import Standings from '@/components/Standings';
 import { Howl } from 'howler';
 import { Suspense } from 'react';
-import { trackFBEvent } from '@/lib/trackFBEvent';
+import { generateEventId, trackFBEvent } from '@/lib/trackFBEvent';
 import { DriverStanding, ConstructorStanding, RookieStanding, DestructorStanding, Team } from '@/app/types/standings';
 
 // SECTION: Type Definitions
@@ -475,7 +475,8 @@ export default function JugarYGana({ triggerSignInModal }: JugarYGanaProps) {
     setActiveSelectionModal(null);
   };
 
-  const handleSubmit = async () => {
+  // SECTION: handleSubmit
+const handleSubmit = async () => {
     if (!isSignedIn) {
       console.log('Triggering sign-in modal');
       localStorage.setItem('pendingPredictions', JSON.stringify(predictions));
@@ -531,7 +532,9 @@ export default function JugarYGana({ triggerSignInModal }: JugarYGanaProps) {
       const userName = user!.fullName || 'Anónimo';
       const userEmail = user!.emailAddresses[0]?.emailAddress || 'unknown@example.com';
       const today = new Date();
-      const week = Math.ceil((today.getTime() - new Date(today.getFullYear(), 0, 1).getTime()) / (7 * 24 * 60 * 60 * 1000));
+      const week = Math.ceil(
+        (today.getTime() - new Date(today.getFullYear(), 0, 1).getTime()) / (7 * 24 * 60 * 60 * 1000)
+      );
   
       const { data: existingPrediction, error: fetchError } = await supabase
         .from('predictions')
@@ -565,18 +568,34 @@ export default function JugarYGana({ triggerSignInModal }: JugarYGanaProps) {
         body: JSON.stringify({ userEmail, userName, predictions: allowedPredictions, gpName: currentGp.gp_name }),
       }).catch((emailErr) => console.error('Email API error:', emailErr));
   
-      // 🎯 Tracking AFTER successful prediction
-      trackFBEvent('PrediccionEnviada');
-      fetch('/api/fb-track', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          event_name: 'PrediccionEnviada',
-          event_source_url: window.location.href,
-        }),
-      }).then(res => res.json())
-        .then(res => console.log('📡 CAPI PrediccionEnviada sent:', res))
-        .catch(err => console.error('❌ CAPI PrediccionEnviada error:', err));
+      // 🎯 Meta Pixel + CAPI (PrediccionEnviada)
+      const eventId = generateEventId();
+      const email = userEmail;
+  
+      trackFBEvent('PrediccionEnviada', {
+        params: { page: 'jugar-y-gana' },
+        email,
+        event_id: eventId,
+      });
+  
+      try {
+        const capiResponse = await fetch('/api/fb-track', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            event_name: 'PrediccionEnviada',
+            event_id: eventId,
+            event_source_url: window.location.href,
+            params: { page: 'jugar-y-gana' },
+            email,
+          }),
+        });
+        if (!capiResponse.ok) {
+          console.error('❌ Failed to send CAPI event:', await capiResponse.text());
+        }
+      } catch (err) {
+        console.error('❌ Error sending CAPI event:', err);
+      }
   
       setSubmitted(true);
       setSubmittedPredictions(allowedPredictions as Prediction);
@@ -602,9 +621,9 @@ export default function JugarYGana({ triggerSignInModal }: JugarYGanaProps) {
       setSubmitting(false);
     }
   };
-
+  
   // SECTION: Modal Handlers
-const openModal = (modal: string) => {
+  const openModal = (modal: string) => {
     if (!submitted) {
       soundManager.openMenu.play();
       setActiveModal(modal);
@@ -612,25 +631,19 @@ const openModal = (modal: string) => {
       setErrors([]);
   
       // 🎯 Meta Pixel + CAPI (Lead + IntentoPrediccion)
-      trackFBEvent('Lead');
-      trackFBEvent('IntentoPrediccion', {
-        page: 'jugar-y-gana',
+      const eventId = generateEventId();
+      const email = user?.emailAddresses[0]?.emailAddress || '';
+  
+      trackFBEvent('Lead', {
+        params: { page: 'jugar-y-gana' },
+        email,
+        event_id: eventId,
       });
   
-      fetch('/api/fb-track', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          event_name: 'IntentoPrediccion',
-          event_source_url: window.location.href,
-        }),
-      }).then((res) => {
-        if (!res.ok) throw new Error('CAPI response error');
-        return res.json();
-      }).then((res) => {
-        console.log('📡 CAPI IntentoPrediccion enviado:', res);
-      }).catch((err) => {
-        console.error('❌ Error al enviar IntentoPrediccion (CAPI):', err);
+      trackFBEvent('IntentoPrediccion', {
+        params: { page: 'jugar-y-gana' },
+        email,
+        event_id: eventId,
       });
     }
   };

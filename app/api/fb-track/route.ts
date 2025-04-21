@@ -1,5 +1,5 @@
-// 📁 /app/api/fb-track/route.ts
 import { NextRequest, NextResponse } from 'next/server';
+import { createHash } from 'crypto'; // Add crypto for hashing email
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': 'https://www.motormaniacolombia.com',
@@ -52,6 +52,12 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Hash email for user_data if provided
+  const email = body.params?.email || null;
+  const hashedEmail = email
+    ? createHash('sha256').update(email.trim().toLowerCase()).digest('hex')
+    : null;
+
   const eventData = {
     data: [
       {
@@ -63,6 +69,7 @@ export async function POST(req: NextRequest) {
         user_data: {
           client_user_agent: userAgent,
           client_ip_address: req.ip ?? '127.0.0.1',
+          em: hashedEmail || undefined, // Add hashed email to user_data
         },
         custom_data: body.params || {},
       },
