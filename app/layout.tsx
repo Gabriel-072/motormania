@@ -1,4 +1,3 @@
-// app/layout.tsx
 import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Exo_2 } from "next/font/google";
@@ -9,7 +8,9 @@ import MovingBar from '@/components/MovingBar';
 import PixelTracker from '@/components/PixelTracker';
 import RegistrationTracker from '@/components/RegistrationTracker';
 import Footer from "@/components/Footer";
-import { Suspense } from "react";
+import { Suspense, useEffect } from "react";
+import { useUser } from "@clerk/nextjs";
+import { trackFBEvent } from "@/lib/trackFBEvent";
 
 const exo2 = Exo_2({ subsets: ["latin"] });
 
@@ -18,11 +19,23 @@ export const metadata = {
   description: "La comunidad de apasionados por los autos en Colombia",
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+function AuthSyncTracker() {
+  const { isSignedIn, user } = useUser();
+
+  useEffect(() => {
+    if (isSignedIn && user?.primaryEmailAddress?.emailAddress) {
+      const email = user.primaryEmailAddress.emailAddress;
+
+      // 🔁 Asociar eventos previos con el usuario autenticado
+      trackFBEvent('Lead', { email, forceRetrack: true });
+      trackFBEvent('IntentoPrediccion', { email, forceRetrack: true });
+    }
+  }, [isSignedIn, user]);
+
+  return null;
+}
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es-CO">
       <body className={exo2.className} suppressHydrationWarning>
@@ -55,6 +68,7 @@ export default function RootLayout({
           <PixelTracker />
           <Suspense fallback={null}>
             <RegistrationTracker />
+            <AuthSyncTracker /> {/* 🔁 Nuevo componente de tracking */}
           </Suspense>
           <MovingBar />
           <Header />

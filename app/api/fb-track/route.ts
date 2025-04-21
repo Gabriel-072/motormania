@@ -1,5 +1,12 @@
-// app/api/fb-track/route.ts
+// 📁 /app/api/fb-track/route.ts
 import { NextRequest, NextResponse } from 'next/server';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': 'https://www.motormaniacolombia.com',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Max-Age': '86400',
+};
 
 export function OPTIONS() {
   return NextResponse.json({}, {
@@ -23,11 +30,7 @@ export async function POST(req: NextRequest) {
 
   const userAgent = req.headers.get('user-agent') || '';
   const blockedAgents = ['curl', 'postman', 'insomnia', 'httpclient'];
-
-  if (
-    blockedAgents.some(agent => userAgent.toLowerCase().includes(agent)) ||
-    userAgent.trim() === ''
-  ) {
+  if (blockedAgents.some(agent => userAgent.toLowerCase().includes(agent)) || userAgent.trim() === '') {
     return new NextResponse(
       JSON.stringify({ error: 'User-Agent bloqueado por seguridad' }),
       { status: 403, headers: corsHeaders }
@@ -39,7 +42,7 @@ export async function POST(req: NextRequest) {
     'https://www.motormaniacolombia.com',
     'https://motormaniacolombia.com',
     'http://localhost:3000',
-    'https://mmc.ngrok.app'
+    'https://mmc.ngrok.app',
   ];
 
   if (!allowedDomains.some(domain => referer.startsWith(domain))) {
@@ -54,13 +57,14 @@ export async function POST(req: NextRequest) {
       {
         event_name: body.event_name || 'CustomEvent',
         event_time: Math.floor(Date.now() / 1000),
+        event_id: body.event_id || undefined,
         event_source_url: body.event_source_url || referer,
         action_source: 'website',
         user_data: {
           client_user_agent: userAgent,
           client_ip_address: req.ip ?? '127.0.0.1',
-          em: body.hashed_email || undefined,
         },
+        custom_data: body.params || {},
       },
     ],
   };
@@ -74,11 +78,3 @@ export async function POST(req: NextRequest) {
   const data = await fbRes.json();
   return new NextResponse(JSON.stringify(data), { headers: corsHeaders });
 }
-
-// 🌐 CORS headers para dominios válidos
-const corsHeaders = {
-  'Access-Control-Allow-Origin': 'https://www.motormaniacolombia.com',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
-  'Access-Control-Max-Age': '86400',
-};

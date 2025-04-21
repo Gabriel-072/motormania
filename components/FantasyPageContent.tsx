@@ -13,6 +13,7 @@ import LoadingAnimation from '@/components/LoadingAnimation';
 import Standings from '@/components/Standings';
 import { Howl } from 'howler';
 import { Suspense } from 'react';
+import { trackFBEvent } from '@/lib/trackFBEvent';
 import { DriverStanding, ConstructorStanding, RookieStanding, DestructorStanding, Team } from '@/app/types/standings';
 
 // SECTION: Type Definitions
@@ -487,16 +488,17 @@ export default function JugarYGana({ triggerSignInModal }: JugarYGanaProps) {
       }
       return;
     }
+  
     if (!currentGp) {
       setErrors(['No hay GP activo para predecir.']);
       return;
     }
-
+  
     if (!isQualyAllowed && !isRaceAllowed) {
       setErrors(['El período de predicciones ha cerrado para este GP.']);
       return;
     }
-
+  
     const allowedPredictions: Partial<Prediction> = {};
     if (isQualyAllowed) {
       allowedPredictions.pole1 = predictions.pole1;
@@ -513,24 +515,24 @@ export default function JugarYGana({ triggerSignInModal }: JugarYGanaProps) {
       allowedPredictions.first_team_to_pit = predictions.first_team_to_pit;
       allowedPredictions.first_retirement = predictions.first_retirement;
     }
-
+  
     if (Object.values(allowedPredictions).every((value) => !value)) {
       setErrors(['Por favor, completa al menos una predicción permitida antes de enviar.']);
       return;
     }
-
+  
     setSubmitting(true);
     try {
       const token = await getToken({ template: 'supabase' });
       if (!token) throw new Error('No se pudo obtener el token de autenticación.');
-
+  
       const supabase = createAuthClient(token);
       const userId = user!.id;
       const userName = user!.fullName || 'Anónimo';
       const userEmail = user!.emailAddresses[0]?.emailAddress || 'unknown@example.com';
       const today = new Date();
       const week = Math.ceil((today.getTime() - new Date(today.getFullYear(), 0, 1).getTime()) / (7 * 24 * 60 * 60 * 1000));
-
+  
       const { data: existingPrediction, error: fetchError } = await supabase
         .from('predictions')
         .select('id')
@@ -539,13 +541,13 @@ export default function JugarYGana({ triggerSignInModal }: JugarYGanaProps) {
         .gte('submitted_at', new Date(today.getFullYear(), 0, 1).toISOString())
         .lte('submitted_at', new Date(today.getFullYear(), 11, 31).toISOString())
         .maybeSingle();
-
+  
       if (fetchError) throw new Error('Error al verificar predicción previa: ' + fetchError.message);
       if (existingPrediction) {
         setErrors([`Ya has enviado una predicción para el ${currentGp.gp_name} esta temporada.`]);
         return;
       }
-
+  
       const { error: predError } = await supabase.from('predictions').insert({
         user_id: userId,
         gp_name: currentGp.gp_name,
@@ -554,15 +556,28 @@ export default function JugarYGana({ triggerSignInModal }: JugarYGanaProps) {
         submission_week: week,
         submission_year: today.getFullYear(),
       });
-
+  
       if (predError) throw new Error('Error al guardar predicción: ' + predError.message);
-
+  
       await fetch('/api/send-prediction-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userEmail, userName, predictions: allowedPredictions, gpName: currentGp.gp_name }),
       }).catch((emailErr) => console.error('Email API error:', emailErr));
-
+  
+      // 🎯 Tracking AFTER successful prediction
+      trackFBEvent('PrediccionEnviada');
+      fetch('/api/fb-track', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event_name: 'PrediccionEnviada',
+          event_source_url: window.location.href,
+        }),
+      }).then(res => res.json())
+        .then(res => console.log('📡 CAPI PrediccionEnviada sent:', res))
+        .catch(err => console.error('❌ CAPI PrediccionEnviada error:', err));
+  
       setSubmitted(true);
       setSubmittedPredictions(allowedPredictions as Prediction);
       setPredictions({
@@ -589,18 +604,19 @@ export default function JugarYGana({ triggerSignInModal }: JugarYGanaProps) {
   };
 
   // SECTION: Modal Handlers
-  const openModal = (modal: string) => {
+const openModal = (modal: string) => {
     if (!submitted) {
       soundManager.openMenu.play();
       setActiveModal(modal);
       setActiveSelectionModal(null);
       setErrors([]);
-
-      if (typeof window !== 'undefined' && window.fbq) {
-        window.fbq('track', 'Lead');
-        window.fbq('trackCustom', 'IntentoPrediccion');
-      }
-
+  
+      // 🎯 Meta Pixel + CAPI (Lead + IntentoPrediccion)
+      trackFBEvent('Lead');
+      trackFBEvent('IntentoPrediccion', {
+        page: 'jugar-y-gana',
+      });
+  
       fetch('/api/fb-track', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -608,10 +624,17 @@ export default function JugarYGana({ triggerSignInModal }: JugarYGanaProps) {
           event_name: 'IntentoPrediccion',
           event_source_url: window.location.href,
         }),
-      }).catch((err) => console.error('Error tracking IntentoPrediccion:', err));
+      }).then((res) => {
+        if (!res.ok) throw new Error('CAPI response error');
+        return res.json();
+      }).then((res) => {
+        console.log('📡 CAPI IntentoPrediccion enviado:', res);
+      }).catch((err) => {
+        console.error('❌ Error al enviar IntentoPrediccion (CAPI):', err);
+      });
     }
   };
-
+  
   const closeModal = () => {
     if (activeModal === 'share') {
       router.push('/f1-fantasy-panel');
@@ -620,9 +643,9 @@ export default function JugarYGana({ triggerSignInModal }: JugarYGanaProps) {
     setActiveSelectionModal(null);
     setErrors([]);
   };
-
+  
   const modalOrder = ['pole', 'gp', 'extras', 'micro', 'review'];
-
+  
   const nextModal = () => {
     const currentIndex = modalOrder.indexOf(activeModal!);
     if (currentIndex < modalOrder.length - 1) {
@@ -630,7 +653,7 @@ export default function JugarYGana({ triggerSignInModal }: JugarYGanaProps) {
       setErrors([]);
     }
   };
-
+  
   const prevModal = () => {
     const currentIndex = modalOrder.indexOf(activeModal!);
     if (currentIndex > 0) {
@@ -638,14 +661,14 @@ export default function JugarYGana({ triggerSignInModal }: JugarYGanaProps) {
       setErrors([]);
     }
   };
-
+  
   const openSelectionModal = (position: keyof Prediction) => {
     if (!submitted && (isQualyField(position) ? isQualyAllowed : isRaceAllowed)) {
       setActiveSelectionModal({ position, isTeam: position.includes('team') });
       soundManager.menuClick.play();
     }
   };
-
+  
   const closeSelectionModal = () => {
     setActiveSelectionModal(null);
   };

@@ -48,7 +48,25 @@ const StickyModal: React.FC<StickyModalProps> = ({ onFinish }) => {
           )}
         </div>
         <button
-  onClick={onFinish}
+  onClick={async () => {
+    if (!isValid) return;
+
+    // 🎯 Meta Pixel (Lead e IntentoFinalizarPicks)
+    window.fbq?.('track', 'Lead');
+    window.fbq?.('trackCustom', 'IntentoFinalizarPicks');
+
+    // 🔥 Meta CAPI (IntentoFinalizarPicks)
+    fetch('/api/fb-track', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        event_name: 'IntentoFinalizarPicks',
+        event_source_url: window.location.href,
+      }),
+    }).catch((err) => console.error('Error tracking IntentoFinalizarPicks (CAPI):', err));
+
+    await onFinish();
+  }}
   disabled={!isValid}
   className={`bg-amber-500 text-black font-bold px-6 py-2 rounded hover:bg-amber-400 transition-all duration-300 ${!isValid ? 'opacity-50 cursor-not-allowed' : ''}`}
 >

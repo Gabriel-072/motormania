@@ -14,6 +14,7 @@ import { Howl } from 'howler';
 import { PickSelection } from '@/app/types/picks';
 import { toast } from 'sonner';
 import { Dialog } from '@headlessui/react';
+import { trackFBEvent } from '@/lib/trackFBEvent';
 import { useRouter } from 'next/navigation';
 
 // TYPES
@@ -359,25 +360,31 @@ export default function MMCGoContent() {
   const handlePick = (driver: string, betterOrWorse: 'mejor' | 'peor') => {
     if (!currentGp) return;
 
-    soundManager.click.play();
+    // 🎯 Tracking para intento de predicción
+    
+  if (picks.qualy.length + picks.race.length === 0) {
+    trackFBEvent('IntentoPicks');
+  }
 
-    const line = driverLines[driver] ?? 10.5;
-    const team = driverToTeam[driver] || 'Default';
+  soundManager.click.play();
 
-    const newPick: PickSelection = {
-      driver,
-      team,
-      line,
-      betterOrWorse,
-      gp_name: currentGp.gp_name,
-      session_type: currentSession,
-    };
+  const line = driverLines[driver] ?? 10.5;
+  const team = driverToTeam[driver] || 'Default';
 
-    const success = addPick(newPick);
-    if (!success) {
-      alert('Máximo 8 picks combinados entre Qualy y Carrera.');
-    }
+  const newPick: PickSelection = {
+    driver,
+    team,
+    line,
+    betterOrWorse,
+    gp_name: currentGp.gp_name,
+    session_type: currentSession,
   };
+
+  const success = addPick(newPick);
+  if (!success) {
+    alert('Máximo 8 picks combinados entre Qualy y Carrera.');
+  }
+};  
 
   const handleReset = (driver: string) => {
     soundManager.click.play();
@@ -517,6 +524,7 @@ export default function MMCGoContent() {
                 setShowAuthModal(true);
                 return;
               }
+              trackFBEvent('PicksCompletados');
               setShowFullModal(true);
             }}
           />

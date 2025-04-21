@@ -8,6 +8,7 @@ import { useStickyStore } from '@/stores/stickyStore';
 import { openBoldCheckout } from '@/lib/bold';
 import { useUser, useAuth } from '@clerk/nextjs';
 import { createAuthClient } from '@/lib/supabase';
+import { trackFBEvent } from '@/lib/trackFBEvent';
 import { PickSelection } from '../app/types/picks';
 
 export type SessionType = 'qualy' | 'race';
@@ -89,13 +90,37 @@ const FullModal: React.FC<FullModalProps> = ({ isOpen, onClose }) => {
   const handleBoldPayment = async () => {
     if (!user) return;
     const orderId = `MMC-${Date.now()}`;
+  
+    // 🎯 Meta Pixel y Meta CAPI — Confirmación de Picks
+    trackFBEvent('PicksConfirmados', {
+      cantidadPicks: combinedPicks.length,
+      monto: amount,
+      modo: mode,
+      gp: combinedPicks[0]?.gp_name || 'Desconocido',
+    });
+  
+    fetch('/api/fb-track', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        event_name: 'PicksConfirmados',
+        event_source_url: window.location.href,
+        custom_data: {
+          cantidadPicks: combinedPicks.length,
+          monto: amount,
+          modo: mode,
+          gp: combinedPicks[0]?.gp_name || 'Desconocido',
+        },
+      }),
+    }).catch((err) => console.error('❌ Error tracking PicksConfirmados (CAPI):', err));
+  
     const response = await fetch('/api/bold/hash', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ orderId, amount, currency: 'COP' }),
     });
-
-    const { hash } = await response.json();
+  
+    const { hash } = await response.json();  
 
     openBoldCheckout({
       apiKey: process.env.NEXT_PUBLIC_BOLD_BUTTON_KEY!,
@@ -140,6 +165,7 @@ const copAmount = Number(amount.toFixed(2)); // este también
             console.error('❌ Error guardando pick:', pickError.message);
             return;
           }
+          
       
           // 2. Registrar coin_purchases
           const { error: purchaseError } = await supabase
