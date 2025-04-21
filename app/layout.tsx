@@ -1,6 +1,4 @@
 // app/layout.tsx
-'use client';
-
 import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Exo_2 } from "next/font/google";
@@ -11,8 +9,7 @@ import MovingBar from '@/components/MovingBar';
 import PixelTracker from '@/components/PixelTracker';
 import RegistrationTracker from '@/components/RegistrationTracker';
 import Footer from "@/components/Footer";
-import { Suspense } from "react";
-import AuthSyncTracker from '@/components/AuthSyncTracker';
+import { Suspense } from "react"; // Solo usamos Suspense, sin hooks
 
 const exo2 = Exo_2({ subsets: ["latin"] });
 
@@ -58,7 +55,6 @@ export default function RootLayout({
           <PixelTracker />
           <Suspense fallback={null}>
             <RegistrationTracker />
-            <AuthSyncTracker />
           </Suspense>
           <MovingBar />
           <Header />
