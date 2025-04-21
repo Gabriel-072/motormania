@@ -1,11 +1,13 @@
+// hooks/useRegistrationTracking.ts
 'use client';
 
 import { useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
+import { trackFBEvent } from '@/lib/trackFBEvent';
 
 export function useRegistrationTracking() {
-  const { isSignedIn, isLoaded } = useUser();
+  const { isSignedIn, isLoaded, user } = useUser();
   const searchParams = useSearchParams();
 
   useEffect(() => {
@@ -19,26 +21,28 @@ export function useRegistrationTracking() {
       !alreadyTracked &&
       typeof window !== 'undefined'
     ) {
-      // 🎯 Meta Pixel estándar
-      window.fbq?.('track', 'CompleteRegistration');
-      window.fbq?.('trackCustom', 'RegistroMMC');
+      try {
+        const email = user?.emailAddresses[0]?.emailAddress || '';
+        const eventId = `evt_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
 
-      // 🔥 Meta CAPI
-      fetch('/api/fb-track', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          event_name: 'CompleteRegistration',
-          event_source_url: window.location.href,
-          // Opcional: puedes incluir hashed_email si lo tienes disponible en algún contexto
-        }),
-      })
-        .then(res => res.json())
-        .then(res => console.log('📡 CAPI Event Sent:', res))
-        .catch(err => console.error('❌ Error CAPI:', err));
+        // 🎯 Meta Pixel + CAPI (CompleteRegistration, RegistroMMC)
+        trackFBEvent('CompleteRegistration', {
+          params: { userId: user?.id },
+          email,
+          event_id: eventId,
+        });
 
-      // ✅ Marcar como enviado
-      sessionStorage.setItem('mmc-registration-tracked', 'true');
+        trackFBEvent('RegistroMMC', {
+          params: { userId: user?.id },
+          email,
+          event_id: eventId,
+        });
+
+        // ✅ Marcar como enviado
+        sessionStorage.setItem('mmc-registration-tracked', 'true');
+      } catch (err) {
+        console.error('❌ Error in registration tracking:', err);
+      }
     }
-  }, [isSignedIn, isLoaded, searchParams]);
+  }, [isSignedIn, isLoaded, searchParams, user]);
 }

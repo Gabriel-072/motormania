@@ -9,7 +9,7 @@ import MovingBar from '@/components/MovingBar';
 import PixelTracker from '@/components/PixelTracker';
 import RegistrationTracker from '@/components/RegistrationTracker';
 import Footer from "@/components/Footer";
-import { Suspense } from "react"; // Solo usamos Suspense, sin hooks
+import { Suspense } from "react";
 
 const exo2 = Exo_2({ subsets: ["latin"] });
 
@@ -52,6 +52,7 @@ export default function RootLayout({
             },
           }}
         >
+          {/* Single Facebook Pixel initialization */}
           <PixelTracker />
           <Suspense fallback={null}>
             <RegistrationTracker />
