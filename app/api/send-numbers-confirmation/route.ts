@@ -14,7 +14,7 @@ export async function POST(req: Request) {
   const authHeader = req.headers.get('authorization') || '';
   const token = authHeader.replace('Bearer ', '');
 
-  // 🔐 Check Authorization Token
+  // 🔐 Authorization
   if (!token || token !== INTERNAL_API_SECRET) {
     console.warn("Unauthorized attempt to trigger email.");
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -24,7 +24,6 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { to, name, numbers, context = 'registro', orderId, amount } = body;
 
-    // ✅ Validation
     if (
       !to || !/\S+@\S+\.\S+/.test(to) ||
       !Array.isArray(numbers) || numbers.length === 0 ||
