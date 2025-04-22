@@ -1,3 +1,4 @@
+// 📁 /app/api/send-numbers-confirmation/route.ts
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
 
@@ -11,12 +12,20 @@ const supportEmail = "soporte@motormaniacolombia.com";
 const resend = new Resend(resendApiKey);
 
 export async function POST(req: Request) {
-  const authHeader = req.headers.get('authorization') || '';
-  const token = authHeader.replace('Bearer ', '');
+  // 1. Capturamos y logueamos la cabecera completa
+  console.log("🪪 Headers recibidos:", Object.fromEntries(req.headers.entries()));
 
-  // 🔐 Authorization
+  const authHeader = req.headers.get('authorization') || '';
+  console.log("🔐 Auth header recibido:", authHeader);
+
+  // 2. Extraemos y trim el token
+  const token = authHeader.replace(/^Bearer\s*/i, '').trim();
+  console.log("🔑 Token extraído:", JSON.stringify(token));
+  console.log("🔑 Token esperado :", JSON.stringify(INTERNAL_API_SECRET));
+
+  // 3. Validamos
   if (!token || token !== INTERNAL_API_SECRET) {
-    console.warn("Unauthorized attempt to trigger email.");
+    console.warn("🚫 Unauthorized attempt to trigger email.");
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -24,14 +33,17 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { to, name, numbers, context = 'registro', orderId, amount } = body;
 
+    // 4. Validación de payload
     if (
       !to || !/\S+@\S+\.\S+/.test(to) ||
       !Array.isArray(numbers) || numbers.length === 0 ||
       !numbers.every(num => typeof num === 'string' && /^\d{6}$/.test(num))
     ) {
+      console.error("❌ Payload inválido:", { to, numbers });
       return NextResponse.json({ error: 'Invalid input data' }, { status: 400 });
     }
 
+    // 5. Construcción del email
     const userName = name || 'Usuario';
     const formattedAmount = typeof amount === 'number'
       ? new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(amount)
@@ -78,21 +90,19 @@ export async function POST(req: Request) {
       </footer>
     </div>`;
 
-    const { data, error } = await resend.emails.send({
-      from: fromEmail,
-      to: [to],
-      subject,
-      html,
-    });
+    // 6. Envío
+    const { data, error } = await resend.emails.send({ from: fromEmail, to: [to], subject, html });
 
     if (error) {
-      console.error("Email send failed:", error);
+      console.error("❌ Email send failed:", error);
       return NextResponse.json({ error: 'Failed to send email', details: error.message }, { status: 500 });
     }
 
+    console.log("✅ Email sent successfully to:", to);
     return NextResponse.json({ success: true, id: data?.id, to });
+
   } catch (err) {
-    console.error("Unexpected error:", err);
+    console.error("🔥 Unexpected server error:", err);
     return NextResponse.json({ error: 'Unexpected server error' }, { status: 500 });
   }
 }
