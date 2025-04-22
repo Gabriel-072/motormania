@@ -4,7 +4,6 @@ import { Resend } from 'resend';
 
 // --- Environment Variables & Constants ---
 const resendApiKey = process.env.RESEND_API_KEY;
-const internalApiSecret = process.env.INTERNAL_API_SECRET || ''; // Optional but recommended
 const appUrl = process.env.NEXT_PUBLIC_SITE_URL; // Production URL - CRITICAL
 const appName = "MotorManía";
 const fromEmail = `MotorMania <noreply@motormaniacolombia.com>`; // Use your verified Resend domain
@@ -17,9 +16,6 @@ if (!resendApiKey) {
 if (!appUrl) {
     console.error("FATAL ERROR: NEXT_PUBLIC_SITE_URL environment variable is not set.");
 }
-if (!internalApiSecret) {
-    console.warn("WARN: INTERNAL_API_SECRET is not set. Internal API calls will not be secured.");
-}
 
 // Initialize Resend client (only if API key exists)
 const resend = resendApiKey ? new Resend(resendApiKey) : null;
@@ -28,12 +24,7 @@ const resend = resendApiKey ? new Resend(resendApiKey) : null;
 export async function POST(req: Request) {
     console.log("API Route: /api/send-numbers-confirmation invoked.");
 
-    // 1. Security Check (Optional but Recommended)
-    const authorization = req.headers.get('Authorization');
-    if (internalApiSecret && authorization !== `Bearer ${internalApiSecret}`) {
-        console.warn("API Route send-numbers-confirmation: Unauthorized attempt.");
-        return new NextResponse('Unauthorized', { status: 401 });
-    }
+    // 1. REMOVED Security Check for INTERNAL_API_SECRET
 
     // Check if Resend client is initialized
     if (!resend) {
@@ -48,7 +39,7 @@ export async function POST(req: Request) {
 
     try {
         const body = await req.json();
-        console.log("Email API Body:", JSON.stringify(body)); // Log received body
+        console.log("Email API Body:", JSON.stringify(body));
 
         // 2. Input Validation
         const { to, name, numbers, context, orderId, amount } = body;
@@ -62,12 +53,15 @@ export async function POST(req: Request) {
         let subject = '';
         let htmlContent = '';
         const listItemsHtml = numbers.map((num) => `<li style="font-size: 18px; font-weight: bold; color: #1e293b; background-color: #e2e8f0; padding: 8px 12px; margin: 8px auto; border-radius: 4px; max-width: 100px; text-align: center; letter-spacing: 2px;">${num}</li>`).join("");
+        // Confirmed: amount = 2000 means 2000 COP
         const numericAmount = typeof amount === 'number' ? amount : 0;
-        // VERIFY if amount from Bold is base unit (2000) or cents (200000) for $2000 COP
-        const formattedAmount = numericAmount > 0 ? new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(numericAmount) : ''; // Assuming base unit for now
+        const formattedAmount = numericAmount > 0 ? new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(numericAmount) : '';
+
+        console.log(`Preparing email. Context: ${context}, To: ${to}, Name: ${userName}, Number Count: ${numbers.length}`);
 
         if (context === 'compra') {
             subject = `✅ Compra Confirmada - ${numbers.length} Números Extra ${appName}!`;
+            // HTML for purchase... (Copy from previous response)
             htmlContent = `
             <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 20px auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background-color: #ffffff;">
               <h1 style="color: #16a34a; text-align: center; border-bottom: 1px solid #eee; padding-bottom: 10px;">¡Gracias por tu compra, ${userName}!</h1>
@@ -86,6 +80,7 @@ export async function POST(req: Request) {
             </div>`;
         } else { // Default to 'registro'
             subject = `🏆 Tus Números Gratis ¡Bienvenido a ${appName}!`;
+            // HTML for registration... (Copy from previous response)
              htmlContent = `
             <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 20px auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background-color: #ffffff;">
               <h1 style="color: #f59e0b; text-align: center; border-bottom: 1px solid #eee; padding-bottom: 10px;">¡Hola ${userName}, Bienvenido a ${appName}!</h1>
@@ -117,7 +112,7 @@ export async function POST(req: Request) {
                 const { data, error } = await resend.emails.send({
                     from: fromEmail, to: [to], subject: subject, html: htmlContent,
                 });
-                if (error) throw error; // Throw Resend error
+                if (error) throw error;
                 console.log(`Email API: Sent successfully to ${to}. Resend ID: ${data?.id}`);
                 return NextResponse.json({ success: true, message: `Email sent to ${to}`, id: data?.id });
             } catch (error: unknown) {
