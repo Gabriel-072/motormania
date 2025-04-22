@@ -16,7 +16,7 @@ import PicksResumen from '@/components/PicksResumen';
 
 // --- Constants ---
 // Reverted Bold amounts to original, ensure these are correct
-const EXTRA_NUMBER_PRICE = 10000;
+const EXTRA_NUMBER_PRICE = 2000;
 const EXTRA_NUMBER_COUNT = 5;
 const BOLD_CURRENCY = 'COP';
 const SUPPORT_EMAIL = 'soporte@motormaniacolombia.com';
