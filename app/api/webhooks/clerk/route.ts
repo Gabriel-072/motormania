@@ -1,4 +1,4 @@
-// 📁 /app/api/webhooks/clerk/route.ts
+// 📁 /app/api/webhooks/clerk/route.ts (Versión REFINADA con UPSERT)
 import { Webhook } from "svix";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
@@ -24,39 +24,20 @@ if (!INTERNAL_API_SECRET) { console.warn("WARN: INTERNAL_API_SECRET not set."); 
 
 // --- POST Handler ---
 export async function POST(req: Request) {
-  console.log("Clerk webhook request received."); // Log entry
+  console.log("Clerk webhook request received.");
+  // ... (resto del código de verificación de firma con rawBody - IGUAL QUE ANTES) ...
+    if (!CLERK_WEBHOOK_SECRET) { return NextResponse.json({ error: 'Server config error: Clerk secret missing' }, { status: 500 }); }
+    const headerPayload = headers();
+    const svix_id = headerPayload.get("svix-id"); const svix_timestamp = headerPayload.get("svix-timestamp"); const svix_signature = headerPayload.get("svix-signature");
+    if (!svix_id || !svix_timestamp || !svix_signature) { return new NextResponse('Missing Svix headers', { status: 400 }); }
+    const rawBody = await req.text(); let evt: ClerkWebhookPayload; const wh = new Webhook(CLERK_WEBHOOK_SECRET);
+    try {
+        console.log("Verifying Clerk webhook signature...");
+        evt = wh.verify(rawBody, { "svix-id": svix_id, "svix-timestamp": svix_timestamp, "svix-signature": svix_signature }) as ClerkWebhookPayload;
+        console.log("Clerk webhook signature verified.");
+    } catch (err: any) { console.error('Error verifying Clerk webhook signature:', err.message); return NextResponse.json({ 'Error': 'Webhook signature verification failed', details: err.message }, { status: 400 }); }
+    const eventType = evt.type; console.log(`Processing Clerk event type: ${eventType}`);
 
-  if (!CLERK_WEBHOOK_SECRET) {
-    return NextResponse.json({ error: 'Server config error: Clerk secret missing' }, { status: 500 });
-  }
-
-  const headerPayload = headers();
-  const svix_id = headerPayload.get("svix-id");
-  const svix_timestamp = headerPayload.get("svix-timestamp");
-  const svix_signature = headerPayload.get("svix-signature");
-
-  if (!svix_id || !svix_timestamp || !svix_signature) {
-    console.warn("Clerk Webhook: Missing Svix headers.");
-    return new NextResponse('Missing Svix headers', { status: 400 });
-  }
-
-  const rawBody = await req.text();
-  let evt: ClerkWebhookPayload;
-  const wh = new Webhook(CLERK_WEBHOOK_SECRET);
-
-  try {
-    console.log("Verifying Clerk webhook signature...");
-    evt = wh.verify(rawBody, {
-      "svix-id": svix_id, "svix-timestamp": svix_timestamp, "svix-signature": svix_signature,
-    }) as ClerkWebhookPayload;
-    console.log("Clerk webhook signature verified.");
-  } catch (err: any) {
-    console.error('Error verifying Clerk webhook signature:', err.message);
-    return NextResponse.json({ 'Error': 'Webhook signature verification failed', details: err.message }, { status: 400 });
-  }
-
-  const eventType = evt.type;
-  console.log(`Processing Clerk event type: ${eventType}`);
 
   if (eventType === "user.created") {
     const userData = evt.data as UserCreatedData;
@@ -78,8 +59,7 @@ export async function POST(req: Request) {
       console.log(`Attempting upsert into clerk_users for ${clerk_id}...`);
       const { error: userUpsertError } = await supabase.from("clerk_users").upsert({
           clerk_id: clerk_id, email: email, username: username || null, full_name: fullName, updated_at: now,
-          // Let created_at use DB default or set it if needed: created_at: now,
-        }, { onConflict: 'clerk_id' }); // REQUIRES UNIQUE constraint on clerk_id (PK)
+        }, { onConflict: 'clerk_id' });
       if (userUpsertError) throw new Error(`DB Error (clerk_users upsert): ${userUpsertError.message}`);
       console.log(`User ${clerk_id} synced to clerk_users.`);
 
@@ -87,34 +67,22 @@ export async function POST(req: Request) {
       const initialNumbers = Array.from({ length: INITIAL_FREE_NUMBERS_COUNT }, () => Math.floor(100000 + Math.random() * 900000).toString());
       console.log(`Generated initial numbers for ${clerk_id}:`, initialNumbers);
 
-      // 3. Upsert initial entry into entries
+      // 3. Upsert initial entry into entries - USANDO UPSERT
       console.log(`Attempting upsert into entries for ${clerk_id}...`);
       const { error: entriesUpsertError } = await supabase.from("entries").upsert({
           user_id: clerk_id, numbers: initialNumbers, paid_numbers_count: 0,
-          name: fullName, email: email, region: "CO", // Match your schema columns
+          name: fullName, email: email, region: "CO", // CONFIRMA COLUMNAS Y VALOR REGION
         }, { onConflict: 'user_id', ignoreDuplicates: false }); // REQUIRES UNIQUE constraint on user_id
       if (entriesUpsertError) throw new Error(`DB Error (entries upsert): ${entriesUpsertError.message}`);
       console.log(`Initial entries created/updated for user ${clerk_id}.`);
 
-      // 4. Upsert Wallet entry (Simplified)
-      // Assumes UNIQUE constraint on user_id in 'wallet' table
-      console.log(`Attempting upsert into wallet for ${clerk_id}...`); // Added log
-      const { error: walletError } = await supabase
-        .from("wallet") // CONFIRM table name - OK based on schema
-        .upsert({
-          user_id: clerk_id,       // CONFIRM column name & FK - OK based on schema
-          // --- CORRECCIÓN AQUÍ ---
-          mmc_coins: 0,         // Usar nombre correcto del schema: mmc_coins
-          fuel_coins: 0,        // Usar nombre correcto del schema: fuel_coins
-          // --- FIN CORRECCIÓN ---
-        }, { onConflict: 'user_id', ignoreDuplicates: false }); // OK based on schema
-
-       if (walletError) {
-            // Log warning but don't necessarily fail the whole webhook for wallet init failure
-            console.warn(`Clerk Webhook DB Warning (Wallet upsert ${clerk_id}):`, walletError.message);
-       } else {
-            console.log(`Wallet entry created/updated for user ${clerk_id}.`);
-       }
+      // 4. Upsert Wallet entry (Simplified) - USANDO UPSERT
+      console.log(`Attempting upsert into wallet for ${clerk_id}...`);
+      const { error: walletError } = await supabase.from("wallet").upsert({
+          user_id: clerk_id, mmc_coins: 0, fuel_coins: 0, // Nombres corregidos
+        }, { onConflict: 'user_id', ignoreDuplicates: false }); // REQUIRES UNIQUE constraint on user_id
+      if (walletError) { console.warn(`Clerk Webhook DB Warning (Wallet upsert ${clerk_id}):`, walletError.message); }
+      else { console.log(`Wallet entry created/updated for user ${clerk_id}.`); }
 
       // 5. Trigger centralized email confirmation API
       console.log(`Triggering email confirmation API for ${email}...`);
@@ -132,8 +100,8 @@ export async function POST(req: Request) {
        const message = error instanceof Error ? error.message : "Unknown processing error";
        return NextResponse.json({ error: "Failed to process user creation", details: message }, { status: 500 });
     }
-  } // End user.created handler
+  } // --- End user.created handler ---
 
-  console.log(`Clerk event type ${eventType} received but no specific handler configured.`);
+  console.log(`Clerk webhook event type ${eventType} received but no specific handler configured.`);
   return NextResponse.json({ success: true, message: `Event type ${eventType} received but no action needed.` });
 }
