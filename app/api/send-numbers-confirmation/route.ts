@@ -1,134 +1,99 @@
-// 📁 /app/api/send-numbers-confirmation/route.ts
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
 
-// --- Environment Variables & Constants ---
-const resendApiKey = process.env.RESEND_API_KEY;
-const appUrl = process.env.NEXT_PUBLIC_SITE_URL; // Production URL - CRITICAL
+const resendApiKey = process.env.RESEND_API_KEY!;
+const appUrl = process.env.NEXT_PUBLIC_SITE_URL!;
+const INTERNAL_API_SECRET = process.env.INTERNAL_API_SECRET!;
 const appName = "MotorManía";
-const fromEmail = `MotorMania <noreply@motormaniacolombia.com>`; // Use your verified Resend domain
+const fromEmail = `MotorMania <noreply@motormaniacolombia.com>`;
 const supportEmail = "soporte@motormaniacolombia.com";
 
-// --- Startup Checks ---
-if (!resendApiKey) {
-    console.error("FATAL ERROR: RESEND_API_KEY environment variable is not set.");
-}
-if (!appUrl) {
-    console.error("FATAL ERROR: NEXT_PUBLIC_SITE_URL environment variable is not set.");
-}
+const resend = new Resend(resendApiKey);
 
-// Initialize Resend client (only if API key exists)
-const resend = resendApiKey ? new Resend(resendApiKey) : null;
-
-// --- POST Handler ---
 export async function POST(req: Request) {
-    console.log("API Route: /api/send-numbers-confirmation invoked.");
+  const authHeader = req.headers.get('authorization') || '';
+  const token = authHeader.replace('Bearer ', '');
 
-    // 1. REMOVED Security Check for INTERNAL_API_SECRET
+  // 🔐 Check Authorization Token
+  if (!token || token !== INTERNAL_API_SECRET) {
+    console.warn("Unauthorized attempt to trigger email.");
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
 
-    // Check if Resend client is initialized
-    if (!resend) {
-         console.error("Email API Error: Resend client not initialized (Missing API Key).");
-         return NextResponse.json({ error: 'Email service configuration error' }, { status: 500 });
+  try {
+    const body = await req.json();
+    const { to, name, numbers, context = 'registro', orderId, amount } = body;
+
+    // ✅ Validation
+    if (
+      !to || !/\S+@\S+\.\S+/.test(to) ||
+      !Array.isArray(numbers) || numbers.length === 0 ||
+      !numbers.every(num => typeof num === 'string' && /^\d{6}$/.test(num))
+    ) {
+      return NextResponse.json({ error: 'Invalid input data' }, { status: 400 });
     }
-     // Check if APP_URL is configured (needed for links in email)
-     if (!appUrl) {
-        console.error("Email API Error: NEXT_PUBLIC_SITE_URL is not configured.");
-        return NextResponse.json({ error: 'Application URL configuration error' }, { status: 500 });
+
+    const userName = name || 'Usuario';
+    const formattedAmount = typeof amount === 'number'
+      ? new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(amount)
+      : '';
+
+    const listItemsHtml = numbers.map(num => `
+      <li style="font-size: 18px; font-weight: bold; color: #1e293b; background-color: #e2e8f0; padding: 8px 12px; margin: 8px auto; border-radius: 4px; max-width: 100px; text-align: center; letter-spacing: 2px;">
+        ${num}
+      </li>`).join("");
+
+    const subject = context === 'compra'
+      ? `✅ Compra Confirmada - ${numbers.length} Números Extra ${appName}`
+      : `🏆 Tus Números Gratis ¡Bienvenido a ${appName}!`;
+
+    const html = `
+    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 20px auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background-color: #ffffff;">
+      <h1 style="text-align: center; color: ${context === 'compra' ? '#16a34a' : '#f59e0b'};">
+        ${context === 'compra' ? '¡Gracias por tu compra, ' : '¡Hola '}${userName}${context === 'compra' ? '!' : ', Bienvenido a MotorManía!'}
+      </h1>
+      <p style="font-size: 16px; text-align: center;">
+        ${context === 'compra'
+          ? `Hemos agregado ${numbers.length} números extra a tu cuenta para nuestros sorteos:`
+          : `Estos son tus ${numbers.length} números iniciales GRATIS para participar en nuestros sorteos:`}
+      </p>
+      <ul style="list-style: none; padding: 0; text-align: center; margin: 25px 0;">
+        ${listItemsHtml}
+      </ul>
+      ${orderId ? `<p style="font-size: 14px; text-align: center; color: #555;">Referencia Orden: ${orderId}</p>` : ''}
+      ${formattedAmount ? `<p style="font-size: 14px; text-align: center; color: #555;">Monto: ${formattedAmount}</p>` : ''}
+      <p style="text-align: center; margin-top: 25px;">
+        <a href="${appUrl}/dashboard" style="display: inline-block; background-color: #0ea5e9; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+          ${context === 'compra' ? 'Ver Dashboard' : 'Comprar Números Extra'}
+        </a>
+      </p>
+      ${context === 'registro' ? `
+        <p style="font-size: 16px; color: #555; text-align: center; margin-top: 20px;">🏎️ ¿Amas la F1?</p>
+        <p style="text-align: center;">
+          <a href="${appUrl}/jugar-y-gana" style="color: #0ea5e9;">¡Juega F1 Fantasy y gana premios!</a><br>
+          <a href="${appUrl}/mmc-go" style="color: #8b5cf6; margin-top: 5px; display: inline-block;">Prueba también MMC-GO</a>
+        </p>
+      ` : ''}
+      <footer style="margin-top: 30px; padding-top: 15px; border-top: 1px solid #eee; font-size: 12px; color: #999; text-align: center;">
+        ${appName} | Bogotá D.C., Colombia | <a href="mailto:${supportEmail}" style="color: #999;">${supportEmail}</a>
+      </footer>
+    </div>`;
+
+    const { data, error } = await resend.emails.send({
+      from: fromEmail,
+      to: [to],
+      subject,
+      html,
+    });
+
+    if (error) {
+      console.error("Email send failed:", error);
+      return NextResponse.json({ error: 'Failed to send email', details: error.message }, { status: 500 });
     }
 
-    try {
-        const body = await req.json();
-        console.log("Email API Body:", JSON.stringify(body));
-
-        // 2. Input Validation
-        const { to, name, numbers, context, orderId, amount } = body;
-        if (!to || !Array.isArray(numbers) || numbers.length === 0 || !/\S+@\S+\.\S+/.test(to) || !numbers.every(num => typeof num === 'string' && /^\d{6}$/.test(num)) ) {
-            console.error("Email API Validation Error: Invalid input.", { to, numbers });
-            return NextResponse.json({ error: 'Invalid input: Requires valid "to" email and "numbers" array (6-digit strings).' }, { status: 400 });
-        }
-        const userName = name || 'Usuario';
-
-        // 3. Prepare Email Content
-        let subject = '';
-        let htmlContent = '';
-        const listItemsHtml = numbers.map((num) => `<li style="font-size: 18px; font-weight: bold; color: #1e293b; background-color: #e2e8f0; padding: 8px 12px; margin: 8px auto; border-radius: 4px; max-width: 100px; text-align: center; letter-spacing: 2px;">${num}</li>`).join("");
-        // Confirmed: amount = 2000 means 2000 COP
-        const numericAmount = typeof amount === 'number' ? amount : 0;
-        const formattedAmount = numericAmount > 0 ? new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(numericAmount) : '';
-
-        console.log(`Preparing email. Context: ${context}, To: ${to}, Name: ${userName}, Number Count: ${numbers.length}`);
-
-        if (context === 'compra') {
-            subject = `✅ Compra Confirmada - ${numbers.length} Números Extra ${appName}!`;
-            // HTML for purchase... (Copy from previous response)
-            htmlContent = `
-            <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 20px auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background-color: #ffffff;">
-              <h1 style="color: #16a34a; text-align: center; border-bottom: 1px solid #eee; padding-bottom: 10px;">¡Gracias por tu compra, ${userName}!</h1>
-              <p style="font-size: 16px; text-align: center;">Hemos agregado ${numbers.length} números extra a tu cuenta para nuestros sorteos:</p>
-              <ul style="list-style: none; padding: 0; text-align: center; margin: 25px 0;">
-                ${listItemsHtml}
-              </ul>
-              ${orderId ? `<p style="font-size: 14px; color: #555; text-align: center;">Referencia Orden: ${orderId}</p>` : ''}
-              ${formattedAmount ? `<p style="font-size: 14px; color: #555; text-align: center;">Monto: ${formattedAmount}</p>` : ''}
-              <p style="text-align: center; margin-top: 25px;">
-                <a href="${appUrl}/dashboard" style="display: inline-block; background-color: #0ea5e9; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;">Ver Dashboard</a>
-              </p>
-              <footer style="margin-top: 30px; padding-top: 15px; border-top: 1px solid #eee; font-size: 12px; color: #999; text-align: center;">
-                ${appName} | Bogotá D.C., Colombia | <a href="mailto:${supportEmail}" style="color: #999;">${supportEmail}</a>
-              </footer>
-            </div>`;
-        } else { // Default to 'registro'
-            subject = `🏆 Tus Números Gratis ¡Bienvenido a ${appName}!`;
-            // HTML for registration... (Copy from previous response)
-             htmlContent = `
-            <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 20px auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background-color: #ffffff;">
-              <h1 style="color: #f59e0b; text-align: center; border-bottom: 1px solid #eee; padding-bottom: 10px;">¡Hola ${userName}, Bienvenido a ${appName}!</h1>
-              <p style="font-size: 16px; text-align: center;">Estos son tus ${numbers.length} números iniciales GRATIS para participar en nuestros sorteos:</p>
-              <ul style="list-style: none; padding: 0; text-align: center; margin: 25px 0;">
-                 ${listItemsHtml}
-              </ul>
-              <p style="font-size: 16px; text-align: center;">🎯 ¿Quieres más oportunidades?</p>
-              <p style="text-align: center;">
-                <a href="${appUrl}/dashboard" style="display: inline-block; background-color: #eab308; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold; margin-top: 5px;">Comprar Números Extra</a>
-              </p>
-               <p style="font-size: 16px; color: #555; text-align: center; margin-top: 20px;">🏎️ ¿Amas la F1?</p>
-               <p style="text-align: center;">
-                 <a href="${appUrl}/jugar-y-gana" style="color: #0ea5e9;">¡Juega F1 Fantasy y gana premios!</a><br>
-                 <a href="${appUrl}/mmc-go" style="color: #8b5cf6; margin-top: 5px; display: inline-block;">Prueba también MMC-GO</a>
-               </p>
-              <footer style="margin-top: 30px; padding-top: 15px; border-top: 1px solid #eee; font-size: 12px; color: #999; text-align: center;">
-                ${appName} | Bogotá D.C., Colombia | <a href="mailto:${supportEmail}" style="color: #999;">${supportEmail}</a>
-              </footer>
-            </div>`;
-        }
-
-        // --- 4. Send Email with Retry Logic ---
-        let retries = 3;
-        let lastError: Error | null = null;
-        while (retries > 0) {
-            try {
-                console.log(`Email API: Attempting send to ${to} (Attempt ${4 - retries}/3) Context: ${context}`);
-                const { data, error } = await resend.emails.send({
-                    from: fromEmail, to: [to], subject: subject, html: htmlContent,
-                });
-                if (error) throw error;
-                console.log(`Email API: Sent successfully to ${to}. Resend ID: ${data?.id}`);
-                return NextResponse.json({ success: true, message: `Email sent to ${to}`, id: data?.id });
-            } catch (error: unknown) {
-                lastError = error instanceof Error ? error : new Error(String(error));
-                console.error(`Email API: Send failed to ${to} (Retry ${4 - retries}/3). Error: ${lastError.message}`);
-                retries--;
-                if (retries > 0) { await new Promise(r => setTimeout(r, 1000*(4-retries))); }
-            }
-        }
-        console.error(`Email API: Failed permanently to ${to} after retries. Last Error:`, lastError);
-        return NextResponse.json({ error: 'Failed to send email after multiple retries', details: lastError?.message }, { status: 500 });
-
-    } catch (error: unknown) {
-        console.error('Email API: Error processing request:', error);
-        const message = error instanceof Error ? error.message : "Unknown internal server error";
-        if (message.includes('JSON')) { return NextResponse.json({ error: 'Invalid request body' }, { status: 400 }); }
-        return NextResponse.json({ error: 'Internal Server Error', details: message }, { status: 500 });
-    }
+    return NextResponse.json({ success: true, id: data?.id, to });
+  } catch (err) {
+    console.error("Unexpected error:", err);
+    return NextResponse.json({ error: 'Unexpected server error' }, { status: 500 });
+  }
 }
