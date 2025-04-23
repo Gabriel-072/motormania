@@ -141,19 +141,15 @@ export default function DashboardPage() {
       openBoldCheckout({
         apiKey: boldApiKey,
         orderId,
-        amount: {
-          currency: 'COP',
-          total_amount: amount,
-          tip_amount: 0,
-          taxes: [],
-        },
+        amount: Number(amount), // ✅ Enviamos solo el número
+        currency: BOLD_CURRENCY,
         description: `Pago por ${EXTRA_NUMBER_COUNT} números extra`,
         redirectionUrl: redirectUrl,
         integritySignature,
-        customerData: JSON.stringify({
+        customerData: {
           email: userEmail || user.primaryEmailAddress?.emailAddress,
           fullName: userName,
-        }),
+        },
       });
     } catch (err: unknown) {
       console.error("Error initiating purchase flow:", err);
