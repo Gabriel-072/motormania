@@ -105,19 +105,16 @@ export default function DashboardPage() {
     setError(null);
     setPaymentConfirmed(false);
 
-    // Usar el mismo amount que en la constante
     const amount = EXTRA_NUMBER_PRICE;
     const timestamp = Date.now().toString();
-    const orderId = `ORDER-${user.id}-${timestamp}`; // Incluir user_id
+    const orderId = `ORDER-${user.id}-${timestamp}`;
 
     try {
       const response = await fetch('/api/bold/hash', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount }), // Enviar solo amount
+        body: JSON.stringify({ amount }),
       });
-
-      console.log('Hash response:', await response.json());
 
       if (!response.ok) {
         let errorMsg = `Error getting payment signature (${response.status})`;
@@ -125,7 +122,10 @@ export default function DashboardPage() {
         throw new Error(errorMsg);
       }
 
-      const { orderId: serverOrderId, amount: serverAmount, redirectUrl, integritySignature, metadata } = await response.json();
+      const data = await response.json();
+      console.log('Hash response:', data);
+
+      const { orderId: serverOrderId, amount: serverAmount, redirectUrl, integritySignature, metadata } = data;
       console.log('Parsed hash response:', { serverOrderId, serverAmount, redirectUrl, integritySignature, metadata });
 
       if (!integritySignature) throw new Error("Invalid payment signature received.");

@@ -10,11 +10,14 @@ export async function POST(req: NextRequest) {
     const authResult = await auth();
     const userId: string | null = authResult.userId;
     if (!userId) {
+      console.error('No userId found in authResult');
       return new NextResponse('Unauthorized', { status: 401 });
     }
 
     const { amount } = await req.json();
+    console.log('Received request body:', { amount });
     if (!amount || typeof amount !== 'number') {
+      console.error('Invalid amount:', amount);
       return new NextResponse('Invalid amount', { status: 400 });
     }
 
@@ -34,7 +37,7 @@ export async function POST(req: NextRequest) {
 
     console.log('Generated signature:', integritySignature);
 
-    return NextResponse.json({
+    const response = {
       orderId,
       amount,
       redirectUrl,
@@ -42,7 +45,10 @@ export async function POST(req: NextRequest) {
       metadata: {
         reference: orderId,
       },
-    });
+    };
+    console.log('Response:', response);
+
+    return NextResponse.json(response);
   } catch (err) {
     console.error('Hash generation error:', err);
     return new NextResponse('Internal Server Error', { status: 500 });
