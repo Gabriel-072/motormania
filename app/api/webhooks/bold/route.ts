@@ -26,7 +26,7 @@ async function verifyBoldSignature(signature: string, rawBody: string): Promise<
       isValid,
       receivedSignature: signature,
       expectedSignature,
-      boldSecretKey: boldWebhookSecret.substring(0, 4) + '...', // Log parcial para depuración
+      boldSecretKey: boldWebhookSecret.substring(0, 4) + '...',
     });
     return isValid;
   } catch (error) {
@@ -111,7 +111,6 @@ async function processApprovedSale(supabase: SupabaseClient, bodyData: any) {
         type: 'recarga',
         amount: totalAmount,
         description: txDescription,
-        bold_order_id: payment_id,
       });
     if (insertTxError) throw new Error(`Insert transaction failed: ${insertTxError.message}`);
 

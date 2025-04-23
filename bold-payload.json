@@ -1,0 +1,23 @@
+{
+  "id": "191850cb-00f8-4f64-aa5f-4975848e9428",
+  "type": "SALE_APPROVED",
+  "subject": "CP332C3C9WZU",
+  "source": "/payments",
+  "spec_version": "1.0",
+  "time": 1711989345347444700,
+  "data": {
+    "payment_id": "CP332C3C9WZU",
+    "merchant_id": "CKKA859CGE",
+    "created_at": "2024-04-01T11:35:42-05:00",
+    "amount": {
+      "total": 2000,
+      "taxes": [],
+      "tip": 0
+    },
+    "payment_method": "CARD",
+    "metadata": {
+      "reference": "ORDER-user_2w77ngdl2LlLponwLDVwwcyhWqB-1234-test"
+    }
+  },
+  "datacontenttype": "application/json"
+}
