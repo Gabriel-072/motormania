@@ -107,24 +107,24 @@ export default function DashboardPage() {
       setError("Información de usuario (ID o Email) incompleta para la compra.");
       return;
     }
-
+  
     const boldApiKey = process.env.NEXT_PUBLIC_BOLD_BUTTON_KEY;
     if (!boldApiKey) {
       console.error("Bold API Key missing: NEXT_PUBLIC_BOLD_BUTTON_KEY");
       setError(`La configuración de pago no está disponible. Contacta a ${SUPPORT_EMAIL}.`);
       return;
     }
-
+  
     setError(null);
     setPaymentConfirmed(false);
-
+  
     try {
       const response = await fetch('/api/bold/hash', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ amount: EXTRA_NUMBER_PRICE }),
       });
-
+  
       if (!response.ok) {
         let errorMsg = `Error getting payment signature (${response.status})`;
         try {
@@ -133,23 +133,27 @@ export default function DashboardPage() {
         } catch (_) {}
         throw new Error(errorMsg);
       }
-
+  
       const { orderId, amount, redirectUrl, integritySignature, metadata } = await response.json();
-
+  
       if (!integritySignature) throw new Error("Invalid payment signature received.");
-
+  
       openBoldCheckout({
         apiKey: boldApiKey,
         orderId,
-        amount,
-        currency: BOLD_CURRENCY,
+        amount: {
+          currency: 'COP',
+          total_amount: amount,
+          tip_amount: 0,
+          taxes: [],
+        },
         description: `Pago por ${EXTRA_NUMBER_COUNT} números extra`,
         redirectionUrl: redirectUrl,
         integritySignature,
-        customerData: {
+        customerData: JSON.stringify({
           email: userEmail || user.primaryEmailAddress?.emailAddress,
           fullName: userName,
-        },
+        }),
       });
     } catch (err: unknown) {
       console.error("Error initiating purchase flow:", err);
