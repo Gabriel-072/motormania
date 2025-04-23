@@ -16,12 +16,18 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 async function verifyBoldSignature(signature: string, rawBody: string): Promise<boolean> {
   try {
     const encodedBody = Buffer.from(rawBody).toString('base64');
+    console.log('Encoded body for signature:', encodedBody.substring(0, 200));
     const expectedSignature = crypto
       .createHmac('sha256', boldWebhookSecret)
       .update(encodedBody)
       .digest('hex');
     const isValid = crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature));
-    console.log('Signature verification:', { isValid, signature, expectedSignature });
+    console.log('Signature verification:', {
+      isValid,
+      receivedSignature: signature,
+      expectedSignature,
+      boldSecretKey: boldWebhookSecret.substring(0, 4) + '...', // Log parcial para depuración
+    });
     return isValid;
   } catch (error) {
     console.error('Signature verification error:', error);
@@ -64,7 +70,7 @@ async function processApprovedSale(supabase: SupabaseClient, bodyData: any) {
     let userId = null;
     if (reference.includes('user_')) {
       const parts = reference.split('-');
-      userId = parts.find((part: string) => part.startsWith('user_')) || null; // Corrección: tipo explícito
+      userId = parts.find((part: string) => part.startsWith('user_')) || null;
     }
     if (!userId) {
       const match = reference.match(/user_[a-zA-Z0-9]+/);
