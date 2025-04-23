@@ -19,16 +19,8 @@ const BOLD_CURRENCY = 'COP';
 const SUPPORT_EMAIL = 'soporte@motormaniacolombia.com';
 const APP_ORIGIN = typeof window !== 'undefined' ? window.location.origin : 'https://motormaniacolombia.com';
 
-type UserData = {
-  username: string | null;
-  full_name: string | null;
-  email: string | null;
-} | null;
-
-type EntriesData = {
-  numbers: string[];
-  paid_numbers_count?: number;
-} | null;
+type UserData = { username: string | null; full_name: string | null; email: string | null; } | null;
+type EntriesData = { numbers: string[]; paid_numbers_count?: number; } | null;
 
 export default function DashboardPage() {
   const { isLoaded, isSignedIn, user } = useUser();
@@ -47,42 +39,26 @@ export default function DashboardPage() {
   const fetchData = useCallback(async () => {
     if (!isLoaded) return;
     if (!isSignedIn || !user?.id) {
-      setIsLoading(false);
-      setError(null);
-      setUserName('Invitado');
-      setEntries([]);
+      setIsLoading(false); setError(null); setUserName('Invitado'); setEntries([]);
       return;
     }
-
-    setIsLoading(true);
-    setError(null);
-    setPaymentConfirmed(false);
-
+    setIsLoading(true); setError(null); setPaymentConfirmed(false);
     try {
       const jwt = await getToken({ template: 'supabase' });
       if (!jwt) throw new Error('Authentication token not available');
       const supabase = createAuthClient(jwt);
 
-      const { data: userData, error: userError } = await supabase
-        .from('clerk_users')
-        .select('username, full_name, email')
-        .eq('clerk_id', user.id)
-        .maybeSingle<UserData>();
+      const { data: userData, error: userError } = await supabase.from('clerk_users').select('username, full_name, email').eq('clerk_id', user.id).maybeSingle<UserData>();
       if (userError) throw new Error(`Error fetching user data: ${userError.message}`);
-
       const displayName = userData?.username || userData?.full_name || user.fullName || 'Participante';
       setUserName(displayName);
       const primaryEmail = user.primaryEmailAddress?.emailAddress;
       setUserEmail(primaryEmail || userData?.email || null);
 
-      const { data: entriesData, error: entriesError } = await supabase
-        .from('entries')
-        .select('numbers')
-        .eq('user_id', user.id)
-        .maybeSingle<EntriesData>();
+      const { data: entriesData, error: entriesError } = await supabase.from('entries').select('numbers').eq('user_id', user.id).maybeSingle<EntriesData>();
       if (entriesError) throw new Error(`Error fetching entries: ${entriesError.message}`);
-
-      const formattedNumbers = (entriesData?.numbers || []).map((num) => String(num).padStart(6, '0'));
+      const numbersArray: string[] = entriesData?.numbers || [];
+      const formattedNumbers = numbersArray.map((num) => String(num).padStart(6, '0'));
       setEntries(formattedNumbers);
     } catch (err: unknown) {
       console.error("Dashboard fetch error:", err);
@@ -97,27 +73,29 @@ export default function DashboardPage() {
     fetchData();
   }, [fetchData]);
 
+  const toggleNumbers = () => {
+    setShowNumbers((prev) => !prev);
+  };
+
+  const SkeletonLoader = ({ count = 5 }: { count?: number }) => (
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
+      {Array.from({ length: count }).map((_, index) => (
+        <div key={index} className="bg-gray-700/50 rounded-lg animate-pulse aspect-video" />
+      ))}
+    </div>
+  );
+
   const downloadDigitalID = useCallback(async () => {
     const element = digitalIdRef.current;
-    if (!element) {
-      setError("No se pudo encontrar el carnet para descargar.");
-      return;
-    }
+    if (!element) { setError("No se pudo encontrar el carnet para descargar."); return; }
     try {
-      await new Promise((resolve) => setTimeout(resolve, 150));
-      const canvas = await html2canvas(element, {
-        backgroundColor: '#111827',
-        scale: 2.5,
-        useCORS: true,
-        logging: false,
-      });
+      await new Promise(resolve => setTimeout(resolve, 150));
+      const canvas = await html2canvas(element, { backgroundColor: '#111827', scale: 2.5, useCORS: true, logging: false });
       const link = document.createElement('a');
       link.href = canvas.toDataURL('image/png');
       const safeUserName = userName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
       link.download = `MotorMania_DigitalID_${safeUserName || 'usuario'}.png`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      document.body.appendChild(link); link.click(); document.body.removeChild(link);
     } catch (err: unknown) {
       console.error("Error downloading Digital ID:", err);
       setError("Error al generar la imagen del carnet.");
@@ -179,18 +157,6 @@ export default function DashboardPage() {
       setError(message);
     }
   };
-
-  const toggleNumbers = () => {
-    setShowNumbers((prev) => !prev);
-  };
-
-  const SkeletonLoader = ({ count = 5 }: { count?: number }) => (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
-      {Array.from({ length: count }).map((_, index) => (
-        <div key={index} className="bg-gray-700/50 rounded-lg animate-pulse aspect-video" />
-      ))}
-    </div>
-  );
 
   const renderContent = () => {
     if (!isLoaded) return (
