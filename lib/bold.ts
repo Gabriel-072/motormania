@@ -38,6 +38,7 @@ export const openBoldCheckout = (config: BoldConfig) => {
       description: config.description,
       redirectionUrl: config.redirectionUrl,
       integritySignature: config.integritySignature,
+      // PASAMOS DIRECTAMENTE EL OBJETO, NO JSON.stringify
       customerData: config.customerData || {},
       renderMode: 'embedded',
     });
