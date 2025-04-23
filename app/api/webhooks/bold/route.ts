@@ -1,3 +1,4 @@
+// 📁 /app/api/webhooks/bold/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
@@ -17,27 +18,29 @@ const EXTRA_NUMBER_COUNT = 5;
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ✅ Verificar la firma del webhook de Bold
+// ✅ Verificar firma usando el raw body (NO base64) como exige Bold
 // ─────────────────────────────────────────────────────────────────────────────
 async function verifyBoldSignature(signature: string, rawBody: string): Promise<boolean> {
   try {
-    const encodedBody = Buffer.from(rawBody).toString('base64');
     const expectedSignature = crypto
       .createHmac('sha256', boldWebhookSecret)
-      .update(encodedBody)
+      .update(rawBody)
       .digest('hex');
 
-    const isValid = crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature));
+    const isValid = crypto.timingSafeEqual(
+      Buffer.from(signature),
+      Buffer.from(expectedSignature)
+    );
 
-    console.log('🔒 Verificación de firma Bold:', {
+    console.log('🔐 Verificación firma Bold:', {
       isValid,
-      receivedSignature: signature,
-      expectedSignature,
+      received: signature,
+      expected: expectedSignature,
     });
 
     return isValid;
   } catch (error) {
-    console.error('❌ Error verificando firma de Bold:', error);
+    console.error('❌ Error verificando firma Bold:', error);
     return false;
   }
 }
@@ -71,20 +74,14 @@ async function processApprovedSale(supabase: SupabaseClient, bodyData: any) {
     const reference = metadata?.reference;
     const totalAmount = amount?.total;
 
-    if (!payment_id || !reference || totalAmount == null) {
-      throw new Error(`Faltan datos: ${JSON.stringify({ payment_id, reference, totalAmount })}`);
-    }
-    if (typeof totalAmount !== 'number' || isNaN(totalAmount)) {
-      throw new Error(`Formato inválido para amount: ${totalAmount}`);
+    if (!payment_id || !reference || typeof totalAmount !== 'number') {
+      throw new Error(`Datos incompletos: ${JSON.stringify({ payment_id, reference, totalAmount })}`);
     }
 
-    // 🔎 Extraer userId desde la referencia
     const match = reference.match(/user_[a-zA-Z0-9]+/);
     const userId = match?.[0];
     if (!userId) throw new Error(`Referencia inválida: ${reference}`);
-    console.log('🆔 Usuario identificado:', userId);
 
-    // 🔐 Verificar existencia del usuario
     const { data: userExists } = await supabase
       .from('clerk_users')
       .select('clerk_id')
@@ -95,7 +92,6 @@ async function processApprovedSale(supabase: SupabaseClient, bodyData: any) {
 
     const txDescription = `Compra de ${EXTRA_NUMBER_COUNT} números extra via Bold (Ref: ${reference}, BoldID: ${payment_id})`;
 
-    // ⚠️ Verificar si la transacción ya fue procesada
     const { data: existingTx } = await supabase
       .from('transactions')
       .select('id')
@@ -107,19 +103,15 @@ async function processApprovedSale(supabase: SupabaseClient, bodyData: any) {
       return;
     }
 
-    // 💾 Insertar en tabla de transacciones
-    const { error: insertTxError } = await supabase
-      .from('transactions')
-      .insert({
-        user_id: userId,
-        type: 'recarga',
-        amount: totalAmount,
-        description: txDescription,
-      });
+    const { error: insertTxError } = await supabase.from('transactions').insert({
+      user_id: userId,
+      type: 'recarga',
+      amount: totalAmount,
+      description: txDescription,
+    });
 
-    if (insertTxError) throw new Error(`Fallo al guardar transacción: ${insertTxError.message}`);
+    if (insertTxError) throw new Error(`Error guardando transacción: ${insertTxError.message}`);
 
-    // 🧠 Leer números actuales del usuario
     const { data: currentEntry } = await supabase
       .from('entries')
       .select('numbers, paid_numbers_count')
@@ -131,21 +123,17 @@ async function processApprovedSale(supabase: SupabaseClient, bodyData: any) {
     const updatedNumbers = [...existingNumbers, ...newNumbers];
     const updatedPaidCount = (currentEntry?.paid_numbers_count || 0) + EXTRA_NUMBER_COUNT;
 
-    // 📝 Actualizar entradas
-    const { error: upsertError } = await supabase
-      .from('entries')
-      .upsert(
-        {
-          user_id: userId,
-          numbers: updatedNumbers,
-          paid_numbers_count: updatedPaidCount,
-        },
-        { onConflict: 'user_id' }
-      );
+    const { error: upsertError } = await supabase.from('entries').upsert(
+      {
+        user_id: userId,
+        numbers: updatedNumbers,
+        paid_numbers_count: updatedPaidCount,
+      },
+      { onConflict: 'user_id' }
+    );
 
-    if (upsertError) throw new Error(`Error actualizando entries: ${upsertError.message}`);
+    if (upsertError) throw new Error(`Error actualizando números: ${upsertError.message}`);
 
-    // 📧 Enviar correo de confirmación
     const { data: user } = await supabase
       .from('clerk_users')
       .select('email, full_name')
@@ -160,7 +148,7 @@ async function processApprovedSale(supabase: SupabaseClient, bodyData: any) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Referer': appUrl,
+          Referer: appUrl,
         },
         body: JSON.stringify({
           to,
@@ -170,12 +158,12 @@ async function processApprovedSale(supabase: SupabaseClient, bodyData: any) {
           orderId: reference,
           amount: totalAmount,
         }),
-      }).catch(err => console.error('❌ Error enviando email de confirmación:', err));
+      }).catch((err) => console.error('❌ Error enviando email:', err));
     } else {
-      console.warn('⚠️ No se encontró email para:', userId);
+      console.warn(`⚠️ Email no encontrado para usuario: ${userId}`);
     }
 
-    console.log('✅ Proceso completado:', { payment_id, userId });
+    console.log('✅ Venta procesada con éxito:', { payment_id, userId });
   } catch (error) {
     console.error('🚨 Error procesando venta Bold:', error);
     throw error;
@@ -189,25 +177,23 @@ export async function POST(req: NextRequest) {
   try {
     const rawBody = await req.text();
     const signature = req.headers.get('x-bold-signature') || '';
-    console.log('📩 Webhook recibido:', { signature, body: rawBody.substring(0, 200) });
+    console.log('📩 Webhook recibido:', { signature, preview: rawBody.slice(0, 200) });
 
-    if (!await verifyBoldSignature(signature, rawBody)) {
-      console.error('❌ Firma inválida:', signature);
+    const isValid = await verifyBoldSignature(signature, rawBody);
+    if (!isValid) {
       return new NextResponse('Invalid signature', { status: 401 });
     }
 
     const body = JSON.parse(rawBody);
-    console.log('📦 Payload parseado:', JSON.stringify(body, null, 2));
+    console.log('📦 Payload recibido:', JSON.stringify(body, null, 2));
 
     if (body.type === 'SALE_APPROVED') {
-      processApprovedSale(supabase, body.data).catch(err =>
-        console.error('🔄 Error asíncrono al procesar venta:', err)
-      );
+      await processApprovedSale(supabase, body.data);
     }
 
     return new NextResponse('OK', { status: 200 });
   } catch (err) {
-    console.error('🔥 Error general en Webhook:', err);
+    console.error('🔥 Error general en webhook:', err);
     return new NextResponse('Internal Server Error', { status: 500 });
   }
 }
