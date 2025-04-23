@@ -25,10 +25,8 @@ export async function POST(req: NextRequest) {
     const orderId = `ORDER-${userId}-${timestamp}`;
     const redirectUrl = `${APP_URL}/dashboard?payment_confirmed=true`;
 
-    // Convertir amount a string sin decimales
     const amountStr = Math.round(amount).toString();
-    // Probar con un separador (e.g., |) o formato específico
-    const dataToSign = `${orderId}|${amountStr}|${redirectUrl}|${BOLD_SECRET_KEY}`;
+    const dataToSign = `${orderId}${amountStr}${redirectUrl}${BOLD_SECRET_KEY}`;
     
     console.log('Data to sign:', { orderId, amountStr, redirectUrl, dataToSign });
 
