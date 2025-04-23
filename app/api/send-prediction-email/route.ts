@@ -20,82 +20,68 @@ export async function POST(request: NextRequest) {
     }
 
     const html = `
-      <div style="background-color: #111827; padding: 20px;">
-        <div style="max-width: 600px; margin: 0 auto; background-color: #1F2937; border-radius: 8px; padding: 20px;">
-          <h1 style="color: #FFFFFF; font-size: 24px; text-align: center; margin-bottom: 20px;">
-            🏁 ¡Predicciones confirmadas, ${userName}!
-          </h1>
-          <p style="color: #FFFFFF; font-size: 16px; text-align: center; margin-bottom: 20px;">
-            Tus predicciones para el ${gpName} han sido recibidas:
-          </p>
-          <div style="margin-bottom: 20px;">
-            <h3 style="color: #F59E0B; font-size: 18px; text-align: center; margin-bottom: 10px;">
-              Qualifying (Pole)
-            </h3>
-            <div style="display: flex; flex-direction: column; align-items: center;">
-              <div style="background-color: #FF4500; color: #FFFFFF; padding: 12px; border-radius: 8px; font-weight: bold; font-size: 16px; width: 250px; text-align: center; margin: 5px 0;">
-                1. ${predictions.pole1 || 'No seleccionado'}
-              </div>
-              <div style="background-color: #FF4500; color: #FFFFFF; padding: 12px; border-radius: 8px; font-weight: bold; font-size: 16px; width: 250px; text-align: center; margin: 5px 0;">
-                2. ${predictions.pole2 || 'No seleccionado'}
-              </div>
-              <div style="background-color: #FF4500; color: #FFFFFF; padding: 12px; border-radius: 8px; font-weight: bold; font-size: 16px; width: 250px; text-align: center; margin: 5px 0;">
-                3. ${predictions.pole3 || 'No seleccionado'}
-              </div>
-            </div>
-            <h3 style="color: #F59E0B; font-size: 18px; text-align: center; margin: 20px 0 10px;">
-              Race (GP)
-            </h3>
-            <div style="display: flex; flex-direction: column; align-items: center;">
-              <div style="background-color: #FF4500; color: #FFFFFF; padding: 12px; border-radius: 8px; font-weight: bold; font-size: 16px; width: 250px; text-align: center; margin: 5px 0;">
-                1. ${predictions.gp1 || 'No seleccionado'}
-              </div>
-              <div style="background-color: #FF4500; color: #FFFFFF; padding: 12px; border-radius: 8px; font-weight: bold; font-size: 16px; width: 250px; text-align: center; margin: 5px 0;">
-                2. ${predictions.gp2 || 'No seleccionado'}
-              </div>
-              <div style="background-color: #FF4500; color: #FFFFFF; padding: 12px; border-radius: 8px; font-weight: bold; font-size: 16px; width: 250px; text-align: center; margin: 5px 0;">
-                3. ${predictions.gp3 || 'No seleccionado'}
-              </div>
-            </div>
-            <h3 style="color: #F59E0B; font-size: 18px; text-align: center; margin: 20px 0 10px;">
-              Predicciones Adicionales
-            </h3>
-            <div style="display: flex; flex-direction: column; align-items: center;">
-              <div style="background-color: #FF4500; color: #FFFFFF; padding: 12px; border-radius: 8px; font-weight: bold; font-size: 16px; width: 250px; text-align: center; margin: 5px 0;">
-                Pit Stop Más Rápido: ${predictions.fastest_pit_stop_team || 'No seleccionado'}
-              </div>
-              <div style="background-color: #FF4500; color: #FFFFFF; padding: 12px; border-radius: 8px; font-weight: bold; font-size: 16px; width: 250px; text-align: center; margin: 5px 0;">
-                Vuelta Más Rápida: ${predictions.fastest_lap_driver || 'No seleccionado'}
-              </div>
-              <div style="background-color: #FF4500; color: #FFFFFF; padding: 12px; border-radius: 8px; font-weight: bold; font-size: 16px; width: 250px; text-align: center; margin: 5px 0;">
-                Piloto del Día: ${predictions.driver_of_the_day || 'No seleccionado'}
-              </div>
-            </div>
-          </div>
-          <p style="color: #FFFFFF; font-size: 16px; text-align: center; margin-bottom: 20px;">
-            ¡Compite por premios! Los 3 mejores por carrera y los 3 mejores de la temporada ganan recompensas exclusivas.
-          </p>
-          <div style="text-align: center; margin-bottom: 40px;">
-            <a
-              href="https://motormania.co/jugar-y-gana"
-              style="background-color: #F59E0B; color: #1F2937; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px; display: inline-block;"
-            >
-              Ver clasificación
-            </a>
-          </div>
-          <div style="border-top: 1px solid #374151; padding-top: 20px; color: #D1D5DB; font-size: 12px; text-align: center;">
-            <p style="margin: 0 0 8px;">
-              MotorMania SAS - NIT 900.123.456-7<br />
-              Carrera 15 #88-64, Bogotá D.C., Colombia
-            </p>
-            <p style="margin: 0 0 8px;">
-              Certificado de existencia y representación legal 12345<br />
-              Autorizado mediante resolución 1234 de 2023
-            </p>
-          </div>
-        </div>
-      </div>
-    `;
+  <div style="font-family: Arial, sans-serif; max-width:600px; margin:20px auto; padding:20px; background:#fff; border:1px solid #ddd; border-radius:8px;">
+    <h1 style="text-align:center; color:#f59e0b; margin-bottom:10px;">
+      🏁 ¡Tus Predicciones para el ${gpName}!
+    </h1>
+    <p style="text-align:center; color:#555; font-size:16px; margin-bottom:25px;">
+      Gracias por jugar con MotorManía, <strong>${userName}</strong>. Así quedaron tus selecciones:
+    </p>
+
+    <!-- Qualifying -->
+    <h2 style="color:#1e293b; font-size:18px; margin-bottom:8px;">🏆 Qualifying (Pole)</h2>
+    <ul style="list-style:none; padding:0 0 20px 0; display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;">
+      <li style="background:#e2e8f0; color:#1e293b; font-weight:bold; padding:10px; border-radius:4px; text-align:center;">
+        1. ${predictions.pole1 || 'No seleccionado'}
+      </li>
+      <li style="background:#e2e8f0; color:#1e293b; font-weight:bold; padding:10px; border-radius:4px; text-align:center;">
+        2. ${predictions.pole2 || 'No seleccionado'}
+      </li>
+      <li style="background:#e2e8f0; color:#1e293b; font-weight:bold; padding:10px; border-radius:4px; text-align:center;">
+        3. ${predictions.pole3 || 'No seleccionado'}
+      </li>
+    </ul>
+
+    <!-- Race -->
+    <h2 style="color:#1e293b; font-size:18px; margin-bottom:8px;">🏁 Race (GP)</h2>
+    <ul style="list-style:none; padding:0 0 20px 0; display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;">
+      <li style="background:#e2e8f0; color:#1e293b; font-weight:bold; padding:10px; border-radius:4px; text-align:center;">
+        1. ${predictions.gp1 || 'No seleccionado'}
+      </li>
+      <li style="background:#e2e8f0; color:#1e293b; font-weight:bold; padding:10px; border-radius:4px; text-align:center;">
+        2. ${predictions.gp2 || 'No seleccionado'}
+      </li>
+      <li style="background:#e2e8f0; color:#1e293b; font-weight:bold; padding:10px; border-radius:4px; text-align:center;">
+        3. ${predictions.gp3 || 'No seleccionado'}
+      </li>
+    </ul>
+
+    <!-- Extras -->
+    <h2 style="color:#1e293b; font-size:18px; margin-bottom:8px;">⭐ Predicciones Adicionales</h2>
+    <ul style="list-style:none; padding:0 0 20px 0; display:grid; grid-template-columns:1fr; gap:10px;">
+      <li style="background:#e2e8f0; color:#1e293b; font-weight:bold; padding:10px; border-radius:4px;">
+        Pit Stop Más Rápido: ${predictions.fastest_pit_stop_team || 'No seleccionado'}
+      </li>
+      <li style="background:#e2e8f0; color:#1e293b; font-weight:bold; padding:10px; border-radius:4px;">
+        Vuelta Más Rápida: ${predictions.fastest_lap_driver || 'No seleccionado'}
+      </li>
+      <li style="background:#e2e8f0; color:#1e293b; font-weight:bold; padding:10px; border-radius:4px;">
+        Piloto del Día: ${predictions.driver_of_the_day || 'No seleccionado'}
+      </li>
+    </ul>
+
+    <p style="text-align:center; margin-top:30px;">
+      <a href="https://motormaniacolombia.com/jugar-y-gana" 
+         style="display:inline-block; background:#0ea5e9; color:#fff; padding:12px 25px; text-decoration:none; border-radius:5px; font-weight:bold;">
+        Ver clasificación
+      </a>
+    </p>
+
+    <footer style="margin-top:30px; font-size:12px; color:#999; text-align:center; border-top:1px solid #eee; padding-top:15px;">
+      MotorManía Colombia | Bogotá D.C. | <a href="mailto:soporte@motormaniacolombia.com" style="color:#999;">soporte@motormaniacolombia.com</a>
+    </footer>
+  </div>
+`;
 
     const text = `
 ¡Hola ${userName}!
@@ -128,7 +114,7 @@ Autorizado mediante resolución 1234 de 2023
     `;
 
     const { data, error } = await resend.emails.send({
-      from: 'MotorMania <onboarding@resend.dev>',
+      from: 'MotorMania <noreply@motormaniacolombia.com>',
       to: [userEmail],
       subject: `¡Tus Predicciones para el ${gpName} han sido enviadas!`,
       html,
