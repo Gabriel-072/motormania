@@ -1,16 +1,21 @@
+// 📄 /api/webhooks/clerk/route.ts
+
 import { Webhook } from "svix";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
 
-// ─── Environment Variables ───────────────────────────────────────────────
+// ─── Env Vars & Constants ────────────────────────────────────────────────
 const CLERK_WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET!;
 const APP_URL = process.env.NEXT_PUBLIC_SITE_URL!;
 const INITIAL_FREE_NUMBERS_COUNT = 5;
 const SUPPORT_EMAIL = "soporte@motormaniacolombia.com";
 
-// ─── Interfaces ───────────────────────────────────────────────────────────
-interface EmailAddress { email_address: string; id: string; }
+// ─── Types ───────────────────────────────────────────────────────────────
+interface EmailAddress {
+  email_address: string;
+  id: string;
+}
 interface UserCreatedData {
   id: string;
   username?: string | null;
@@ -24,7 +29,7 @@ interface ClerkWebhookPayload {
   object: 'event';
 }
 
-// ─── Webhook Handler ─────────────────────────────────────────────────────
+// ─── Main Handler ────────────────────────────────────────────────────────
 export async function POST(req: Request) {
   const headerPayload = headers();
   const svix_id = headerPayload.get("svix-id");
@@ -36,26 +41,30 @@ export async function POST(req: Request) {
   }
 
   const rawBody = await req.text();
-  let evt: ClerkWebhookPayload;
-  const wh = new Webhook(CLERK_WEBHOOK_SECRET);
+  const webhook = new Webhook(CLERK_WEBHOOK_SECRET);
+  let event: ClerkWebhookPayload;
 
   try {
-    evt = wh.verify(rawBody, {
+    event = webhook.verify(rawBody, {
       "svix-id": svix_id,
       "svix-timestamp": svix_timestamp,
       "svix-signature": svix_signature,
     }) as ClerkWebhookPayload;
   } catch (err) {
-    console.error("Webhook signature verification failed:", err);
+    console.error("❌ Clerk webhook verification failed:", err);
     return new NextResponse("Invalid signature", { status: 400 });
   }
 
-  const { type, data } = evt;
+  const { type, data } = event;
 
   if (type === "user.created") {
     const { id: clerk_id, email_addresses, username, first_name, last_name } = data;
     const email = email_addresses?.[0]?.email_address;
-    if (!email) return new NextResponse("Email is required", { status: 400 });
+
+    if (!email) {
+      console.warn("⚠️ Email address missing for new Clerk user:", clerk_id);
+      return new NextResponse("Email is required", { status: 400 });
+    }
 
     const supabase = supabaseServer();
     const fullName = `${first_name || ""} ${last_name || ""}`.trim() || email.split("@")[0];
@@ -66,10 +75,16 @@ export async function POST(req: Request) {
     );
 
     try {
+      // 1. Upsert to clerk_users
       await supabase.from("clerk_users").upsert({
-        clerk_id, email, username, full_name: fullName, updated_at: now,
+        clerk_id,
+        email,
+        username,
+        full_name: fullName,
+        updated_at: now,
       }, { onConflict: 'clerk_id' });
 
+      // 2. Upsert to entries table (initial free numbers)
       await supabase.from("entries").upsert({
         user_id: clerk_id,
         numbers: initialNumbers,
@@ -79,18 +94,19 @@ export async function POST(req: Request) {
         region: "CO",
       }, { onConflict: "user_id" });
 
+      // 3. Upsert to wallet table
       await supabase.from("wallet").upsert({
         user_id: clerk_id,
         mmc_coins: 0,
         fuel_coins: 0,
       }, { onConflict: "user_id" });
 
-      // 🔐 Updated to use Referer instead of Authorization
-      await fetch(`${APP_URL}/api/send-numbers-confirmation`, {
+      // 4. Send confirmation email
+      const res = await fetch(`${APP_URL}/api/send-numbers-confirmation`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Referer': APP_URL,
+          'Referer': APP_URL, // acts as internal call marker
         },
         body: JSON.stringify({
           to: email,
@@ -100,12 +116,19 @@ export async function POST(req: Request) {
         }),
       });
 
-      return NextResponse.json({ success: true, message: `User ${clerk_id} created and initialized.` });
+      if (!res.ok) {
+        console.error("📧 Failed to send confirmation email:", await res.text());
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: `✅ User ${clerk_id} initialized with ${INITIAL_FREE_NUMBERS_COUNT} numbers.`,
+      });
     } catch (error) {
-      console.error("Error processing user.created:", error);
+      console.error("🚨 Error processing Clerk user.created:", error);
       return NextResponse.json({ error: "Internal processing error" }, { status: 500 });
     }
   }
 
-  return NextResponse.json({ message: `Event type ${type} received but not handled.` });
+  return NextResponse.json({ message: `🔔 Event ${type} received but not handled.` });
 }
