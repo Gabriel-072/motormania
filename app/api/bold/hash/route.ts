@@ -1,14 +1,9 @@
-// ──────────────────────────────────────────────────────────────────────────────
-// FILE: /app/api/bold/hash/route.ts — API route to generate Bold integrity hash
-// ──────────────────────────────────────────────────────────────────────────────
-
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 
 export async function POST(req: NextRequest) {
   try {
     const { orderId, amount, currency } = await req.json();
-
     if (!orderId || !amount || !currency) {
       return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
     }
