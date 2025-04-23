@@ -4,6 +4,7 @@ import { auth } from '@clerk/nextjs/server';
 
 const BOLD_SECRET_KEY = process.env.BOLD_SECRET_KEY!;
 const APP_URL = process.env.NEXT_PUBLIC_SITE_URL!;
+const BOLD_CURRENCY = 'COP'; // Define la divisa como constante
 
 export async function POST(req: NextRequest) {
   try {
@@ -26,9 +27,10 @@ export async function POST(req: NextRequest) {
     const redirectUrl = `${APP_URL}/dashboard?payment_confirmed=true`;
 
     const amountStr = Math.round(amount).toString();
-    const dataToSign = `${orderId}${amountStr}${redirectUrl}${BOLD_SECRET_KEY}`;
+    // Formato según la guía: {Identificador}{Monto}{Divisa}{LlaveSecreta}
+    const dataToSign = `${orderId}${amountStr}${BOLD_CURRENCY}${BOLD_SECRET_KEY}`;
     
-    console.log('Data to sign:', { orderId, amountStr, redirectUrl, dataToSign });
+    console.log('Data to sign:', { orderId, amountStr, currency: BOLD_CURRENCY, dataToSign });
 
     const integritySignature = crypto
       .createHmac('sha256', BOLD_SECRET_KEY)
