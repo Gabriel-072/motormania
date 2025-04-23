@@ -8,7 +8,6 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const boldWebhookSecret = process.env.BOLD_WEBHOOK_SECRET_KEY!;
 const appUrl = process.env.NEXT_PUBLIC_SITE_URL!;
-const INTERNAL_API_SECRET = process.env.INTERNAL_API_SECRET!;
 
 // --- Init ---
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -81,7 +80,7 @@ async function processApprovedSale(supabase: SupabaseClient, bodyData: any) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${INTERNAL_API_SECRET}`,
+        'Referer': appUrl,
       },
       body: JSON.stringify({
         to,

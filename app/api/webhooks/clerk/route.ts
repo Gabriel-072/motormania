@@ -3,19 +3,28 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
 
+// ─── Environment Variables ───────────────────────────────────────────────
 const CLERK_WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET!;
-const INTERNAL_API_SECRET = process.env.INTERNAL_API_SECRET!;
 const APP_URL = process.env.NEXT_PUBLIC_SITE_URL!;
 const INITIAL_FREE_NUMBERS_COUNT = 5;
 const SUPPORT_EMAIL = "soporte@motormaniacolombia.com";
 
+// ─── Interfaces ───────────────────────────────────────────────────────────
 interface EmailAddress { email_address: string; id: string; }
 interface UserCreatedData {
-  id: string; username?: string | null; email_addresses: EmailAddress[];
-  first_name?: string | null; last_name?: string | null;
+  id: string;
+  username?: string | null;
+  email_addresses: EmailAddress[];
+  first_name?: string | null;
+  last_name?: string | null;
 }
-interface ClerkWebhookPayload { type: string; data: UserCreatedData; object: 'event'; }
+interface ClerkWebhookPayload {
+  type: string;
+  data: UserCreatedData;
+  object: 'event';
+}
 
+// ─── Webhook Handler ─────────────────────────────────────────────────────
 export async function POST(req: Request) {
   const headerPayload = headers();
   const svix_id = headerPayload.get("svix-id");
@@ -76,12 +85,12 @@ export async function POST(req: Request) {
         fuel_coins: 0,
       }, { onConflict: "user_id" });
 
-      // Send confirmation with internal secret
+      // 🔐 Updated to use Referer instead of Authorization
       await fetch(`${APP_URL}/api/send-numbers-confirmation`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.INTERNAL_API_SECRET}`,
+          'Referer': APP_URL,
         },
         body: JSON.stringify({
           to: email,
@@ -89,7 +98,7 @@ export async function POST(req: Request) {
           numbers: initialNumbers,
           context: 'registro',
         }),
-      })
+      });
 
       return NextResponse.json({ success: true, message: `User ${clerk_id} created and initialized.` });
     } catch (error) {
