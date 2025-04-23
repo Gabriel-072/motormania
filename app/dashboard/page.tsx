@@ -19,8 +19,16 @@ const BOLD_CURRENCY = 'COP';
 const SUPPORT_EMAIL = 'soporte@motormaniacolombia.com';
 const APP_ORIGIN = typeof window !== 'undefined' ? window.location.origin : 'https://motormaniacolombia.com';
 
-type UserData = { username: string | null; full_name: string | null; email: string | null; } | null;
-type EntriesData = { numbers: string[]; paid_numbers_count?: number; } | null;
+type UserData = {
+  username: string | null;
+  full_name: string | null;
+  email: string | null;
+} | null;
+
+type EntriesData = {
+  numbers: string[];
+  paid_numbers_count?: number;
+} | null;
 
 export default function DashboardPage() {
   const { isLoaded, isSignedIn, user } = useUser();
@@ -39,26 +47,42 @@ export default function DashboardPage() {
   const fetchData = useCallback(async () => {
     if (!isLoaded) return;
     if (!isSignedIn || !user?.id) {
-      setIsLoading(false); setError(null); setUserName('Invitado'); setEntries([]);
+      setIsLoading(false);
+      setError(null);
+      setUserName('Invitado');
+      setEntries([]);
       return;
     }
-    setIsLoading(true); setError(null); setPaymentConfirmed(false);
+
+    setIsLoading(true);
+    setError(null);
+    setPaymentConfirmed(false);
+
     try {
       const jwt = await getToken({ template: 'supabase' });
       if (!jwt) throw new Error('Authentication token not available');
       const supabase = createAuthClient(jwt);
 
-      const { data: userData, error: userError } = await supabase.from('clerk_users').select('username, full_name, email').eq('clerk_id', user.id).maybeSingle<UserData>();
+      const { data: userData, error: userError } = await supabase
+        .from('clerk_users')
+        .select('username, full_name, email')
+        .eq('clerk_id', user.id)
+        .maybeSingle<UserData>();
       if (userError) throw new Error(`Error fetching user data: ${userError.message}`);
+
       const displayName = userData?.username || userData?.full_name || user.fullName || 'Participante';
       setUserName(displayName);
       const primaryEmail = user.primaryEmailAddress?.emailAddress;
       setUserEmail(primaryEmail || userData?.email || null);
 
-      const { data: entriesData, error: entriesError } = await supabase.from('entries').select('numbers').eq('user_id', user.id).maybeSingle<EntriesData>();
+      const { data: entriesData, error: entriesError } = await supabase
+        .from('entries')
+        .select('numbers')
+        .eq('user_id', user.id)
+        .maybeSingle<EntriesData>();
       if (entriesError) throw new Error(`Error fetching entries: ${entriesError.message}`);
-      const numbersArray: string[] = entriesData?.numbers || [];
-      const formattedNumbers = numbersArray.map((num) => String(num).padStart(6, '0'));
+
+      const formattedNumbers = (entriesData?.numbers || []).map((num) => String(num).padStart(6, '0'));
       setEntries(formattedNumbers);
     } catch (err: unknown) {
       console.error("Dashboard fetch error:", err);
@@ -75,15 +99,25 @@ export default function DashboardPage() {
 
   const downloadDigitalID = useCallback(async () => {
     const element = digitalIdRef.current;
-    if (!element) { setError("No se pudo encontrar el carnet para descargar."); return; }
+    if (!element) {
+      setError("No se pudo encontrar el carnet para descargar.");
+      return;
+    }
     try {
-      await new Promise(resolve => setTimeout(resolve, 150));
-      const canvas = await html2canvas(element, { backgroundColor: '#111827', scale: 2.5, useCORS: true, logging: false });
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      const canvas = await html2canvas(element, {
+        backgroundColor: '#111827',
+        scale: 2.5,
+        useCORS: true,
+        logging: false,
+      });
       const link = document.createElement('a');
       link.href = canvas.toDataURL('image/png');
       const safeUserName = userName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
       link.download = `MotorMania_DigitalID_${safeUserName || 'usuario'}.png`;
-      document.body.appendChild(link); link.click(); document.body.removeChild(link);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     } catch (err: unknown) {
       console.error("Error downloading Digital ID:", err);
       setError("Error al generar la imagen del carnet.");
@@ -95,6 +129,7 @@ export default function DashboardPage() {
       setError("Información de usuario (ID o Email) incompleta para la compra.");
       return;
     }
+
     const boldApiKey = process.env.NEXT_PUBLIC_BOLD_BUTTON_KEY;
     if (!boldApiKey) {
       console.error("Bold API Key missing: NEXT_PUBLIC_BOLD_BUTTON_KEY");
@@ -105,35 +140,30 @@ export default function DashboardPage() {
     setError(null);
     setPaymentConfirmed(false);
 
-    const amount = EXTRA_NUMBER_PRICE;
-    const timestamp = Date.now().toString();
-    const orderId = `ORDER-${user.id}-${timestamp}`;
-
     try {
       const response = await fetch('/api/bold/hash', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount }),
+        body: JSON.stringify({ amount: EXTRA_NUMBER_PRICE }),
       });
 
       if (!response.ok) {
         let errorMsg = `Error getting payment signature (${response.status})`;
-        try { const errorData = await response.json(); errorMsg = errorData.error || errorMsg; } catch (_) {}
+        try {
+          const errorData = await response.json();
+          errorMsg = errorData.error || errorMsg;
+        } catch (_) {}
         throw new Error(errorMsg);
       }
 
-      const data = await response.json();
-      console.log('Hash response:', data);
-
-      const { orderId: serverOrderId, amount: serverAmount, redirectUrl, integritySignature, metadata } = data;
-      console.log('Parsed hash response:', { serverOrderId, serverAmount, redirectUrl, integritySignature, metadata });
+      const { orderId, amount, redirectUrl, integritySignature, metadata } = await response.json();
 
       if (!integritySignature) throw new Error("Invalid payment signature received.");
 
-      const checkoutParams = {
+      openBoldCheckout({
         apiKey: boldApiKey,
-        orderId: serverOrderId,
-        amount: serverAmount,
+        orderId,
+        amount,
         currency: BOLD_CURRENCY,
         description: `Pago por ${EXTRA_NUMBER_COUNT} números extra`,
         redirectionUrl: redirectUrl,
@@ -142,10 +172,7 @@ export default function DashboardPage() {
           email: userEmail || user.primaryEmailAddress?.emailAddress,
           fullName: userName,
         },
-      };
-      console.log('Bold checkout params:', checkoutParams);
-
-      openBoldCheckout(checkoutParams);
+      });
     } catch (err: unknown) {
       console.error("Error initiating purchase flow:", err);
       const message = err instanceof Error ? err.message : 'Error inesperado al iniciar pago.';
@@ -153,7 +180,9 @@ export default function DashboardPage() {
     }
   };
 
-  const toggleNumbers = () => { setShowNumbers(prev => !prev); };
+  const toggleNumbers = () => {
+    setShowNumbers((prev) => !prev);
+  };
 
   const SkeletonLoader = ({ count = 5 }: { count?: number }) => (
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
@@ -328,59 +357,4 @@ export default function DashboardPage() {
       </main>
     </div>
   );
-}
-
-import { NextRequest, NextResponse } from 'next/server';
-import crypto from 'crypto';
-import { auth } from '@clerk/nextjs/server';
-
-// 🔐 Variables de entorno
-const BOLD_SECRET_KEY = process.env.BOLD_SECRET_KEY!;
-const APP_URL = process.env.NEXT_PUBLIC_SITE_URL!;
-
-export async function POST(req: NextRequest) {
-  try {
-    // Autenticación Clerk
-    const { userId } = await auth();
-    if (!userId) {
-      console.error('❌ userId no encontrado en el resultado de auth()');
-      return new NextResponse('Unauthorized', { status: 401 });
-    }
-
-    // Leer monto
-    const { amount } = await req.json();
-    console.log('💰 Monto recibido:', amount);
-
-    if (typeof amount !== 'number' || amount <= 0) {
-      console.error('❌ Monto inválido:', amount);
-      return new NextResponse('Invalid amount', { status: 400 });
-    }
-
-    // Construir orderId y redirect URL
-    const timestamp = Date.now().toString();
-    const orderId = `ORDER-${userId}-${timestamp}`;
-    const redirectUrl = `${APP_URL}/dashboard?bold-tx-status=approved&bold-order-id=${orderId}`;
-
-    // Preparar firma
-    const amountStr = amount.toFixed(2); // Siempre con 2 decimales
-    const dataToSign = `${orderId}${amountStr}${BOLD_CURRENCY}`;
-    const integritySignature = crypto
-      .createHmac('sha256', BOLD_SECRET_KEY)
-      .update(dataToSign)
-      .digest('hex');
-
-    console.log('🔐 Firma generada:', { dataToSign, integritySignature });
-
-    // Retornar payload completo para Checkout
-    return NextResponse.json({
-      orderId,
-      amount,
-      redirectUrl,
-      integritySignature,
-      metadata: { reference: orderId },
-    });
-  } catch (err) {
-    console.error('🚨 Error generando hash de pago Bold:', err);
-    return new NextResponse('Internal Server Error', { status: 500 });
-  }
 }

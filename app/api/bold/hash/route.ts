@@ -1,3 +1,4 @@
+// app/api/bold/hash/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { auth } from '@clerk/nextjs/server';
@@ -5,34 +6,34 @@ import { auth } from '@clerk/nextjs/server';
 // 🔐 Variables de entorno
 const BOLD_SECRET_KEY = process.env.BOLD_SECRET_KEY!;
 const APP_URL = process.env.NEXT_PUBLIC_SITE_URL!;
-const BOLD_CURRENCY = 'COP'; // ❗️Verifica que Bold lo acepte en minúscula. A veces es 'COP'.
+const BOLD_CURRENCY = 'COP'; // Verifica que Bold lo acepte exactamente así
 
 export async function POST(req: NextRequest) {
   try {
-    // Autenticación Clerk
+    // Autenticación Clerk (sólo usuarios autenticados pueden generar orden)
     const { userId } = await auth();
     if (!userId) {
       console.error('❌ userId no encontrado en el resultado de auth()');
-      return new NextResponse('Unauthorized', { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Leer monto
-    const { amount } = await req.json();
+    const body = await req.json();
+    const amount = body?.amount;
     console.log('💰 Monto recibido:', amount);
 
-    if (typeof amount !== 'number' || amount <= 0) {
+    if (typeof amount !== 'number' || isNaN(amount) || amount <= 0) {
       console.error('❌ Monto inválido:', amount);
-      return new NextResponse('Invalid amount', { status: 400 });
+      return NextResponse.json({ error: 'Invalid amount' }, { status: 400 });
     }
 
-    // Construir orderId y redirect URL
+    // Construir datos necesarios para firma
     const timestamp = Date.now().toString();
     const orderId = `ORDER-${userId}-${timestamp}`;
     const redirectUrl = `${APP_URL}/dashboard?bold-tx-status=approved&bold-order-id=${orderId}`;
-
-    // Preparar firma
-    const amountStr = amount.toFixed(2); // Siempre con 2 decimales
+    const amountStr = amount.toFixed(2);
     const dataToSign = `${orderId}${amountStr}${BOLD_CURRENCY}`;
+
+    // Generar firma de integridad (hash)
     const integritySignature = crypto
       .createHmac('sha256', BOLD_SECRET_KEY)
       .update(dataToSign)
@@ -40,7 +41,7 @@ export async function POST(req: NextRequest) {
 
     console.log('🔐 Firma generada:', { dataToSign, integritySignature });
 
-    // Retornar payload completo para Checkout
+    // Devolver datos para iniciar checkout con Bold
     return NextResponse.json({
       orderId,
       amount,
@@ -50,6 +51,6 @@ export async function POST(req: NextRequest) {
     });
   } catch (err) {
     console.error('🚨 Error generando hash de pago Bold:', err);
-    return new NextResponse('Internal Server Error', { status: 500 });
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
