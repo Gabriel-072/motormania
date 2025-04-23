@@ -130,7 +130,7 @@ export default function DashboardPage() {
 
       if (!integritySignature) throw new Error("Invalid payment signature received.");
 
-      openBoldCheckout({
+      const checkoutParams = {
         apiKey: boldApiKey,
         orderId: serverOrderId,
         amount: serverAmount,
@@ -142,7 +142,10 @@ export default function DashboardPage() {
           email: userEmail || user.primaryEmailAddress?.emailAddress,
           fullName: userName,
         },
-      });
+      };
+      console.log('Bold checkout params:', checkoutParams);
+
+      openBoldCheckout(checkoutParams);
     } catch (err: unknown) {
       console.error("Error initiating purchase flow:", err);
       const message = err instanceof Error ? err.message : 'Error inesperado al iniciar pago.';

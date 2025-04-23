@@ -20,6 +20,8 @@ export interface BoldConfig {
 export const openBoldCheckout = (config: BoldConfig) => {
   if (typeof window === 'undefined') return;
 
+  console.log('openBoldCheckout called with:', config);
+
   const scriptSrc = 'https://checkout.bold.co/library/boldPaymentButton.js';
   const existingScript = document.querySelector(`script[src="${scriptSrc}"]`);
 
@@ -38,7 +40,7 @@ export const openBoldCheckout = (config: BoldConfig) => {
       description: config.description,
       redirectionUrl: config.redirectionUrl,
       integritySignature: config.integritySignature,
-      customerData: JSON.stringify(config.customerData || {}), // ✅ FIX
+      customerData: JSON.stringify(config.customerData || {}),
       renderMode: 'embedded',
     });
 
