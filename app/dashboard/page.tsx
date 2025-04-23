@@ -370,7 +370,7 @@ export default function DashboardPage() {
           <div className="animate-rotate-border rounded-xl p-0.5" style={{ background: `conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #eab308 20deg, #f59e0b 30deg, #eab308 40deg, transparent 50deg, transparent 360deg)`, animationDuration: '7s', '--border-angle': '0deg' } as React.CSSProperties}>
             <div className="bg-gradient-to-br from-gray-950 via-black to-gray-950 p-6 rounded-xl shadow-lg backdrop-blur-sm text-center">
               <h3 id="buy-extra-heading" className="text-xl font-semibold text-white mb-2">¿Más Oportunidades de Ganar?</h3>
-              <p className="text-gray-300 mb-5 text-sm sm:text-base">Agrega {EXTRA_NUMBER_COUNT} números extra por ${new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(EXTRA_NUMBER_PRICE)}.</p>
+              <p className="text-gray-300 mb-5 text-sm sm:text-base">Agrega {EXTRA_NUMBER_COUNT} números extra por {new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(EXTRA_NUMBER_PRICE)}.</p>
               {/* Reverted Button - No loading state or spinner */}
               <motion.button
                   whileHover={{ scale: 1.03, boxShadow: '0 0 15px rgba(245, 158, 11, 0.4)'}} // Adjusted hover

@@ -17,10 +17,7 @@ const EXTRA_NUMBER_COUNT = 5;
 async function verifyBoldSignature(signature: string, rawBody: string): Promise<boolean> {
   try {
     const encodedBody = Buffer.from(rawBody).toString('base64');
-    const expectedSignature = crypto
-      .createHmac('sha256', boldWebhookSecret)
-      .update(encodedBody)
-      .digest('hex');
+    const expectedSignature = crypto.createHmac('sha256', boldWebhookSecret).update(encodedBody).digest('hex');
     return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature));
   } catch (error) {
     console.error("Signature verification error:", error);
@@ -33,17 +30,25 @@ async function processApprovedSale(supabase: SupabaseClient, bodyData: any) {
   const { payment_id, amount, metadata } = bodyData;
   const reference = metadata?.reference;
   const totalAmount = amount?.total;
+
+  console.log("📦 BOLD Sale Approved - Reference:", reference);
+  console.log("📦 Metadata:", metadata);
+
   if (!payment_id || !reference || totalAmount == null) throw new Error("Missing payment data");
 
   const parts = reference.split('-');
   const userId = (parts.length === 4 && parts[2].startsWith('user_')) ? parts[2] : null;
   if (!userId) throw new Error(`Invalid reference format: ${reference}`);
 
+  console.log("🧩 Extracted User ID:", userId);
+
   const txDescription = `Compra de ${EXTRA_NUMBER_COUNT} números extra via Bold (Ref: ${reference}, BoldID: ${payment_id})`;
 
-  const { data: existingTx } = await supabase
-    .from('transactions').select('id').eq('description', txDescription).maybeSingle();
-  if (existingTx) return;
+  const { data: existingTx } = await supabase.from('transactions').select('id').eq('description', txDescription).maybeSingle();
+  if (existingTx) {
+    console.log("⚠️ Transaction already exists, skipping duplicate");
+    return;
+  }
 
   const { error: insertTxError } = await supabase.from('transactions').insert({
     user_id: userId,
@@ -57,25 +62,24 @@ async function processApprovedSale(supabase: SupabaseClient, bodyData: any) {
     Math.floor(100000 + Math.random() * 900000).toString()
   );
 
-  const { data: currentEntry } = await supabase
-    .from('entries').select('numbers, paid_numbers_count').eq('user_id', userId).maybeSingle();
+  const { data: currentEntry } = await supabase.from('entries').select('numbers, paid_numbers_count').eq('user_id', userId).maybeSingle();
   if (!currentEntry) throw new Error(`No entry row found for user: ${userId}`);
 
   const updatedNumbers = [...(currentEntry.numbers || []), ...newNumbers];
   const updatedPaidCount = (currentEntry.paid_numbers_count || 0) + EXTRA_NUMBER_COUNT;
 
-  const { error: updateError } = await supabase
-    .from('entries')
-    .update({ numbers: updatedNumbers, paid_numbers_count: updatedPaidCount })
-    .eq('user_id', userId);
+  const { error: updateError } = await supabase.from('entries').update({
+    numbers: updatedNumbers,
+    paid_numbers_count: updatedPaidCount,
+  }).eq('user_id', userId);
   if (updateError) throw new Error(`Failed to update entries: ${updateError.message}`);
 
-  const { data: user } = await supabase
-    .from('clerk_users').select('email, full_name').eq('clerk_id', userId).maybeSingle();
+  const { data: user } = await supabase.from('clerk_users').select('email, full_name').eq('clerk_id', userId).maybeSingle();
   const to = user?.email;
   const name = user?.full_name || 'Usuario';
 
   if (to) {
+    console.log("📤 Sending confirmation email to:", to);
     fetch(`${appUrl}/api/send-numbers-confirmation`, {
       method: 'POST',
       headers: {
@@ -91,6 +95,8 @@ async function processApprovedSale(supabase: SupabaseClient, bodyData: any) {
         amount: totalAmount,
       }),
     }).catch(err => console.error('Email confirmation failed:', err));
+  } else {
+    console.warn("⚠️ No email found for user:", userId);
   }
 }
 
@@ -103,6 +109,8 @@ export async function POST(req: NextRequest) {
     if (!isValid) return new NextResponse('Invalid signature', { status: 401 });
 
     const body = JSON.parse(rawBody);
+    console.log("🧾 BOLD Webhook Body:", body);
+
     if (body.type === 'SALE_APPROVED') {
       await processApprovedSale(supabase, body.data);
     }
