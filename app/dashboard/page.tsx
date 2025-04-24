@@ -141,7 +141,7 @@ export default function DashboardPage() {
       openBoldCheckout({
         apiKey: boldApiKey,
         orderId,
-        amount, // ✅ PASARLO COMO NÚMERO SIMPLE
+        amount: Number(amount).toFixed(2), // 🔥 CORRECTO
         currency: 'COP',
         description: `Pago por ${EXTRA_NUMBER_COUNT} números extra`,
         redirectionUrl: redirectUrl,
