@@ -149,54 +149,65 @@ export default function DashboardPage() {
       setError('Información de usuario incompleta.');
       return;
     }
-
+  
     const boldApiKey = process.env.NEXT_PUBLIC_BOLD_BUTTON_KEY;
     if (!boldApiKey) {
       console.error('⚠️ Bold API Key no definida');
       setError('Error de configuración. Contacta a soporte.');
       return;
     }
-
+  
     setError(null);
     setPaymentConfirmed(false);
-
+  
     try {
+      // 1) Get the HMAC & orderId from our backend
       const response = await fetch('/api/bold/hash', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ amount: EXTRA_NUMBER_PRICE }),
       });
-
+  
       if (!response.ok) {
-        const errorData = await response.json().catch(() => null);
-        throw new Error(errorData?.error || 'Error generando firma de pago.');
+        const errData = await response.json().catch(() => null);
+        throw new Error(errData?.error || 'Error generando firma de pago.');
       }
-
-      const { orderId, amount, redirectUrl, integritySignature } =
-        await response.json();
-
-      if (!integritySignature) {
+  
+      // 2) Destructure the new fields
+      const {
+        orderId,
+        amount: amountInt,
+        callbackUrl,
+        integrityKey,
+      }: {
+        orderId: string;
+        amount: number;
+        callbackUrl: string;
+        integrityKey: string;
+      } = await response.json();
+  
+      if (!integrityKey) {
         throw new Error('Firma de integridad no válida.');
       }
-
+  
+      // 3) Launch Bold’s embedded checkout
       openBoldCheckout({
-        apiKey: boldApiKey!,
-        orderId,                                   // your ORDER-… ID
-        amount: EXTRA_NUMBER_PRICE,                // integer, e.g. 2000
+        apiKey: boldApiKey,
+        orderId,                            // your “ORDER-…” ID
+        amount: amountInt,                  // integer, e.g. 2000
         currency: 'COP',
         description: `Pago por ${EXTRA_NUMBER_COUNT} números extra`,
-        callbackUrl: redirectUrl,                  // e.g. https://…/dashboard?bold-tx-status=approved&bold-order-id=…
-        integrityKey: integritySignature,          // your HMAC hex
+        callbackUrl,                        // from the API
+        integrityKey,                       // HMAC hex!
         customerData: JSON.stringify({
-          email: userEmail!,
+          email: user.primaryEmailAddress!.emailAddress,
           fullName: userName,
         }),
         renderMode: 'embedded',
       });
     } catch (err: unknown) {
       console.error('❌ Error iniciando pago:', err);
-      const message = err instanceof Error ? err.message : 'Error inesperado.';
-      setError(message);
+      setError(err instanceof Error ? err.message : 'Error inesperado.');
     }
   };
 

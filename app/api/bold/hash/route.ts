@@ -41,11 +41,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       orderId,
       amount: amountInt,
-      redirectUrl,
-      integritySignature,
-      metadata: {
-        reference: orderId,
-      },
+      callbackUrl: redirectUrl,           // <-- rename here
+      integrityKey: integritySignature,   // <-- and here
+      metadata: { reference: orderId },
     });
   } catch (err) {
     console.error('🔥 Error en hash Bold:', err);
