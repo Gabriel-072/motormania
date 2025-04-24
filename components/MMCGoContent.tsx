@@ -15,6 +15,7 @@ import { PickSelection } from '@/app/types/picks';
 import { toast } from 'sonner';
 import { Dialog } from '@headlessui/react';
 import { trackFBEvent } from '@/lib/trackFBEvent';
+import TutorialModal from '@/components/TutorialModal';
 import { useRouter } from 'next/navigation';
 
 // TYPES
@@ -183,6 +184,7 @@ export default function MMCGoContent() {
   const [isRaceEnabled, setIsRaceEnabled] = useState(true);
   const channelRef = useRef<any>(null);
   const hasPlayedRev = useRef(false);
+  const [showTutorial, setShowTutorial] = useState(false);
 
   const {
     picks,
@@ -518,6 +520,16 @@ export default function MMCGoContent() {
               })}
             </section>
           </div>
+
+          <TutorialModal show={showTutorial} onClose={() => setShowTutorial(false)} />
+
+          <button
+          onClick={() => setShowTutorial(true)}
+          className="fixed bottom-6 right-6 z-50 bg-white text-black shadow-xl p-3 rounded-full hover:scale-105 transition"
+          aria-label="¿Cómo jugar?"
+          >
+         ❓
+         </button>                
 
           <StickyModal
             onFinish={async () => {
