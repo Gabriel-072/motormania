@@ -35,7 +35,7 @@ export const openBoldCheckout = (config: BoldConfig) => {
     const checkout = new BoldCheckout({
       apiKey: config.apiKey,
       orderId: config.orderId,
-      amount: Number(config.amount).toFixed(2), // siempre con 2 decimales
+      amount: Math.round(Number(config.amount)), // ✅ número entero sin comillas
       currency: config.currency,
       description: config.description,
       redirectionUrl: config.redirectionUrl,

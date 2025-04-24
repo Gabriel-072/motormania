@@ -13,7 +13,7 @@ import { openBoldCheckout } from '@/lib/bold';
 import { trackFBEvent } from '@/lib/trackFBEvent';
 import PicksResumen from '@/components/PicksResumen';
 
-const EXTRA_NUMBER_PRICE = 2000;
+const EXTRA_NUMBER_PRICE = 500;
 const EXTRA_NUMBER_COUNT = 5;
 const BOLD_CURRENCY = 'COP';
 const SUPPORT_EMAIL = 'soporte@motormaniacolombia.com';
@@ -141,7 +141,7 @@ export default function DashboardPage() {
       openBoldCheckout({
         apiKey: boldApiKey,
         orderId,
-        amount: Math.round(amount), // ✅ correcto
+        amount: '500',
         currency: 'COP',
         description: `Pago por ${EXTRA_NUMBER_COUNT} números extra`,
         redirectionUrl: redirectUrl,
