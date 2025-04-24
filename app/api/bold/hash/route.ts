@@ -1,34 +1,31 @@
 // 📁 /app/api/bold/hash/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import crypto from 'crypto';
+import crypto from 'crypto'; // Usaremos crypto de Node.js
 import { auth } from '@clerk/nextjs/server';
 
-// --- Env Vars & Constants ---
-const BOLD_INTEGRITY_SECRET = process.env.BOLD_SECRET_KEY;
+// --- Variables de Entorno y Constantes ---
+// Esta DEBE ser la "Llave secreta" de Bold (Tleqx...)
+const BOLD_SECRET_KEY = process.env.BOLD_SECRET_KEY;
 const APP_URL = process.env.NEXT_PUBLIC_SITE_URL;
 const BOLD_CURRENCY = 'COP';
 
-// --- Startup Checks ---
-if (!BOLD_INTEGRITY_SECRET) { console.error("FATAL ERROR: BOLD_SECRET_KEY (for integrity) env var is not set."); }
+// --- Chequeos Iniciales ---
+if (!BOLD_SECRET_KEY) { console.error("FATAL ERROR: BOLD_SECRET_KEY env var is not set."); }
 if (!APP_URL) { console.error("FATAL ERROR: NEXT_PUBLIC_SITE_URL env var is not set."); }
 
 export async function POST(req: NextRequest) {
   console.log("API Route: /api/bold/hash invoked.");
 
-  if (!BOLD_INTEGRITY_SECRET || !APP_URL) {
+  if (!BOLD_SECRET_KEY || !APP_URL) {
     return NextResponse.json({ error: 'Error de configuración del servidor.' }, { status: 500 });
   }
 
   try {
-    // 1. Autenticación Clerk - CORRECCIÓN EXPLÍCITA
+    // 1. Autenticación Clerk
     console.log("Bold Hash API: Verificando autenticación Clerk...");
-    const authData = await auth(); // Espera explícitamente la resolución
-    const userId = authData.userId; // Accede a userId DESPUÉS de resolver
-
-    if (!userId) {
-      console.warn('Bold Hash API: No autorizado (userId no encontrado).');
-      return new NextResponse('Unauthorized', { status: 401 });
-    }
+    const authData = await auth(); // Corrección previa
+    const userId = authData.userId; // Corrección previa
+    if (!userId) { console.warn('Bold Hash API: No autorizado (no userId).'); return new NextResponse('Unauthorized', { status: 401 }); }
     console.log(`Bold Hash API: Autorizado para userId: ${userId}`);
 
     // 2. Parsear y Validar Monto
@@ -43,33 +40,34 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Cuerpo de solicitud o monto inválido.' }, { status: 400 });
     }
 
-    // 3. Generar Order ID
+    // 3. Generar Order ID (Consistente)
     const timestamp = Date.now();
-    const orderId = `MM-EXTRA-${userId}-${timestamp}`;
+    const orderId = `MM-EXTRA-${userId}-${timestamp}`; // Formato consistente
     console.log(`Bold Hash API: orderId generado: ${orderId}`);
 
-    // 4. Preparar Datos para Firma (Amount como String)
-    const amountStr = String(amountInt);
-    const dataToSign = `${orderId}${amountStr}${BOLD_CURRENCY}`;
-    console.log(`Bold Hash API: Datos para firmar: "${dataToSign}"`);
+    // 4. Preparar Cadena para Hash (SIGUIENDO NUEVA DOCUMENTACIÓN)
+    const amountStr = String(amountInt); // Monto como string
+    // FORMATO: {Identificador}{Monto}{Divisa}{LlaveSecreta}
+    const stringToHash = `${orderId}${amountStr}${BOLD_CURRENCY}${BOLD_SECRET_KEY}`;
+    console.log(`Bold Hash API: Cadena para hashear: "${orderId}${amountStr}${BOLD_CURRENCY}******"`); // No loguear el secreto completo
 
-    // 5. Generar Firma HMAC-SHA256
+    // 5. Generar Hash SHA-256 (NO HMAC)
     const integritySignature = crypto
-      .createHmac('sha256', BOLD_INTEGRITY_SECRET)
-      .update(dataToSign)
+      .createHash('sha256') // <--- CAMBIO A createHash
+      .update(stringToHash) // <-- Firma la cadena que INCLUYE el secreto
       .digest('hex');
-    console.log(`Bold Hash API: Firma generada: ${integritySignature.substring(0,10)}...`);
+    console.log(`Bold Hash API: Firma SHA-256 generada: ${integritySignature.substring(0,10)}...`);
 
     // 6. Generar Callback URL
     const callbackUrl = `${APP_URL}/dashboard?bold_order_id=${orderId}&bold_payment_status=success`;
     console.log(`Bold Hash API: callbackUrl generada: ${callbackUrl}`);
 
-    // 7. Devolver Respuesta JSON
+    // 7. Devolver Respuesta JSON (Nombres de clave como los espera lib/bold.ts)
     return NextResponse.json({
       orderId: orderId,
-      amount: amountStr,
-      callbackUrl: callbackUrl,
-      integrityKey: integritySignature,
+      amount: amountStr,                 // Devuelve amount como string
+      callbackUrl: callbackUrl,          // Nombre esperado por lib/bold.ts
+      integrityKey: integritySignature,  // Nombre esperado por lib/bold.ts
       metadata: { reference: orderId }
     });
 

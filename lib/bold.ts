@@ -78,12 +78,8 @@ export const openBoldCheckout = (cfg: BoldConfig) => {
 
       // Ejemplo MUY SIMPLIFICADO (esto NO detecta el pago real, solo asume éxito inicial):
       // En una implementación real, esperarías a la redirección o a eventos específicos de Bold.
-      // Como tu onSuccess actual solo muestra mensaje y refresca, lo llamamos aquí
-      // para simular ese feedback inmediato.
-      if (cfg.onSuccess) {
-           console.log("Calling configured onSuccess callback (optimistic UI update)...");
-           // cfg.onSuccess(); // Comentado para evitar confusión, el onSuccess real lo debe disparar Bold o la redirección
-      }
+     
+     
       // NO podemos llamar onFailed/onPending/onClose aquí porque no sabemos si ocurrieron.
       // El código del dashboard ya los tiene configurados en la llamada a openBoldCheckout,
       // y esos SÍ se pasarán a esta función `openBoldCheckout`.
