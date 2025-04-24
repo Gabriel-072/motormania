@@ -528,7 +528,7 @@ export default function MMCGoContent() {
           className="fixed bottom-6 right-6 z-50 bg-white text-black shadow-xl p-3 rounded-full hover:scale-105 transition"
           aria-label="¿Cómo jugar?"
           >
-         ❓
+         Cómo Jugar?
          </button>                
 
           <StickyModal
