@@ -147,55 +147,53 @@ export default function DashboardPage() {
 
   const handleBuyExtraNumbers = async () => {
     if (!user?.id || !user?.primaryEmailAddress) {
-      return setError(
-        'Información de usuario (ID o Email) incompleta para la compra.'
-      );
+      setError("Información de usuario incompleta.");
+      return;
     }
+  
     const boldApiKey = process.env.NEXT_PUBLIC_BOLD_BUTTON_KEY;
     if (!boldApiKey) {
-      console.error('Missing BOLD key');
-      return setError(
-        `La configuración de pago no está disponible. Contacta a ${SUPPORT_EMAIL}`
-      );
+      console.error("⚠️ Bold API Key no definida");
+      setError("Error de configuración. Contacta a soporte.");
+      return;
     }
-
+  
     setError(null);
     setPaymentConfirmed(false);
-
+  
     try {
-      const res = await fetch('/api/bold/hash', {
+      const response = await fetch('/api/bold/hash', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: EXTRA_NUMBER_PRICE }),
+        body: JSON.stringify({ amount: 2000 }),
       });
-      if (!res.ok) {
-        const { error: msg } = await res.json().catch(() => ({}));
-        throw new Error(msg || `Error ${res.status}`);
+  
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || 'Error generando firma de pago.');
       }
-      const { orderId, amount, redirectUrl, integritySignature } =
-        await res.json();
-
-      if (!integritySignature) {
-        throw new Error('Invalid payment signature.');
-      }
-
+  
+      const { orderId, amount, redirectUrl, integritySignature } = await response.json();
+  
+      if (!integritySignature) throw new Error("Firma de integridad no válida.");
+  
       openBoldCheckout({
         apiKey: boldApiKey,
         orderId,
-        amount: Math.round(amount),
-        currency: BOLD_CURRENCY,
-        description: `Pago por ${EXTRA_NUMBER_COUNT} números extra`,
+        amount: '2000',
+        currency: 'COP',
+        description: 'Pago por 5 números extra',
         redirectionUrl: redirectUrl,
         integritySignature,
         customerData: {
-          email:
-            userEmail || user.primaryEmailAddress?.emailAddress || '',
-          fullName: userName,
+          email: user?.primaryEmailAddress?.emailAddress,
+          fullName: user.fullName || 'Usuario MotorManía',
         },
       });
-    } catch (e: any) {
-      console.error(e);
-      setError(e.message || 'Error inesperado al iniciar pago.');
+    } catch (err: unknown) {
+      console.error("❌ Error iniciando pago:", err);
+      const message = err instanceof Error ? err.message : 'Error inesperado.';
+      setError(message);
     }
   };
 
