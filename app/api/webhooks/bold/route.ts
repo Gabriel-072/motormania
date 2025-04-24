@@ -18,182 +18,143 @@ const EXTRA_NUMBER_COUNT = 5;
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ✅ Verificar firma usando el raw body (NO base64) como exige Bold
+// ✅ Verify Bold webhook signature (Base64-encoded body)
 // ─────────────────────────────────────────────────────────────────────────────
 async function verifyBoldSignature(signature: string, rawBody: string): Promise<boolean> {
   try {
+    // 1) Encode raw payload to Base64
+    const encoded = Buffer.from(rawBody).toString('base64');
+    // 2) Compute HMAC-SHA256 over the Base64 string
     const expectedSignature = crypto
       .createHmac('sha256', boldWebhookSecret)
-      .update(rawBody)
+      .update(encoded)
       .digest('hex');
 
     const isValid = crypto.timingSafeEqual(
-      Buffer.from(signature),
-      Buffer.from(expectedSignature)
+      Buffer.from(signature, 'hex'),
+      Buffer.from(expectedSignature, 'hex')
     );
 
-    console.log('🔐 Verificación firma Bold:', {
-      isValid,
-      received: signature,
-      expected: expectedSignature,
-    });
-
+    console.log('🔐 Bold signature verification:', { isValid, signature, expectedSignature });
     return isValid;
   } catch (error) {
-    console.error('❌ Error verificando firma Bold:', error);
+    console.error('❌ Signature verification error:', error);
     return false;
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 🔢 Generador de números únicos (6 dígitos)
+// 🔢 Generate unique 6-digit numbers
 // ─────────────────────────────────────────────────────────────────────────────
-async function generateUniqueNumbers(existingNumbers: string[], count: number): Promise<string[]> {
-  const newNumbers: string[] = [];
-  const allExisting = new Set(existingNumbers);
-
-  while (newNumbers.length < count) {
+async function generateUniqueNumbers(existing: string[], count: number): Promise<string[]> {
+  const newNums: string[] = [];
+  const pool = new Set(existing);
+  while (newNums.length < count) {
     const num = Math.floor(100000 + Math.random() * 900000).toString();
-    if (!allExisting.has(num)) {
-      newNumbers.push(num);
-      allExisting.add(num);
+    if (!pool.has(num)) {
+      pool.add(num);
+      newNums.push(num);
     }
   }
-
-  return newNumbers;
+  return newNums;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 💰 Procesar transacción SALE_APPROVED
+// 💰 Process SALE_APPROVED events
 // ─────────────────────────────────────────────────────────────────────────────
-async function processApprovedSale(supabase: SupabaseClient, bodyData: any) {
-  console.log('🎟️ Procesando SALE_APPROVED:', JSON.stringify(bodyData, null, 2));
-
-  try {
-    const { payment_id, amount, metadata } = bodyData;
-    const reference = metadata?.reference;
-    const totalAmount = amount?.total;
-
-    if (!payment_id || !reference || typeof totalAmount !== 'number') {
-      throw new Error(`Datos incompletos: ${JSON.stringify({ payment_id, reference, totalAmount })}`);
-    }
-
-    const match = reference.match(/user_[a-zA-Z0-9]+/);
-    const userId = match?.[0];
-    if (!userId) throw new Error(`Referencia inválida: ${reference}`);
-
-    const { data: userExists } = await supabase
-      .from('clerk_users')
-      .select('clerk_id')
-      .eq('clerk_id', userId)
-      .maybeSingle();
-
-    if (!userExists) throw new Error(`Usuario no encontrado: ${userId}`);
-
-    const txDescription = `Compra de ${EXTRA_NUMBER_COUNT} números extra via Bold (Ref: ${reference}, BoldID: ${payment_id})`;
-
-    const { data: existingTx } = await supabase
-      .from('transactions')
-      .select('id')
-      .eq('description', txDescription)
-      .maybeSingle();
-
-    if (existingTx) {
-      console.warn(`⚠️ Transacción ya procesada: ${txDescription}`);
-      return;
-    }
-
-    const { error: insertTxError } = await supabase.from('transactions').insert({
-      user_id: userId,
-      type: 'recarga',
-      amount: totalAmount,
-      description: txDescription,
-    });
-
-    if (insertTxError) throw new Error(`Error guardando transacción: ${insertTxError.message}`);
-
-    const { data: currentEntry } = await supabase
-      .from('entries')
-      .select('numbers, paid_numbers_count')
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    const existingNumbers = currentEntry?.numbers || [];
-    const newNumbers = await generateUniqueNumbers(existingNumbers, EXTRA_NUMBER_COUNT);
-    const updatedNumbers = [...existingNumbers, ...newNumbers];
-    const updatedPaidCount = (currentEntry?.paid_numbers_count || 0) + EXTRA_NUMBER_COUNT;
-
-    const { error: upsertError } = await supabase.from('entries').upsert(
-      {
-        user_id: userId,
-        numbers: updatedNumbers,
-        paid_numbers_count: updatedPaidCount,
-      },
-      { onConflict: 'user_id' }
-    );
-
-    if (upsertError) throw new Error(`Error actualizando números: ${upsertError.message}`);
-
-    const { data: user } = await supabase
-      .from('clerk_users')
-      .select('email, full_name')
-      .eq('clerk_id', userId)
-      .maybeSingle();
-
-    const to = user?.email;
-    const name = user?.full_name || 'Usuario';
-
-    if (to) {
-      await fetch(`${appUrl}/api/send-numbers-confirmation`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Referer: appUrl,
-        },
-        body: JSON.stringify({
-          to,
-          name,
-          numbers: newNumbers,
-          context: 'compra',
-          orderId: reference,
-          amount: totalAmount,
-        }),
-      }).catch((err) => console.error('❌ Error enviando email:', err));
-    } else {
-      console.warn(`⚠️ Email no encontrado para usuario: ${userId}`);
-    }
-
-    console.log('✅ Venta procesada con éxito:', { payment_id, userId });
-  } catch (error) {
-    console.error('🚨 Error procesando venta Bold:', error);
-    throw error;
+async function processApprovedSale(db: SupabaseClient, data: any) {
+  console.log('🎟️ Processing SALE_APPROVED:', JSON.stringify(data, null, 2));
+  const { payment_id, amount, metadata } = data;
+  const reference = metadata?.reference as string;
+  const total = amount?.total as number;
+  if (!payment_id || !reference || typeof total !== 'number') {
+    throw new Error(`Invalid payload: ${JSON.stringify(data)}`);
   }
+
+  // Extract userId from reference: e.g. 'ORDER-user_<id>-<ts>'
+  const m = reference.match(/user_[A-Za-z0-9]+/);
+  const userId = m?.[0];
+  if (!userId) throw new Error(`Cannot parse userId from reference ${reference}`);
+
+  // Ensure user exists
+  const { data: userRec } = await db.from('clerk_users').select('clerk_id').eq('clerk_id', userId).maybeSingle();
+  if (!userRec) throw new Error(`User not found: ${userId}`);
+
+  // Idempotency: check existing transaction
+  const description = `Compra de ${EXTRA_NUMBER_COUNT} números extra via Bold (Ref: ${reference}, BoldID: ${payment_id})`;
+  const { data: existingTx } = await db.from('transactions').select('id').eq('description', description).maybeSingle();
+  if (existingTx) {
+    console.info('⚠️ Transaction already processed:', description);
+    return;
+  }
+
+  // Record transaction
+  const { error: txErr } = await db.from('transactions').insert({
+    user_id: userId,
+    type: 'recarga',
+    amount: total,
+    description,
+  });
+  if (txErr) throw txErr;
+
+  // Update entries
+  const { data: entry } = await db.from('entries').select('numbers, paid_numbers_count').eq('user_id', userId).maybeSingle();
+  const existingNums = entry?.numbers || [];
+  const newNums = await generateUniqueNumbers(existingNums, EXTRA_NUMBER_COUNT);
+  const updated = [...existingNums, ...newNums];
+  const paidCount = (entry?.paid_numbers_count || 0) + EXTRA_NUMBER_COUNT;
+
+  const { error: upErr } = await db.from('entries').upsert({
+    user_id: userId,
+    numbers: updated,
+    paid_numbers_count: paidCount,
+  }, { onConflict: 'user_id' });
+  if (upErr) throw upErr;
+
+  // Fetch user email
+  const { data: userInfo } = await db.from('clerk_users').select('email, full_name').eq('clerk_id', userId).maybeSingle();
+  const to = userInfo?.email;
+  if (to) {
+    // Notify via email
+    await fetch(`${appUrl}/api/send-numbers-confirmation`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Referer: appUrl },
+      body: JSON.stringify({
+        to,
+        name: userInfo.full_name || 'Usuario',
+        numbers: newNums,
+        context: 'compra',
+        orderId: reference,
+        amount: total,
+      }),
+    }).catch(e => console.error('❌ Email error:', e));
+  }
+
+  console.log('✅ SALE_APPROVED processed:', payment_id);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 📬 Webhook Handler
+// 📬 Webhook entrypoint
 // ─────────────────────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   try {
     const rawBody = await req.text();
-    const signature = req.headers.get('x-bold-signature') || '';
-    console.log('📩 Webhook recibido:', { signature, preview: rawBody.slice(0, 200) });
+    const sig = req.headers.get('x-bold-signature') || '';
+    console.log('📩 Webhook received:', { sig, len: rawBody.length });
 
-    const isValid = await verifyBoldSignature(signature, rawBody);
-    if (!isValid) {
-      return new NextResponse('Invalid signature', { status: 401 });
+    if (!(await verifyBoldSignature(sig, rawBody))) {
+      console.warn('❌ Invalid signature');
+      return new NextResponse('Unauthorized', { status: 401 });
     }
 
-    const body = JSON.parse(rawBody);
-    console.log('📦 Payload recibido:', JSON.stringify(body, null, 2));
-
-    if (body.type === 'SALE_APPROVED') {
-      await processApprovedSale(supabase, body.data);
+    const evt = JSON.parse(rawBody);
+    if (evt.type === 'SALE_APPROVED') {
+      await processApprovedSale(supabase, evt.data);
     }
 
     return new NextResponse('OK', { status: 200 });
   } catch (err) {
-    console.error('🔥 Error general en webhook:', err);
+    console.error('🔥 Webhook handler error:', err);
     return new NextResponse('Internal Server Error', { status: 500 });
   }
 }
