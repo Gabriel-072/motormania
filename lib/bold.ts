@@ -1,13 +1,13 @@
 // 📁 /lib/bold.ts
 export interface BoldConfig {
   apiKey: string;
-  referenceId: string;         // <-- orderId
-  amount: number;              // integer, e.g. 2000
+  orderId: string;           // <-- keep this name
+  amount: number;            // integer (e.g. 2000)
   currency: 'COP' | 'USD';
   description?: string;
-  callbackUrl: string;         // <-- redirectionUrl
-  integrityKey: string;        // <-- integritySignature
-  customerData?: string;       // JSON.stringify({ … })
+  callbackUrl: string;       // <-- this will become data-callback-url
+  integrityKey: string;      // <-- this will become data-integrity-key
+  customerData?: string;     // JSON.stringify(...)
   renderMode?: 'embedded' | 'redirect';
 }
 
@@ -24,9 +24,9 @@ export const openBoldCheckout = (config: BoldConfig) => {
       return;
     }
 
-    const checkout = new BoldCheckout({
+    new BoldCheckout({
       apiKey: config.apiKey,
-      referenceId: config.referenceId,
+      orderId: config.orderId,
       amount: config.amount,
       currency: config.currency,
       description: config.description,
@@ -35,9 +35,7 @@ export const openBoldCheckout = (config: BoldConfig) => {
       customerData: config.customerData,
       integrationType: 'LIBRARY',
       renderMode: config.renderMode ?? 'embedded',
-    });
-
-    checkout.open();
+    }).open();
   };
 
   if (!existing) {

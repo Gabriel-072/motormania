@@ -181,16 +181,17 @@ export default function DashboardPage() {
 
       openBoldCheckout({
         apiKey: boldApiKey!,
-        referenceId: orderId,                // swapped from orderId
-        amount: EXTRA_NUMBER_PRICE,          // integer e.g. 2000
+        orderId,                                   // your ORDER-… ID
+        amount: EXTRA_NUMBER_PRICE,                // integer, e.g. 2000
         currency: 'COP',
         description: `Pago por ${EXTRA_NUMBER_COUNT} números extra`,
-        callbackUrl: redirectUrl,            // swapped from redirectionUrl
-        integrityKey: integritySignature,    // swapped from integritySignature
+        callbackUrl: redirectUrl,                  // e.g. https://…/dashboard?bold-tx-status=approved&bold-order-id=…
+        integrityKey: integritySignature,          // your HMAC hex
         customerData: JSON.stringify({
           email: userEmail!,
           fullName: userName,
         }),
+        renderMode: 'embedded',
       });
     } catch (err: unknown) {
       console.error('❌ Error iniciando pago:', err);
