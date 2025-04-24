@@ -35,12 +35,12 @@ export default function DashboardPage() {
   const { getToken } = useAuth();
 
   const [entries, setEntries] = useState<string[]>([]);
-  const [userName, setUserName] = useState('Participante');
+  const [userName, setUserName] = useState<string>('Participante');
   const [userEmail, setUserEmail] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [paymentConfirmed, setPaymentConfirmed] = useState(false);
-  const [showNumbers, setShowNumbers] = useState(false);
+  const [paymentConfirmed, setPaymentConfirmed] = useState<boolean>(false);
+  const [showNumbers, setShowNumbers] = useState<boolean>(false);
 
   const digitalIdRef = useRef<HTMLDivElement>(null);
 
@@ -62,35 +62,31 @@ export default function DashboardPage() {
       if (!jwt) throw new Error('Authentication token not available');
       const supabase = createAuthClient(jwt);
 
-      const { data: userData, error: userError } =
-        await supabase
-          .from('clerk_users')
-          .select('username, full_name, email')
-          .eq('clerk_id', user.id)
-          .maybeSingle<UserData>();
+      const { data: userData, error: userError } = await supabase
+        .from('clerk_users')
+        .select('username, full_name, email')
+        .eq('clerk_id', user.id)
+        .maybeSingle<UserData>();
       if (userError) throw userError;
 
       const displayName =
-        userData?.username ||
-        userData?.full_name ||
-        user.fullName ||
+        userData?.username ??
+        userData?.full_name ??
+        user.fullName ??
         'Participante';
       setUserName(displayName);
-      setUserEmail(
-        user.primaryEmailAddress?.emailAddress ||
-          userData?.email ||
-          null
-      );
 
-      const { data: entriesData, error: entriesError } =
-        await supabase
-          .from('entries')
-          .select('numbers')
-          .eq('user_id', user.id)
-          .maybeSingle<EntriesData>();
+      const primaryEmail = user.primaryEmailAddress?.emailAddress;
+      setUserEmail(primaryEmail ?? userData?.email ?? null);
+
+      const { data: entriesData, error: entriesError } = await supabase
+        .from('entries')
+        .select('numbers')
+        .eq('user_id', user.id)
+        .maybeSingle<EntriesData>();
       if (entriesError) throw entriesError;
 
-      const formatted = (entriesData?.numbers || []).map((n) =>
+      const formatted = (entriesData?.numbers ?? []).map((n) =>
         String(n).padStart(6, '0')
       );
       setEntries(formatted);
@@ -108,7 +104,7 @@ export default function DashboardPage() {
     fetchData();
   }, [fetchData]);
 
-  const toggleNumbers = () => setShowNumbers((p) => !p);
+  const toggleNumbers = () => setShowNumbers((prev) => !prev);
 
   const SkeletonLoader = ({ count = 5 }: { count?: number }) => (
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
@@ -123,7 +119,10 @@ export default function DashboardPage() {
 
   const downloadDigitalID = useCallback(async () => {
     const el = digitalIdRef.current;
-    if (!el) return setError('No se encontró el carnet para descargar.');
+    if (!el) {
+      setError('No se encontró el carnet para descargar.');
+      return;
+    }
     try {
       await new Promise((r) => setTimeout(r, 150));
       const canvas = await html2canvas(el, {
@@ -139,59 +138,62 @@ export default function DashboardPage() {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-    } catch (e) {
-      console.error(e);
+    } catch (err) {
+      console.error(err);
       setError('Error al generar la imagen del carnet.');
     }
   }, [userName]);
 
   const handleBuyExtraNumbers = async () => {
     if (!user?.id || !user?.primaryEmailAddress) {
-      setError("Información de usuario incompleta.");
+      setError('Información de usuario incompleta.');
       return;
     }
-  
+
     const boldApiKey = process.env.NEXT_PUBLIC_BOLD_BUTTON_KEY;
     if (!boldApiKey) {
-      console.error("⚠️ Bold API Key no definida");
-      setError("Error de configuración. Contacta a soporte.");
+      console.error('⚠️ Bold API Key no definida');
+      setError('Error de configuración. Contacta a soporte.');
       return;
     }
-  
+
     setError(null);
     setPaymentConfirmed(false);
-  
+
     try {
       const response = await fetch('/api/bold/hash', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: 2000 }),
+        body: JSON.stringify({ amount: EXTRA_NUMBER_PRICE }),
       });
-  
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => null);
         throw new Error(errorData?.error || 'Error generando firma de pago.');
       }
-  
-      const { orderId, amount, redirectUrl, integritySignature } = await response.json();
-  
-      if (!integritySignature) throw new Error("Firma de integridad no válida.");
-  
+
+      const { orderId, amount, redirectUrl, integritySignature } =
+        await response.json();
+
+      if (!integritySignature) {
+        throw new Error('Firma de integridad no válida.');
+      }
+
       openBoldCheckout({
         apiKey: boldApiKey,
         orderId,
-        amount: '2000',
-        currency: 'COP',
-        description: 'Pago por 5 números extra',
+        amount,
+        currency: BOLD_CURRENCY,
+        description: `Pago por ${EXTRA_NUMBER_COUNT} números extra`,
         redirectionUrl: redirectUrl,
         integritySignature,
         customerData: {
-          email: user?.primaryEmailAddress?.emailAddress,
-          fullName: user.fullName || 'Usuario MotorManía',
+          email: user.primaryEmailAddress.emailAddress,
+          fullName: user.fullName ?? 'Usuario MotorManía',
         },
       });
     } catch (err: unknown) {
-      console.error("❌ Error iniciando pago:", err);
+      console.error('❌ Error iniciando pago:', err);
       const message = err instanceof Error ? err.message : 'Error inesperado.';
       setError(message);
     }
@@ -200,9 +202,9 @@ export default function DashboardPage() {
   const renderContent = () => {
     if (!isLoaded) {
       return (
-        <div className="flex items-center space-x-3 p-6 bg-gray-800/50 rounded-lg mt-6">
+        <div className="flex items-center justify-center space-x-3 p-6 bg-gray-800/50 rounded-lg mt-6">
           <motion.div
-            aria-hidden
+            aria-hidden="true"
             animate={{ rotate: 360 }}
             transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
             className="w-6 h-6 border-3 border-t-transparent border-amber-400 rounded-full"
@@ -211,65 +213,55 @@ export default function DashboardPage() {
         </div>
       );
     }
+
     if (isLoading && isSignedIn) {
       return (
-        <div
-          className="mt-6 animate-rotate-border rounded-xl p-0.5"
-          style={{
-            background: `conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #f59e0b 20deg, #22d3ee 30deg, #f59e0b 40deg, transparent 50deg)`,
-            animationDuration: '6s',
-            '--border-angle': '0deg',
-          } as React.CSSProperties}
-        >
-          <div className="bg-gradient-to-br from-gray-950 to-black p-6 rounded-xl">
-            <p>Cargando tus números...</p>
-            <SkeletonLoader count={EXTRA_NUMBER_COUNT} />
-          </div>
+        <div className="mt-6">
+          <p className="mb-4">Cargando tus números...</p>
+          <SkeletonLoader count={EXTRA_NUMBER_COUNT} />
         </div>
       );
     }
+
     if (!isSignedIn) {
       return (
         <div className="mt-6 text-center p-6 bg-gray-800/80 rounded-lg border border-amber-500/30">
           <p>¡Hola Invitado! Inicia sesión para ver tu dashboard.</p>
-          <div className="mt-4 flex gap-4 justify-center">
-            <Link href="/sign-in">
-              <button className="px-4 py-2 bg-amber-500 rounded-full">
-                Iniciar Sesión
-              </button>
+          <div className="mt-4 flex justify-center gap-4">
+            <Link href="/sign-in" className="px-4 py-2 bg-amber-500 rounded-full">
+              Iniciar Sesión
             </Link>
-            <Link href="/sign-up">
-              <button className="px-4 py-2 bg-cyan-500 rounded-full">
-                Registrarse
-              </button>
+            <Link href="/sign-up" className="px-4 py-2 bg-cyan-500 rounded-full">
+              Registrarse
             </Link>
           </div>
         </div>
       );
     }
+
     if (entries.length === 0) {
       return (
         <div className="mt-6 text-center p-6 bg-gray-800/80 rounded-lg border border-cyan-500/30">
-          <p>Aún no tienes números asignados.</p>
-          <div className="mt-4 flex gap-4 justify-center">
-            <button
-              onClick={handleBuyExtraNumbers}
-              disabled={!isLoaded || isLoading}
-              className="px-4 py-2 bg-amber-500 rounded-full disabled:opacity-50"
-            >
-              Comprar Números
-            </button>
-            <Link href="/jugar-y-gana">
-              <button className="px-4 py-2 bg-cyan-500 rounded-full">
-                Ir a F1 Fantasy
-              </button>
-            </Link>
-          </div>
+          <p className="mb-4">Aún no tienes números asignados.</p>
+          <button
+            onClick={handleBuyExtraNumbers}
+            className="px-6 py-3 bg-gradient-to-r from-amber-500 to-cyan-500 rounded-full font-semibold"
+          >
+            Comprar {EXTRA_NUMBER_COUNT} números extra
+          </button>
         </div>
       );
     }
+
     return (
       <div className="mt-6">
+        {paymentConfirmed && (
+          <div className="mb-4 p-4 bg-green-800/70 rounded-lg text-center">
+            🎉 ¡Pago confirmado! Se agregaron {EXTRA_NUMBER_COUNT} números extra
+            a tu cuenta.
+          </div>
+        )}
+
         <div className="flex justify-between items-center mb-4">
           <h3>Tus Números ({entries.length})</h3>
           <button
@@ -279,9 +271,10 @@ export default function DashboardPage() {
             {showNumbers ? 'Ocultar' : 'Mostrar'}
           </button>
         </div>
+
         {showNumbers && (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-            {entries.map((n, i) => (
+            {entries.map((n: string, i: number) => (
               <div
                 key={i}
                 className="p-4 bg-gray-900 rounded-lg text-center font-mono"
@@ -291,6 +284,15 @@ export default function DashboardPage() {
             ))}
           </div>
         )}
+
+        <div className="mt-6 text-center">
+          <button
+            onClick={handleBuyExtraNumbers}
+            className="px-6 py-3 bg-gradient-to-r from-amber-500 to-cyan-500 rounded-full font-semibold"
+          >
+            Comprar {EXTRA_NUMBER_COUNT} números extra por $2.000
+          </button>
+        </div>
       </div>
     );
   };
