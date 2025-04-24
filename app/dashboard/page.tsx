@@ -150,9 +150,8 @@ export default function DashboardPage() {
       return;
     }
   
-    const boldApiKey = process.env.NEXT_PUBLIC_BOLD_BUTTON_KEY;
-    if (!boldApiKey) {
-      console.error('⚠️ Bold API Key no definida');
+    const apiKey = process.env.NEXT_PUBLIC_BOLD_BUTTON_KEY!;
+    if (!apiKey) {
       setError('Error de configuración. Contacta a soporte.');
       return;
     }
@@ -161,19 +160,18 @@ export default function DashboardPage() {
     setPaymentConfirmed(false);
   
     try {
-      // 1) Get the HMAC & orderId from our backend
-      const response = await fetch('/api/bold/hash', {
+      // 1) fetch our signed payload
+      const res = await fetch('/api/bold/hash', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ amount: EXTRA_NUMBER_PRICE }),
       });
-  
-      if (!response.ok) {
-        const errData = await response.json().catch(() => null);
-        throw new Error(errData?.error || 'Error generando firma de pago.');
+      if (!res.ok) {
+        const err = await res.json().catch(() => null);
+        throw new Error(err?.error || 'Error generando firma de pago.');
       }
   
-      // 2) Destructure the new fields
+      // 2) pull out the three fields we need
       const {
         orderId,
         amount: amountInt,
@@ -184,21 +182,19 @@ export default function DashboardPage() {
         amount: number;
         callbackUrl: string;
         integrityKey: string;
-      } = await response.json();
+      } = await res.json();
   
-      if (!integrityKey) {
-        throw new Error('Firma de integridad no válida.');
-      }
+      if (!integrityKey) throw new Error('Firma de integridad no válida.');
   
-      // 3) Launch Bold’s embedded checkout
+      // 3) launch Bold’s Embedded Checkout
       openBoldCheckout({
-        apiKey: boldApiKey,
-        orderId,                            // your “ORDER-…” ID
-        amount: amountInt,                  // integer, e.g. 2000
+        apiKey,
+        orderId,
+        amount: amountInt,
         currency: 'COP',
         description: `Pago por ${EXTRA_NUMBER_COUNT} números extra`,
-        callbackUrl,                        // from the API
-        integrityKey,                       // HMAC hex!
+        callbackUrl,
+        integrityKey,
         customerData: JSON.stringify({
           email: user.primaryEmailAddress!.emailAddress,
           fullName: userName,

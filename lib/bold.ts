@@ -1,20 +1,19 @@
-// 📁 /lib/bold.ts
 export interface BoldConfig {
   apiKey: string;
   orderId: string;
   amount: number;
   currency: 'COP' | 'USD';
   description: string;
-  callbackUrl: string;     // what your API gives you
-  integrityKey: string;    // what your API gives you
-  customerData?: string;   // JSON-stringified
+  callbackUrl: string;   // matches our API
+  integrityKey: string;  // matches our API
+  customerData?: string; // JSON-stringified
   renderMode?: 'embedded';
 }
 
-export const openBoldCheckout = (config: BoldConfig) => {
+export const openBoldCheckout = (cfg: BoldConfig) => {
   if (typeof window === 'undefined') return;
 
-  // ensure the SDK is loaded once
+  // ensure SDK is in <head> (we preload it in layout)
   const scriptSrc = 'https://checkout.bold.co/library/boldPaymentButton.js';
   if (!document.querySelector(`script[src="${scriptSrc}"]`)) {
     const s = document.createElement('script');
@@ -26,28 +25,26 @@ export const openBoldCheckout = (config: BoldConfig) => {
   const launch = () => {
     const BoldCheckout = (window as any).BoldCheckout;
     if (!BoldCheckout) {
-      return console.error('BoldCheckout SDK not ready');
+      console.error('BoldCheckout not ready');
+      return;
     }
-
-    // **map** your API field names to what Bold wants
     new BoldCheckout({
-      apiKey: config.apiKey,
-      orderId: config.orderId,
-      amount: config.amount,
-      currency: config.currency,
-      description: config.description,
-      redirectionUrl: config.callbackUrl,        // ← renamed here
-      integritySignature: config.integrityKey,   // ← renamed here
-      customerData: config.customerData,
-      renderMode: config.renderMode || 'embedded',
+      apiKey: cfg.apiKey,
+      orderId: cfg.orderId,
+      amount: cfg.amount,
+      currency: cfg.currency,
+      description: cfg.description,
+      redirectionUrl: cfg.callbackUrl,       // ⚠️ Bold expects “redirectionUrl”
+      integritySignature: cfg.integrityKey,  // ⚠️ Bold expects “integritySignature”
+      customerData: cfg.customerData,
+      renderMode: cfg.renderMode || 'embedded',
     }).open();
   };
 
-  // if SDK already loaded, fire immediately
+  // if it’s already on window, go now; otherwise wait for it
   if ((window as any).BoldCheckout) {
     launch();
   } else {
-    // otherwise wait until <Script> from layout has loaded it
     window.addEventListener('boldCheckoutLoaded', launch, { once: true });
   }
 };
