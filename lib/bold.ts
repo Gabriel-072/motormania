@@ -1,68 +1,52 @@
-// 📁 /lib/bold.ts — Utilidad para iniciar pagos con Bold desde el frontend
-
+// 📁 /lib/bold.ts
 export interface BoldConfig {
   apiKey: string;
-  orderId: string;
-  amount: number; // debe ser entero (ej: 2000)
+  referenceId: string;         // <-- orderId
+  amount: number;              // integer, e.g. 2000
   currency: 'COP' | 'USD';
-  description: string;
-  redirectionUrl: string;
-  integritySignature: string;
-  customerData?: {
-    email?: string;
-    fullName?: string;
-    phone?: string;
-    documentNumber?: string;
-    documentType?: string;
-  };
+  description?: string;
+  callbackUrl: string;         // <-- redirectionUrl
+  integrityKey: string;        // <-- integritySignature
+  customerData?: string;       // JSON.stringify({ … })
+  renderMode?: 'embedded' | 'redirect';
 }
 
 export const openBoldCheckout = (config: BoldConfig) => {
   if (typeof window === 'undefined') return;
 
-  console.log('openBoldCheckout called with:', config);
-
   const scriptSrc = 'https://checkout.bold.co/library/boldPaymentButton.js';
-  const existingScript = document.querySelector(`script[src="${scriptSrc}"]`);
+  const existing = document.querySelector(`script[src="${scriptSrc}"]`);
 
   const launch = () => {
     const BoldCheckout = (window as any).BoldCheckout;
     if (!BoldCheckout) {
-      console.error('❌ BoldCheckout no está disponible.');
+      console.error('❌ BoldCheckout no disponible');
       return;
     }
 
     const checkout = new BoldCheckout({
       apiKey: config.apiKey,
-      orderId: config.orderId,
-      amount: config.amount, // 👈 debe ser número entero, no string, no float
+      referenceId: config.referenceId,
+      amount: config.amount,
       currency: config.currency,
       description: config.description,
-      redirectionUrl: config.redirectionUrl,
-      integritySignature: config.integritySignature,
-      customerData: JSON.stringify(config.customerData || {}),
-      renderMode: 'embedded',
+      callbackUrl: config.callbackUrl,
+      integrityKey: config.integrityKey,
+      customerData: config.customerData,
+      integrationType: 'LIBRARY',
+      renderMode: config.renderMode ?? 'embedded',
     });
 
     checkout.open();
   };
 
-  if (!existingScript) {
-    const script = document.createElement('script');
-    script.src = scriptSrc;
-    script.async = true;
-
-    script.onload = () => {
-      window.dispatchEvent(new Event('boldCheckoutLoaded'));
-      launch();
-    };
-
-    script.onerror = () => {
-      console.error('❌ Error cargando Bold Checkout.');
-      window.dispatchEvent(new Event('boldCheckoutLoadFailed'));
-    };
-
-    document.head.appendChild(script);
+  if (!existing) {
+    const s = document.createElement('script');
+    s.src = scriptSrc;
+    s.async = true;
+    s.onload = launch;
+    s.onerror = () => console.error('❌ Error cargando Bold Checkout');
+    document.head.appendChild(s);
   } else {
     launch();
   }

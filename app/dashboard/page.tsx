@@ -180,17 +180,17 @@ export default function DashboardPage() {
       }
 
       openBoldCheckout({
-        apiKey: boldApiKey,
-        orderId,
-        amount,
-        currency: BOLD_CURRENCY,
+        apiKey: boldApiKey!,
+        referenceId: orderId,                // swapped from orderId
+        amount: EXTRA_NUMBER_PRICE,          // integer e.g. 2000
+        currency: 'COP',
         description: `Pago por ${EXTRA_NUMBER_COUNT} números extra`,
-        redirectionUrl: redirectUrl,
-        integritySignature,
-        customerData: {
-          email: user.primaryEmailAddress.emailAddress,
-          fullName: user.fullName ?? 'Usuario MotorManía',
-        },
+        callbackUrl: redirectUrl,            // swapped from redirectionUrl
+        integrityKey: integritySignature,    // swapped from integritySignature
+        customerData: JSON.stringify({
+          email: userEmail!,
+          fullName: userName,
+        }),
       });
     } catch (err: unknown) {
       console.error('❌ Error iniciando pago:', err);
