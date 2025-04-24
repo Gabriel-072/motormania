@@ -141,8 +141,8 @@ export default function DashboardPage() {
       openBoldCheckout({
         apiKey: boldApiKey,
         orderId,
-        amount: Number(amount), // ✅ Enviamos solo el número
-        currency: BOLD_CURRENCY,
+        amount, // ✅ PASARLO COMO NÚMERO SIMPLE
+        currency: 'COP',
         description: `Pago por ${EXTRA_NUMBER_COUNT} números extra`,
         redirectionUrl: redirectUrl,
         integritySignature,
