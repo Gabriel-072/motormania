@@ -1,3 +1,4 @@
+// app/mmc-go/page.tsx
 import { Suspense } from 'react';
 import MMCGoContent from '@/components/MMCGoContent';
 import LoadingAnimation from '@/components/LoadingAnimation';
