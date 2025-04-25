@@ -94,8 +94,8 @@ const teamColors: Record<string, { gradientFrom: string; gradientTo: string; bor
 
 // SECTION: Driver to Team Mapping (Ensure this is accurate for 2025)
 const driverToTeam: Record<string, string> = {
-  'Max Verstappen': 'Red Bull Racing',
-  'Yuki Tsunoda': 'Red Bull Racing', // Note: RB team often under RBR umbrella
+  'Max Verstappen': 'Red Bull',
+  'Yuki Tsunoda': 'Red Bull', // Note: RB team often under RBR umbrella
   'Lando Norris': 'McLaren',
   'Oscar Piastri': 'McLaren',
   'Lewis Hamilton': 'Ferrari', // Updated for 2025
