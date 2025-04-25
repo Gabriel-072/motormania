@@ -1357,33 +1357,36 @@ const handleSubmit = async () => {
                 )}
               </motion.div>
             </div>
-            {/* Column 3 - Fastest Pit Stop */}
+            {/* Column 3 - Fastest Pit Stop - OPTIMIZED Edge-to-Edge Image */}
             <div
               className="animate-rotate-border rounded-xl p-px"
               style={{
                 //@ts-ignore
-                '--border-angle': '180deg', // Different start angle
+                '--border-angle': '180deg',
                 background: `conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #22d3ee 20deg, #0d9488 30deg, #22d3ee 40deg, transparent 50deg, transparent 360deg)`,
-                animation: `rotate-border 5s linear infinite`, // Slower
+                animation: `rotate-border 5s linear infinite`,
               }}
             >
+              {/* Card Container: REMOVED padding (p-*, pb-0), ADDED overflow-hidden */}
               <motion.div
-                className={`p-3 sm:p-4 pb-0 rounded-xl shadow-lg relative z-10 flex flex-col items-center bg-gradient-to-br h-40 overflow-hidden ${
+                className={`rounded-xl shadow-lg relative z-10 flex flex-col items-center bg-gradient-to-br h-40 overflow-hidden ${
                   previousResults?.fastest_pit_stop_team && teamColors[previousResults.fastest_pit_stop_team]
                     ? `${teamColors[previousResults.fastest_pit_stop_team].gradientFrom} ${teamColors[previousResults.fastest_pit_stop_team].gradientTo}`
                     : 'from-gray-700 to-gray-600'
                 }`}
               >
-                 <div className="absolute inset-0 bg-gradient-to-tr from-black/60 via-black/30 to-transparent z-0 pointer-events-none" /> {/* Darker gradient */}
-                <div className="relative z-20 w-full text-center mb-1">
-                  <h2 className="text-base sm:text-lg font-bold text-white font-exo2 drop-shadow-md flex items-center justify-center gap-2"> {/* Icon added */}
+                 {/* Overlay - covers everything including padding area now */}
+                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent z-10 pointer-events-none rounded-xl" />
+                {/* Text content container: ADDED padding (px-*, pt-*), sits above image */}
+                <div className="relative z-20 w-full text-center flex-shrink-0 px-3 sm:px-4 pt-3 sm:pt-4 pb-1">
+                  <h2 className="text-base sm:text-lg font-bold text-white font-exo2 drop-shadow-md flex items-center justify-center gap-2">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-cyan-300" viewBox="0 0 20 20" fill="currentColor">
                           <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.414-1.414L11 10.586V6z" clipRule="evenodd" />
                       </svg>
                       Pit Stop Más Rápido
                   </h2>
                   {previousResults?.fastest_pit_stop_team ? (
-                    <p className="text-[10px] sm:text-xs text-white/90 font-exo2 drop-shadow-md truncate"> {/* Lighter text */}
+                    <p className="text-[10px] sm:text-xs text-white/90 font-exo2 drop-shadow-md truncate">
                       {previousResults.fastest_pit_stop_team} - {previousResults.gp_name}
                     </p>
                   ) : (
@@ -1392,19 +1395,24 @@ const handleSubmit = async () => {
                     </p>
                   )}
                 </div>
+                {/* Image container: Takes remaining space, positioned below text implicitly */}
                 {previousResults?.fastest_pit_stop_team && (
                    <motion.div
                        initial={{ y: 30, opacity: 0 }}
                        animate={{ y: 0, opacity: 1 }}
                        transition={{ duration: 0.5, delay: 0.3 }}
-                       className="w-full h-full flex justify-center items-end relative z-10 mt-[-10px]" // Adjusted margin
+                       // Use absolute positioning to place it correctly behind overlay/text but filling card area
+                       className="absolute inset-0 w-full h-full z-0" // Positioned behind text (z-0), covers card area
                    >
                     <Image
                        src={getTeamCarImage(previousResults.fastest_pit_stop_team)}
                        alt={`${previousResults.fastest_pit_stop_team} car`}
-                       width={546}
-                       height={273}
-                       className="object-contain w-[90%] h-auto drop-shadow-xl" // Adjusted size and shadow
+                       fill // Use fill to cover the container
+                       // --- OPTIMIZATION ---
+                       // object-cover fills container, object-center aligns
+                       className="object-cover object-center" // Removed drop-shadow as it might look odd at edges
+                       // --- END OPTIMIZATION ---
+                       // Removed width/height/sizes as 'fill' handles it
                      />
                   </motion.div>
                 )}
