@@ -10,7 +10,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import LoadingAnimation from '@/components/LoadingAnimation';
-import Standings from '@/components/Standings';
+import Standings from '@/components/Standings'; // Assuming this component exists if needed elsewhere, but not used directly in the provided code snippet
 import { Howl } from 'howler';
 import { Suspense } from 'react';
 import { generateEventId, trackFBEvent } from '@/lib/trackFBEvent';
@@ -92,28 +92,28 @@ const teamColors: Record<string, { gradientFrom: string; gradientTo: string; bor
   'Default': { gradientFrom: 'from-gray-700', gradientTo: 'to-gray-600', border: 'border-gray-500/50' },
 };
 
-// SECTION: Driver to Team Mapping
+// SECTION: Driver to Team Mapping (Ensure this is accurate for 2025)
 const driverToTeam: Record<string, string> = {
   'Max Verstappen': 'Red Bull Racing',
-  'Yuki Tsunoda': 'Red Bull Racing',
+  'Yuki Tsunoda': 'Red Bull Racing', // Note: RB team often under RBR umbrella
   'Lando Norris': 'McLaren',
   'Oscar Piastri': 'McLaren',
-  'Lewis Hamilton': 'Ferrari',
+  'Lewis Hamilton': 'Ferrari', // Updated for 2025
   'Charles Leclerc': 'Ferrari',
   'George Russell': 'Mercedes',
-  'Kimi Antonelli': 'Mercedes',
+  'Kimi Antonelli': 'Mercedes', // Rookie assumption for 2025
   'Fernando Alonso': 'Aston Martin',
   'Lance Stroll': 'Aston Martin',
-  'Liam Lawson': 'RB',
-  'Isack Hadjar': 'RB',
-  'Nico Hulkenberg': 'Sauber',
-  'Gabriel Bortoleto': 'Sauber',
+  'Liam Lawson': 'RB', // Potentially RB
+  'Isack Hadjar': 'RB', // Potentially RB
+  'Nico Hulkenberg': 'Sauber', // Moving to Sauber/Audi
+  'Gabriel Bortoleto': 'Sauber', // Rookie assumption for Sauber/Audi
   'Pierre Gasly': 'Alpine',
-  'Jack Doohan': 'Alpine',
+  'Jack Doohan': 'Alpine', // Assumed promotion for 2025
   'Alex Albon': 'Williams',
-  'Carlos Sainz': 'Williams',
-  'Oliver Bearman': 'Haas F1 Team',
-  'Esteban Ocon': 'Haas F1 Team',
+  'Carlos Sainz': 'Williams', // Updated for 2025
+  'Oliver Bearman': 'Haas F1 Team', // Assumed Haas seat for 2025
+  'Esteban Ocon': 'Haas F1 Team', // Updated for 2025
 };
 
 // SECTION: Flag Mapping
@@ -121,6 +121,27 @@ const gpFlags: Record<string, string> = {
   'Japanese Grand Prix': '/flags/japan.gif',
   'Monaco Grand Prix': '/flags/monaco.gif',
   'British Grand Prix': '/flags/uk.gif',
+  'Bahrain Grand Prix': '/flags/bahrain.gif',
+  'Saudi Arabian Grand Prix': '/flags/saudi.gif',
+  'Australian Grand Prix': '/flags/australia.gif',
+  'Chinese Grand Prix': '/flags/china.gif',
+  'Miami Grand Prix': '/flags/usa.gif',
+  'Emilia Romagna Grand Prix': '/flags/italy.gif',
+  'Canadian Grand Prix': '/flags/canada.gif',
+  'Spanish Grand Prix': '/flags/spain.gif',
+  'Austrian Grand Prix': '/flags/austria.gif',
+  'Hungarian Grand Prix': '/flags/hungary.gif',
+  'Belgian Grand Prix': '/flags/belgium.gif',
+  'Dutch Grand Prix': '/flags/netherlands.gif',
+  'Italian Grand Prix': '/flags/italy.gif',
+  'Azerbaijan Grand Prix': '/flags/azerbaijan.gif',
+  'Singapore Grand Prix': '/flags/singapore.gif',
+  'United States Grand Prix': '/flags/usa.gif',
+  'Mexico City Grand Prix': '/flags/mexico.gif',
+  'Brazilian Grand Prix': '/flags/brazil.gif',
+  'Las Vegas Grand Prix': '/flags/usa.gif',
+  'Qatar Grand Prix': '/flags/qatar.gif',
+  'Abu Dhabi Grand Prix': '/flags/uae.gif',
 };
 
 // SECTION: Sound Manager
@@ -159,7 +180,7 @@ const instructions = {
   gp: 'Selecciona los pilotos que crees que ocuparán las primeras tres posiciones en la carrera.',
   extras: 'Haz tus predicciones adicionales como el equipo con el pit stop más rápido.',
   micro: 'Haz tus micro-predicciones como el primer equipo en hacer pits.',
-  review: 'Revisa tus predicciones antes de enviarlas.',
+  review: 'Revisa tus predicciones antes de enviarlas. Puedes hacer clic en una sección para volver a editarla.',
 };
 
 // SECTION: Main Component
@@ -282,34 +303,66 @@ export default function JugarYGana({ triggerSignInModal }: JugarYGanaProps) {
 
       for (let i = 0; i < (scheduleData || []).length; i++) {
         const raceDate = new Date(scheduleData![i].race_time);
+        // Find the first race that hasn't finished yet
         if (now <= raceDate && currentGpIndex === -1) {
-          currentGpIndex = i;
+            // Check if there's a previous race, and if its end time + buffer (e.g., 4 hours) has passed
+            if (i > 0) {
+                const prevRaceEndTime = new Date(scheduleData![i-1].race_time);
+                prevRaceEndTime.setHours(prevRaceEndTime.getHours() + 4); // Add buffer time
+                if (now < prevRaceEndTime) {
+                    currentGpIndex = i - 1; // Still consider the previous race as "current" during the buffer
+                } else {
+                    currentGpIndex = i; // Move to the next GP
+                }
+            } else {
+                 currentGpIndex = i; // First race of the season
+            }
         }
         if (raceDate < now) {
           previousGpIndex = i;
         }
       }
 
+       // If no future race found, the last race might be the current or previous one
+       if (currentGpIndex === -1 && (scheduleData || []).length > 0) {
+           const lastRaceIndex = scheduleData!.length - 1;
+           const lastRaceEndTime = new Date(scheduleData![lastRaceIndex].race_time);
+           lastRaceEndTime.setHours(lastRaceEndTime.getHours() + 4); // Add buffer
+           if (now < lastRaceEndTime) {
+               currentGpIndex = lastRaceIndex;
+           } else {
+               // Season likely over or between seasons
+               previousGpIndex = lastRaceIndex;
+           }
+       }
+
       if (currentGpIndex >= 0 && scheduleData) {
         setCurrentGp(scheduleData[currentGpIndex]);
-        const qualyDeadline = new Date(scheduleData[currentGpIndex].qualy_time).getTime() - 5 * 60 * 1000;
-        const raceDeadline = new Date(scheduleData[currentGpIndex].race_time).getTime() - 5 * 60 * 1000;
+        const qualyDeadline = new Date(scheduleData[currentGpIndex].qualy_time).getTime() - 5 * 60 * 1000; // 5 mins before Qualy
+        const raceDeadline = new Date(scheduleData[currentGpIndex].race_time).getTime() - 5 * 60 * 1000; // 5 mins before Race
         setIsQualyAllowed(now.getTime() < qualyDeadline);
         setIsRaceAllowed(now.getTime() < raceDeadline);
       } else {
+        // Handle end of season or no schedule data
         setCurrentGp(null);
         setIsQualyAllowed(false);
         setIsRaceAllowed(false);
+        if(scheduleData && scheduleData.length > 0) {
+            // If season ended, set the last race as previous GP
+             previousGpIndex = scheduleData.length - 1;
+             setPreviousGp(scheduleData[previousGpIndex]);
+        }
       }
 
       if (previousGpIndex >= 0 && scheduleData) {
-        setPreviousGp(scheduleData[previousGpIndex]);
-        const raceDateStr = scheduleData[previousGpIndex].race_time.split('T')[0];
+        const prevGpToFetch = scheduleData[previousGpIndex];
+        setPreviousGp(prevGpToFetch); // Set previous GP regardless of current GP status
+        const raceDateStr = prevGpToFetch.race_time.split('T')[0];
 
         const { data: resultsData, error: resultsError } = await supabase
           .from('race_results')
           .select('*')
-          .eq('gp_name', scheduleData[previousGpIndex].gp_name)
+          .eq('gp_name', prevGpToFetch.gp_name)
           .eq('race_date', raceDateStr)
           .maybeSingle();
 
@@ -321,14 +374,15 @@ export default function JugarYGana({ triggerSignInModal }: JugarYGanaProps) {
             .from('prediction_scores')
             .select('score')
             .eq('user_id', user.id)
-            .eq('gp_name', scheduleData[previousGpIndex].gp_name)
+            .eq('gp_name', prevGpToFetch.gp_name)
             .eq('race_date', raceDateStr)
             .maybeSingle();
 
           if (scoreError) fetchErrors.push('No se pudo cargar el puntaje anterior: ' + scoreError.message);
           setUserPreviousScore(scoreData?.score || null);
         }
-      } else {
+      } else if (!previousGp && !currentGp && scheduleData && scheduleData.length > 0){
+        // If it's before the first race, there are no previous results for this season yet.
         setPreviousResults(null);
       }
     } catch (err) {
@@ -368,6 +422,7 @@ export default function JugarYGana({ triggerSignInModal }: JugarYGanaProps) {
     }
   }, [isDataLoaded]);
 
+  // Countdown and GP Switching Logic
   useEffect(() => {
     if (!currentGp || !gpSchedule.length) return;
 
@@ -375,52 +430,78 @@ export default function JugarYGana({ triggerSignInModal }: JugarYGanaProps) {
       const now = new Date();
       const qualyDate = new Date(currentGp.qualy_time);
       const raceDate = new Date(currentGp.race_time);
-      const qualyDeadline = qualyDate.getTime() - 5 * 60 * 1000;
-      const raceDeadline = raceDate.getTime() - 5 * 60 * 1000;
+      const qualyDeadline = qualyDate.getTime() - 5 * 60 * 1000; // 5 mins before
+      const raceDeadline = raceDate.getTime() - 5 * 60 * 1000; // 5 mins before
+      const raceEndTimeBuffer = raceDate.getTime() + 4 * 60 * 60 * 1000; // Race end + 4 hours buffer
 
-      const qualyDiff = qualyDate.getTime() - now.getTime();
-      setQualyCountdown(
-        qualyDiff <= 0 && raceDate.getTime() > now.getTime()
-          ? { days: 0, hours: 0, minutes: 0, seconds: 0 }
-          : {
-              days: Math.floor(qualyDiff / (1000 * 60 * 60 * 24)),
-              hours: Math.floor((qualyDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
-              minutes: Math.floor((qualyDiff % (1000 * 60 * 60)) / (1000 * 60)),
-              seconds: Math.floor((qualyDiff % (1000 * 60)) / 1000),
-            }
-      );
+      let qualyDiff = qualyDate.getTime() - now.getTime();
+      let raceDiff = raceDate.getTime() - now.getTime();
 
-      const raceDiff = raceDate.getTime() - now.getTime();
-      if (raceDiff <= 0) {
-        const currentIndex = gpSchedule.findIndex((gp) => gp.gp_name === currentGp.gp_name);
-        if (currentIndex < gpSchedule.length - 1) {
-          setCurrentGp(gpSchedule[currentIndex + 1]);
-          setPreviousGp(gpSchedule[currentIndex]);
-          setIsQualyAllowed(now.getTime() < new Date(gpSchedule[currentIndex + 1].qualy_time).getTime() - 5 * 60 * 1000);
-          setIsRaceAllowed(now.getTime() < new Date(gpSchedule[currentIndex + 1].race_time).getTime() - 5 * 60 * 1000);
-        } else {
-          setCurrentGp(null);
-          setIsQualyAllowed(false);
-          setIsRaceAllowed(false);
-        }
-        setRaceCountdown({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+      // Update Qualy Countdown
+      if (qualyDiff > 0) {
+        setQualyCountdown({
+          days: Math.floor(qualyDiff / (1000 * 60 * 60 * 24)),
+          hours: Math.floor((qualyDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
+          minutes: Math.floor((qualyDiff % (1000 * 60 * 60)) / (1000 * 60)),
+          seconds: Math.floor((qualyDiff % (1000 * 60)) / 1000),
+        });
       } else {
+         // If Qualy time passed but race hasn't started, show 0
+         // Or if race has passed, show 0
+        setQualyCountdown({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+      }
+
+      // Update Race Countdown
+      if (raceDiff > 0) {
         setRaceCountdown({
           days: Math.floor(raceDiff / (1000 * 60 * 60 * 24)),
           hours: Math.floor((raceDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
           minutes: Math.floor((raceDiff % (1000 * 60 * 60)) / (1000 * 60)),
           seconds: Math.floor((raceDiff % (1000 * 60)) / 1000),
         });
+      } else {
+        setRaceCountdown({ days: 0, hours: 0, minutes: 0, seconds: 0 });
       }
 
+      // Update Prediction Allowed Status
       setIsQualyAllowed(now.getTime() < qualyDeadline);
       setIsRaceAllowed(now.getTime() < raceDeadline);
+
+      // Check if current GP is over (past race time + buffer)
+      if (now.getTime() >= raceEndTimeBuffer) {
+        const currentIndex = gpSchedule.findIndex((gp) => gp.gp_name === currentGp.gp_name);
+        // Check if there's a next GP in the schedule
+        if (currentIndex !== -1 && currentIndex < gpSchedule.length - 1) {
+          const nextGp = gpSchedule[currentIndex + 1];
+          // Only switch if the next GP's race time isn't too far in the future (e.g., > 2 weeks)
+          // This prevents switching immediately after a race if there's a long break.
+          const nextRaceDate = new Date(nextGp.race_time);
+          if (nextRaceDate.getTime() - now.getTime() < 14 * 24 * 60 * 60 * 1000) {
+              console.log(`Switching GP from ${currentGp.gp_name} to ${nextGp.gp_name}`);
+              setPreviousGp(currentGp); // Current becomes previous
+              setCurrentGp(nextGp); // Set next GP as current
+              // Refetch data might be needed here if standings/results depend on the absolutely latest info
+              // fetchData(); // Consider implications of frequent refetching
+          } else {
+             // Long break, keep current GP displayed but disable predictions
+             console.log(`Long break after ${currentGp.gp_name}, keeping display but disabling predictions.`);
+             // Predictions already disabled by time checks above
+          }
+        } else {
+          // Last race of the season is over
+          console.log(`Last race ${currentGp.gp_name} finished.`);
+          setPreviousGp(currentGp); // Keep the last race as previous
+          setCurrentGp(null); // No current GP
+          setIsQualyAllowed(false);
+          setIsRaceAllowed(false);
+        }
+      }
     };
 
-    updateCountdown();
+    updateCountdown(); // Initial call
     const timer = setInterval(updateCountdown, 1000);
     return () => clearInterval(timer);
-  }, [currentGp, gpSchedule]);
+  }, [currentGp, gpSchedule, fetchData]); // Added fetchData dependency cautiously
 
   useEffect(() => {
     setProgress((Object.values(predictions).filter(Boolean).length / 11) * 100);
@@ -434,37 +515,63 @@ export default function JugarYGana({ triggerSignInModal }: JugarYGanaProps) {
   }, []);
 
   useEffect(() => {
-    if (activeModal || activeSelectionModal) {
+    if (activeModal || activeSelectionModal || scoringModalOpen || activeStandingsModal) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'auto';
     }
     return () => {
-      document.body.style.overflow = 'auto';
+      document.body.style.overflow = 'auto'; // Cleanup on unmount
     };
-  }, [activeModal, activeSelectionModal]);
+  }, [activeModal, activeSelectionModal, scoringModalOpen, activeStandingsModal]);
 
 
   // SECTION: Event Handlers
   const handleSelect = (position: keyof Prediction, value: string) => {
-    const qualyPreds = [predictions.pole1, predictions.pole2, predictions.pole3];
-    const racePreds = [predictions.gp1, predictions.gp2, predictions.gp3];
-    if (
-      position.startsWith('pole') &&
-      qualyPreds.includes(value) &&
-      qualyPreds.indexOf(value) !== ['pole1', 'pole2', 'pole3'].indexOf(position)
-    ) {
-      setErrors([`Ya has seleccionado a ${value} para otra posición de QUALY.`]);
+    const newErrors: string[] = [];
+    const isQualy = position.startsWith('pole');
+    const isGP = position.startsWith('gp');
+
+    // Check for duplicates within the same category (Qualy or GP)
+    if (isQualy) {
+      const qualyPreds: (keyof Prediction)[] = ['pole1', 'pole2', 'pole3'];
+      for (const p of qualyPreds) {
+        if (p !== position && predictions[p] === value) {
+          newErrors.push(`Ya has seleccionado a ${value} para otra posición de QUALY.`);
+          break; // Only show one error for this duplicate
+        }
+      }
+    } else if (isGP) {
+        const racePreds: (keyof Prediction)[] = ['gp1', 'gp2', 'gp3'];
+         for (const p of racePreds) {
+            if (p !== position && predictions[p] === value) {
+              newErrors.push(`Ya has seleccionado a ${value} para otra posición de RACE.`);
+              break; // Only show one error for this duplicate
+            }
+         }
+    }
+
+     // Check if selecting a driver for a non-driver field or vice-versa (less critical, but good practice)
+    const isTeamField = position.includes('team');
+    const isDriverValue = staticDrivers.some(d => `${d.givenName} ${d.familyName}` === value);
+    const isTeamValue = teams.some(t => t.name === value);
+
+    if (isTeamField && !isTeamValue) {
+        // Trying to select a driver for a team field? This shouldn't happen with current UI, but good validation.
+        console.warn(`Attempted to select non-team value '${value}' for team field '${position}'`);
+    } else if (!isTeamField && !isDriverValue) {
+        // Trying to select a team for a driver field?
+        console.warn(`Attempted to select non-driver value '${value}' for driver field '${position}'`);
+    }
+
+
+    if (newErrors.length > 0) {
+      setErrors(newErrors);
+      soundManager.click.play(); // Play sound even on error for feedback
       return;
     }
-    if (
-      position.startsWith('gp') &&
-      racePreds.includes(value) &&
-      racePreds.indexOf(value) !== ['gp1', 'gp2', 'gp3'].indexOf(position)
-    ) {
-      setErrors([`Ya has seleccionado a ${value} para otra posición de RACE.`]);
-      return;
-    }
+
+    setErrors([]); // Clear previous errors
     setPredictions((prev) => ({ ...prev, [position]: value }));
     setActiveSelectionModal(null);
     soundManager.click.play();
@@ -472,112 +579,164 @@ export default function JugarYGana({ triggerSignInModal }: JugarYGanaProps) {
 
   const handleClear = (position: keyof Prediction) => {
     setPredictions((prev) => ({ ...prev, [position]: '' }));
-    setActiveSelectionModal(null);
+    // Do not close the selection modal here, let renderPredictionField handle the button visibility
+    // setActiveSelectionModal(null);
+    soundManager.click.play(); // Or a different sound?
   };
 
-  // SECTION: handleSubmit
+ // SECTION: handleSubmit
 const handleSubmit = async () => {
+    // 1. Check if signed in
     if (!isSignedIn) {
-      console.log('Triggering sign-in modal');
+      console.log('Triggering sign-in modal because user is not signed in.');
       localStorage.setItem('pendingPredictions', JSON.stringify(predictions));
       if (triggerSignInModal) {
-        triggerSignInModal(); // Show modal
+        console.log('Using triggerSignInModal function.');
+        triggerSignInModal(); // Show modal passed via props
       } else {
         // Fallback to redirect if modal trigger is unavailable
-        console.log('Falling back to redirect: /sign-in?redirect_url=/jugar-y-gana');
-        router.push(`/sign-in?redirect_url=${encodeURIComponent('/jugar-y-gana')}`);
+        console.warn('triggerSignInModal not provided, falling back to redirect.');
+        const redirectUrl = `/jugar-y-gana?modal=review`; // Try to reopen review modal after login
+        router.push(`/sign-in?redirect_url=${encodeURIComponent(redirectUrl)}`);
       }
       return;
     }
-  
+
+    // 2. Check if there's an active GP
     if (!currentGp) {
-      setErrors(['No hay GP activo para predecir.']);
+      setErrors(['No hay un Gran Premio activo para hacer predicciones en este momento.']);
+      setActiveModal('review'); // Stay on review modal to show error
       return;
     }
-  
-    if (!isQualyAllowed && !isRaceAllowed) {
-      setErrors(['El período de predicciones ha cerrado para este GP.']);
+
+    // 3. Check if prediction deadlines have passed
+    const now = new Date().getTime();
+    const qualyDeadline = new Date(currentGp.qualy_time).getTime() - 5 * 60 * 1000;
+    const raceDeadline = new Date(currentGp.race_time).getTime() - 5 * 60 * 1000;
+    const canPredictQualy = now < qualyDeadline;
+    const canPredictRace = now < raceDeadline;
+
+    if (!canPredictQualy && !canPredictRace) {
+      setErrors(['El período de predicciones (Qualy y Carrera) ha cerrado para este GP.']);
+      setActiveModal('review');
       return;
     }
-  
-    const allowedPredictions: Partial<Prediction> = {};
-    if (isQualyAllowed) {
-      allowedPredictions.pole1 = predictions.pole1;
-      allowedPredictions.pole2 = predictions.pole2;
-      allowedPredictions.pole3 = predictions.pole3;
+
+    // 4. Build the submission payload based on allowed predictions
+    const submissionPayload: Partial<Prediction> = {};
+    let hasMadePrediction = false;
+
+    if (canPredictQualy) {
+      if (predictions.pole1) { submissionPayload.pole1 = predictions.pole1; hasMadePrediction = true; }
+      if (predictions.pole2) { submissionPayload.pole2 = predictions.pole2; hasMadePrediction = true; }
+      if (predictions.pole3) { submissionPayload.pole3 = predictions.pole3; hasMadePrediction = true; }
     }
-    if (isRaceAllowed) {
-      allowedPredictions.gp1 = predictions.gp1;
-      allowedPredictions.gp2 = predictions.gp2;
-      allowedPredictions.gp3 = predictions.gp3;
-      allowedPredictions.fastest_pit_stop_team = predictions.fastest_pit_stop_team;
-      allowedPredictions.fastest_lap_driver = predictions.fastest_lap_driver;
-      allowedPredictions.driver_of_the_day = predictions.driver_of_the_day;
-      allowedPredictions.first_team_to_pit = predictions.first_team_to_pit;
-      allowedPredictions.first_retirement = predictions.first_retirement;
+
+    if (canPredictRace) {
+      if (predictions.gp1) { submissionPayload.gp1 = predictions.gp1; hasMadePrediction = true; }
+      if (predictions.gp2) { submissionPayload.gp2 = predictions.gp2; hasMadePrediction = true; }
+      if (predictions.gp3) { submissionPayload.gp3 = predictions.gp3; hasMadePrediction = true; }
+      if (predictions.fastest_pit_stop_team) { submissionPayload.fastest_pit_stop_team = predictions.fastest_pit_stop_team; hasMadePrediction = true; }
+      if (predictions.fastest_lap_driver) { submissionPayload.fastest_lap_driver = predictions.fastest_lap_driver; hasMadePrediction = true; }
+      if (predictions.driver_of_the_day) { submissionPayload.driver_of_the_day = predictions.driver_of_the_day; hasMadePrediction = true; }
+      if (predictions.first_team_to_pit) { submissionPayload.first_team_to_pit = predictions.first_team_to_pit; hasMadePrediction = true; }
+      if (predictions.first_retirement) { submissionPayload.first_retirement = predictions.first_retirement; hasMadePrediction = true; }
     }
-  
-    if (Object.values(allowedPredictions).every((value) => !value)) {
-      setErrors(['Por favor, completa al menos una predicción permitida antes de enviar.']);
-      return;
-    }
-  
+
+     // 5. Check if at least one valid prediction was made
+     if (!hasMadePrediction) {
+         let errorMessage = 'Por favor, completa al menos una predicción ';
+         if (!canPredictQualy && canPredictRace) errorMessage += 'de Carrera ';
+         else if (canPredictQualy && !canPredictRace) errorMessage += 'de Qualy ';
+         errorMessage += 'antes de enviar.';
+         setErrors([errorMessage]);
+         setActiveModal('review');
+         return;
+     }
+
     setSubmitting(true);
+    setErrors([]); // Clear previous errors before trying to submit
+
     try {
       const token = await getToken({ template: 'supabase' });
       if (!token) throw new Error('No se pudo obtener el token de autenticación.');
-  
+
       const supabase = createAuthClient(token);
       const userId = user!.id;
-      const userName = user!.fullName || 'Anónimo';
-      const userEmail = user!.emailAddresses[0]?.emailAddress || 'unknown@example.com';
-      const today = new Date();
-      const week = Math.ceil(
-        (today.getTime() - new Date(today.getFullYear(), 0, 1).getTime()) / (7 * 24 * 60 * 60 * 1000)
-      );
-  
+      const userName = user!.fullName || user!.username || 'Usuario Anónimo'; // Added fallback for username
+      const userEmail = user!.primaryEmailAddress?.emailAddress || 'no-email@example.com'; // Use primary email
+
+      // Ensure currentGp is not null before proceeding (already checked, but safer)
+      if (!currentGp) throw new Error('Current GP is unexpectedly null.');
+
+      // 6. Check for existing prediction for THIS GP and THIS USER in the CURRENT SEASON
+      const currentYear = new Date().getFullYear();
+      const startOfYear = new Date(currentYear, 0, 1).toISOString();
+      const endOfYear = new Date(currentYear, 11, 31, 23, 59, 59).toISOString();
+
       const { data: existingPrediction, error: fetchError } = await supabase
         .from('predictions')
         .select('id')
         .eq('user_id', userId)
         .eq('gp_name', currentGp.gp_name)
-        .gte('submitted_at', new Date(today.getFullYear(), 0, 1).toISOString())
-        .lte('submitted_at', new Date(today.getFullYear(), 11, 31).toISOString())
+        .gte('submitted_at', startOfYear) // Check within the current year
+        .lte('submitted_at', endOfYear)
         .maybeSingle();
-  
-      if (fetchError) throw new Error('Error al verificar predicción previa: ' + fetchError.message);
+
+      if (fetchError) {
+        console.error("Supabase fetch error:", fetchError);
+        throw new Error(`Error al verificar predicción previa: ${fetchError.message}`);
+      }
       if (existingPrediction) {
-        setErrors([`Ya has enviado una predicción para el ${currentGp.gp_name} esta temporada.`]);
+        setErrors([`Ya has enviado una predicción para el ${currentGp.gp_name} esta temporada (${currentYear}).`]);
+        setActiveModal('review');
+        setSubmitting(false); // Ensure submitting state is reset
         return;
       }
-  
+
+      // 7. Insert the new prediction
+      const submissionTime = new Date();
+      const week = Math.ceil(
+        (submissionTime.getTime() - new Date(submissionTime.getFullYear(), 0, 1).getTime()) / (7 * 24 * 60 * 60 * 1000)
+      );
+
       const { error: predError } = await supabase.from('predictions').insert({
         user_id: userId,
         gp_name: currentGp.gp_name,
-        ...allowedPredictions,
-        submitted_at: new Date().toISOString(),
+        ...submissionPayload, // Only insert allowed predictions
+        submitted_at: submissionTime.toISOString(),
         submission_week: week,
-        submission_year: today.getFullYear(),
+        submission_year: submissionTime.getFullYear(),
+        // Add race_date for better filtering later if needed
+        race_date: currentGp.race_time.split('T')[0]
       });
-  
-      if (predError) throw new Error('Error al guardar predicción: ' + predError.message);
-  
-      await fetch('/api/send-prediction-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userEmail, userName, predictions: allowedPredictions, gpName: currentGp.gp_name }),
-      }).catch((emailErr) => console.error('Email API error:', emailErr));
-  
-      // 🎯 Meta Pixel + CAPI (PrediccionEnviada)
+
+      if (predError) {
+         console.error("Supabase insert error:", predError);
+         throw new Error(`Error al guardar la predicción: ${predError.message}`);
+      }
+
+      // 8. Send confirmation email (Optional but good UX)
+      try {
+          await fetch('/api/send-prediction-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userEmail, userName, predictions: submissionPayload, gpName: currentGp.gp_name }),
+          });
+      } catch (emailErr) {
+          console.error('Error sending confirmation email (non-critical):', emailErr);
+          // Don't block submission flow for email error
+      }
+
+
+      // 9. Track Events (Meta Pixel + CAPI)
       const eventId = generateEventId();
-      const email = userEmail;
-  
       trackFBEvent('PrediccionEnviada', {
-        params: { page: 'jugar-y-gana' },
-        email,
+        params: { page: 'jugar-y-gana', gp_name: currentGp.gp_name },
+        email: userEmail,
         event_id: eventId,
       });
-  
+
       try {
         const capiResponse = await fetch('/api/fb-track', {
           method: 'POST',
@@ -586,126 +745,226 @@ const handleSubmit = async () => {
             event_name: 'PrediccionEnviada',
             event_id: eventId,
             event_source_url: window.location.href,
-            params: { page: 'jugar-y-gana' },
-            email,
+            params: { page: 'jugar-y-gana', gp_name: currentGp.gp_name },
+            email: userEmail,
           }),
         });
         if (!capiResponse.ok) {
           console.error('❌ Failed to send CAPI event:', await capiResponse.text());
+        } else {
+          console.log('✅ CAPI event PrediccionEnviada sent successfully.');
         }
       } catch (err) {
         console.error('❌ Error sending CAPI event:', err);
       }
-  
-      setSubmitted(true);
-      setSubmittedPredictions(allowedPredictions as Prediction);
+
+      // 10. Update UI State on Success
+      setSubmitted(true); // Mark as submitted for this session/GP
+      setSubmittedPredictions(submissionPayload as Prediction); // Store what was actually submitted
+      // Reset the form fields
       setPredictions({
-        pole1: '',
-        pole2: '',
-        pole3: '',
-        gp1: '',
-        gp2: '',
-        gp3: '',
-        fastest_pit_stop_team: '',
-        fastest_lap_driver: '',
-        driver_of_the_day: '',
-        first_team_to_pit: '',
-        first_retirement: '',
+        pole1: '', pole2: '', pole3: '',
+        gp1: '', gp2: '', gp3: '',
+        fastest_pit_stop_team: '', fastest_lap_driver: '', driver_of_the_day: '',
+        first_team_to_pit: '', first_retirement: '',
       });
-      setActiveModal('share');
+      setActiveModal('share'); // Show success/share modal
       soundManager.submit.play();
+      localStorage.removeItem('pendingPredictions'); // Clear any pending state
+
     } catch (err) {
-      setErrors([err instanceof Error ? err.message : 'Error al enviar predicciones.']);
       console.error('Submission error:', err);
+      // Ensure user sees the error on the review modal
+      setErrors([err instanceof Error ? err.message : 'Ocurrió un error inesperado al enviar las predicciones. Por favor, intenta de nuevo.']);
+      setActiveModal('review');
     } finally {
-      setSubmitting(false);
+      setSubmitting(false); // Always reset submitting state
+    }
+};
+
+
+  // SECTION: Modal Handlers
+  const handleStickyButtonClick = () => {
+    soundManager.menuClick.play(); // Or a different sound?
+    // Logic: If user started, go to review. Otherwise, go to first available step.
+    if (progress > 0 && progress < 100) {
+        console.log("Sticky button clicked: Opening review modal (progress > 0).");
+        openModal('review');
+    } else if (isQualyAllowed) {
+         console.log("Sticky button clicked: Opening pole modal.");
+        openModal('pole');
+    } else if (isRaceAllowed) {
+        // If qualy is closed but race is open, start at GP step
+        console.log("Sticky button clicked: Opening gp modal (qualy closed).");
+        openModal('gp');
+    } else {
+        // This case shouldn't be reachable if button visibility logic is correct
+        console.warn("Sticky button clicked but no prediction allowed.");
     }
   };
-  
-  // SECTION: Modal Handlers
+
   const openModal = (modal: string) => {
-    if (!submitted) {
+    if (!submitted) { // Only allow opening if not submitted yet for the current GP
       soundManager.openMenu.play();
       setActiveModal(modal);
-      setActiveSelectionModal(null);
-      setErrors([]);
-  
-      // 🎯 Meta Pixel + CAPI (Lead + IntentoPrediccion)
-      const eventId = generateEventId();
-      const email = user?.emailAddresses[0]?.emailAddress || '';
-  
-      trackFBEvent('Lead', {
-        params: { page: 'jugar-y-gana' },
-        email,
-        event_id: eventId,
-      });
-  
-      trackFBEvent('IntentoPrediccion', {
-        params: { page: 'jugar-y-gana' },
-        email,
-        event_id: eventId,
-      });
+      setActiveSelectionModal(null); // Ensure selection modal is closed
+      setErrors([]); // Clear errors when opening a modal step
+
+      // Track attempt only if user is signed in (or track anonymously if desired)
+       if (isSignedIn && user) {
+           // 🎯 Meta Pixel + CAPI (Lead + IntentoPrediccion) - Trigger when interaction starts
+           const eventId = generateEventId();
+           const email = user.primaryEmailAddress?.emailAddress || '';
+
+           // Track 'Lead' maybe only on first open? Or always? Depends on definition.
+           // Let's assume 'Lead' tracks initial engagement with the prediction process.
+           if (!Object.values(predictions).some(Boolean)) { // Track Lead if no predictions made yet
+                 trackFBEvent('Lead', {
+                   params: { page: 'jugar-y-gana', action: 'open_prediction_modal' },
+                   email,
+                   event_id: `lead_${eventId}`, // Distinguish event IDs if needed
+                 });
+            }
+
+
+           trackFBEvent('IntentoPrediccion', {
+             params: { page: 'jugar-y-gana', modal_opened: modal },
+             email,
+             event_id: `attempt_${eventId}`,
+           });
+
+            // Optionally send CAPI event here too, or bundle it with submission
+            // Example: Send CAPI for IntentoPrediccion immediately
+            /*
+            fetch('/api/fb-track', {
+                 method: 'POST',
+                 headers: { 'Content-Type': 'application/json' },
+                 body: JSON.stringify({
+                   event_name: 'IntentoPrediccion',
+                   event_id: `attempt_${eventId}`,
+                   event_source_url: window.location.href,
+                   params: { page: 'jugar-y-gana', modal_opened: modal },
+                   email,
+                 }),
+            }).catch(err => console.error('CAPI IntentoPrediccion error:', err));
+            */
+       }
+    } else {
+         // If already submitted, maybe show a message or prevent opening?
+         // For now, just don't open the modal again. The main buttons are disabled anyway.
+         console.log("Predictions already submitted for this GP.");
     }
   };
-  
+
   const closeModal = () => {
     if (activeModal === 'share') {
-      router.push('/f1-fantasy-panel');
+       // Decide where to go after successful submission
+       // Option 1: Stay on the page (just close modal)
+       setActiveModal(null);
+       // Option 2: Navigate away (e.g., to a dashboard)
+       // router.push('/f1-fantasy-panel');
+    } else {
+       setActiveModal(null);
     }
-    setActiveModal(null);
-    setActiveSelectionModal(null);
-    setErrors([]);
+    setActiveSelectionModal(null); // Close selection modal if open
+    setErrors([]); // Clear errors when closing modals
   };
-  
+
   const modalOrder = ['pole', 'gp', 'extras', 'micro', 'review'];
-  
+
   const nextModal = () => {
     const currentIndex = modalOrder.indexOf(activeModal!);
     if (currentIndex < modalOrder.length - 1) {
       setActiveModal(modalOrder[currentIndex + 1]);
-      setErrors([]);
+      setErrors([]); // Clear errors when moving to next step
+      soundManager.menuClick.play();
     }
   };
-  
+
   const prevModal = () => {
     const currentIndex = modalOrder.indexOf(activeModal!);
     if (currentIndex > 0) {
       setActiveModal(modalOrder[currentIndex - 1]);
-      setErrors([]);
-    }
-  };
-  
-  const openSelectionModal = (position: keyof Prediction) => {
-    if (!submitted && (isQualyField(position) ? isQualyAllowed : isRaceAllowed)) {
-      setActiveSelectionModal({ position, isTeam: position.includes('team') });
+      setErrors([]); // Clear errors when moving to previous step
       soundManager.menuClick.play();
     }
   };
-  
+
+  const openSelectionModal = (position: keyof Prediction) => {
+     // Determine if the field belongs to Qualy or Race
+     const isQualy = isQualyField(position);
+     const isAllowed = isQualy ? isQualyAllowed : isRaceAllowed;
+
+     // Only open if not submitted AND predictions are allowed for this category
+     if (!submitted && isAllowed) {
+       setActiveSelectionModal({ position, isTeam: position.includes('team') });
+       soundManager.menuClick.play();
+     } else {
+         // Optionally provide feedback if clicking on a disabled field
+         console.log(`Selection disabled for ${position}. Submitted: ${submitted}, Allowed: ${isAllowed}`);
+         if(submitted) {
+            setErrors(["Ya enviaste tus predicciones para este GP."])
+         } else if (!isAllowed) {
+            setErrors([isQualy ? "Las predicciones de Qualy están cerradas." : "Las predicciones de Carrera están cerradas."])
+         }
+         // Show error inside the modal if it's already open
+         if (!activeModal) setActiveModal(modalOrder.find(step => step === (isQualy ? 'pole' : isGPField(position) ? 'gp' : position.includes('fastest') || position.includes('day') ? 'extras' : 'micro')) || 'review');
+
+
+     }
+  };
+
   const closeSelectionModal = () => {
     setActiveSelectionModal(null);
+    // Do not clear errors here, they might be relevant to the main modal
   };
 
   // SECTION: Utility Functions
   const getImageSrc = (position: keyof Prediction, value: string): string => {
+    if (!value) return '/images/default-placeholder.png'; // Placeholder if no value
+
     if (position === 'fastest_pit_stop_team' || position === 'first_team_to_pit') {
-      return teams.find((team) => team.name === value)?.logo_url || '/images/team-logos/default-team.png';
+      const team = teams.find((team) => team.name === value);
+      return team?.logo_url || '/images/team-logos/default-team.png'; // Default team logo
     }
-    return drivers.find((driver) => `${driver.givenName} ${driver.familyName}` === value)?.image || '/images/default-driver.png';
+    // Assume it's a driver field otherwise
+    const driver = drivers.find((driver) => `${driver.givenName} ${driver.familyName}` === value);
+    return driver?.image || '/images/pilots/default-driver.png'; // Default driver image
   };
 
+  // Get driver image by full name
   const getDriverImage = (driverName: string): string => {
-    return drivers.find((driver) => `${driver.givenName} ${driver.familyName}` === driverName)?.image || '/images/default-driver.png';
+     if (!driverName) return '/images/pilots/default-driver.png';
+     const driver = drivers.find((driver) => `${driver.givenName} ${driver.familyName}` === driverName);
+     return driver?.image || '/images/pilots/default-driver.png';
   };
 
+  // Get team car image by team name
   const getTeamCarImage = (teamName: string): string => {
-    return `/images/cars/${teamName.toLowerCase().replace(' ', '-')}.png` || '/images/cars/default-car.png';
+      if (!teamName) return '/images/cars/default-car.png';
+      // Generate a slug from the team name (lowercase, replace spaces with hyphens)
+      const slug = teamName.toLowerCase().replace(/\s+/g, '-');
+      // Check if an image exists for that slug, otherwise use default
+      // Note: This requires pre-naming car images consistently (e.g., red-bull-racing.png)
+      // A direct lookup via team.car_image_url if available in DB would be more robust.
+      // Basic check (won't work reliably server-side, better for client-side display):
+      // For robustness, you might need a known list of available car images.
+      // const knownCarImages = ['red-bull-racing', 'mclaren', ...];
+      // if (knownCarImages.includes(slug)) { return `/images/cars/${slug}.png`; } else { return '/images/cars/default-car.png'; }
+      return `/images/cars/${slug}.png`; // Assuming path structure works
   };
+
 
   const isQualyField = (position: keyof Prediction) => position.startsWith('pole');
+  const isGPField = (position: keyof Prediction) => position.startsWith('gp');
 
   const formatCountdown = (countdown: { days: number; hours: number; minutes: number; seconds: number }) => {
-    return `${String(countdown.days).padStart(2, '0')}d ${String(countdown.hours).padStart(2, '0')}h ${String(countdown.minutes).padStart(2, '0')}m ${String(countdown.seconds).padStart(2, '0')}s`;
+    // Handle cases where countdown might be negative briefly before state update
+    const d = Math.max(0, countdown.days);
+    const h = Math.max(0, countdown.hours);
+    const m = Math.max(0, countdown.minutes);
+    const s = Math.max(0, countdown.seconds);
+    return `${String(d).padStart(2, '0')}d ${String(h).padStart(2, '0')}h ${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`;
   };
 
   const isSectionComplete = (section: string): boolean => {
@@ -725,60 +984,101 @@ const handleSubmit = async () => {
 
   // SECTION: Render Functions
   const renderPredictionField = (position: keyof Prediction, label: string) => {
-    const isAllowed = isQualyField(position) ? isQualyAllowed : isRaceAllowed;
-    const closedCategoryText = isQualyField(position) ? 'QUALY CERRADA' : 'CARRERA CERRADA';
+    const isQualy = isQualyField(position);
+    const isAllowed = isQualy ? isQualyAllowed : isRaceAllowed;
+    const closedCategoryText = isQualy ? 'QUALY CERRADA' : 'CARRERA CERRADA';
+    const value = predictions[position];
+    const isTeamField = position.includes('team');
+
     return (
       <div className="flex flex-col space-y-2 relative">
-        <label className="text-gray-300 font-exo2 text-sm sm:text-base">{label}:</label>
+        <label className="text-gray-300 font-exo2 text-sm sm:text-base font-medium">{label}:</label>
         <div
-          className={`p-3 rounded-lg border transition-all duration-300 flex items-center justify-between bg-gray-900/50 border-gray-500/30 relative ${
-            isAllowed && !submitted
-              ? predictions[position]
-                ? 'border-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]'
-                : 'hover:shadow-[0_0_10px_rgba(255,255,255,0.3)] cursor-pointer'
-              : 'opacity-50 cursor-not-allowed'
+          className={`relative p-3 rounded-lg border transition-all duration-300 flex items-center justify-between min-h-[60px] sm:min-h-[80px] ${
+             isAllowed && !submitted
+              ? `bg-gray-900/50 border-gray-500/30 ${value ? 'border-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]' : 'hover:shadow-[0_0_10px_rgba(255,255,255,0.3)] cursor-pointer hover:border-gray-400'}`
+              : 'bg-gray-800/40 border-gray-600/20 opacity-60 cursor-not-allowed' // Style for disabled/closed
           }`}
-          onClick={() => isAllowed && !submitted && openSelectionModal(position)}
+          onClick={() => openSelectionModal(position)} // Let openSelectionModal handle checks
+          title={!isAllowed && !submitted ? closedCategoryText : submitted ? "Predicciones ya enviadas" : `Seleccionar ${label}`}
         >
-          <span className="text-white font-exo2 truncate flex items-center">
-            {predictions[position] && (
-              <Image
-                src={getImageSrc(position, predictions[position])}
-                alt={predictions[position]}
-                width={48}
-                height={48}
-                className="mr-2 object-contain sm:w-16 sm:h-16"
-              />
+          <span className={`flex items-center gap-3 ${value ? 'text-white' : 'text-gray-400'} font-exo2 truncate`}>
+            {value ? (
+               <Image
+                 src={getImageSrc(position, value)}
+                 alt={value}
+                 width={64} // Slightly larger image
+                 height={64}
+                 className="w-10 h-10 sm:w-12 sm:h-12 object-contain flex-shrink-0" // Adjusted size
+               />
+            ) : (
+              <div className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0 bg-gray-700 rounded flex items-center justify-center">
+                 <span className="text-xl text-gray-500">?</span>
+              </div>
             )}
-            {predictions[position] || (position.includes('team') ? 'Seleccionar equipo' : 'Seleccionar piloto')}
+            {value || (isTeamField ? 'Seleccionar equipo...' : 'Seleccionar piloto...')}
           </span>
-          {predictions[position] && (
-            <motion.span {...fadeInUp} transition={{ duration: 0.3 }} className="text-green-400">✓</motion.span>
-          )}
-          {!isAllowed && (
-            <div className="absolute inset-0 flex items-center justify-center bg-gray-800/70 rounded-lg">
-              <span className="text-red-400 font-exo2 text-xs sm:text-sm font-semibold">{closedCategoryText}</span>
+
+          {/* Clear button */}
+           {value && isAllowed && !submitted && (
+             <motion.button
+               whileHover={{ scale: 1.2, rotate: 90 }}
+               whileTap={{ scale: 0.9 }}
+               onClick={(e) => {
+                 e.stopPropagation(); // Prevent opening selection modal when clearing
+                 handleClear(position);
+               }}
+               className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-amber-400 transition z-10 p-1"
+               aria-label={`Limpiar selección para ${label}`}
+             >
+               ✕
+             </motion.button>
+           )}
+
+            {/* Checkmark for selected field */}
+            {value && <motion.span {...fadeInUp} transition={{ duration: 0.3 }} className="text-green-400 text-2xl absolute right-10 top-1/2 transform -translate-y-1/2 hidden sm:block">✓</motion.span> }
+
+
+          {/* Overlay for closed sections */}
+          {!isAllowed && !submitted && (
+            <div className="absolute inset-0 flex items-center justify-center bg-gray-900/80 rounded-lg backdrop-blur-sm">
+              <span className="text-red-400 font-exo2 text-xs sm:text-sm font-semibold uppercase tracking-wider">{closedCategoryText}</span>
             </div>
           )}
+           {/* Overlay for submitted sections */}
+           {submitted && (
+             <div className="absolute inset-0 flex items-center justify-center bg-gray-900/80 rounded-lg backdrop-blur-sm">
+               <span className="text-green-400 font-exo2 text-xs sm:text-sm font-semibold uppercase tracking-wider">Enviado ✓</span>
+             </div>
+           )}
         </div>
-        {predictions[position] && isAllowed && !submitted && (
-          <motion.button
-            whileHover={{ scale: 1.1 }}
-            onClick={() => handleClear(position)}
-            className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-amber-400 transition"
-          >
-            ✕
-          </motion.button>
-        )}
       </div>
     );
   };
+
 
   const renderSelectionModal = () => {
     if (!activeSelectionModal) return null;
     const { position, isTeam } = activeSelectionModal;
     const items = isTeam ? teams : drivers;
     const title = isTeam ? 'Seleccionar Equipo' : 'Seleccionar Piloto';
+    const currentSelection = predictions[position];
+
+    // Pre-filter: remove drivers/teams already selected in the same category if applicable
+    let filteredItems = [...items];
+    const isQualy = position.startsWith('pole');
+    const isGP = position.startsWith('gp');
+
+    if (!isTeam) { // Only filter drivers for pole/gp duplicates
+        if (isQualy) {
+            const selectedQualy = [predictions.pole1, predictions.pole2, predictions.pole3].filter(Boolean);
+            filteredItems = items.filter(item => !selectedQualy.includes(`${(item as Driver).givenName} ${(item as Driver).familyName}`) || `${(item as Driver).givenName} ${(item as Driver).familyName}` === currentSelection );
+        } else if (isGP) {
+            const selectedGP = [predictions.gp1, predictions.gp2, predictions.gp3].filter(Boolean);
+            filteredItems = items.filter(item => !selectedGP.includes(`${(item as Driver).givenName} ${(item as Driver).familyName}`) || `${(item as Driver).givenName} ${(item as Driver).familyName}` === currentSelection );
+        }
+    }
+
 
     return (
       <motion.div
@@ -786,184 +1086,274 @@ const handleSubmit = async () => {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.3 }}
-        className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-[70] p-4"
-        onClick={closeSelectionModal}
+        className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center z-[70] p-4" // Increased blur
+        onClick={closeSelectionModal} // Close on overlay click
       >
         <motion.div
           variants={modalVariants}
           initial="hidden"
           animate="visible"
           exit="exit"
-          transition={{ duration: 0.3 }}
-          className="bg-gradient-to-br from-gray-900 to-gray-800 p-4 sm:p-6 rounded-xl border border-amber-500/30 shadow-xl w-full max-w-[90vw] sm:max-w-2xl max-h-[80vh] overflow-y-auto"
-          onClick={(e) => e.stopPropagation()}
+          transition={{ type: 'spring', damping: 20, stiffness: 300 }} // Spring animation
+          className="bg-gradient-to-br from-gray-950 to-gray-800 p-4 sm:p-6 rounded-2xl border border-amber-500/40 shadow-2xl w-full max-w-[95vw] sm:max-w-3xl max-h-[85vh] flex flex-col" // Slightly larger max-width, more rounded
+          onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside modal
         >
-          <h2 className="text-lg sm:text-xl font-bold text-white mb-4 font-exo2">{title} para {position.replace('_', ' ').toUpperCase()}</h2>
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.3 }}
-            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-4"
-          >
-            {items.map((item) => {
-              const key = isTeam ? (item as Team).name : (item as Driver).driverId;
-              const displayName = isTeam ? (item as Team).name : `${(item as Driver).givenName} ${(item as Driver).familyName}`;
-              const imageSrc = isTeam ? (item as Team).logo_url : (item as Driver).image;
-              return (
-                <motion.button
-                  key={key}
-                  whileHover={{ scale: 1.05 }}
-                  onClick={() => handleSelect(position, displayName)}
-                  className="p-2 sm:p-4 rounded-lg text-white font-exo2 flex flex-col items-center gap-1 sm:gap-2 hover:bg-amber-500/20 transition-all duration-200"
-                >
-                  <Image src={imageSrc} alt={displayName} width={60} height={60} className="object-contain sm:w-20 sm:h-20" />
-                  <span className="text-xs sm:text-sm truncate">{displayName}</span>
-                  {!isTeam && <span className="text-gray-400 text-xs">{(item as Driver).permanentNumber}</span>}
-                </motion.button>
-              );
-            })}
-          </motion.div>
+          <h2 className="text-xl sm:text-2xl font-bold text-white mb-4 font-exo2 text-center">{title} <span className='text-amber-400'>para {position.replace(/_/g, ' ').replace(/\d/g, '').trim().toUpperCase()}</span></h2>
+
+          <div className="flex-grow overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-amber-600 scrollbar-track-gray-800">
+             <motion.div
+               // Removed initial/animate/exit here, let individual items animate
+               transition={{ staggerChildren: 0.05 }} // Stagger item animation
+               // UPDATED GRID: Max 4 cols on large screens
+               className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4"
+             >
+               {filteredItems.map((item, index) => {
+                 const key = isTeam ? (item as Team).name : (item as Driver).driverId;
+                 const displayName = isTeam ? (item as Team).name : `${(item as Driver).givenName} ${(item as Driver).familyName}`;
+                 const imageSrc = isTeam ? (item as Team).logo_url : (item as Driver).image;
+                 const isSelected = displayName === currentSelection;
+
+                 return (
+                   <motion.button
+                     key={key}
+                     initial={{ opacity: 0, y: 20 }}
+                     animate={{ opacity: 1, y: 0 }}
+                     exit={{ opacity: 0, y: -10 }}
+                     transition={{ duration: 0.2, delay: index * 0.02 }}
+                     whileHover={{ scale: 1.05, y: -2, boxShadow: "0px 5px 15px rgba(0, 0, 0, 0.3)" }}
+                     whileTap={{ scale: 0.98 }}
+                     onClick={() => handleSelect(position, displayName)}
+                     className={`p-2 sm:p-3 rounded-lg text-white font-exo2 flex flex-col items-center gap-1 sm:gap-2 transition-all duration-200 relative overflow-hidden border ${
+                         isSelected
+                           ? 'bg-amber-600/30 border-amber-500 shadow-lg'
+                           : 'bg-gray-800/60 border-gray-700 hover:bg-amber-500/20 hover:border-amber-500/50'
+                     }`}
+                   >
+                     <Image
+                        src={imageSrc || (isTeam ? '/images/team-logos/default-team.png' : '/images/pilots/default-driver.png')}
+                        alt={displayName}
+                        width={80} // Larger image
+                        height={80}
+                        className="w-16 h-16 sm:w-20 sm:h-20 object-contain mb-1"
+                      />
+                     <span className="text-xs sm:text-sm text-center leading-tight w-full truncate">{displayName}</span>
+                     {!isTeam && <span className="text-gray-400 text-[10px] sm:text-xs">#{(item as Driver).permanentNumber}</span>}
+                      {isSelected && <div className="absolute top-1 right-1 w-3 h-3 bg-green-400 rounded-full shadow-md"></div>}
+                   </motion.button>
+                 );
+               })}
+               {filteredItems.length === 0 && (
+                  <p className="col-span-full text-center text-gray-400 py-10 font-exo2">Todos los pilotos de esta categoría ya han sido seleccionados.</p>
+               )}
+             </motion.div>
+          </div>
+
           <button
             onClick={closeSelectionModal}
-            className="mt-4 w-full px-4 py-2 bg-gray-700 text-white rounded-lg font-exo2 hover:bg-gray-600 transition text-sm sm:text-base"
+            className="mt-4 w-full px-4 py-2.5 bg-gray-700 text-white rounded-lg font-exo2 hover:bg-gray-600 hover:text-amber-300 transition-all duration-200 text-sm sm:text-base font-semibold"
           >
-            Cerrar
+            Cerrar Selección
           </button>
         </motion.div>
       </motion.div>
     );
   };
 
+
   // SECTION: Restore Predictions After Login
   useEffect(() => {
-    if (isSignedIn) {
+    if (isSignedIn && isLoaded && hydrated) { // Ensure Clerk is fully loaded and component hydrated
       const savedPredictions = localStorage.getItem('pendingPredictions');
       if (savedPredictions) {
+        console.log("Found pending predictions in localStorage.");
         try {
-          const restoredPredictions = JSON.parse(savedPredictions);
-          setPredictions(restoredPredictions);
-          setActiveModal('review'); // Open review modal to continue
-          localStorage.removeItem('pendingPredictions'); // Clear after restoration
+          const restoredPredictions: Prediction = JSON.parse(savedPredictions);
+          // Validate restored data structure? (Optional)
+          if (typeof restoredPredictions === 'object' && restoredPredictions !== null) {
+             setPredictions(restoredPredictions);
+             // Check if redirect specified opening the modal
+             const urlParams = new URLSearchParams(window.location.search);
+             if (urlParams.get('modal') === 'review') {
+                setActiveModal('review'); // Open review modal directly
+                console.log("Restored predictions and opening review modal.");
+             } else {
+                 // Optionally open the first modal or review modal as default
+                 setActiveModal('review');
+                 console.log("Restored predictions, opening default review modal.");
+             }
+
+          } else {
+             console.error('Invalid data found in pendingPredictions.');
+          }
         } catch (error) {
-          console.error('Error restoring predictions:', error);
-          localStorage.removeItem('pendingPredictions'); // Clear on error
+          console.error('Error parsing or restoring predictions:', error);
+        } finally {
+           localStorage.removeItem('pendingPredictions'); // Clear after attempt
         }
       }
     }
-  }, [isSignedIn]);
+  }, [isSignedIn, isLoaded, hydrated]); // Depend on Clerk state and hydration
+
 
   // SECTION: JSX Return Statement
   if (!hydrated || !isLoaded) {
     return <LoadingAnimation text="Cargando autenticación..." animationDuration={4} />;
   }
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-950 to-gray-900 text-white overflow-hidden relative">
+    <div className="min-h-screen bg-gradient-to-b from-gray-950 to-gray-900 text-white overflow-x-hidden relative"> {/* Prevent horizontal scroll */}
       <Header />
       {!isDataLoaded ? (
         <LoadingAnimation animationDuration={loadingDuration} />
       ) : (
         <main
-          key={`main-${forceRender}`}
-          className="container mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16"
+          key={`main-${forceRender}`} // Re-render key
+          className="container mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-16" // Increased top padding
         >
           {/* Row 1: Key Highlights */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            {/* Column 1 - Countdown */}
-            <div
-              className="animate-rotate-border rounded-xl p-px"
-              style={{
-                background: `conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, red 20deg, white 30deg, red 40deg, transparent 50deg, transparent 360deg)`,
-                animationDuration: '4s',
-              }}
-            >
-              <div className="relative group bg-gradient-to-br from-[#1e3a8a] to-[#38bdf8] p-3 sm:p-4 rounded-xl shadow-lg z-10 min-h-40 flex flex-col justify-between overflow-hidden">
+           {/* Column 1 - Countdown - PROPOSAL 2 */}
+            {/* Outer animated border div REMOVED */}
+            <div className="relative group bg-gradient-to-b from-blue-800 to-sky-600 p-4 rounded-xl shadow-lg z-10 min-h-40 flex flex-col justify-between overflow-hidden shadow-blue-500/20">
+                {/* Background Flag - More subtle */}
                 {currentGp && gpFlags[currentGp.gp_name] && (
-                  <motion.img
+                  <img // Using standard img tag, motion not strictly needed if animation is simple
                     src={gpFlags[currentGp.gp_name]}
-                    alt={`Bandera ondeante de ${currentGp.gp_name}`}
-                    className="absolute inset-0 w-full h-full opacity-30 group-hover:opacity-100 transition-opacity duration-300 object-cover z-0"
-                    whileHover={{ rotate: 2, scale: 1.05 }}
-                    transition={{ duration: 0.3 }}
+                    alt="" // Decorative, alt text handled by main content
+                    aria-hidden="true"
+                    // VERY SUBTLE OPACITY, no extra effects on hover
+                    className="absolute inset-0 w-full h-full opacity-[0.07] transition-opacity duration-300 object-cover z-0"
                   />
                 )}
-                <div className="absolute inset-0 bg-gradient-to-tr from-transparent to-black/50 backdrop-blur-sm z-5 pointer-events-none" />
-                <div className="relative z-10 flex flex-col justify-between h-full">
-                  <motion.h2
-                    className="text-sm sm:text-base font-bold text-white font-exo2 leading-tight mb-2"
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5 }}
-                  >
-                    {currentGp ? `Próximo GP: ${currentGp.gp_name}` : 'Próximo GP'}
-                  </motion.h2>
-                  <div className="flex flex-col items-center justify-center flex-grow gap-1">
-                    <p className="text-xs sm:text-sm font-exo2 text-white drop-shadow-md">
-                      {showQualy ? 'QUALY' : 'Carrera'}
-                    </p>
-                    <motion.p
-                      key={showQualy ? 'qualy' : 'race'}
-                      className="font-semibold text-lg sm:text-xl text-white drop-shadow-md"
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -20 }}
-                      transition={{ duration: 0.5, ease: 'easeInOut' }}
-                    >
-                      {showQualy ? formatCountdown(qualyCountdown) : formatCountdown(raceCountdown)}
-                    </motion.p>
+                {/* Inner Shadow & Subtle Overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent z-5 pointer-events-none shadow-[inset_0_2px_10px_rgba(0,0,0,0.3)] rounded-xl" />
+
+                {/* Content */}
+                <div className="relative z-10 flex flex-col h-full">
+                  {/* Top Section: GP Name */}
+                  <div className="flex items-center gap-2 mb-2">
+                      {/* Calendar Icon */}
+                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white/80 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                         <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+                     </svg>
+                     <h2 className="text-sm sm:text-base font-semibold text-white font-exo2 leading-tight drop-shadow-lg truncate">
+                        {currentGp ? currentGp.gp_name : 'Temporada Finalizada'}
+                     </h2>
                   </div>
-                  <p className="text-white text-[10px] sm:text-xs font-exo2 leading-tight drop-shadow-md">
-                    {currentGp
-                      ? new Date(currentGp.race_time).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })
-                      : 'Pendiente'}
-                  </p>
+
+                  {/* Middle Section: Countdown */}
+                   <div className="flex flex-col items-center justify-center flex-grow my-1 sm:my-2">
+                     {currentGp ? (
+                        <>
+                            {/* Qualy/Race Label */}
+                            <p className="text-[10px] sm:text-xs font-exo2 text-white/70 drop-shadow-md uppercase tracking-wider mb-1">
+                                {showQualy ? 'Tiempo para Qualy' : 'Tiempo para Carrera'}
+                            </p>
+                            {/* Unified Countdown - Bold Mono Numbers */}
+                            <AnimatePresence mode="wait">
+                                <motion.p
+                                    key={showQualy ? 'qualy' : 'race'} // Key change triggers animation
+                                    className="font-mono text-xl sm:text-2xl lg:text-3xl text-white font-bold tracking-tight drop-shadow-lg" // MONO FONT, LARGE, BOLD
+                                    initial={{ opacity: 0, y: 5 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -5 }}
+                                    transition={{ duration: 0.3, ease: 'circOut' }}
+                                >
+                                    {/* Use original formatCountdown, maybe style labels slightly lighter? */}
+                                    {/* We style the whole block here, relying on font choice for clarity */}
+                                    {formatCountdown(showQualy ? qualyCountdown : raceCountdown)}
+                                </motion.p>
+                            </AnimatePresence>
+                        </>
+                     ) : (
+                       // Message when no current GP
+                       <div className="flex flex-col items-center justify-center flex-grow">
+                          <p className="font-semibold text-lg sm:text-xl text-gray-300 drop-shadow-md font-exo2">¡Nos vemos pronto!</p>
+                       </div>
+                     )}
+                   </div>
+
+                  {/* Bottom Section: Date */}
+                  <div className="mt-auto flex items-center gap-1 justify-end pt-1">
+                     {/* Clock Icon */}
+                     <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-white/70" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.414-1.414L11 10.586V6z" clipRule="evenodd" />
+                     </svg>
+                     <p className="text-white/80 text-[10px] sm:text-[11px] font-exo2 leading-tight drop-shadow-md">
+                        {currentGp
+                        ? `Carrera: ${new Date(currentGp.race_time).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'America/Bogota' })}`
+                        : 'Consulta Resultados'}
+                     </p>
+                  </div>
                 </div>
-              </div>
             </div>
             {/* Column 2 - Last Race Winner */}
             <div
               className="animate-rotate-border rounded-xl p-px"
-              style={{
-                background: `conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #f59e0b 20deg, #d4af37 30deg, #f59e0b 40deg, transparent 50deg, transparent 360deg)`,
-                animationDuration: '3s',
-                animationDirection: 'reverse',
-              }}
+               style={{
+                 //@ts-ignore
+                 '--border-angle': '90deg', // Different start angle
+                 background: `conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #f59e0b 20deg, #d4af37 30deg, #f59e0b 40deg, transparent 50deg, transparent 360deg)`,
+                 animation: `rotate-border 3s linear infinite reverse`, // Faster, reversed
+               }}
             >
               <motion.div
-                className={`relative p-2 sm:p-4 pb-0 rounded-xl shadow-lg z-10 bg-gradient-to-br h-40 overflow-hidden ${
-                  previousResults?.gp1 && driverToTeam[previousResults.gp1]
+                className={`relative p-3 sm:p-4 pb-0 rounded-xl shadow-lg z-10 bg-gradient-to-br h-40 overflow-hidden ${
+                  previousResults?.gp1 && driverToTeam[previousResults.gp1] && teamColors[driverToTeam[previousResults.gp1]]
                     ? `${teamColors[driverToTeam[previousResults.gp1]].gradientFrom} ${teamColors[driverToTeam[previousResults.gp1]].gradientTo}`
                     : 'from-gray-700 to-gray-600'
                 }`}
               >
-                <div className="absolute inset-0 bg-gradient-to-tr from-black/50 to-transparent z-0 pointer-events-none" />
-                <div className="relative z-10 pr-[30%] sm:pr-[40%] flex flex-col justify-center h-full space-y-1">
+                <div className="absolute inset-0 bg-gradient-to-bl from-black/70 via-black/40 to-transparent z-0 pointer-events-none" /> {/* Adjusted gradient */}
+                <div className="relative z-10 pr-[35%] sm:pr-[40%] flex flex-col justify-center h-full space-y-1">
                   {previousResults?.gp1 ? (
                     <>
                       <div className="flex items-center gap-2">
-                        <span className="text-amber-400 text-lg sm:text-xl">🏆</span>
-                        <p className="text-base sm:text-lg font-semibold text-white font-exo2 leading-tight">
-                          Ganador: {previousResults.gp1}
+                        <span className="text-amber-400 text-lg sm:text-xl drop-shadow-md">🏆</span>
+                        <p className="text-base sm:text-lg font-semibold text-white font-exo2 leading-tight drop-shadow-md">
+                           Ganador: {previousResults.gp1.split(' ')[1]} {/* Show only last name */}
                         </p>
                       </div>
-                      <p className="text-xs sm:text-sm text-gray-300 font-exo2 leading-tight">
-                        {previousResults.gp_name} • {driverToTeam[previousResults.gp1]}
+                      <p className="text-xs sm:text-sm text-gray-200 font-exo2 leading-tight drop-shadow-md"> {/* Lighter text */}
+                         {previousResults.gp_name}
                       </p>
+                       <p className="text-[10px] sm:text-xs text-gray-300 font-exo2 leading-tight drop-shadow-md"> {/* Lighter text */}
+                          {driverToTeam[previousResults.gp1] || 'Equipo Desconocido'}
+                       </p>
                     </>
                   ) : (
-                    <p className="text-gray-400 font-exo2 text-xs sm:text-sm">
-                      No hay resultados previos disponibles.
-                    </p>
+                     <div className="flex items-center gap-2">
+                         <span className="text-gray-400 text-lg sm:text-xl">🏁</span>
+                         <p className="text-gray-300 font-exo2 text-xs sm:text-sm">
+                           Esperando resultados previos...
+                         </p>
+                     </div>
                   )}
                 </div>
                 {previousResults?.gp1 && (
-                  <Image
-                    src={getDriverImage(previousResults.gp1)}
-                    alt={previousResults.gp1}
-                    width={156}
-                    height={160}
-                    className="absolute bottom-0 right-0 w-[40%] sm:w-[50%] max-w-[156px] h-full object-contain object-bottom"
-                  />
+              // --- OPTIMIZATION: Attempt 3 ---
+              // Container is full height again. Make it WIDER to allow object-contain to scale taller.
+              // Adjust 'right' positioning and potentially add negative margin if needed to manage layout.
+              <motion.div
+                initial={{ x: 50, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                transition={{ duration: 0.5, delay: 0.2 }}
+                // Wider percentage, larger max-width, h-full is back. Adjusted 'right' slightly.
+                className="absolute bottom-0 right-[-5px] w-[70%] sm:w-[75%] max-w-[200px] h-full"
+                // --- END OPTIMIZATION ---
+              >
+                <Image
+                  src={getDriverImage(previousResults.gp1)}
+                  alt={previousResults.gp1}
+                  // --- OPTIMIZATION ---
+                  fill // Use fill again
+                  // Update sizes based on new container width
+                  sizes="(max-width: 640px) 70vw, (max-width: 840px) 75vw, 200px"
+                  // Back to object-contain to prevent cropping
+                  className="object-contain object-bottom drop-shadow-xl"
+                  // --- END OPTIMIZATION ---
+                />
+              </motion.div>
+
                 )}
               </motion.div>
             </div>
@@ -971,43 +1361,52 @@ const handleSubmit = async () => {
             <div
               className="animate-rotate-border rounded-xl p-px"
               style={{
+                //@ts-ignore
+                '--border-angle': '180deg', // Different start angle
                 background: `conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #22d3ee 20deg, #0d9488 30deg, #22d3ee 40deg, transparent 50deg, transparent 360deg)`,
-                animationDuration: '5s',
+                animation: `rotate-border 5s linear infinite`, // Slower
               }}
             >
               <motion.div
                 className={`p-3 sm:p-4 pb-0 rounded-xl shadow-lg relative z-10 flex flex-col items-center bg-gradient-to-br h-40 overflow-hidden ${
-                  previousResults?.fastest_pit_stop_team
+                  previousResults?.fastest_pit_stop_team && teamColors[previousResults.fastest_pit_stop_team]
                     ? `${teamColors[previousResults.fastest_pit_stop_team].gradientFrom} ${teamColors[previousResults.fastest_pit_stop_team].gradientTo}`
                     : 'from-gray-700 to-gray-600'
                 }`}
               >
-                <div className="absolute inset-0 bg-gradient-to-tr from-transparent to-black/50 backdrop-blur-sm z-0 pointer-events-none" />
-                <div className="relative z-20 w-full text-center mb-2">
-                  <h2 className="text-base sm:text-lg font-bold text-white font-exo2 drop-shadow-md">
-                    Equipo Más Rápido
+                 <div className="absolute inset-0 bg-gradient-to-tr from-black/60 via-black/30 to-transparent z-0 pointer-events-none" /> {/* Darker gradient */}
+                <div className="relative z-20 w-full text-center mb-1">
+                  <h2 className="text-base sm:text-lg font-bold text-white font-exo2 drop-shadow-md flex items-center justify-center gap-2"> {/* Icon added */}
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-cyan-300" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.414-1.414L11 10.586V6z" clipRule="evenodd" />
+                      </svg>
+                      Pit Stop Más Rápido
                   </h2>
                   {previousResults?.fastest_pit_stop_team ? (
-                    <p className="text-[10px] sm:text-xs text-white font-exo2 drop-shadow-md truncate">
+                    <p className="text-[10px] sm:text-xs text-white/90 font-exo2 drop-shadow-md truncate"> {/* Lighter text */}
                       {previousResults.fastest_pit_stop_team} - {previousResults.gp_name}
                     </p>
                   ) : (
-                    <p className="text-gray-400 font-exo2 text-xs sm:text-sm">
-                      No hay resultados previos disponibles.
+                    <p className="text-gray-300 font-exo2 text-xs sm:text-sm mt-2">
+                      Esperando resultados...
                     </p>
                   )}
                 </div>
                 {previousResults?.fastest_pit_stop_team && (
-                  <div className="w-full h-full flex justify-center items-end relative z-10">
+                   <motion.div
+                       initial={{ y: 30, opacity: 0 }}
+                       animate={{ y: 0, opacity: 1 }}
+                       transition={{ duration: 0.5, delay: 0.3 }}
+                       className="w-full h-full flex justify-center items-end relative z-10 mt-[-10px]" // Adjusted margin
+                   >
                     <Image
-                      src={getTeamCarImage(previousResults.fastest_pit_stop_team)}
-                      alt={`${previousResults.fastest_pit_stop_team} car`}
-                      width={546}
-                      height={273}
-                      className="object-contain w-full h-auto car-image"
-                      style={{ transform: 'translateY(-10px)' }}
-                    />
-                  </div>
+                       src={getTeamCarImage(previousResults.fastest_pit_stop_team)}
+                       alt={`${previousResults.fastest_pit_stop_team} car`}
+                       width={546}
+                       height={273}
+                       className="object-contain w-[90%] h-auto drop-shadow-xl" // Adjusted size and shadow
+                     />
+                  </motion.div>
                 )}
               </motion.div>
             </div>
@@ -1017,1129 +1416,782 @@ const handleSubmit = async () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             {/* Predictions Card */}
             <div
-              className="animate-rotate-border rounded-xl p-0.5 md:animate-rotate-border"
+              className="md:col-span-1 animate-rotate-border rounded-xl p-px" // Span 1 column on medium+
               style={{
-                background: `conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #9333ea 20deg, #c084fc 30deg, #9333ea 40deg, transparent 50deg, transparent 360deg)`,
-                animationDuration: '6s',
-                animationDirection: 'reverse',
+                 //@ts-ignore
+                 '--border-angle': '270deg', // Different start angle
+                 background: `conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #9333ea 20deg, #c084fc 30deg, #9333ea 40deg, transparent 50deg, transparent 360deg)`,
+                 animation: `rotate-border 6s linear infinite reverse`, // Slowest, reversed
               }}
             >
               <motion.div
-                className="bg-gradient-to-br from-gray-900 to-black p-4 sm:p-6 rounded-xl shadow-lg relative z-10 h-auto md:h-[480px] lg:h-[540px] flex flex-col justify-between"
+                 className="bg-gradient-to-br from-gray-950 to-black p-4 sm:p-6 rounded-xl shadow-lg relative z-10 h-full flex flex-col justify-between" // Use full height
               >
                 <div>
-                  <h2 className="text-lg sm:text-xl font-bold text-white mb-2 md:mb-4 font-exo2 text-center">
-                    Haz tus Predicciones
+                  <h2 className="text-lg sm:text-xl font-bold text-white mb-3 font-exo2 text-center">
+                    🏁 Haz tus Predicciones 🏁
                   </h2>
-                  <div className="w-full bg-gray-800 rounded-full h-2 mb-2 md:mb-4 relative overflow-hidden">
+                   <p className="text-center text-xs text-gray-400 mb-3 font-exo2">
+                      {currentGp ? `Para el ${currentGp.gp_name}` : "La temporada ha terminado"}
+                   </p>
+                  <div className="w-full bg-gray-800 rounded-full h-2.5 mb-2 relative overflow-hidden border border-gray-700"> {/* Slightly thicker bar */}
                     <motion.div
-                      className="bg-gradient-to-r from-amber-500 to-cyan-500 h-2 rounded-full shadow-[0_0_8px_rgba(34,211,238,0.7)]"
+                      className="bg-gradient-to-r from-amber-500 to-cyan-500 h-full rounded-full shadow-[0_0_8px_rgba(34,211,238,0.7)]"
                       initial={{ width: 0 }}
                       animate={{ width: `${progress}%` }}
-                      transition={{ duration: 0.5 }}
+                      transition={{ duration: 0.5, ease: "easeOut" }}
                     />
                   </div>
-                  <p className="text-gray-300 text-center mb-2 md:mb-4 font-exo2 text-sm sm:text-base">
+                  <p className="text-gray-300 text-center mb-4 font-exo2 text-sm font-medium">
                     {Math.round(progress)}% completado
                   </p>
                 </div>
-                <div className="grid grid-cols-1 gap-2 md:gap-3">
-                  <motion.button
-                    whileHover={{ scale: 1.05, boxShadow: "0 0 10px rgba(251,191,36,0.7)" }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => openModal('pole')}
-                    className={`w-full py-3 px-4 rounded-lg bg-gray-900 border border-amber-400/50 text-amber-400 font-exo2 text-sm sm:text-base font-semibold transition-all duration-200 ${
-                      submitted
-                        ? 'opacity-50 cursor-not-allowed'
-                        : 'hover:bg-amber-900/20 hover:text-amber-300 hover:border-amber-300'
-                    }`}
-                    disabled={submitted}
-                  >
-                    Posiciones de Pole {isSectionComplete('pole') ? '✓' : ''}
-                  </motion.button>
-                  <motion.button
-                    whileHover={{ scale: 1.05, boxShadow: "0 0 10px rgba(34,211,238,0.7)" }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => openModal('gp')}
-                    className={`w-full py-3 px-4 rounded-lg bg-gray-900 border border-cyan-400/50 text-cyan-400 font-exo2 text-sm sm:text-base font-semibold transition-all duration-200 ${
-                      submitted
-                        ? 'opacity-50 cursor-not-allowed'
-                        : 'hover:bg-cyan-900/20 hover:text-cyan-300 hover:border-cyan-300'
-                    }`}
-                    disabled={submitted}
-                  >
-                    Posiciones de GP {isSectionComplete('gp') ? '✓' : ''}
-                  </motion.button>
-                  <motion.button
-                    whileHover={{ scale: 1.05, boxShadow: "0 0 10px rgba(168,85,247,0.7)" }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => openModal('extras')}
-                    className={`w-full py-3 px-4 rounded-lg bg-gray-900 border border-purple-400/50 text-purple-400 font-exo2 text-sm sm:text-base font-semibold transition-all duration-200 ${
-                      submitted
-                        ? 'opacity-50 cursor-not-allowed'
-                        : 'hover:bg-purple-900/20 hover:text-purple-300 hover:border-purple-300'
-                    }`}
-                    disabled={submitted}
-                  >
-                    Predicciones Adicionales {isSectionComplete('extras') ? '✓' : ''}
-                  </motion.button>
-                  <motion.button
-                    whileHover={{ scale: 1.05, boxShadow: "0 0 10px rgba(250,204,21,0.7)" }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => openModal('micro')}
-                    className={`w-full py-3 px-4 rounded-lg bg-gray-900 border border-yellow-400/50 text-yellow-400 font-exo2 text-sm sm:text-base font-semibold transition-all duration-200 ${
-                      submitted
-                        ? 'opacity-50 cursor-not-allowed'
-                        : 'hover:bg-yellow-900/20 hover:text-yellow-300 hover:border-yellow-300'
-                    }`}
-                    disabled={submitted}
-                  >
-                    Micro-Predicciones {isSectionComplete('micro') ? '✓' : ''}
-                  </motion.button>
-                  <motion.button
-                    whileHover={{ scale: 1.05, boxShadow: "0 0 10px rgba(20,184,166,0.7)" }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => setScoringModalOpen(true)}
-                    className="w-full py-3 px-4 rounded-lg bg-gray-900 border border-teal-400/50 text-teal-400 font-exo2 text-sm sm:text-base font-semibold transition-all duration-200 hover:bg-teal-900/20 hover:text-teal-300 hover:border-teal-300"
-                  >
-                    Sistema de Puntuación
-                  </motion.button>
+                 {/* Buttons Section */}
+                 <div className="grid grid-cols-1 gap-3 mt-auto"> {/* mt-auto pushes buttons down */}
+                     {steps.slice(0, -1).map((step, index) => { // Exclude 'review' step
+                         const colors = [
+                             { border: 'border-amber-400/60', text: 'text-amber-400', shadow: 'hover:shadow-[0_0_12px_rgba(251,191,36,0.6)]', bg: 'hover:bg-amber-500/10' }, // pole
+                             { border: 'border-cyan-400/60', text: 'text-cyan-400', shadow: 'hover:shadow-[0_0_12px_rgba(34,211,238,0.6)]', bg: 'hover:bg-cyan-500/10' },   // gp
+                             { border: 'border-purple-400/60', text: 'text-purple-400', shadow: 'hover:shadow-[0_0_12px_rgba(168,85,247,0.6)]', bg: 'hover:bg-purple-500/10' }, // extras
+                             { border: 'border-yellow-400/60', text: 'text-yellow-400', shadow: 'hover:shadow-[0_0_12px_rgba(250,204,21,0.6)]', bg: 'hover:bg-yellow-500/10' }, // micro
+                         ];
+                         const color = colors[index % colors.length];
+                         const isComplete = isSectionComplete(step.name);
+                         const isStepAllowed = step.name.startsWith('pole') ? isQualyAllowed : isRaceAllowed;
+
+                         return (
+                              <motion.button
+                                key={step.name}
+                                whileHover={{ scale: 1.03, y: -1 }}
+                                whileTap={{ scale: 0.98 }}
+                                onClick={() => openModal(step.name)}
+                                className={`w-full py-3 px-4 rounded-lg bg-gray-900/80 border ${color.border} ${color.text} ${color.bg} ${color.shadow} font-exo2 text-sm sm:text-base font-semibold transition-all duration-200 flex justify-between items-center ${
+                                  (submitted || !isStepAllowed) ? 'opacity-50 cursor-not-allowed grayscale-[50%]' : '' // Grayscale if disabled
+                                }`}
+                                disabled={submitted || !isStepAllowed}
+                                title={(submitted || !isStepAllowed) ? (submitted ? "Predicciones ya enviadas" : (step.name.startsWith('pole') ? "Qualy cerrada" : "Carrera cerrada")) : `Ir a ${step.label}`}
+                              >
+                                <span>{step.label}</span>
+                                {isComplete && !submitted && isStepAllowed && <span className="text-green-400">✓</span>}
+                                {!isStepAllowed && !submitted && <span className="text-red-500 text-xs">Cerrado</span>}
+                              </motion.button>
+                         )
+                     })}
+                     {/* Review Button */}
+                     <motion.button
+                        whileHover={{ scale: 1.03, y: -1 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => openModal('review')}
+                         className={`w-full py-3 px-4 rounded-lg bg-gradient-to-r from-amber-600 to-cyan-600 border border-gray-500 text-white font-exo2 text-sm sm:text-base font-semibold transition-all duration-200 hover:from-amber-500 hover:to-cyan-500 hover:shadow-[0_0_15px_rgba(255,255,255,0.3)] ${
+                             submitted ? 'opacity-50 cursor-not-allowed grayscale-[50%]' : ''
+                         }`}
+                        disabled={submitted}
+                      >
+                        Revisar y Enviar {progress === 100 && !submitted ? '🚀' : ''}
+                      </motion.button>
+                    {/* Scoring System Button */}
+                    <motion.button
+                        whileHover={{ scale: 1.03, y: -1 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => setScoringModalOpen(true)}
+                        className="w-full py-2.5 px-4 rounded-lg bg-gray-800/70 border border-teal-400/50 text-teal-400 font-exo2 text-xs sm:text-sm font-semibold transition-all duration-200 hover:bg-teal-900/40 hover:text-teal-300 hover:border-teal-300 hover:shadow-[0_0_10px_rgba(20,184,166,0.5)]"
+                     >
+                        Sistema de Puntuación
+                    </motion.button>
                 </div>
               </motion.div>
             </div>
-            {/* Driver Standings Card */}
+
+            {/* Driver Standings Card - REMOVED FIXED HEIGHT & INTERNAL SCROLL */}
             <div
-              className="animate-rotate-border rounded-xl p-0.5 md:animate-rotate-border"
+              className="md:col-span-1 animate-rotate-border rounded-xl p-px"
               style={{
-                background: `conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #1e3a8a 20deg, #38bdf8 30deg, #1e3a8a 40deg, transparent 50deg, transparent 360deg)`,
-                animationDuration: '5s',
+                 //@ts-ignore
+                 '--border-angle': '0deg',
+                 background: `conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #1e3a8a 20deg, #38bdf8 30deg, #1e3a8a 40deg, transparent 50deg, transparent 360deg)`,
+                 animation: `rotate-border 5s linear infinite`,
               }}
             >
               <motion.div
-                className="bg-gradient-to-br from-gray-900 to-black p-4 sm:p-6 rounded-xl shadow-lg relative z-10 h-auto md:h-[480px] lg:h-[540px] grid grid-rows-[1fr_auto]"
+                 className="bg-gradient-to-br from-gray-950 to-black p-4 sm:p-6 rounded-xl shadow-lg relative z-10 h-full flex flex-col" // Use h-full and flex-col
               >
-                <div className="h-full">
-                  <h2 className="text-lg sm:text-xl font-bold text-white mb-4 font-exo2 text-center">
-                    Clasificación Pilotos 2025
-                  </h2>
-                  <div className="block md:hidden">
-                    {driverStandings.length > 0 ? (
-                      driverStandings.slice(0, 5).map((standing) => {
-                        const teamName = driverToTeam[standing.driver];
-                        const team = teams.find((team) => team.name === teamName);
-                        if (!team) {
-                          console.warn(`Team not found for driver ${standing.driver}: ${teamName}`);
-                        }
-                        return (
-                          <motion.div
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ duration: 0.5, delay: standing.position * 0.1 }}
-                            key={standing.position}
-                            className="bg-gray-800 p-4 mb-2 rounded-lg flex items-center justify-between hover:bg-blue-800/50 transition-all duration-200"
-                          >
-                            <div className="flex items-center gap-2">
-                              <span className="text-amber-400 font-bold text-sm">{standing.position}</span>
-                              <Image
-                                src={team?.logo_url || '/images/team-logos/default-team.png'}
-                                alt={`${teamName || 'Equipo'} logo`}
-                                width={32}
-                                height={32}
-                                className="object-contain w-8 h-8 transition-transform duration-200 hover:scale-110"
-                              />
-                              <span className="text-white text-sm truncate">{standing.driver}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-gray-300 text-sm">{standing.points} pts</span>
-                              <span
-                                className={`text-sm ${
-                                  standing.evolution.startsWith('↑')
-                                    ? 'text-green-400'
-                                    : standing.evolution.startsWith('↓')
-                                    ? 'text-red-400'
-                                    : 'text-gray-400'
-                                }`}
-                              >
-                                {standing.evolution}
-                              </span>
-                            </div>
-                          </motion.div>
-                        );
-                      })
-                    ) : (
-                      <p className="text-gray-400 font-exo2 text-sm text-center">Cargando clasificación...</p>
-                    )}
-                  </div>
-                  <div className="hidden md:block h-full">
-                    <div className="max-h-[calc(100%-4rem)]">
-                      <table className="w-full text-white font-exo2 text-xs sm:text-sm table-fixed">
-                        <thead>
-                          <tr className="bg-gradient-to-r from-amber-500/20 to-cyan-500/20">
-                            <th className="p-1 sm:p-2 text-left w-12">Pos.</th>
-                            <th className="p-1 sm:p-2 text-left">Piloto</th>
-                            <th className="p-1 sm:p-2 text-right w-16">Pts</th>
-                            <th className="p-1 sm:p-2 text-center w-16">Evo.</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {driverStandings.length > 0 ? (
-                            driverStandings.slice(0, 7).map((standing) => {
-                              const teamName = driverToTeam[standing.driver];
-                              const team = teams.find((team) => team.name === teamName);
-                              if (!team) {
-                                console.warn(`Team not found for driver ${standing.driver}: ${teamName}`);
-                              }
-                              return (
-                                <motion.tr
-                                  initial={{ opacity: 0, x: -20 }}
-                                  animate={{ opacity: 1, x: 0 }}
-                                  transition={{ duration: 0.5, delay: standing.position * 0.1 }}
-                                  key={standing.position}
-                                  className="border-b border-amber-500/20 hover:bg-blue-800/50 hover:translate-y-[-2px] transition-all duration-200"
-                                >
-                                  <td className="p-1 sm:p-2 text-amber-400 font-bold">{standing.position}</td>
-                                  <td className="p-1 sm:p-2 flex items-center gap-1 sm:gap-2 truncate">
-                                    <Image
-                                      src={team?.logo_url || '/images/team-logos/default-team.png'}
-                                      alt={`${teamName || 'Equipo'} logo`}
-                                      width={32}
-                                      height={32}
-                                      className="object-contain w-8 h-8 transition-transform duration-200 hover:scale-110"
-                                    />
-                                    <span className="text-white text-sm">{standing.driver}</span>
-                                  </td>
-                                  <td className="p-1 sm:p-2 text-right text-gray-300">{standing.points}</td>
-                                  <td
-                                    className={`p-1 sm:p-2 text-center ${
-                                      standing.evolution.startsWith('↑')
-                                        ? 'text-green-400'
-                                        : standing.evolution.startsWith('↓')
-                                        ? 'text-red-400'
-                                        : 'text-gray-400'
-                                    }`}
-                                  >
-                                    {standing.evolution}
-                                  </td>
-                                </motion.tr>
-                              );
-                            })
-                          ) : (
-                            <tr>
-                              <td colSpan={4} className="p-4 text-center text-gray-400">
-                                Cargando clasificación...
-                              </td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => setActiveStandingsModal('drivers')}
-                  className="w-full py-2 px-4 bg-gray-900 text-cyan-400 border border-cyan-400/50 rounded-lg font-exo2 hover:bg-cyan-900/20 hover:text-cyan-300 hover:border-cyan-300 hover:shadow-[0_0_10px_2px_rgba(34,211,238,0.7)] transition-all duration-300 text-sm sm:text-base font-semibold"
-                  aria-label="Ver clasificación completa de pilotos"
-                >
-                  Clasificación Completa
-                </motion.button>
+                 <h2 className="text-lg sm:text-xl font-bold text-white mb-4 font-exo2 text-center">
+                  Clasificación Pilotos 2025
+                </h2>
+                {/* REMOVED internal scroll container */}
+                <div className="flex-grow space-y-2 mb-4"> {/* List items directly here */}
+                     {driverStandings.length > 0 ? (
+                       driverStandings.slice(0, 8).map((standing, index) => { // Show top 8 initially
+                         const teamName = driverToTeam[standing.driver];
+                         const team = teams.find((t) => t.name === teamName);
+                         return (
+                           <motion.div
+                             initial={{ opacity: 0, x: -20 }}
+                             animate={{ opacity: 1, x: 0 }}
+                             transition={{ duration: 0.4, delay: index * 0.05 }}
+                             key={standing.position}
+                             className="bg-gray-800/70 p-2 rounded-lg flex items-center justify-between hover:bg-blue-800/50 transition-all duration-200 shadow-sm"
+                           >
+                             <div className="flex items-center gap-2 flex-1 min-w-0">
+                               <span className="text-amber-400 font-bold text-sm w-6 text-center flex-shrink-0">{standing.position}</span>
+                               <Image
+                                 src={team?.logo_url || '/images/team-logos/default-team.png'}
+                                 alt={`${teamName || 'Equipo'} logo`}
+                                 width={24}
+                                 height={24}
+                                 className="object-contain w-6 h-6 flex-shrink-0"
+                               />
+                               <span className="text-white text-xs sm:text-sm truncate">{standing.driver}</span>
+                             </div>
+                             <div className="flex items-center gap-2 flex-shrink-0">
+                               <span className="text-gray-300 text-xs sm:text-sm font-medium w-12 text-right">{standing.points} pts</span>
+                               <span
+                                 className={`text-xs sm:text-sm w-8 text-center font-semibold ${
+                                   standing.evolution.startsWith('↑') ? 'text-green-400' :
+                                   standing.evolution.startsWith('↓') ? 'text-red-400' : 'text-gray-400'
+                                 }`}
+                               >
+                                 {standing.evolution === '=' ? '–' : standing.evolution}
+                               </span>
+                             </div>
+                           </motion.div>
+                         );
+                       })
+                     ) : (
+                       <p className="text-gray-400 font-exo2 text-sm text-center py-10">Cargando clasificación...</p>
+                     )}
+                 </div>
+                 {/* REMOVED fade effect div */}
+                 <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setActiveStandingsModal('drivers')}
+                    className="w-full mt-auto py-2 px-4 bg-gray-800/80 text-cyan-400 border border-cyan-400/50 rounded-lg font-exo2 hover:bg-cyan-900/40 hover:text-cyan-300 hover:border-cyan-300 hover:shadow-[0_0_10px_2px_rgba(34,211,238,0.7)] transition-all duration-300 text-sm sm:text-base font-semibold"
+                    aria-label="Ver clasificación completa de pilotos"
+                  >
+                   Ver Clasificación Completa
+                 </motion.button>
               </motion.div>
             </div>
-            {/* Constructor Standings Card */}
-            <div
-              className="animate-rotate-border rounded-xl p-0.5 md:animate-rotate-border"
-              style={{
-                background: `conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #15803d 20deg, #86efac 30deg, #15803d 40deg, transparent 50deg, transparent 360deg)`,
-                animationDuration: '4.5s',
-                animationDirection: 'reverse',
-              }}
-            >
-              <motion.div
-                className="bg-gradient-to-br from-gray-900 to-black p-4 sm:p-6 rounded-xl shadow-lg relative z-10 h-auto md:h-[480px] lg:h-[540px] grid grid-rows-[1fr_auto]"
-              >
-                <div className="h-full">
-                  <h2 className="text-lg sm:text-xl font-bold text-white mb-4 font-exo2 text-center">
-                    Clasificación Constructores 2025
-                  </h2>
-                  <div className="block md:hidden">
-                    {constructorStandings.length > 0 ? (
-                      constructorStandings.slice(0, 5).map((standing) => {
-                        const teamName = standing.constructor;
-                        const team = teams.find((team) => team.name === teamName);
-                        if (!team) {
-                          console.warn(`Team not found for constructor: ${teamName}`);
-                        }
-                        return (
-                          <motion.div
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ duration: 0.5, delay: standing.position * 0.1 }}
-                            key={standing.position}
-                            className="bg-gray-800 p-4 mb-2 rounded-lg flex items-center justify-between hover:bg-blue-800/50 transition-all duration-200"
-                          >
-                            <div className="flex items-center gap-2">
-                              <span className="text-amber-400 font-bold text-sm">{standing.position}</span>
-                              <Image
-                                src={team?.logo_url || '/images/team-logos/default-team.png'}
-                                alt={`${teamName} logo`}
-                                width={32}
-                                height={32}
-                                className="object-contain w-8 h-8 transition-transform duration-200 hover:scale-110"
-                              />
-                              <span className="text-white text-sm truncate">{standing.constructor}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-gray-300 text-sm">{standing.points} pts</span>
-                              <span
-                                className={`text-sm ${
-                                  standing.evolution.startsWith('↑')
-                                    ? 'text-green-400'
-                                    : standing.evolution.startsWith('↓')
-                                    ? 'text-red-400'
-                                    : 'text-gray-400'
-                                }`}
-                              >
-                                {standing.evolution}
-                              </span>
-                            </div>
-                          </motion.div>
-                        );
-                      })
-                    ) : (
-                      <p className="text-gray-400 font-exo2 text-sm text-center">Cargando clasificación...</p>
-                    )}
-                  </div>
-                  <div className="hidden md:block h-full">
-                    <div className="max-h-[calc(100%-4rem)]">
-                      <table className="w-full text-white font-exo2 text-xs sm:text-sm table-fixed">
-                        <thead>
-                          <tr className="bg-gradient-to-r from-amber-500/20 to-cyan-500/20">
-                            <th className="p-1 sm:p-2 text-left w-12">Pos.</th>
-                            <th className="p-1 sm:p-2 text-left">Constructor</th>
-                            <th className="p-1 sm:p-2 text-right w-16">Pts</th>
-                            <th className="p-1 sm:p-2 text-center w-16">Evo.</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {constructorStandings.length > 0 ? (
-                            constructorStandings.slice(0, 7).map((standing) => {
-                              const teamName = standing.constructor;
-                              const team = teams.find((team) => team.name === teamName);
-                              if (!team) {
-                                console.warn(`Team not found for constructor: ${teamName}`);
-                              }
-                              return (
-                                <motion.tr
-                                  initial={{ opacity: 0, x: -20 }}
-                                  animate={{ opacity: 1, x: 0 }}
-                                  transition={{ duration: 0.5, delay: standing.position * 0.1 }}
-                                  key={standing.position}
-                                  className="border-b border-amber-500/20 hover:bg-blue-800/50 hover:translate-y-[-2px] transition-all duration-200"
+
+            {/* Constructor Standings Card - REMOVED FIXED HEIGHT & INTERNAL SCROLL */}
+             <div
+               className="md:col-span-1 animate-rotate-border rounded-xl p-px"
+               style={{
+                 //@ts-ignore
+                 '--border-angle': '90deg',
+                 background: `conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #15803d 20deg, #86efac 30deg, #15803d 40deg, transparent 50deg, transparent 360deg)`,
+                 animation: `rotate-border 4.5s linear infinite reverse`,
+               }}
+             >
+               <motion.div
+                 className="bg-gradient-to-br from-gray-950 to-black p-4 sm:p-6 rounded-xl shadow-lg relative z-10 h-full flex flex-col" // Use h-full and flex-col
+               >
+                 <h2 className="text-lg sm:text-xl font-bold text-white mb-4 font-exo2 text-center">
+                   Clasificación Constructores 2025
+                 </h2>
+                  {/* REMOVED internal scroll container */}
+                  <div className="flex-grow space-y-2 mb-4"> {/* List items directly here */}
+                      {constructorStandings.length > 0 ? (
+                        constructorStandings.slice(0, 8).map((standing, index) => { // Show top 7 initially
+                          const team = teams.find((t) => t.name === standing.constructor);
+                          return (
+                            <motion.div
+                              initial={{ opacity: 0, x: -20 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ duration: 0.4, delay: index * 0.05 }}
+                              key={standing.position}
+                              className="bg-gray-800/70 p-2 rounded-lg flex items-center justify-between hover:bg-green-800/40 transition-all duration-200 shadow-sm" // Greenish hover
+                            >
+                              <div className="flex items-center gap-2 flex-1 min-w-0">
+                                <span className="text-amber-400 font-bold text-sm w-6 text-center flex-shrink-0">{standing.position}</span>
+                                <Image
+                                  src={team?.logo_url || '/images/team-logos/default-team.png'}
+                                  alt={`${standing.constructor} logo`}
+                                  width={24}
+                                  height={24}
+                                  className="object-contain w-6 h-6 flex-shrink-0"
+                                />
+                                <span className="text-white text-xs sm:text-sm truncate">{standing.constructor}</span>
+                              </div>
+                              <div className="flex items-center gap-2 flex-shrink-0">
+                                <span className="text-gray-300 text-xs sm:text-sm font-medium w-12 text-right">{standing.points} pts</span>
+                                <span
+                                  className={`text-xs sm:text-sm w-8 text-center font-semibold ${
+                                    standing.evolution.startsWith('↑') ? 'text-green-400' :
+                                    standing.evolution.startsWith('↓') ? 'text-red-400' : 'text-gray-400'
+                                  }`}
                                 >
-                                  <td className="p-1 sm:p-2 text-amber-400 font-bold">{standing.position}</td>
-                                  <td className="p-1 sm:p-2 flex items-center gap-1 sm:gap-2 truncate">
-                                    <Image
-                                      src={team?.logo_url || '/images/team-logos/default-team.png'}
-                                      alt={`${teamName} logo`}
-                                      width={32}
-                                      height={32}
-                                      className="object-contain w-8 h-8 transition-transform duration-200 hover:scale-110"
-                                    />
-                                    <span className="text-white text-sm">{standing.constructor}</span>
-                                  </td>
-                                  <td className="p-1 sm:p-2 text-right text-gray-300">{standing.points}</td>
-                                  <td
-                                    className={`p-1 sm:p-2 text-center ${
-                                      standing.evolution.startsWith('↑')
-                                        ? 'text-green-400'
-                                        : standing.evolution.startsWith('↓')
-                                        ? 'text-red-400'
-                                        : 'text-gray-400'
-                                    }`}
-                                  >
-                                    {standing.evolution}
-                                  </td>
-                                </motion.tr>
-                              );
-                            })
-                          ) : (
-                            <tr>
-                              <td colSpan={4} className="p-4 text-center text-gray-400">
-                                Cargando clasificación...
-                              </td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
+                                  {standing.evolution === '=' ? '–' : standing.evolution}
+                                </span>
+                              </div>
+                            </motion.div>
+                          );
+                        })
+                      ) : (
+                        <p className="text-gray-400 font-exo2 text-sm text-center py-10">Cargando clasificación...</p>
+                      )}
                     </div>
-                  </div>
-                </div>
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => setActiveStandingsModal('constructors')}
-                  className="w-full py-2 px-4 bg-gray-900 text-cyan-400 border border-cyan-400/50 rounded-lg font-exo2 hover:bg-cyan-900/20 hover:text-cyan-300 hover:border-cyan-300 hover:shadow-[0_0_10px_2px_rgba(34,211,238,0.7)] transition-all duration-300 text-sm sm:text-base font-semibold"
-                  aria-label="Ver clasificación completa de constructores"
-                >
-                  Clasificación Completa
-                </motion.button>
-              </motion.div>
-            </div>
+                 {/* REMOVED fade effect div */}
+                 <motion.button
+                   whileHover={{ scale: 1.05 }}
+                   whileTap={{ scale: 0.95 }}
+                   onClick={() => setActiveStandingsModal('constructors')}
+                   className="w-full mt-auto py-2 px-4 bg-gray-800/80 text-cyan-400 border border-cyan-400/50 rounded-lg font-exo2 hover:bg-cyan-900/40 hover:text-cyan-300 hover:border-cyan-300 hover:shadow-[0_0_10px_2px_rgba(34,211,238,0.7)] transition-all duration-300 text-sm sm:text-base font-semibold"
+                   aria-label="Ver clasificación completa de constructores"
+                 >
+                   Ver Clasificación Completa
+                 </motion.button>
+               </motion.div>
+             </div>
           </div>
 
           {/* Row 3: Destructors, Rookies, Leaderboard */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {/* Destructors 2025 */}
-                        <div
-              className="animate-rotate-border rounded-xl p-0.5 md:animate-rotate-border"
-              style={{
-                background: `conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #ea580c 20deg, #facc15 30deg, #ea580c 40deg, transparent 50deg, transparent 360deg)`,
-                animationDuration: '3.5s',
-              }}
-            >
-              <motion.div
-                className="bg-gradient-to-br from-gray-900 to-black p-4 sm:p-6 rounded-xl shadow-lg relative z-10 h-auto flex flex-col"
-              >
-                <h2 className="text-lg sm:text-xl font-bold text-white mb-4 font-exo2 text-center">
-                  Destructores 2025
-                </h2>
-                <div className="block md:hidden">
-                  {destructorStandings.length > 0 ? (
-                    destructorStandings.slice(0, 5).map((standing) => (
-                      <motion.div
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ duration: 0.5, delay: standing.position * 0.1 }}
-                        key={standing.position}
-                        className="bg-gray-800 p-4 mb-2 rounded-lg flex items-center justify-between hover:bg-blue-800/50 transition-all duration-200"
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="text-amber-400 font-bold text-sm">{standing.position}</span>
-                          <span className="text-white text-sm truncate">{standing.driver}</span>
-                        </div>
-                        <span className="text-gray-300 text-sm">
-                          {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(standing.total_costs)}
-                        </span>
-                      </motion.div>
-                    ))
-                  ) : (
-                    <p className="text-gray-400 font-exo2 text-sm text-center">Cargando destructores...</p>
-                  )}
-                </div>
-                <div className="hidden md:block">
-                  <table className="w-full text-white font-exo2 text-xs sm:text-sm table-fixed">
-                    <thead>
-                      <tr className="bg-gradient-to-r from-amber-500/20 to-cyan-500/20">
-                        <th className="p-1 sm:p-2 text-left w-12">Pos.</th>
-                        <th className="p-1 sm:p-2 text-left">Piloto</th>
-                        <th className="p-1 sm:p-2 text-right w-24">Costos</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {destructorStandings.length > 0 ? (
-                        destructorStandings.slice(0, 5).map((standing) => (
-                          <motion.tr
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ duration: 0.5, delay: standing.position * 0.1 }}
-                            key={standing.position}
-                            className="border-b border-amber-500/20 hover:bg-blue-800/50 hover:translate-y-[-2px] transition-all duration-200"
-                          >
-                            <td className="p-1 sm:p-2 text-amber-400 font-bold">{standing.position}</td>
-                            <td className="p-1 sm:p-2 text-white truncate">{standing.driver}</td>
-                            <td className="p-1 sm:p-2 text-right text-gray-300">
-                              {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(standing.total_costs)}
-                            </td>
-                          </motion.tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan={3} className="p-4 text-center text-gray-400">
-                            Cargando destructores...
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </motion.div>
-            </div>
-            {/* Rookies 2025 */}
-            <div
-              className="animate-rotate-border rounded-xl p-0.5 md:animate-rotate-border"
-              style={{
-                background: `conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #db2777 20deg, #f9a8d4 30deg, #db2777 40deg, transparent 50deg, transparent 360deg)`,
-                animationDuration: '6s',
-              }}
-            >
-              <motion.div
-                className="bg-gradient-to-br from-gray-900 to-black p-4 sm:p-6 rounded-xl shadow-lg relative z-10 h-auto flex flex-col"
-              >
-                <h2 className="text-lg sm:text-xl font-bold text-white mb-4 font-exo2 text-center">
-                  Rookies 2025
-                </h2>
-                <div className="block md:hidden">
-                  {rookieStandings.length > 0 ? (
-                    rookieStandings.slice(0, 5).map((standing) => (
-                      <motion.div
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ duration: 0.5, delay: standing.position * 0.1 }}
-                        key={standing.position}
-                        className="bg-gray-800 p-4 mb-2 rounded-lg flex items-center justify-between hover:bg-blue-800/50 transition-all duration-200"
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="text-amber-400 font-bold text-sm">{standing.position}</span>
-                          <span className="text-white text-sm truncate">{standing.driver}</span>
-                        </div>
-                        <span className="text-gray-300 text-sm">{standing.points} pts</span>
-                      </motion.div>
-                    ))
-                  ) : (
-                    <p className="text-gray-400 font-exo2 text-sm text-center">Cargando rookies...</p>
-                  )}
-                </div>
-                <div className="hidden md:block">
-                  <table className="w-full text-white font-exo2 text-xs sm:text-sm table-fixed">
-                    <thead>
-                      <tr className="bg-gradient-to-r from-amber-500/20 to-cyan-500/20">
-                        <th className="p-1 sm:p-2 text-left w-12">Pos.</th>
-                        <th className="p-1 sm:p-2 text-left">Piloto</th>
-                        <th className="p-1 sm:p-2 text-right w-16">Pts</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {rookieStandings.length > 0 ? (
-                        rookieStandings.slice(0, 5).map((standing) => (
-                          <motion.tr
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ duration: 0.5, delay: standing.position * 0.1 }}
-                            key={standing.position}
-                            className="border-b border-amber-500/20 hover:bg-blue-800/50 hover:translate-y-[-2px] transition-all duration-200"
-                          >
-                            <td className="p-1 sm:p-2 text-amber-400 font-bold">{standing.position}</td>
-                            <td className="p-1 sm:p-2 text-white truncate">{standing.driver}</td>
-                            <td className="p-1 sm:p-2 text-right text-gray-300">{standing.points}</td>
-                          </motion.tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan={3} className="p-4 text-center text-gray-400">
-                            Cargando rookies...
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </motion.div>
-            </div>
-            {/* MotorManía Leaderboard */}
-            <div
-              className="animate-rotate-border rounded-xl p-0.5 md:animate-rotate-border"
-              style={{
-                background: `conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #d4af37 20deg, #d1d5db 30deg, #d4af37 40deg, transparent 50deg, transparent 360deg)`,
-                animationDuration: '4s',
-                animationDirection: 'reverse',
-              }}
-            >
-              <motion.div
-                className="bg-gradient-to-br from-gray-900 to-black p-4 sm:p-6 rounded-xl shadow-lg relative z-10 h-auto flex flex-col"
-              >
-                <h2 className="text-lg sm:text-xl font-bold text-white mb-4 font-exo2 text-center">
-                  MotorManía Leaderboard
-                </h2>
-                <div className="block md:hidden">
-                  {leaderboard.length > 0 ? (
-                    leaderboard.slice(0, 5).map((entry, index) => (
-                      <motion.div
-                        key={entry.user_id}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ duration: 0.5, delay: index * 0.1 }}
-                        className={`bg-gray-800 p-4 mb-2 rounded-lg flex items-center justify-between hover:bg-blue-800/50 transition-all duration-200 ${
-                          index === 0 ? 'bg-amber-600/30' : index === 1 ? 'bg-amber-500/30' : index === 2 ? 'bg-amber-400/30' : ''
-                        }`}
-                      >
-                        <span className="font-semibold text-white flex items-center">
-                          {index === 0 && <span className="mr-2 text-amber-400">🥇</span>}
-                          {index === 1 && <span className="mr-2 text-amber-400">🥈</span>}
-                          {index === 2 && <span className="mr-2 text-amber-400">🥉</span>}
-                          {entry.name}
-                        </span>
-                        <span className="text-amber-400 font-bold">{entry.score || 0} pts</span>
-                      </motion.div>
-                    ))
-                  ) : (
-                    <p className="text-gray-400 font-exo2 text-sm text-center">Aún no hay clasificaciones. ¡Sé el primero!</p>
-                  )}
-                </div>
-                <div className="hidden md:block">
-                  {leaderboard.length > 0 ? (
-                    leaderboard.slice(0, 5).map((entry, index) => (
-                      <motion.div
-                        key={entry.user_id}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ duration: 0.5, delay: index * 0.1 }}
-                        className={`p-3 bg-gray-800 rounded-lg flex justify-between items-center text-sm hover:bg-blue-800/50 hover:translate-y-[-2px] transition-all duration-200 mb-2 ${
-                          index === 0 ? 'bg-amber-600/30' : index === 1 ? 'bg-amber-500/30' : index === 2 ? 'bg-amber-400/30' : ''
-                        }`}
-                      >
-                        <span className="font-semibold text-white flex items-center">
-                          {index === 0 && <span className="mr-2 text-amber-400">🥇</span>}
-                          {index === 1 && <span className="mr-2 text-amber-400">🥈</span>}
-                          {index === 2 && <span className="mr-2 text-amber-400">🥉</span>}
-                          {entry.name}
-                        </span>
-                        <span className="text-amber-400 font-bold">{entry.score || 0} pts</span>
-                      </motion.div>
-                    ))
-                  ) : (
-                    <p className="text-gray-400 font-exo2 text-sm text-center">Aún no hay clasificaciones. ¡Sé el primero!</p>
-                  )}
-                </div>
-              </motion.div>
-            </div>
-          </div>
+           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+             {/* Destructors 2025 */}
+             <div
+               className="animate-rotate-border rounded-xl p-px"
+               style={{
+                 //@ts-ignore
+                 '--border-angle': '180deg',
+                 background: `conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #ea580c 20deg, #facc15 30deg, #ea580c 40deg, transparent 50deg, transparent 360deg)`,
+                 animation: `rotate-border 3.5s linear infinite`,
+               }}
+             >
+               <motion.div
+                 className="bg-gradient-to-br from-gray-950 to-black p-4 sm:p-6 rounded-xl shadow-lg relative z-10 h-full flex flex-col"
+               >
+                 <h2 className="text-lg sm:text-xl font-bold text-white mb-4 font-exo2 text-center flex items-center justify-center gap-2">
+                   <span className='text-orange-400'>💥</span> Destructores 2025 <span className='text-orange-400'>💥</span>
+                 </h2>
+                 <div className="flex-grow space-y-2 overflow-y-auto max-h-60 scrollbar-thin scrollbar-thumb-orange-600 scrollbar-track-gray-800 pr-2">
+                   {destructorStandings.length > 0 ? (
+                     destructorStandings.slice(0, 5).map((standing, index) => ( // Show top 5
+                       <motion.div
+                         initial={{ opacity: 0, x: -20 }}
+                         animate={{ opacity: 1, x: 0 }}
+                         transition={{ duration: 0.4, delay: index * 0.05 }}
+                         key={standing.position}
+                         className="bg-gray-800/70 p-2 rounded-lg flex items-center justify-between hover:bg-orange-800/40 transition-all duration-200 shadow-sm"
+                       >
+                         <div className="flex items-center gap-2 flex-1 min-w-0">
+                           <span className="text-amber-400 font-bold text-sm w-6 text-center flex-shrink-0">{standing.position}</span>
+                           <span className="text-white text-xs sm:text-sm truncate">{standing.driver}</span>
+                            <span className="text-gray-400 text-[10px] truncate hidden sm:inline">({standing.team})</span>
+                         </div>
+                         <span className="text-orange-300 text-xs sm:text-sm font-medium flex-shrink-0">
+                           {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(standing.total_costs)}
+                         </span>
+                       </motion.div>
+                     ))
+                   ) : (
+                     <p className="text-gray-400 font-exo2 text-sm text-center py-10">Cargando costos...</p>
+                   )}
+                 </div>
+                 {/* Optional: Add a button to see full list if needed */}
+               </motion.div>
+             </div>
+             {/* Rookies 2025 */}
+             <div
+               className="animate-rotate-border rounded-xl p-px"
+                style={{
+                 //@ts-ignore
+                 '--border-angle': '270deg',
+                 background: `conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #db2777 20deg, #f9a8d4 30deg, #db2777 40deg, transparent 50deg, transparent 360deg)`,
+                 animation: `rotate-border 6s linear infinite`,
+               }}
+             >
+               <motion.div
+                 className="bg-gradient-to-br from-gray-950 to-black p-4 sm:p-6 rounded-xl shadow-lg relative z-10 h-full flex flex-col"
+               >
+                 <h2 className="text-lg sm:text-xl font-bold text-white mb-4 font-exo2 text-center flex items-center justify-center gap-2">
+                  <span className='text-pink-400'>⭐</span> Rookies 2025 <span className='text-pink-400'>⭐</span>
+                 </h2>
+                  <div className="flex-grow space-y-2 overflow-y-auto max-h-60 scrollbar-thin scrollbar-thumb-pink-600 scrollbar-track-gray-800 pr-2">
+                   {rookieStandings.length > 0 ? (
+                     rookieStandings.slice(0, 5).map((standing, index) => { // Show all rookies found
+                          const teamName = driverToTeam[standing.driver];
+                          const team = teams.find((t) => t.name === teamName);
+                          return (
+                           <motion.div
+                             initial={{ opacity: 0, x: -20 }}
+                             animate={{ opacity: 1, x: 0 }}
+                             transition={{ duration: 0.4, delay: index * 0.05 }}
+                             key={standing.position}
+                             className="bg-gray-800/70 p-2 rounded-lg flex items-center justify-between hover:bg-pink-800/40 transition-all duration-200 shadow-sm"
+                           >
+                             <div className="flex items-center gap-2 flex-1 min-w-0">
+                               <span className="text-amber-400 font-bold text-sm w-6 text-center flex-shrink-0">{standing.position}</span>
+                                {team && <Image
+                                  src={team.logo_url}
+                                  alt={`${teamName || 'Equipo'} logo`}
+                                  width={20}
+                                  height={20}
+                                  className="object-contain w-5 h-5 flex-shrink-0"
+                                />}
+                               <span className="text-white text-xs sm:text-sm truncate">{standing.driver}</span>
+                             </div>
+                             <div className="flex items-center gap-2 flex-shrink-0">
+                                <span className="text-pink-300 text-xs sm:text-sm font-medium w-12 text-right">{standing.points} pts</span>
+                                <span
+                                  className={`text-xs sm:text-sm w-8 text-center font-semibold ${
+                                    standing.evolution.startsWith('↑') ? 'text-green-400' :
+                                    standing.evolution.startsWith('↓') ? 'text-red-400' : 'text-gray-400'
+                                  }`}
+                                >
+                                  {standing.evolution === '=' ? '–' : standing.evolution}
+                                </span>
+                              </div>
+                           </motion.div>
+                         );
+                     })
+                   ) : (
+                     <p className="text-gray-400 font-exo2 text-sm text-center py-10">Cargando rookies...</p>
+                   )}
+                 </div>
+                  {/* Optional: Add a button to see full list if needed */}
+               </motion.div>
+             </div>
+             {/* MotorManía Leaderboard */}
+             <div
+               className="animate-rotate-border rounded-xl p-px"
+                style={{
+                  //@ts-ignore
+                 '--border-angle': '0deg',
+                 background: `conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #d4af37 20deg, #d1d5db 30deg, #d4af37 40deg, transparent 50deg, transparent 360deg)`,
+                 animation: `rotate-border 4s linear infinite reverse`,
+               }}
+             >
+               <motion.div
+                 className="bg-gradient-to-br from-gray-950 to-black p-4 sm:p-6 rounded-xl shadow-lg relative z-10 h-full flex flex-col"
+               >
+                 <h2 className="text-lg sm:text-xl font-bold text-white mb-4 font-exo2 text-center flex items-center justify-center gap-2">
+                   <span className='text-yellow-400'>🏆</span> MotorManía Leaderboard <span className='text-yellow-400'>🏆</span>
+                 </h2>
+                  <div className="flex-grow space-y-2 overflow-y-auto max-h-60 scrollbar-thin scrollbar-thumb-yellow-600 scrollbar-track-gray-800 pr-2">
+                   {leaderboard.length > 0 ? (
+                     leaderboard.slice(0, 5).map((entry, index) => ( // Show top 5
+                       <motion.div
+                         initial={{ opacity: 0, x: -20 }}
+                         animate={{ opacity: 1, x: 0 }}
+                         transition={{ duration: 0.4, delay: index * 0.05 }}
+                         key={entry.user_id + index} // Use index in key if user_id might not be unique in edge cases
+                         className={`p-2 rounded-lg flex items-center justify-between transition-all duration-200 shadow-sm ${
+                           index === 0 ? 'bg-yellow-600/40 border border-yellow-500' :
+                           index === 1 ? 'bg-gray-500/40 border border-gray-400' :
+                           index === 2 ? 'bg-yellow-800/40 border border-yellow-700' :
+                           'bg-gray-800/70 border border-transparent hover:bg-blue-800/40'
+                         }`}
+                       >
+                         <div className="flex items-center gap-2 flex-1 min-w-0">
+                           <span className={`font-bold text-sm w-8 text-center flex-shrink-0 ${ // Wider space for emoji
+                               index === 0 ? 'text-yellow-300' : index === 1 ? 'text-gray-200' : index === 2 ? 'text-yellow-600' : 'text-amber-400'
+                           }`}>
+                             {index + 1}{index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '.'}
+                           </span>
+                           <span className={`text-xs sm:text-sm truncate ${index < 3 ? 'text-white font-semibold' : 'text-white'}`}>{entry.name}</span>
+                         </div>
+                         <span className={`text-xs sm:text-sm font-medium flex-shrink-0 ${index < 3 ? 'text-white font-semibold' : 'text-amber-400'}`}>
+                           {entry.score || 0} pts
+                         </span>
+                       </motion.div>
+                     ))
+                   ) : (
+                     <p className="text-gray-400 font-exo2 text-sm text-center py-10">Aún no hay clasificaciones. ¡Sé el primero!</p>
+                   )}
+                 </div>
+                 {/* Optional: Add a button to see full leaderboard */}
+               </motion.div>
+             </div>
+           </div>
 
-          {/* Modals */}
-          <AnimatePresence>
-            {scoringModalOpen && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.3 }}
-                className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4"
-                onClick={() => setScoringModalOpen(false)}
-              >
+           {/* --- STICKY PREDICT BUTTON (MOBILE ONLY) --- */}
+           <AnimatePresence>
+               {/* Conditions: GP exists, predictions open (Q or R), not submitted */}
+               {currentGp && (isQualyAllowed || isRaceAllowed) && !submitted && (
+                 <motion.div
+                   initial={{ opacity: 0, scale: 0.5, y: 50 }}
+                   animate={{ opacity: 1, scale: 1, y: 0 }}
+                   exit={{ opacity: 0, scale: 0.5, y: 50 }}
+                   transition={{ type: 'spring', stiffness: 200, damping: 25 }}
+                   // Fixed position, bottom-right, high z-index, hide on medium+ screens
+                   className="fixed bottom-6 right-6 z-40 md:hidden"
+                 >
+                   <button
+                     onClick={handleStickyButtonClick} // Assumes handleStickyButtonClick is defined in the component scope
+                     className="flex items-center gap-2 pl-3 pr-4 py-3 bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 text-white font-exo2 font-bold text-sm rounded-full shadow-xl hover:from-amber-600 hover:to-red-600 focus:outline-none focus:ring-4 focus:ring-amber-300 focus:ring-offset-2 focus:ring-offset-gray-900 transition-all duration-200 transform hover:scale-105 active:scale-100"
+                     aria-label={progress > 0 ? "Continuar predicción" : "Iniciar predicción"} // Assumes 'progress' state is available
+                   >
+                     {/* Lightning Bolt Icon */}
+                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                       <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" />
+                     </svg>
+                     {/* Dynamic Text */}
+                     <span>{progress > 0 ? 'Continuar' : '¡Predecir!'}</span>
+                   </button>
+                 </motion.div>
+               )}
+             </AnimatePresence>
+             {/* --- END STICKY PREDICT BUTTON --- */}
+
+            {/* Modals */}
+            <AnimatePresence>
+                {/* Scoring System Modal */}
+              {scoringModalOpen && (
                 <motion.div
-                  variants={{
-                    hidden: { opacity: 0, scale: 0.95 },
-                    visible: { opacity: 1, scale: 1 },
-                    exit: { opacity: 0, scale: 0.95 },
-                  }}
-                  initial="hidden"
-                  animate="visible"
-                  exit="exit"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
                   transition={{ duration: 0.3 }}
-                  className="bg-gradient-to-br from-black to-gray-900 p-4 sm:p-6 rounded-xl border border-amber-500/30 shadow-xl w-full max-w-[90vw] sm:max-w-lg max-h-[80vh] overflow-y-auto relative"
-                  onClick={(e) => e.stopPropagation()}
+                  className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[60] p-4" // z-index below selection modal
+                  onClick={() => setScoringModalOpen(false)}
                 >
-                  <h2 className="text-lg sm:text-xl font-bold text-white mb-4 font-exo2 text-center">Sistema de Puntuación</h2>
-                  <div className="text-gray-300 font-exo2 text-sm sm:text-base space-y-2">
-                    <p>- <strong>Pole y GP (1º, 2º, 3º):</strong> 5 pts por acierto exacto, 2 pts si está en el top 3.</p>
-                    <p>- <strong>Pit Stop Más Rápido:</strong> 3 pts por equipo correcto.</p>
-                    <p>- <strong>Vuelta Más Rápida:</strong> 3 pts por piloto correcto.</p>
-                    <p>- <strong>Piloto del Día:</strong> 3 pts por acierto.</p>
-                    <p>- <strong>Primer Equipo en Pits:</strong> 2 pts por equipo correcto.</p>
-                    <p>- <strong>Primer Retiro:</strong> 2 pts por piloto correcto.</p>
-                  </div>
-                  <button
-                    onClick={() => setScoringModalOpen(false)}
-                    className="mt-4 w-full px-4 py-2 bg-gray-800 text-white rounded-lg font-exo2 hover:bg-gray-700 hover:text-teal-400 hover:shadow-[0_0_10px_rgba(20,184,166,0.5)] transition text-sm sm:text-base"
+                  <motion.div
+                    variants={modalVariants}
+                    initial="hidden"
+                    animate="visible"
+                    exit="exit"
+                     transition={{ type: 'spring', damping: 15, stiffness: 200 }}
+                    className="bg-gradient-to-br from-black via-gray-900 to-black p-6 sm:p-8 rounded-xl border border-teal-500/30 shadow-xl w-full max-w-[90vw] sm:max-w-lg max-h-[80vh] overflow-y-auto relative flex flex-col" // flex-col added
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    Cerrar
-                  </button>
-                </motion.div>
-              </motion.div>
-            )}
-            {activeModal === 'pole' && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.3 }}
-                className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4"
-                onClick={closeModal}
-              >
-                <motion.div
-                  variants={modalVariants}
-                  initial="hidden"
-                  animate="visible"
-                  exit="exit"
-                  transition={{ duration: 0.3 }}
-                  className="bg-gradient-to-br from-black to-gray-900 p-4 sm:p-6 rounded-xl border border-amber-500/30 shadow-xl w-full max-w-[90vw] sm:max-w-2xl max-h-[80vh] overflow-y-auto relative"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="w-full bg-gray-800 rounded-full h-1 mb-4 relative overflow-hidden">
-                    <motion.div
-                      className="bg-gradient-to-r from-amber-500 to-cyan-500 h-1 rounded-full"
-                      initial={{ width: 0 }}
-                      animate={{ width: `${progress}%` }}
-                      transition={{ duration: 0.5 }}
-                    />
-                  </div>
-                  <div className="flex items-center justify-center mb-4">
-                    <span className="text-gray-400 font-exo2 text-sm">
-                      Paso 1 de 5: {steps[0].label}
-                    </span>
-                    <span className="ml-2 text-gray-400"></span>
-                  </div>
-                  <h2 className="text-lg sm:text-xl font-bold text-amber-400 mb-2 font-exo2 text-center">{steps[0].label}</h2>
-                  <p className="text-gray-400 text-center mb-4 font-exo2 text-sm">{instructions.pole}</p>
-                  <div className="space-y-4">
-                    {renderPredictionField('pole1', 'Pole Pos. 1')}
-                    {renderPredictionField('pole2', 'Pole Pos. 2')}
-                    {renderPredictionField('pole3', 'Pole Pos. 3')}
-                  </div>
-                  <div className="flex flex-col sm:flex-row justify-between mt-4 sm:mt-6 gap-2">
+                     <button
+                       onClick={() => setScoringModalOpen(false)}
+                       className="absolute top-3 right-3 text-gray-400 hover:text-amber-400 transition p-1 z-10"
+                       aria-label="Cerrar"
+                      >
+                       ✕
+                     </button>
+                    <h2 className="text-lg sm:text-xl font-bold text-white mb-5 font-exo2 text-center text-teal-300">Sistema de Puntuación</h2>
+                    <div className="text-gray-300 font-exo2 text-sm sm:text-base space-y-3 flex-grow overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-teal-600 scrollbar-track-gray-800"> {/* List styling */}
+                         <p><strong className='text-amber-400'>Pole / GP (Exacto):</strong> <span className='text-white'>5 pts</span> por acertar la posición exacta (1º, 2º o 3º).</p>
+                         <p><strong className='text-amber-400'>Pole / GP (Top 3):</strong> <span className='text-white'>2 pts</span> si el piloto está en el Top 3 pero no en la posición exacta.</p>
+                         <p><strong className='text-cyan-400'>Pit Stop Más Rápido:</strong> <span className='text-white'>3 pts</span> por acertar el equipo.</p>
+                         <p><strong className='text-purple-400'>Vuelta Más Rápida:</strong> <span className='text-white'>3 pts</span> por acertar el piloto.</p>
+                         <p><strong className='text-purple-400'>Piloto del Día:</strong> <span className='text-white'>3 pts</span> por acertar el piloto.</p>
+                         <p><strong className='text-yellow-400'>Primer Equipo en Pits:</strong> <span className='text-white'>2 pts</span> por acertar el equipo.</p>
+                         <p><strong className='text-yellow-400'>Primer Retiro:</strong> <span className='text-white'>2 pts</span> por acertar el piloto.</p>
+                         <p className='text-xs text-gray-500 italic mt-4'>Nota: Los puntos por 'Top 3' no se suman a los puntos por 'Posición Exacta'. Máximo 5 puntos por piloto/posición.</p>
+                    </div>
                     <button
-                      onClick={closeModal}
-                      className="w-full sm:w-auto px-4 py-2 bg-gray-800 text-white rounded-lg font-exo2 hover:bg-gray-700 hover:text-amber-400 hover:shadow-[0_0_10px_rgba(251,191,36,0.5)] transition text-sm sm:text-base"
+                      onClick={() => setScoringModalOpen(false)}
+                      className="mt-6 w-full px-4 py-2 bg-gray-800 text-white rounded-lg font-exo2 hover:bg-gray-700 hover:text-teal-300 hover:shadow-[0_0_10px_rgba(20,184,166,0.5)] transition-all duration-200 text-sm sm:text-base font-semibold"
+                    >
+                      Entendido
+                    </button>
+                  </motion.div>
+                </motion.div>
+              )}
+
+              {/* Prediction Step Modals */}
+              {steps.map((step, index) => activeModal === step.name && (
+                   <motion.div
+                       key={step.name}
+                       initial={{ opacity: 0 }}
+                       animate={{ opacity: 1 }}
+                       exit={{ opacity: 0 }}
+                       transition={{ duration: 0.3 }}
+                       className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+                       onClick={closeModal} // Assumes closeModal is defined
+                   >
+                       <motion.div
+                           variants={modalVariants}
+                           initial="hidden"
+                           animate="visible"
+                           exit="exit"
+                           transition={{ type: 'spring', damping: 18, stiffness: 250 }}
+                           className="bg-gradient-to-br from-black to-gray-900 p-6 sm:p-8 rounded-xl border border-amber-500/30 shadow-xl w-full max-w-[90vw] sm:max-w-2xl max-h-[90vh] flex flex-col" // Increased max-height, flex-col
+                           onClick={(e) => e.stopPropagation()}
+                       >
+                           {/* Header */}
+                           <div className='mb-4'>
+                               {/* Progress Bar */}
+                               <div className="w-full bg-gray-800 rounded-full h-1.5 mb-2 relative overflow-hidden">
+                                   <motion.div
+                                       className="bg-gradient-to-r from-amber-500 to-cyan-500 h-full rounded-full"
+                                       initial={{ width: 0 }}
+                                       animate={{ width: `${progress}%` }} // Assumes progress state is available
+                                       transition={{ duration: 0.5, ease: "easeOut" }}
+                                   />
+                               </div>
+                                {/* Step Indicator */}
+                                <p className="text-center text-xs font-medium text-gray-500 font-exo2 mb-2 uppercase tracking-wider">
+                                   Paso {index + 1} / {steps.length}
+                                </p>
+                                {/* Title */}
+                               <h2 className={`text-lg sm:text-xl font-bold mb-2 font-exo2 text-center ${
+                                   step.name === 'pole' ? 'text-amber-400' :
+                                   step.name === 'gp' ? 'text-cyan-400' :
+                                   step.name === 'extras' ? 'text-purple-400' :
+                                   step.name === 'micro' ? 'text-yellow-400' :
+                                   'text-white' // Review title color
+                               }`}>
+                                   {step.label}
+                                </h2>
+                                {/* Instructions */}
+                               <p className="text-gray-400 text-center mb-5 font-exo2 text-sm">{instructions[step.name as keyof typeof instructions]}</p>
+                           </div>
+
+                           {/* Content Area */}
+                           <div className="flex-grow overflow-y-auto pr-3 space-y-4 scrollbar-thin scrollbar-thumb-amber-600/70 scrollbar-track-gray-800">
+                              {step.name === 'pole' && (
+                                  <>
+                                      {renderPredictionField('pole1', 'Pole Pos. 1')}
+                                      {renderPredictionField('pole2', 'Pole Pos. 2')}
+                                      {renderPredictionField('pole3', 'Pole Pos. 3')}
+                                  </>
+                              )}
+                               {step.name === 'gp' && (
+                                  <>
+                                      {renderPredictionField('gp1', 'GP Pos. 1')}
+                                      {renderPredictionField('gp2', 'GP Pos. 2')}
+                                      {renderPredictionField('gp3', 'GP Pos. 3')}
+                                  </>
+                               )}
+                              {step.name === 'extras' && (
+                                  <>
+                                      {renderPredictionField('fastest_pit_stop_team', 'Equipo - Pit Stop Más Rápido')}
+                                      {renderPredictionField('fastest_lap_driver', 'Piloto - Vuelta Más Rápida')}
+                                      {renderPredictionField('driver_of_the_day', 'Piloto del Día')}
+                                  </>
+                              )}
+                              {step.name === 'micro' && (
+                                  <>
+                                      {renderPredictionField('first_team_to_pit', 'Primer Equipo en Pits')}
+                                      {renderPredictionField('first_retirement', 'Primer Retiro (Piloto)')}
+                                  </>
+                              )}
+                              {step.name === 'review' && (
+                                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                       {/* Pole Section */}
+                                       <motion.div onClick={() => setActiveModal('pole')} className="cursor-pointer bg-gray-800/50 p-4 rounded-lg hover:bg-gray-700/60 transition duration-200 space-y-1 border border-transparent hover:border-amber-500/50" whileHover={{ y: -2 }}>
+                                           <h3 className="text-base sm:text-lg font-semibold text-amber-400 font-exo2 mb-2">Posiciones de Pole</h3>
+                                           <p className="text-gray-300 font-exo2 text-sm"><span className="font-medium text-gray-100 w-6 inline-block">1:</span> {predictions.pole1 || <span className="text-gray-500 italic">Vacío</span>}</p>
+                                           <p className="text-gray-300 font-exo2 text-sm"><span className="font-medium text-gray-100 w-6 inline-block">2:</span> {predictions.pole2 || <span className="text-gray-500 italic">Vacío</span>}</p>
+                                           <p className="text-gray-300 font-exo2 text-sm"><span className="font-medium text-gray-100 w-6 inline-block">3:</span> {predictions.pole3 || <span className="text-gray-500 italic">Vacío</span>}</p>
+                                       </motion.div>
+                                        {/* GP Section */}
+                                       <motion.div onClick={() => setActiveModal('gp')} className="cursor-pointer bg-gray-800/50 p-4 rounded-lg hover:bg-gray-700/60 transition duration-200 space-y-1 border border-transparent hover:border-cyan-500/50" whileHover={{ y: -2 }}>
+                                           <h3 className="text-base sm:text-lg font-semibold text-cyan-400 font-exo2 mb-2">Posiciones de GP</h3>
+                                           <p className="text-gray-300 font-exo2 text-sm"><span className="font-medium text-gray-100 w-6 inline-block">1:</span> {predictions.gp1 || <span className="text-gray-500 italic">Vacío</span>}</p>
+                                           <p className="text-gray-300 font-exo2 text-sm"><span className="font-medium text-gray-100 w-6 inline-block">2:</span> {predictions.gp2 || <span className="text-gray-500 italic">Vacío</span>}</p>
+                                           <p className="text-gray-300 font-exo2 text-sm"><span className="font-medium text-gray-100 w-6 inline-block">3:</span> {predictions.gp3 || <span className="text-gray-500 italic">Vacío</span>}</p>
+                                       </motion.div>
+                                        {/* Extras Section */}
+                                       <motion.div onClick={() => setActiveModal('extras')} className="cursor-pointer bg-gray-800/50 p-4 rounded-lg hover:bg-gray-700/60 transition duration-200 space-y-2 border border-transparent hover:border-purple-500/50" whileHover={{ y: -2 }}>
+                                           <h3 className="text-base sm:text-lg font-semibold text-purple-400 font-exo2 mb-2">Predicciones Adicionales</h3>
+                                           <p className="text-gray-300 font-exo2 text-sm"><strong className="text-gray-100 font-medium">Pit Stop + Rápido:</strong> {predictions.fastest_pit_stop_team || <span className="text-gray-500 italic">Vacío</span>}</p>
+                                           <p className="text-gray-300 font-exo2 text-sm"><strong className="text-gray-100 font-medium">Vuelta + Rápida:</strong> {predictions.fastest_lap_driver || <span className="text-gray-500 italic">Vacío</span>}</p>
+                                           <p className="text-gray-300 font-exo2 text-sm"><strong className="text-gray-100 font-medium">Piloto del Día:</strong> {predictions.driver_of_the_day || <span className="text-gray-500 italic">Vacío</span>}</p>
+                                       </motion.div>
+                                        {/* Micro Section */}
+                                        <motion.div onClick={() => setActiveModal('micro')} className="cursor-pointer bg-gray-800/50 p-4 rounded-lg hover:bg-gray-700/60 transition duration-200 space-y-2 border border-transparent hover:border-yellow-500/50" whileHover={{ y: -2 }}>
+                                           <h3 className="text-base sm:text-lg font-semibold text-yellow-400 font-exo2 mb-2">Micro-Predicciones</h3>
+                                           <p className="text-gray-300 font-exo2 text-sm"><strong className="text-gray-100 font-medium">1er Equipo en Pits:</strong> {predictions.first_team_to_pit || <span className="text-gray-500 italic">Vacío</span>}</p>
+                                           <p className="text-gray-300 font-exo2 text-sm"><strong className="text-gray-100 font-medium">1er Retiro:</strong> {predictions.first_retirement || <span className="text-gray-500 italic">Vacío</span>}</p>
+                                       </motion.div>
+                                   </div>
+                              )}
+                           </div>
+
+                           {/* Footer Buttons & Errors */}
+                           <div className="mt-auto pt-4"> {/* Pushes footer down, adds padding top */}
+                               {/* Error Display */}
+                               {errors.length > 0 && ( // Assumes errors state is available
+                                   <div className="my-4 bg-red-900/30 border border-red-500/50 text-red-300 p-3 rounded-md text-center font-exo2 text-sm space-y-1">
+                                       {errors.map((error, idx) => (
+                                           <p key={idx}><span className="font-semibold mr-1">[!]:</span>{error}</p>
+                                       ))}
+                                   </div>
+                               )}
+
+                               {/* Navigation Buttons */}
+                               <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
+                                   {/* Back/Close Button */}
+                                   <button
+                                       onClick={index === 0 ? closeModal : prevModal} // Assumes prevModal defined
+                                       className="w-full sm:w-auto px-5 py-2.5 bg-gray-700/80 text-white rounded-lg font-exo2 hover:bg-gray-600/80 hover:text-amber-300 border border-transparent hover:border-amber-500/50 hover:shadow-[0_0_10px_rgba(251,191,36,0.5)] transition-all duration-300 text-sm sm:text-base font-semibold"
+                                   >
+                                       {index === 0 ? 'Cerrar' : 'Anterior'}
+                                   </button>
+
+                                   {/* Next/Submit Button */}
+                                   {index < steps.length - 1 ? (
+                                       <motion.button
+                                           whileHover={{ scale: 1.05 }}
+                                           whileTap={{ scale: 0.95 }}
+                                           onClick={nextModal} // Assumes nextModal defined
+                                           className="w-full sm:w-auto px-5 py-2.5 bg-gray-800 text-cyan-400 border border-cyan-400/50 rounded-lg font-exo2 hover:bg-cyan-900/30 hover:text-cyan-300 hover:border-cyan-300 hover:shadow-[0_0_10px_rgba(34,211,238,0.7)] transition-all duration-300 text-sm sm:text-base font-semibold"
+                                       >
+                                           Siguiente
+                                       </motion.button>
+                                   ) : (
+                                       <motion.button
+                                           whileHover={{ scale: 1.05 }}
+                                           whileTap={{ scale: 0.95 }}
+                                           onClick={handleSubmit} // Assumes handleSubmit defined
+                                           disabled={submitting || submitted} // Assumes submitting/submitted state available
+                                           className={`w-full sm:w-auto px-5 py-2.5 bg-gradient-to-r from-green-600 to-cyan-600 text-white border border-cyan-400/50 rounded-lg font-exo2 hover:from-green-500 hover:to-cyan-500 hover:shadow-[0_0_15px_rgba(34,211,238,0.7)] transition-all duration-300 text-sm sm:text-base font-semibold relative overflow-hidden ${
+                                               submitting || submitted ? 'opacity-60 cursor-not-allowed grayscale' : ''
+                                           }`}
+                                       >
+                                            {submitting && (
+                                                <span className="absolute inset-0 flex items-center justify-center bg-black/50">
+                                                   <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                   </svg>
+                                               </span>
+                                            )}
+                                           <span className={submitting ? 'opacity-0' : ''}>
+                                               {submitting ? 'Enviando...' : submitted ? 'Enviadas ✓' : 'Enviar Predicciones'}
+                                            </span>
+                                       </motion.button>
+                                   )}
+                               </div>
+                           </div>
+                       </motion.div>
+                   </motion.div>
+               ))}
+
+
+              {/* Share/Success Modal */}
+              {activeModal === 'share' && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+                  onClick={closeModal} // Close on overlay click
+                >
+                  <motion.div
+                    variants={modalVariants}
+                    initial="hidden"
+                    animate="visible"
+                    exit="exit"
+                     transition={{ type: 'spring', damping: 15, stiffness: 200 }}
+                    className="bg-gradient-to-br from-green-900 via-gray-900 to-black p-6 sm:p-8 rounded-xl border border-green-500/40 shadow-xl w-full max-w-[90vw] sm:max-w-md relative text-center" // Success theme
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                     <motion.div
+                        initial={{ scale: 0.5, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        transition={{ delay: 0.2, type: 'spring', stiffness: 300 }}
+                        className="mx-auto mb-4 w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center border-2 border-green-400"
+                     >
+                        <span className="text-4xl text-green-400">✓</span>
+                     </motion.div>
+                    <h2 className="text-xl sm:text-2xl font-bold text-white mb-3 font-exo2">¡Predicciones Enviadas!</h2>
+                    <p className="text-gray-300 mb-6 font-exo2 text-sm sm:text-base">
+                      Tus predicciones para el {submittedPredictions && currentGp?.gp_name ? currentGp.gp_name : 'GP'} han sido registradas. ¡Mucha suerte!
+                      </p>
+                    {/* Optional: Add Share Buttons or Link to Dashboard */}
+                    {/* <div className="flex justify-center space-x-4 mb-6"> ... share buttons ... </div> */}
+                    <button
+                      onClick={closeModal} // Closes modal, doesn't navigate away
+                      className="w-full px-4 py-2.5 bg-gray-800 text-white rounded-lg font-exo2 hover:bg-gray-700 hover:text-green-300 hover:shadow-[0_0_10px_rgba(74,222,128,0.5)] transition-all duration-200 text-sm sm:text-base font-semibold"
                     >
                       Cerrar
                     </button>
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={nextModal}
-                      className="w-full sm:w-auto px-4 py-2 bg-gray-900 text-cyan-400 border border-cyan-400/50 rounded-lg font-exo2 hover:bg-cyan-900/20 hover:text-cyan-300 hover:border-cyan-300 hover:shadow-[0_0_10px_rgba(34,211,238,0.7)] transition-all duration-300 text-sm sm:text-base"
-                    >
-                      Siguiente
-                    </motion.button>
-                  </div>
-                  {errors.length > 0 && (
-                    <div className="text-red-400 text-center mt-4 font-exo2 space-y-2 text-sm sm:text-base">
-                      {errors.map((error, idx) => (
-                        <p key={idx}>{error}</p>
-                      ))}
-                    </div>
-                  )}
+                  </motion.div>
                 </motion.div>
-              </motion.div>
-            )}
-            {activeModal === 'gp' && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.3 }}
-                className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4"
-                onClick={closeModal}
-              >
+              )}
+
+              {/* Full Standings Modal */}
+              {activeStandingsModal && (
                 <motion.div
-                  variants={modalVariants}
-                  initial="hidden"
-                  animate="visible"
-                  exit="exit"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
                   transition={{ duration: 0.3 }}
-                  className="bg-gradient-to-br from-black to-gray-900 p-4 sm:p-6 rounded-xl border border-amber-500/30 shadow-xl w-full max-w-[90vw] sm:max-w-2xl max-h-[80vh] overflow-y-auto relative"
-                  onClick={(e) => e.stopPropagation()}
+                  className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[60] p-4" // z-index below selection
+                  onClick={() => setActiveStandingsModal(null)}
                 >
-                  <div className="w-full bg-gray-800 rounded-full h-1 mb-4 relative overflow-hidden">
-                    <motion.div
-                      className="bg-gradient-to-r from-amber-500 to-cyan-500 h-1 rounded-full"
-                      initial={{ width: 0 }}
-                      animate={{ width: `${progress}%` }}
-                      transition={{ duration: 0.5 }}
-                    />
-                  </div>
-                  <div className="flex items-center justify-center mb-4">
-                    <span className="text-gray-400 font-exo2 text-sm">
-                      Paso 2 de 5: {steps[1].label}
-                    </span>
-                    <span className="ml-2 text-gray-400"></span>
-                  </div>
-                  <h2 className="text-lg sm:text-xl font-bold text-cyan-400 mb-2 font-exo2 text-center">{steps[1].label}</h2>
-                  <p className="text-gray-400 text-center mb-4 font-exo2 text-sm">{instructions.gp}</p>
-                  <div className="space-y-4">
-                    {renderPredictionField('gp1', 'GP Pos. 1')}
-                    {renderPredictionField('gp2', 'GP Pos. 2')}
-                    {renderPredictionField('gp3', 'GP Pos. 3')}
-                  </div>
-                  <div className="flex flex-col sm:flex-row justify-between mt-4 sm:mt-6 gap-2">
-                    <button
-                      onClick={prevModal}
-                      className="w-full sm:w-auto px-4 py-2 bg-gray-800 text-white rounded-lg font-exo2 hover:bg-gray-700 hover:text-amber-400 hover:shadow-[0_0_10px_rgba(251,191,36,0.5)] transition text-sm sm:text-base"
-                    >
-                      Anterior
-                    </button>
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={nextModal}
-                      className="w-full sm:w-auto px-4 py-2 bg-gray-900 text-cyan-400 border border-cyan-400/50 rounded-lg font-exo2 hover:bg-cyan-900/20 hover:text-cyan-300 hover:border-cyan-300 hover:shadow-[0_0_10px_rgba(34,211,238,0.7)] transition-all duration-300 text-sm sm:text-base"
-                    >
-                      Siguiente
-                    </motion.button>
-                  </div>
-                  {errors.length > 0 && (
-                    <div className="text-red-400 text-center mt-4 font-exo2 space-y-2 text-sm sm:text-base">
-                      {errors.map((error, idx) => (
-                        <p key={idx}>{error}</p>
-                      ))}
-                    </div>
-                  )}
-                </motion.div>
-              </motion.div>
-            )}
-            {activeModal === 'extras' && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.3 }}
-                className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4"
-                onClick={closeModal}
-              >
-                <motion.div
-                  variants={modalVariants}
-                  initial="hidden"
-                  animate="visible"
-                  exit="exit"
-                  transition={{ duration: 0.3 }}
-                  className="bg-gradient-to-br from-black to-gray-900 p-4 sm:p-6 rounded-xl border border-amber-500/30 shadow-xl w-full max-w-[90vw] sm:max-w-2xl max-h-[80vh] overflow-y-auto relative"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="w-full bg-gray-800 rounded-full h-1 mb-4 relative overflow-hidden">
-                    <motion.div
-                      className="bg-gradient-to-r from-amber-500 to-cyan-500 h-1 rounded-full"
-                      initial={{ width: 0 }}
-                      animate={{ width: `${progress}%` }}
-                      transition={{ duration: 0.5 }}
-                    />
-                  </div>
-                  <div className="flex items-center justify-center mb-4">
-                    <span className="text-gray-400 font-exo2 text-sm">
-                      Paso 3 de 5: {steps[2].label}
-                    </span>
-                    <span className="ml-2 text-gray-400"></span>
-                  </div>
-                  <h2 className="text-lg sm:text-xl font-bold text-purple-400 mb-2 font-exo2 text-center">{steps[2].label}</h2>
-                  <p className="text-gray-400 text-center mb-4 font-exo2 text-sm">{instructions.extras}</p>
-                  <div className="space-y-4">
-                    {renderPredictionField('fastest_pit_stop_team', 'Pit Stop Más Rápido')}
-                    {renderPredictionField('fastest_lap_driver', 'Vuelta Más Rápida')}
-                    {renderPredictionField('driver_of_the_day', 'Piloto del Día')}
-                  </div>
-                  <div className="flex flex-col sm:flex-row justify-between mt-4 sm:mt-6 gap-2">
-                    <button
-                      onClick={prevModal}
-                      className="w-full sm:w-auto px-4 py-2 bg-gray-800 text-white rounded-lg font-exo2 hover:bg-gray-700 hover:text-amber-400 hover:shadow-[0_0_10px_rgba(251,191,36,0.5)] transition text-sm sm:text-base"
-                    >
-                      Anterior
-                    </button>
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={nextModal}
-                      className="w-full sm:w-auto px-4 py-2 bg-gray-900 text-cyan-400 border border-cyan-400/50 rounded-lg font-exo2 hover:bg-cyan-900/20 hover:text-cyan-300 hover:border-cyan-300 hover:shadow-[0_0_10px_rgba(34,211,238,0.7)] transition-all duration-300 text-sm sm:text-base"
-                    >
-                      Siguiente
-                    </motion.button>
-                  </div>
-                  {errors.length > 0 && (
-                    <div className="text-red-400 text-center mt-4 font-exo2 space-y-2 text-sm sm:text-base">
-                      {errors.map((error, idx) => (
-                        <p key={idx}>{error}</p>
-                      ))}
-                    </div>
-                  )}
-                </motion.div>
-              </motion.div>
-            )}
-            {activeModal === 'micro' && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.3 }}
-                className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4"
-                onClick={closeModal}
-              >
-                <motion.div
-                  variants={modalVariants}
-                  initial="hidden"
-                  animate="visible"
-                  exit="exit"
-                  transition={{ duration: 0.3 }}
-                  className="bg-gradient-to-br from-black to-gray-900 p-4 sm:p-6 rounded-xl border border-amber-500/30 shadow-xl w-full max-w-[90vw] sm:max-w-2xl max-h-[80vh] overflow-y-auto relative"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="w-full bg-gray-800 rounded-full h-1 mb-4 relative overflow-hidden">
-                    <motion.div
-                      className="bg-gradient-to-r from-amber-500 to-cyan-500 h-1 rounded-full"
-                      initial={{ width: 0 }}
-                      animate={{ width: `${progress}%` }}
-                      transition={{ duration: 0.5 }}
-                    />
-                  </div>
-                  <div className="flex items-center justify-center mb-4">
-                    <span className="text-gray-400 font-exo2 text-sm">
-                      Paso 4 de 5: {steps[3].label}
-                    </span>
-                    <span className="ml-2 text-gray-400"></span>
-                  </div>
-                  <h2 className="text-lg sm:text-xl font-bold text-yellow-400 mb-2 font-exo2 text-center">{steps[3].label}</h2>
-                  <p className="text-gray-400 text-center mb-4 font-exo2 text-sm">{instructions.micro}</p>
-                  <div className="space-y-4">
-                    {renderPredictionField('first_team_to_pit', 'Primer Equipo en Pits')}
-                    {renderPredictionField('first_retirement', 'Primer Retiro')}
-                  </div>
-                  <div className="flex flex-col sm:flex-row justify-between mt-4 sm:mt-6 gap-2">
-                    <button
-                      onClick={prevModal}
-                      className="w-full sm:w-auto px-4 py-2 bg-gray-800 text-white rounded-lg font-exo2 hover:bg-gray-700 hover:text-amber-400 hover:shadow-[0_0_10px_rgba(251,191,36,0.5)] transition text-sm sm:text-base"
-                    >
-                      Anterior
-                    </button>
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={nextModal}
-                      className="w-full sm:w-auto px-4 py-2 bg-gray-900 text-cyan-400 border border-cyan-400/50 rounded-lg font-exo2 hover:bg-cyan-900/20 hover:text-cyan-300 hover:border-cyan-300 hover:shadow-[0_0_10px_rgba(34,211,238,0.7)] transition-all duration-300 text-sm sm:text-base"
-                    >
-                      Revisar y Enviar
-                    </motion.button>
-                  </div>
-                  {errors.length > 0 && (
-                    <div className="text-red-400 text-center mt-4 font-exo2 space-y-2 text-sm sm:text-base">
-                      {errors.map((error, idx) => (
-                        <p key={idx}>{error}</p>
-                      ))}
-                    </div>
-                  )}
-                </motion.div>
-              </motion.div>
-            )}
-            {activeModal === 'review' && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.3 }}
-                className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4"
-                onClick={closeModal}
-              >
-                <motion.div
-                  variants={modalVariants}
-                  initial="hidden"
-                  animate="visible"
-                  exit="exit"
-                  transition={{ duration: 0.3 }}
-                  className="bg-gradient-to-br from-black to-gray-900 p-4 sm:p-6 rounded-xl border border-amber-500/30 shadow-xl w-full max-w-[90vw] sm:max-w-2xl max-h-[80vh] overflow-y-auto relative"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="w-full bg-gray-800 rounded-full h-1 mb-4 relative overflow-hidden">
-                    <motion.div
-                      className="bg-gradient-to-r from-amber-500 to-cyan-500 h-1 rounded-full"
-                      initial={{ width: 0 }}
-                      animate={{ width: `${progress}%` }}
-                      transition={{ duration: 0.5 }}
-                    />
-                  </div>
-                  <div className="flex items-center justify-center mb-4">
-                    <span className="text-gray-400 font-exo2 text-sm">
-                      Paso 5 de 5: {steps[4].label}
-                    </span>
-                    <span className="ml-2 text-gray-400"></span>
-                  </div>
-                  <h2 className="text-lg sm:text-xl font-bold text-white mb-2 font-exo2 text-center">{steps[4].label}</h2>
-                  <p className="text-gray-400 text-center mb-4 font-exo2 text-sm">{instructions.review}</p>
-                  <div className="space-y-4 text-sm sm:text-base">
-                    <motion.div
-                      onClick={() => setActiveModal('pole')}
-                      className="cursor-pointer hover:bg-gray-800 p-2 rounded"
-                      whileHover={{ scale: 1.02 }}
-                    >
-                      <h3 className="text-base sm:text-lg font-semibold text-amber-400 font-exo2">Posiciones de Pole</h3>
-                      <p className="text-gray-300 font-exo2">1: {predictions.pole1 || 'No seleccionado'}</p>
-                      <p className="text-gray-300 font-exo2">2: {predictions.pole2 || 'No seleccionado'}</p>
-                      <p className="text-gray-300 font-exo2">3: {predictions.pole3 || 'No seleccionado'}</p>
-                    </motion.div>
-                    <motion.div
-                      onClick={() => setActiveModal('gp')}
-                      className="cursor-pointer hover:bg-gray-800 p-2 rounded"
-                      whileHover={{ scale: 1.02 }}
-                    >
-                      <h3 className="text-base sm:text-lg font-semibold text-cyan-400 font-exo2">Posiciones de GP</h3>
-                      <p className="text-gray-300 font-exo2">1: {predictions.gp1 || 'No seleccionado'}</p>
-                      <p className="text-gray-300 font-exo2">2: {predictions.gp2 || 'No seleccionado'}</p>
-                      <p className="text-gray-300 font-exo2">3: {predictions.gp3 || 'No seleccionado'}</p>
-                    </motion.div>
-                    <motion.div
-                      onClick={() => setActiveModal('extras')}
-                      className="cursor-pointer hover:bg-gray-800 p-2 rounded"
-                      whileHover={{ scale: 1.02 }}
-                    >
-                      <h3 className="text-base sm:text-lg font-semibold text-purple-400 font-exo2">Predicciones Adicionales</h3>
-                      <p className="text-gray-300 font-exo2">Pit Stop Más Rápido: {predictions.fastest_pit_stop_team || 'No seleccionado'}</p>
-                      <p className="text-gray-300 font-exo2">Vuelta Más Rápida: {predictions.fastest_lap_driver || 'No seleccionado'}</p>
-                      <p className="text-gray-300 font-exo2">Piloto del Día: {predictions.driver_of_the_day || 'No seleccionado'}</p>
-                    </motion.div>
-                    <motion.div
-                      onClick={() => setActiveModal('micro')}
-                      className="cursor-pointer hover:bg-gray-800 p-2 rounded"
-                      whileHover={{ scale: 1.02 }}
-                    >
-                      <h3 className="text-base sm:text-lg font-semibold text-yellow-400 font-exo2">Micro-Predicciones</h3>
-                      <p className="text-gray-300 font-exo2">Primer Equipo en Pits: {predictions.first_team_to_pit || 'No seleccionado'}</p>
-                      <p className="text-gray-300 font-exo2">Primer Retiro: {predictions.first_retirement || 'No seleccionado'}</p>
-                    </motion.div>
-                  </div>
-                  <div className="flex flex-col sm:flex-row justify-between mt-4 sm:mt-6 gap-2">
-                    <button
-                      onClick={prevModal}
-                      className="w-full sm:w-auto px-4 py-2 bg-gray-800 text-white rounded-lg font-exo2 hover:bg-gray-700 hover:text-amber-400 hover:shadow-[0_0_10px_rgba(251,191,36,0.5)] transition text-sm sm:text-base"
-                    >
-                      Anterior
-                    </button>
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={handleSubmit}
-                      disabled={submitting || submitted}
-                      className={`w-full sm:w-auto px-4 py-2 bg-gray-900 text-cyan-400 border border-cyan-400/50 rounded-lg font-exo2 hover:bg-cyan-900/20 hover:text-cyan-300 hover:border-cyan-300 hover:shadow-[0_0_10px_rgba(34,211,238,0.7)] transition-all duration-300 text-sm sm:text-base ${
-                        submitting || submitted ? 'opacity-50 cursor-not-allowed' : ''
-                      }`}
-                    >
-                      {submitting ? 'Enviando...' : submitted ? 'Enviadas' : 'Enviar Predicciones'}
-                    </motion.button>
-                  </div>
-                  {errors.length > 0 && (
-                    <div className="text-red-400 text-center mt-4 font-exo2 space-y-2 text-sm sm:text-base">
-                      {errors.map((error, idx) => (
-                        <p key={idx}>{error}</p>
-                      ))}
-                    </div>
-                  )}
-                </motion.div>
-              </motion.div>
-            )}
-            {activeModal === 'share' && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.3 }}
-                className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4"
-                onClick={closeModal}
-              >
-                <motion.div
-                  variants={modalVariants}
-                  initial="hidden"
-                  animate="visible"
-                  exit="exit"
-                  transition={{ duration: 0.3 }}
-                  className="bg-gradient-to-br from-black to-gray-900 p-4 sm:p-6 rounded-xl border border-amber-500/30 shadow-xl w-full max-w-[90vw] sm:max-w-2xl max-h-[80vh] overflow-y-auto relative"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <h2 className="text-lg sm:text-xl font-bold text-white mb-4 font-exo2 text-center">Predicciones Enviadas</h2>
-                  <div className="text-center">
-                    <p className="text-gray-300 mb-4 font-exo2 text-sm sm:text-base">¡Tus predicciones han sido enviadas exitosamente!</p>
-                  </div>
-                  <button
-                    onClick={closeModal}
-                    className="mt-4 w-full px-4 py-2 bg-gray-800 text-white rounded-lg font-exo2 hover:bg-gray-700 hover:text-amber-400 hover:shadow-[0_0_10px_rgba(251,191,36,0.5)] transition text-sm sm:text-base"
+                  <motion.div
+                    variants={modalVariants}
+                    initial="hidden"
+                    animate="visible"
+                    exit="exit"
+                    transition={{ type: 'spring', damping: 18, stiffness: 250 }}
+                     className="bg-gradient-to-br from-black via-gray-900 to-black p-5 sm:p-6 rounded-xl border border-blue-500/30 shadow-xl w-full max-w-[90vw] sm:max-w-2xl max-h-[85vh] relative flex flex-col" // Adjusted size
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    Cerrar
-                  </button>
-                  {errors.length > 0 && (
-                    <div className="text-red-400 text-center mt-4 font-exo2 space-y-2 text-sm sm:text-base">
-                      {errors.map((error, idx) => (
-                        <p key={idx}>{error}</p>
-                      ))}
+                     <button
+                        onClick={() => setActiveStandingsModal(null)}
+                        className="absolute top-3 right-3 text-gray-400 hover:text-amber-400 transition p-1 z-10"
+                        aria-label="Cerrar"
+                       >
+                        ✕
+                     </button>
+                    <h2 className="text-lg sm:text-xl font-bold text-white mb-4 font-exo2 text-center text-blue-300">
+                      {activeStandingsModal === 'drivers' ? 'Clasificación Completa de Pilotos 2025' : 'Clasificación Completa de Constructores 2025'}
+                    </h2>
+                    <div className="flex-grow overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-blue-600 scrollbar-track-gray-800">
+                      <table className="w-full text-white font-exo2 text-xs sm:text-sm table-fixed">
+                         <thead className="sticky top-0 bg-gray-900 z-10 shadow-sm"> {/* Sticky header */}
+                           <tr>
+                             <th className="p-2 text-left w-12 sm:w-16 text-amber-400">Pos.</th>
+                             <th className="p-2 text-left">{activeStandingsModal === 'drivers' ? 'Piloto' : 'Constructor'}</th>
+                             <th className="p-2 text-right w-16 sm:w-20">Pts</th>
+                             <th className="p-2 text-center w-12 sm:w-16">Evo.</th>
+                           </tr>
+                         </thead>
+                         <tbody>
+                           {(activeStandingsModal === 'drivers' ? driverStandings : constructorStandings).map((standing, index) => { // Assumes driverStandings/constructorStandings available
+                             const name = 'driver' in standing ? standing.driver : standing.constructor;
+                             const teamName = 'driver' in standing ? driverToTeam[name] : name; // Assumes driverToTeam available
+                             const team = teams.find((team) => team.name === teamName); // Assumes teams available
+                             return (
+                               <motion.tr
+                                 key={index}
+                                 initial={{ opacity: 0 }}
+                                 animate={{ opacity: 1 }}
+                                 transition={{ duration: 0.3, delay: index * 0.03 }}
+                                 className="border-b border-blue-500/20 hover:bg-blue-800/40 transition-colors duration-150"
+                               >
+                                 <td className="p-2 text-amber-400 font-bold">{standing.position}</td>
+                                 <td className="p-2 flex items-center gap-2 truncate">
+                                   <Image
+                                     src={team?.logo_url || '/images/team-logos/default-team.png'}
+                                     alt={`${teamName || 'Equipo'} logo`}
+                                     width={24} // Slightly smaller in full list
+                                     height={24}
+                                     className="object-contain w-6 h-6 flex-shrink-0"
+                                   />
+                                   <span className="text-white text-sm truncate">{name}</span>
+                                 </td>
+                                 <td className="p-2 text-right text-gray-300 font-medium">{standing.points}</td>
+                                 <td
+                                   className={`p-2 text-center font-semibold ${
+                                     standing.evolution.startsWith('↑') ? 'text-green-400' :
+                                     standing.evolution.startsWith('↓') ? 'text-red-400' : 'text-gray-400'
+                                   }`}
+                                 >
+                                  {standing.evolution === '=' ? '–' : standing.evolution}
+                                 </td>
+                               </motion.tr>
+                             );
+                           })}
+                         </tbody>
+                      </table>
+                      {(activeStandingsModal === 'drivers' ? driverStandings.length === 0 : constructorStandings.length === 0) && (
+                           <p className="text-center text-gray-500 py-8 font-exo2">No hay datos de clasificación disponibles.</p>
+                       )}
                     </div>
-                  )}
-                </motion.div>
-              </motion.div>
-            )}
-            {activeStandingsModal && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.3 }}
-                className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4"
-                onClick={() => setActiveStandingsModal(null)}
-              >
-                <motion.div
-                  variants={modalVariants}
-                  initial="hidden"
-                  animate="visible"
-                  exit="exit"
-                  transition={{ duration: 0.3 }}
-                  className="bg-gradient-to-br from-black to-gray-900 p-4 sm:p-6 rounded-xl border border-amber-500/30 shadow-xl w-full max-w-[90vw] sm:max-w-4xl max-h-[80vh] overflow-y-auto relative"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="absolute top-2 right-2">
                     <button
                       onClick={() => setActiveStandingsModal(null)}
-                      className="text-gray-400 hover:text-amber-400 transition"
+                      className="mt-4 w-full flex-shrink-0 px-4 py-2 bg-gray-800 text-white rounded-lg font-exo2 hover:bg-gray-700 hover:text-blue-300 hover:shadow-[0_0_10px_rgba(96,165,250,0.5)] transition-all duration-200 text-sm sm:text-base font-semibold"
                     >
-                      ✕
+                      Cerrar
                     </button>
-                  </div>
-                  <h2 className="text-lg sm:text-xl font-bold text-white mb-4 font-exo2 text-center">
-                    {activeStandingsModal === 'drivers' ? 'Clasificación Completa de Pilotos' : 'Clasificación Completa de Constructores'}
-                  </h2>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-white font-exo2 text-xs sm:text-sm table-fixed">
-                      <thead>
-                        <tr className="bg-gradient-to-r from-amber-500/20 to-cyan-500/20">
-                          <th className="p-1 sm:p-2 text-left w-12">Pos.</th>
-                          <th className="p-1 sm:p-2 text-left">{activeStandingsModal === 'drivers' ? 'Piloto' : 'Constructor'}</th>
-                          <th className="p-1 sm:p-2 text-right w-16">Pts</th>
-                          <th className="p-1 sm:p-2 text-center w-16">Evo.</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {(activeStandingsModal === 'drivers' ? driverStandings : constructorStandings).map((standing, index) => {
-                          const name = 'driver' in standing ? standing.driver : standing.constructor;
-                          const teamName = 'driver' in standing ? driverToTeam[name] : name;
-                          const team = teams.find((team) => team.name === teamName);
-                          return (
-                            <motion.tr
-                              key={index}
-                              initial={{ opacity: 0, x: -20 }}
-                              animate={{ opacity: 1, x: 0 }}
-                              transition={{ duration: 0.5, delay: index * 0.05 }}
-                              className="border-b border-amber-500/20 hover:bg-blue-800/50 transition-all duration-200"
-                            >
-                              <td className="p-1 sm:p-2 text-amber-400 font-bold">{standing.position}</td>
-                              <td className="p-1 sm:p-2 flex items-center gap-1 sm:gap-2 truncate">
-                                <Image
-                                  src={team?.logo_url || '/images/team-logos/default-team.png'}
-                                  alt={`${teamName || 'Equipo'} logo`}
-                                  width={32}
-                                  height={32}
-                                  className="object-contain w-8 h-8 transition-transform duration-200 hover:scale-110"
-                                />
-                                <span className="text-white text-sm">{name}</span>
-                              </td>
-                              <td className="p-1 sm:p-2 text-right text-gray-300">{standing.points}</td>
-                              <td
-                                className={`p-1 sm:p-2 text-center ${
-                                  standing.evolution.startsWith('↑')
-                                    ? 'text-green-400'
-                                    : standing.evolution.startsWith('↓')
-                                    ? 'text-red-400'
-                                    : 'text-gray-400'
-                                }`}
-                              >
-                                {standing.evolution}
-                              </td>
-                            </motion.tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                  <button
-                    onClick={() => setActiveStandingsModal(null)}
-                    className="mt-4 w-full px-4 py-2 bg-gray-800 text-white rounded-lg font-exo2 hover:bg-gray-700 hover:text-amber-400 hover:shadow-[0_0_10px_rgba(251,191,36,0.5)] transition text-sm sm:text-base"
-                  >
-                    Cerrar
-                  </button>
+                  </motion.div>
                 </motion.div>
-              </motion.div>
-            )}
-            {renderSelectionModal()}
-          </AnimatePresence>
+              )}
+
+             {/* Driver/Team Selection Modal */}
+             {renderSelectionModal()}
+             </AnimatePresence>
         </main>
       )}
     </div>

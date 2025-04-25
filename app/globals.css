@@ -339,3 +339,15 @@ body::after {
     transform: rotate(360deg);
   }
 }
+
+/*/ Helper CSS (add to your global CSS or a style tag if needed for scrollbar/animation)/*/
+
+@keyframes rotate-border {
+  0% { --border-angle: 0deg; }
+  100% { --border-angle: 360deg; }
+}
+
+.animate-rotate-border {
+  position: relative;
+  overflow: hidden;
+}

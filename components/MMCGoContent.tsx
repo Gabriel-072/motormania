@@ -2,22 +2,20 @@
 'use client';
 
 // --- React and Next.js Imports ---
-import React, { useState, useEffect, useRef, useCallback, Fragment } from 'react'; // Added Fragment
+import React, { useState, useEffect, useRef, useCallback, Fragment } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 
 // --- Authentication and UI Libraries ---
 import { useUser, useAuth } from '@clerk/nextjs';
 import { motion, AnimatePresence } from 'framer-motion';
-// Import Transition from Headless UI
 import { Dialog, Transition } from '@headlessui/react';
-import { Howl } from 'howler'; // For sound effects
-import { toast } from 'sonner'; // For notifications
+import { Howl } from 'howler';
+import { toast } from 'sonner';
 
 // --- Project-Specific Imports ---
-// Adjust these paths based on your project structure
-import Header from '@/components/Header';
-import MMCGoSubHeader from '@/components/MMCGoSubHeader';
+// REMOVED: import Header from '@/components/Header';
+import MMCGoSubHeader from '@/components/MMCGoSubHeader'; // KEEP this import
 import LoadingAnimation from '@/components/LoadingAnimation';
 import StickyModal from '@/components/StickyModal';
 import FullModal from '@/components/FullModal';
@@ -28,12 +26,14 @@ import { PickSelection } from '@/app/types/picks';
 import { trackFBEvent } from '@/lib/trackFBEvent';
 
 // --- Icons ---
-import { FaQuestionCircle, FaCheck, FaTimes, FaSyncAlt } from 'react-icons/fa';
+import { FaQuestionCircle, FaCheck, FaTimes, FaSyncAlt, FaDollarSign, FaSpinner } from 'react-icons/fa';
 
 // --- TYPE DEFINITIONS ---
 type SessionType = 'qualy' | 'race';
 interface GpSchedule { gp_name: string; race_time: string; }
 interface PicksConfig { id: string; is_qualy_enabled: boolean; is_race_enabled: boolean; updated_at?: string; }
+import type { PostgrestSingleResponse, PostgrestResponse } from '@supabase/supabase-js';
+
 
 // --- CONSTANTS & MAPPINGS ---
 const driverToTeam: Record<string, string> = {
@@ -71,7 +71,7 @@ export default function MMCGoContent() {
   const hasPlayedRev = useRef(false);
 
   // --- ZUSTAND STORE HOOKS ---
-  const { picks, currentSession, setSession, addPick, removePick, setShowSticky, setMultiplier, setPotentialWin } = useStickyStore();
+  const { picks, currentSession, setSession, addPick, removePick, setShowSticky, setMultiplier, setPotentialWin, setQualyPicks, setRacePicks } = useStickyStore();
 
   // --- EFFECTS ---
   // Restore pending picks
@@ -145,7 +145,7 @@ export default function MMCGoContent() {
       setIsDataLoaded(true);
       setDriverLines({});
     }
-  }, [isSignedIn, getToken, isQualyView]);
+  }, [isSignedIn, getToken, isQualyView]); // Removed setSession as it's not used directly here
 
   // Trigger fetchData
   useEffect(() => {
@@ -233,19 +233,20 @@ export default function MMCGoContent() {
     const newPick: PickSelection = { driver, team, line, betterOrWorse, gp_name: currentGp.gp_name, session_type: currentSession };
     const success = addPick(newPick);
     if (!success) { toast.error('Máximo 8 picks combinados entre Qualy y Carrera.'); }
-   }, [currentGp, isDataLoaded, picks, currentSession, driverLines, addPick]);
+  }, [currentGp, isDataLoaded, picks, currentSession, driverLines, addPick]);
 
   const handleReset = useCallback((driver: string) => {
     soundManager.click.play();
     removePick(driver, currentSession);
-   }, [currentSession, removePick]);
+  }, [currentSession, removePick]);
 
   // --- RENDER LOGIC ---
   if (!isLoaded) { return <LoadingAnimation text="Cargando autenticación..." animationDuration={4} />; }
 
   // --- Tailwind Class Definitions ---
   const mainContainerClasses = "min-h-screen bg-gradient-to-b from-gray-950 via-gray-900 to-black text-white font-exo2";
-  const contentWrapperClasses = "container mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-32";
+  // ADJUSTED PADDING HERE - Account for SubHeader height (fixed at top-20 which is 5rem) + its internal padding
+  const contentWrapperClasses = "container mx-auto px-4 sm:px-6 lg:px-8 pt-36 pb-32"; // Increased pt significantly
   const pageTitleClasses = "text-3xl sm:text-4xl font-bold text-center text-amber-400 tracking-tight";
   const pageSubtitleClasses = "text-sm text-center text-gray-400 mt-1 mb-8";
   const sessionToggleContainerClasses = "flex justify-center items-center gap-2 mb-8 p-1 bg-gray-800 rounded-lg shadow-md max-w-xs mx-auto";
@@ -255,7 +256,7 @@ export default function MMCGoContent() {
   const sessionButtonDisabledClasses = "bg-gray-700 text-gray-500 cursor-not-allowed opacity-60";
   const driverGridContainerClasses = "bg-gradient-to-br from-gray-800/50 via-black/50 to-gray-900/50 p-4 sm:p-6 rounded-xl shadow-xl border border-gray-700/50";
   const driverGridClasses = "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-5 gap-4 sm:gap-5";
-  const driverCardWrapperClasses = "rounded-xl"; // No border animation styles needed
+  const driverCardWrapperClasses = "rounded-xl";
   const driverCardInnerBaseClasses = "relative bg-gray-800 pt-3 sm:pt-4 rounded-lg shadow-lg text-center h-full flex flex-col justify-between transition-shadow duration-300 ease-in-out overflow-hidden";
   const driverCardHoverClasses = "hover:bg-gray-750 hover:shadow-xl hover:shadow-cyan-500/10";
   const driverImageClasses = "mx-auto rounded-full w-16 h-16 sm:w-20 sm:h-20 object-cover border-2 border-gray-600 mb-2";
@@ -277,13 +278,13 @@ export default function MMCGoContent() {
   // --- JSX RETURN ---
   return (
     <div className={mainContainerClasses}>
-      <Header />
-      <MMCGoSubHeader />
+      {/* REMOVED Header */}
+      <MMCGoSubHeader /> {/* KEEP SubHeader */}
 
       {!isDataLoaded ? (
         <LoadingAnimation text="Cargando MMC-GO..." animationDuration={2} />
       ) : (
-        <main className={contentWrapperClasses}>
+        <main className={contentWrapperClasses}> {/* Adjusted top padding */}
           {/* Page Title, Errors, Info Text, Session Toggle */}
           <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
              {/* ... Title/Subtitle ... */}
@@ -357,82 +358,43 @@ export default function MMCGoContent() {
           <StickyModal onFinish={async () => { if (!isSignedIn) { localStorage.setItem('pendingPicks', JSON.stringify(picks)); setShowAuthModal(true); return; } setShowFullModal(true); }} />
           {showFullModal && <FullModal isOpen={showFullModal} onClose={() => setShowFullModal(false)} />}
 
-          {/* --- MODALS USING Headless UI Transition --- */}
+          {/* Authentication & Realtime Modals */}
           <AnimatePresence>
             {showAuthModal && (
-              <Transition appear show={showAuthModal} as={Fragment}>
-                <Dialog as="div" className="relative z-[60]" onClose={() => setShowAuthModal(false)}>
-                  {/* Backdrop using Transition.Child */}
-                  <Transition.Child
-                    as={Fragment}
-                    enter="ease-out duration-200"
-                    enterFrom="opacity-0"
-                    enterTo="opacity-100"
-                    leave="ease-in duration-150"
-                    leaveFrom="opacity-100"
-                    leaveTo="opacity-0"
-                  >
-                    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm" aria-hidden="true" />
-                  </Transition.Child>
-
-                  {/* Modal Panel */}
-                  <div className="fixed inset-0 flex items-center justify-center p-4">
-                    <Transition.Child
-                       as={Fragment}
-                       enter="ease-out duration-200"
-                       enterFrom="opacity-0 scale-95"
-                       enterTo="opacity-100 scale-100"
-                       leave="ease-in duration-150"
-                       leaveFrom="opacity-100 scale-100"
-                       leaveTo="opacity-0 scale-95"
-                    >
-                      <Dialog.Panel className="mx-auto max-w-sm rounded-xl bg-gradient-to-br from-gray-800 to-black border border-amber-500/30 p-6 text-white shadow-xl text-center">
-                        <Dialog.Title className="text-lg font-bold mb-2 text-amber-400">Inicia sesión</Dialog.Title>
-                        <Dialog.Description className="text-sm mb-4 text-gray-300"> Debes iniciar sesión para confirmar tus picks en MMC GO. Tus selecciones se guardarán. </Dialog.Description>
-                        <button onClick={() => { router.push(`/sign-in?redirect_url=${encodeURIComponent('/mmc-go')}`); }} className="w-full px-4 py-2 bg-amber-500 text-black font-bold rounded-md hover:bg-amber-400 transition-colors duration-200"> Iniciar sesión / Registrarse </button>
-                        <button onClick={() => setShowAuthModal(false)} className="mt-2 text-xs text-gray-400 hover:text-gray-200"> Cancelar </button>
-                      </Dialog.Panel>
-                     </Transition.Child>
-                  </div>
-                </Dialog>
-              </Transition>
+               <Transition appear show={showAuthModal} as={Fragment}>
+                  <Dialog as="div" className="relative z-[60]" onClose={() => setShowAuthModal(false)}>
+                    <Transition.Child as={Fragment} enter="ease-out duration-200" enterFrom="opacity-0" enterTo="opacity-100" leave="ease-in duration-150" leaveFrom="opacity-100" leaveTo="opacity-0">
+                      <div className="fixed inset-0 bg-black/70 backdrop-blur-sm" aria-hidden="true" />
+                    </Transition.Child>
+                    <div className="fixed inset-0 flex items-center justify-center p-4">
+                      <Transition.Child as={Fragment} enter="ease-out duration-200" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100" leave="ease-in duration-150" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95">
+                        <Dialog.Panel className="mx-auto max-w-sm rounded-xl bg-gradient-to-br from-gray-800 to-black border border-amber-500/30 p-6 text-white shadow-xl text-center">
+                          <Dialog.Title className="text-lg font-bold mb-2 text-amber-400">Inicia sesión</Dialog.Title>
+                          <Dialog.Description className="text-sm mb-4 text-gray-300"> Debes iniciar sesión para confirmar tus picks en MMC GO. Tus selecciones se guardarán. </Dialog.Description>
+                          <button onClick={() => { router.push(`/sign-in?redirect_url=${encodeURIComponent('/mmc-go')}`); }} className="w-full px-4 py-2 bg-amber-500 text-black font-bold rounded-md hover:bg-amber-400 transition-colors duration-200"> Iniciar sesión / Registrarse </button>
+                          <button onClick={() => setShowAuthModal(false)} className="mt-2 text-xs text-gray-400 hover:text-gray-200"> Cancelar </button>
+                        </Dialog.Panel>
+                      </Transition.Child>
+                    </div>
+                  </Dialog>
+               </Transition>
             )}
-
             {showRealtimeModal && (
                <Transition appear show={showRealtimeModal} as={Fragment}>
-                <Dialog as="div" className="relative z-[60]" onClose={() => setShowRealtimeModal(false)}>
-                   {/* Backdrop using Transition.Child */}
-                   <Transition.Child
-                    as={Fragment}
-                    enter="ease-out duration-200"
-                    enterFrom="opacity-0"
-                    enterTo="opacity-100"
-                    leave="ease-in duration-150"
-                    leaveFrom="opacity-100"
-                    leaveTo="opacity-0"
-                  >
-                    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm" aria-hidden="true" />
-                  </Transition.Child>
-
-                  {/* Modal Panel */}
-                  <div className="fixed inset-0 flex items-center justify-center p-4">
-                     <Transition.Child
-                       as={Fragment}
-                       enter="ease-out duration-200"
-                       enterFrom="opacity-0 scale-95"
-                       enterTo="opacity-100 scale-100"
-                       leave="ease-in duration-150"
-                       leaveFrom="opacity-100 scale-100"
-                       leaveTo="opacity-0 scale-95"
-                    >
-                      <Dialog.Panel className="mx-auto max-w-sm rounded-xl bg-gradient-to-br from-gray-800 to-black border border-cyan-500/30 p-6 text-white shadow-xl">
-                        <Dialog.Title className="text-lg font-bold text-cyan-400">⚡ Estado Actualizado</Dialog.Title>
-                        <Dialog.Description className="mt-1 text-sm text-gray-300"> La disponibilidad de los picks (Qualy/Carrera) ha cambiado en tiempo real. </Dialog.Description>
-                        <div className="mt-4 text-right"> <button onClick={() => setShowRealtimeModal(false)} className="px-4 py-2 text-sm font-medium bg-cyan-600 text-white rounded-md hover:bg-cyan-700 transition-colors duration-200" > Entendido </button> </div>
-                      </Dialog.Panel>
-                     </Transition.Child>
-                  </div>
-                </Dialog>
+                 <Dialog as="div" className="relative z-[60]" onClose={() => setShowRealtimeModal(false)}>
+                    <Transition.Child as={Fragment} enter="ease-out duration-200" enterFrom="opacity-0" enterTo="opacity-100" leave="ease-in duration-150" leaveFrom="opacity-100" leaveTo="opacity-0">
+                      <div className="fixed inset-0 bg-black/70 backdrop-blur-sm" aria-hidden="true" />
+                    </Transition.Child>
+                    <div className="fixed inset-0 flex items-center justify-center p-4">
+                       <Transition.Child as={Fragment} enter="ease-out duration-200" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100" leave="ease-in duration-150" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95">
+                        <Dialog.Panel className="mx-auto max-w-sm rounded-xl bg-gradient-to-br from-gray-800 to-black border border-cyan-500/30 p-6 text-white shadow-xl">
+                          <Dialog.Title className="text-lg font-bold text-cyan-400">⚡ Estado Actualizado</Dialog.Title>
+                          <Dialog.Description className="mt-1 text-sm text-gray-300"> La disponibilidad de los picks (Qualy/Carrera) ha cambiado en tiempo real. </Dialog.Description>
+                          <div className="mt-4 text-right"> <button onClick={() => setShowRealtimeModal(false)} className="px-4 py-2 text-sm font-medium bg-cyan-600 text-white rounded-md hover:bg-cyan-700 transition-colors duration-200" > Entendido </button> </div>
+                        </Dialog.Panel>
+                       </Transition.Child>
+                    </div>
+                  </Dialog>
                </Transition>
             )}
           </AnimatePresence>
