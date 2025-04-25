@@ -1,177 +1,59 @@
+// /Users/imgabrieltoro/Projects/motormania/app/mmc-go/page.tsx (or relevant path)
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
-import { useUser, useAuth } from '@clerk/nextjs';
-import { motion } from 'framer-motion';
+// --- React and Next.js Imports ---
+import React, { useState, useEffect, useRef, useCallback, Fragment } from 'react'; // Added Fragment
+import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+
+// --- Authentication and UI Libraries ---
+import { useUser, useAuth } from '@clerk/nextjs';
+import { motion, AnimatePresence } from 'framer-motion';
+// Import Transition from Headless UI
+import { Dialog, Transition } from '@headlessui/react';
+import { Howl } from 'howler'; // For sound effects
+import { toast } from 'sonner'; // For notifications
+
+// --- Project-Specific Imports ---
+// Adjust these paths based on your project structure
 import Header from '@/components/Header';
+import MMCGoSubHeader from '@/components/MMCGoSubHeader';
 import LoadingAnimation from '@/components/LoadingAnimation';
 import StickyModal from '@/components/StickyModal';
 import FullModal from '@/components/FullModal';
+import TutorialModal from '@/components/TutorialModal';
 import { createAuthClient } from '@/lib/supabase';
 import { useStickyStore } from '@/stores/stickyStore';
-import { Howl } from 'howler';
 import { PickSelection } from '@/app/types/picks';
-import { toast } from 'sonner';
-import { Dialog } from '@headlessui/react';
 import { trackFBEvent } from '@/lib/trackFBEvent';
-import TutorialModal from '@/components/TutorialModal';
-import { useRouter } from 'next/navigation';
 
-// TYPES
+// --- Icons ---
+import { FaQuestionCircle, FaCheck, FaTimes, FaSyncAlt } from 'react-icons/fa';
+
+// --- TYPE DEFINITIONS ---
 type SessionType = 'qualy' | 'race';
+interface GpSchedule { gp_name: string; race_time: string; }
+interface PicksConfig { id: string; is_qualy_enabled: boolean; is_race_enabled: boolean; updated_at?: string; }
 
-interface GpSchedule {
-  gp_name: string;
-  race_time: string;
-}
-
-interface PicksConfig {
-  id: string;
-  is_qualy_enabled: boolean;
-  is_race_enabled: boolean;
-  updated_at?: string;
-}
-
-// Driver to Team Mapping
+// --- CONSTANTS & MAPPINGS ---
 const driverToTeam: Record<string, string> = {
-  'Max Verstappen': 'Red Bull Racing',
-  'Yuki Tsunoda': 'Red Bull Racing',
-  'Lando Norris': 'McLaren',
-  'Oscar Piastri': 'McLaren',
-  'Lewis Hamilton': 'Ferrari',
-  'Charles Leclerc': 'Ferrari',
-  'George Russell': 'Mercedes',
-  'Kimi Antonelli': 'Mercedes',
-  'Fernando Alonso': 'Aston Martin',
-  'Lance Stroll': 'Aston Martin',
-  'Liam Lawson': 'RB',
-  'Isack Hadjar': 'RB',
-  'Nico Hulkenberg': 'Sauber',
-  'Gabriel Bortoleto': 'Sauber',
-  'Pierre Gasly': 'Alpine',
-  'Jack Doohan': 'Alpine',
-  'Alex Albon': 'Williams',
-  'Carlos Sainz': 'Williams',
-  'Oliver Bearman': 'Haas F1 Team',
-  'Esteban Ocon': 'Haas F1 Team',
+  'Max Verstappen': 'Red Bull Racing', 'Yuki Tsunoda': 'RB', 'Lando Norris': 'McLaren', 'Oscar Piastri': 'McLaren', 'Lewis Hamilton': 'Ferrari', 'Charles Leclerc': 'Ferrari', 'George Russell': 'Mercedes', 'Kimi Antonelli': 'Mercedes', 'Fernando Alonso': 'Aston Martin', 'Lance Stroll': 'Aston Martin', 'Liam Lawson': 'RB', 'Isack Hadjar': 'RB', 'Nico Hulkenberg': 'Sauber', 'Gabriel Bortoleto': 'Sauber', 'Pierre Gasly': 'Alpine', 'Jack Doohan': 'Alpine', 'Alex Albon': 'Williams', 'Carlos Sainz': 'Williams', 'Oliver Bearman': 'Haas F1 Team', 'Esteban Ocon': 'Haas F1 Team',
 };
-
 const staticDrivers: string[] = Object.keys(driverToTeam);
 
-// Animated Border Configurations per Driver
-const driverBorderStyles: Record<string, { gradient: string; speed: string; direction: string }> = {
-  'Max Verstappen': {
-    gradient: 'conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #1e3a8a 20deg, #38bdf8 30deg, #1e3a8a 40deg, transparent 50deg, transparent 360deg)',
-    speed: '3s',
-    direction: 'normal',
-  },
-  'Yuki Tsunoda': {
-    gradient: 'conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #1e3a8a 20deg, #60a5fa 30deg, #1e3a8a 40deg, transparent 50deg, transparent 360deg)',
-    speed: '5.5s',
-    direction: 'reverse',
-  },
-  'Lando Norris': {
-    gradient: 'conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #ea580c 20deg, #facc15 30deg, #ea580c 40deg, transparent 50deg, transparent 360deg)',
-    speed: '3s',
-    direction: 'normal',
-  },
-  'Oscar Piastri': {
-    gradient: 'conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #ea580c 20deg, #fef08a 30deg, #ea580c 40deg, transparent 50deg, transparent 360deg)',
-    speed: '4s',
-    direction: 'reverse',
-  },
-  'Lewis Hamilton': {
-    gradient: 'conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #b91c1c 20deg, #f87171 30deg, #b91c1c 40deg, transparent 50deg, transparent 360deg)',
-    speed: '5s',
-    direction: 'normal',
-  },
-  'Charles Leclerc': {
-    gradient: 'conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #b91c1c 20deg, #fca5a5 30deg, #b91c1c 40deg, transparent 50deg, transparent 360deg)',
-    speed: '4s',
-    direction: 'reverse',
-  },
-  'George Russell': {
-    gradient: 'conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #0d9488 20deg, #22d3ee 30deg, #0d9488 40deg, transparent 50deg, transparent 360deg)',
-    speed: '5s',
-    direction: 'normal',
-  },
-  'Kimi Antonelli': {
-    gradient: 'conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #0d9488 20deg, #67e8f9 30deg, #0d9488 40deg, transparent 50deg, transparent 360deg)',
-    speed: '4.5s',
-    direction: 'reverse',
-  },
-  'Fernando Alonso': {
-    gradient: 'conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #15803d 20deg, #86efac 30deg, #15803d 40deg, transparent 50deg, transparent 360deg)',
-    speed: '6s',
-    direction: 'normal',
-  },
-  'Lance Stroll': {
-    gradient: 'conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #15803d 20deg, #4ade80 30deg, #15803d 40deg, transparent 50deg, transparent 360deg)',
-    speed: '5.5s',
-    direction: 'reverse',
-  },
-  'Liam Lawson': {
-    gradient: 'conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #1e40af 20deg, #60a5fa 30deg, #1e40af 40deg, transparent 50deg, transparent 360deg)',
-    speed: '4.3s',
-    direction: 'normal',
-  },
-  'Isack Hadjar': {
-    gradient: 'conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #1e40af 20deg, #93c5fd 30deg, #1e40af 40deg, transparent 50deg, transparent 360deg)',
-    speed: '5.7s',
-    direction: 'reverse',
-  },
-  'Nico Hulkenberg': {
-    gradient: 'conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #16a34a 20deg, #86efac 30deg, #16a34a 40deg, transparent 50deg, transparent 360deg)',
-    speed: '6s',
-    direction: 'normal',
-  },
-  'Gabriel Bortoleto': {
-    gradient: 'conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #16a34a 20deg, #4ade80 30deg, #16a34a 40deg, transparent 50deg, transparent 360deg)',
-    speed: '4.5s',
-    direction: 'reverse',
-  },
-  'Pierre Gasly': {
-    gradient: 'conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #1e3a8a 20deg, #db2777 30deg, #1e3a8a 40deg, transparent 50deg, transparent 360deg)',
-    speed: '5.5s',
-    direction: 'normal',
-  },
-  'Jack Doohan': {
-    gradient: 'conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #1e3a8a 20deg, #f9a8d4 30deg, #1e3a8a 40deg, transparent 50deg, transparent 360deg)',
-    speed: '7s',
-    direction: 'reverse',
-  },
-  'Alex Albon': {
-    gradient: 'conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #1e40af 20deg, #60a5fa 30deg, #1e40af 40deg, transparent 50deg, transparent 360deg)',
-    speed: '4.7s',
-    direction: 'normal',
-  },
-  'Carlos Sainz': {
-    gradient: 'conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #1e40af 20deg, #93c5fd 30deg, #1e40af 40deg, transparent 50deg, transparent 360deg)',
-    speed: '3.5s',
-    direction: 'reverse',
-  },
-  'Oliver Bearman': {
-    gradient: 'conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #4b5563 20deg, #9ca3af 30deg, #4b5563 40deg, transparent 50deg, transparent 360deg)',
-    speed: '6s',
-    direction: 'normal',
-  },
-  'Esteban Ocon': {
-    gradient: 'conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #4b5563 20deg, #d1d5db 30deg, #4b5563 40deg, transparent 50deg, transparent 360deg)',
-    speed: '4.5s',
-    direction: 'reverse',
-  },
-};
-
 const soundManager = {
-  click: new Howl({ src: ['/sounds/f1-click.mp3'], volume: 0.4 }),
-  rev: new Howl({ src: ['/sounds/f1-rev.mp3'], volume: 0.3 }),
+  click: new Howl({ src: ['/sounds/f1-click.mp3'], volume: 0.4, preload: true }),
+  rev: new Howl({ src: ['/sounds/f1-rev.mp3'], volume: 0.3, preload: true }),
 };
 
+// --- COMPONENT DEFINITION ---
 export default function MMCGoContent() {
+  // --- HOOKS ---
   const { getToken } = useAuth();
   const { isSignedIn, isLoaded } = useUser();
   const router = useRouter();
+
+  // --- STATE ---
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [driverLines, setDriverLines] = useState<Record<string, number>>({});
   const [currentGp, setCurrentGp] = useState<GpSchedule | null>(null);
@@ -182,411 +64,379 @@ export default function MMCGoContent() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [isQualyEnabled, setIsQualyEnabled] = useState(true);
   const [isRaceEnabled, setIsRaceEnabled] = useState(true);
-  const channelRef = useRef<any>(null);
-  const hasPlayedRev = useRef(false);
   const [showTutorial, setShowTutorial] = useState(false);
 
-  const {
-    picks,
-    currentSession,
-    setSession,
-    addPick,
-    removePick,
-    setShowSticky,
-    setMultiplier,
-    setPotentialWin,
-  } = useStickyStore();
+  // --- REFS ---
+  const channelRef = useRef<any>(null);
+  const hasPlayedRev = useRef(false);
 
-  // Restore picks from localStorage after login
+  // --- ZUSTAND STORE HOOKS ---
+  const { picks, currentSession, setSession, addPick, removePick, setShowSticky, setMultiplier, setPotentialWin } = useStickyStore();
+
+  // --- EFFECTS ---
+  // Restore pending picks
   useEffect(() => {
-    if (isSignedIn) {
+     if (isSignedIn) {
       const savedPicks = localStorage.getItem('pendingPicks');
       if (savedPicks) {
         try {
           const restoredPicks = JSON.parse(savedPicks);
           useStickyStore.setState({ picks: restoredPicks });
           setShowFullModal(true);
-          localStorage.removeItem('pendingPicks'); // Clear after restoration
+          localStorage.removeItem('pendingPicks');
         } catch (error) {
           console.error('Error restoring picks:', error);
-          localStorage.removeItem('pendingPicks'); // Clear on error to prevent stale data
+          localStorage.removeItem('pendingPicks');
         }
       }
     }
   }, [isSignedIn]);
 
-  const fetchData = async () => {
+  // Fetch data function
+  const fetchData = useCallback(async () => {
+    setErrors([]);
     try {
-      console.log('🟡 fetchData iniciado...');
+      console.log(`🟡 fetchData iniciado para ${isQualyView ? 'Qualy' : 'Race'}...`);
       let token: string | null = null;
       if (isSignedIn) {
         token = await getToken({ template: 'supabase' });
-        if (!token) {
-          await new Promise((resolve) => setTimeout(resolve, 500));
-          token = await getToken({ template: 'supabase' });
-          if (!token) throw new Error('Token no encontrado');
-        }
+        if (!token) { throw new Error('Token no encontrado'); }
       }
       const supabase = createAuthClient(token);
 
-      const { data: configData, error: configError } = await supabase
-        .from('picks_config')
-        .select('is_qualy_enabled, is_race_enabled')
-        .eq('id', 'main')
-        .single();
-      if (configError) throw configError;
-      setIsQualyEnabled(configData.is_qualy_enabled);
-      setIsRaceEnabled(configData.is_race_enabled);
+      const [configResult, scheduleResult] = await Promise.all([
+        supabase.from('picks_config').select('is_qualy_enabled, is_race_enabled').eq('id', 'main').single(),
+        supabase.from('gp_schedule').select('*').order('race_time')
+      ]);
 
-      const { data: scheduleData, error: scheduleError } = await supabase
-        .from('gp_schedule')
-        .select('*')
-        .order('race_time');
-      if (scheduleError) throw new Error(scheduleError.message);
+      if (configResult.error) throw configResult.error;
+      setIsQualyEnabled(configResult.data.is_qualy_enabled);
+      setIsRaceEnabled(configResult.data.is_race_enabled);
 
+      if (scheduleResult.error) throw new Error(scheduleResult.error.message);
       const now = new Date();
-      const current = scheduleData?.find((gp: GpSchedule) => new Date(gp.race_time) > now);
-      if (!current) throw new Error('No se encontró un GP válido');
+      const current = scheduleResult.data?.find((gp: GpSchedule) => new Date(gp.race_time) > now);
+      if (!current) throw new Error('No se encontró un próximo GP válido');
       setCurrentGp(current);
 
+      console.log(`🟡 Fetching lines for GP: ${current.gp_name}, Session: ${isQualyView ? 'qualy' : 'race'}`);
       const { data: linesData, error: linesError } = await supabase
         .from('lines')
         .select('driver, line')
         .eq('gp_name', current.gp_name)
         .eq('session_type', isQualyView ? 'qualy' : 'race');
-      if (linesError) throw new Error(linesError.message);
 
-      const map: Record<string, number> = {};
-      linesData?.forEach(({ driver, line }) => {
-        map[driver] = line;
-      });
-      setDriverLines(map);
+      if (linesError) throw new Error(`Error al cargar líneas: ${linesError.message}`);
 
-      console.log('🎯 Datos cargados exitosamente:', {
-        configData,
-        currentGp: current.gp_name,
-        lines: map,
-      });
-
+      if (!linesData || linesData.length === 0) {
+        console.warn(`🟡 No lines found for GP: ${current.gp_name}, Session: ${isQualyView ? 'qualy' : 'race'}`);
+        setDriverLines({});
+      } else {
+        const map: Record<string, number> = {};
+        linesData.forEach(({ driver, line }) => { map[driver] = line; });
+        setDriverLines(map);
+        console.log(`🎯 Líneas cargadas para ${isQualyView ? 'Qualy' : 'Race'}:`, Object.keys(map).length);
+      }
       setIsDataLoaded(true);
+
     } catch (err: any) {
       console.error('❌ Error en fetchData:', err);
-      setErrors([err.message || 'Error inesperado']);
+      setErrors([err.message || 'Error inesperado al cargar datos']);
       setIsDataLoaded(true);
+      setDriverLines({});
     }
-  };
+  }, [isSignedIn, getToken, isQualyView]);
 
+  // Trigger fetchData
   useEffect(() => {
     if (!isLoaded) return;
-    const timer = setTimeout(() => fetchData(), 500);
+    setIsDataLoaded(false);
+    const timer = setTimeout(() => fetchData(), 200);
     return () => clearTimeout(timer);
-  }, [isLoaded, isQualyView]);
+  }, [isLoaded, isQualyView, fetchData]);
 
+  // Realtime subscription
   useEffect(() => {
-    if (!isLoaded || !isSignedIn) return;
-
+     if (!isLoaded || !isSignedIn) return;
     let mounted = true;
-
     const subscribeToConfig = async () => {
       try {
         let token = await getToken({ template: 'supabase' });
-        if (!token) {
-          await new Promise((resolve) => setTimeout(resolve, 500));
-          token = await getToken({ template: 'supabase' });
-          if (!token) throw new Error('Token no encontrado');
-        }
+        if (!token) { throw new Error('Token no encontrado'); }
         const supabase = createAuthClient(token);
-
-        const channel = supabase
-          .channel('realtime-picks-config')
-          .on(
-            'postgres_changes',
-            {
-              event: 'UPDATE',
-              schema: 'public',
-              table: 'picks_config',
-              filter: 'id=eq.main',
-            },
+        const channel = supabase.channel('realtime-picks-config').on(
+            'postgres_changes', { event: 'UPDATE', schema: 'public', table: 'picks_config', filter: 'id=eq.main' },
             (payload) => {
               if (!mounted) return;
+              console.log('🟢 Realtime config update received:', payload);
               const updated = payload.new as PicksConfig;
+              const wasQualyEnabled = isQualyEnabled;
+              const wasRaceEnabled = isRaceEnabled;
               setIsQualyEnabled(updated.is_qualy_enabled);
               setIsRaceEnabled(updated.is_race_enabled);
-              setShowRealtimeModal(true);
-              toast.success('⚡ Picks actualizados sin recargar');
+              if (wasQualyEnabled !== updated.is_qualy_enabled || wasRaceEnabled !== updated.is_race_enabled) {
+                setShowRealtimeModal(true);
+                toast.success('⚡ Estado de los Picks actualizado.');
+                if (isQualyView && !updated.is_qualy_enabled && updated.is_race_enabled) { setIsQualyView(false); setSession('race'); toast.info('Cambiado a vista de Carrera (Qualy desactivada).'); }
+                else if (!isQualyView && !updated.is_race_enabled && updated.is_qualy_enabled) { setIsQualyView(true); setSession('qualy'); toast.info('Cambiado a vista de Qualy (Carrera desactivada).'); }
+              }
             }
-          )
-          .subscribe();
-
+          ).subscribe((status) => { console.log('🟢 Realtime subscription status:', status); /* ... error handling ... */ });
         channelRef.current = channel;
-      } catch (err) {
-        console.error('❌ Error en la suscripción a Realtime:', err);
-      }
+      } catch (err) { console.error('❌ Error en la suscripción a Realtime:', err); }
     };
-
     subscribeToConfig();
+    return () => { mounted = false; if (channelRef.current) { channelRef.current.unsubscribe(); console.log('⚪ Desuscrito de Realtime config.'); } };
+  }, [isLoaded, isSignedIn, isQualyView, isQualyEnabled, isRaceEnabled, setSession, getToken]);
 
-    return () => {
-      mounted = false;
-      if (channelRef.current) {
-        channelRef.current.unsubscribe();
-      }
-    };
-  }, [isLoaded, isSignedIn]);
-
+  // Sticky modal visibility
   useEffect(() => {
     const totalPicks = picks.qualy.length + picks.race.length;
     setShowSticky(totalPicks >= 2);
-  }, [picks.qualy, picks.race, setShowSticky]);
+   }, [picks.qualy, picks.race, setShowSticky]);
 
+  // Potential win calculation
   useEffect(() => {
     const totalPicks = picks.qualy.length + picks.race.length;
     const payoutCombos: Record<number, number> = { 2: 3, 3: 6, 4: 10, 5: 20, 6: 35, 7: 60, 8: 100 };
     const multiplier = payoutCombos[totalPicks] || 0;
     setMultiplier(multiplier);
     setPotentialWin(multiplier * 10000);
-  }, [picks.qualy, picks.race, setMultiplier, setPotentialWin]);
+   }, [picks.qualy, picks.race, setMultiplier, setPotentialWin]);
 
+  // Play sound effect
   useEffect(() => {
     if (isDataLoaded && !hasPlayedRev.current) {
-      soundManager.rev.play();
-      hasPlayedRev.current = true;
-      console.log('Sonido rev reproducido');
+      setTimeout(() => {
+        soundManager.rev.play();
+        hasPlayedRev.current = true;
+      }, 100);
     }
-  }, [isDataLoaded]);
+   }, [isDataLoaded]);
 
-  const getUserPick = (driver: string) => {
+  // --- HELPER FUNCTIONS ---
+  const getUserPick = useCallback((driver: string): 'mejor' | 'peor' | null => {
     return picks[currentSession].find((p) => p.driver === driver)?.betterOrWorse || null;
-  };
+   }, [picks, currentSession]);
 
-  const handlePick = (driver: string, betterOrWorse: 'mejor' | 'peor') => {
-    if (!currentGp) return;
-
-    // 🎯 Tracking for first pick (Lead and IntentoPick)
+  // --- EVENT HANDLERS ---
+  const handlePick = useCallback((driver: string, betterOrWorse: 'mejor' | 'peor') => {
+    if (!currentGp || !isDataLoaded) return;
     const totalPicks = picks.qualy.length + picks.race.length;
     if (totalPicks === 0) {
       trackFBEvent('Lead', { params: { page: 'mmc-go' } });
       trackFBEvent('IntentoPick', { params: { page: 'mmc-go' } });
     }
-
     soundManager.click.play();
-
     const line = driverLines[driver] ?? 10.5;
-    const team = driverToTeam[driver] || 'Default';
-
-    const newPick: PickSelection = {
-      driver,
-      team,
-      line,
-      betterOrWorse,
-      gp_name: currentGp.gp_name,
-      session_type: currentSession,
-    };
-
+    const team = driverToTeam[driver] || 'Unknown Team';
+    const newPick: PickSelection = { driver, team, line, betterOrWorse, gp_name: currentGp.gp_name, session_type: currentSession };
     const success = addPick(newPick);
-    if (!success) {
-      alert('Máximo 8 picks combinados entre Qualy y Carrera.');
-    }
-  };
+    if (!success) { toast.error('Máximo 8 picks combinados entre Qualy y Carrera.'); }
+   }, [currentGp, isDataLoaded, picks, currentSession, driverLines, addPick]);
 
-  const handleReset = (driver: string) => {
+  const handleReset = useCallback((driver: string) => {
     soundManager.click.play();
     removePick(driver, currentSession);
-  };
+   }, [currentSession, removePick]);
 
-  if (!isLoaded) {
-    return <LoadingAnimation text="Cargando autenticación..." animationDuration={4} />;
-  }
+  // --- RENDER LOGIC ---
+  if (!isLoaded) { return <LoadingAnimation text="Cargando autenticación..." animationDuration={4} />; }
 
+  // --- Tailwind Class Definitions ---
+  const mainContainerClasses = "min-h-screen bg-gradient-to-b from-gray-950 via-gray-900 to-black text-white font-exo2";
+  const contentWrapperClasses = "container mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-32";
+  const pageTitleClasses = "text-3xl sm:text-4xl font-bold text-center text-amber-400 tracking-tight";
+  const pageSubtitleClasses = "text-sm text-center text-gray-400 mt-1 mb-8";
+  const sessionToggleContainerClasses = "flex justify-center items-center gap-2 mb-8 p-1 bg-gray-800 rounded-lg shadow-md max-w-xs mx-auto";
+  const sessionButtonBaseClasses = "flex-1 px-4 py-2 rounded-md text-sm font-semibold transition-all duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800";
+  const sessionButtonActiveClasses = "bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-lg focus:ring-cyan-400";
+  const sessionButtonInactiveClasses = "bg-transparent text-gray-400 hover:bg-gray-700 hover:text-gray-200 focus:ring-gray-500";
+  const sessionButtonDisabledClasses = "bg-gray-700 text-gray-500 cursor-not-allowed opacity-60";
+  const driverGridContainerClasses = "bg-gradient-to-br from-gray-800/50 via-black/50 to-gray-900/50 p-4 sm:p-6 rounded-xl shadow-xl border border-gray-700/50";
+  const driverGridClasses = "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-5 gap-4 sm:gap-5";
+  const driverCardWrapperClasses = "rounded-xl"; // No border animation styles needed
+  const driverCardInnerBaseClasses = "relative bg-gray-800 pt-3 sm:pt-4 rounded-lg shadow-lg text-center h-full flex flex-col justify-between transition-shadow duration-300 ease-in-out overflow-hidden";
+  const driverCardHoverClasses = "hover:bg-gray-750 hover:shadow-xl hover:shadow-cyan-500/10";
+  const driverImageClasses = "mx-auto rounded-full w-16 h-16 sm:w-20 sm:h-20 object-cover border-2 border-gray-600 mb-2";
+  const driverNameClasses = "text-sm sm:text-base font-bold mt-2 text-gray-100 px-2";
+  const driverTeamClasses = "text-xs text-gray-400 mb-1 px-2";
+  const driverLineClasses = "text-xs font-semibold text-amber-400 mb-2 px-2";
+  const pickButtonContainerClasses = "flex justify-center gap-0 mt-auto w-full rounded-b-lg overflow-hidden";
+  const pickButtonBaseClasses = "flex-1 py-2.5 text-sm font-bold transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-inset focus:ring-offset-0 flex items-center justify-center gap-1.5";
+  const pickButtonBetterClasses = "bg-gray-700 hover:bg-green-600 focus:ring-green-500";
+  const pickButtonWorseClasses = "bg-gray-700 hover:bg-red-600 focus:ring-red-500";
+  const pickButtonSelectedBetterClasses = "bg-green-500 text-white shadow-md focus:ring-green-400";
+  const pickButtonSelectedWorseClasses = "bg-red-500 text-white shadow-md focus:ring-red-400";
+  const resetButtonClasses = "absolute top-1.5 right-1.5 bg-yellow-500/80 text-black p-1 rounded-full hover:bg-yellow-500 transition-colors focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-1 focus:ring-offset-gray-800 z-10";
+  const tutorialButtonClasses = "fixed bottom-6 right-6 z-50 bg-gradient-to-r from-amber-400 to-orange-500 text-black shadow-xl p-3 rounded-full hover:scale-110 hover:shadow-orange-500/30 transition-all duration-300 ease-in-out flex items-center gap-2 text-sm font-semibold";
+  const errorContainerClasses = "bg-red-900/50 border border-red-700 text-red-300 px-4 py-3 rounded-lg text-center mb-6 shadow-md";
+  const infoTextClasses = "text-center text-sm text-amber-400 mb-6 animate-pulse";
+  const noLinesAvailableClasses = "text-center text-lg text-gray-500 my-10";
+
+  // --- JSX RETURN ---
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-950 to-gray-900 text-white font-exo2">
+    <div className={mainContainerClasses}>
       <Header />
+      <MMCGoSubHeader />
+
       {!isDataLoaded ? (
-        <LoadingAnimation text="Cargando MMC-GO..." animationDuration={3} />
+        <LoadingAnimation text="Cargando MMC-GO..." animationDuration={2} />
       ) : (
-        <main className="container mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-24">
-          <div className="text-center mb-6">
-            <h1 className="text-3xl font-bold">MMC-GO: Picks</h1>
-            <p className="text-sm text-gray-300">Selecciona pilotos para tu PICK</p>
-          </div>
+        <main className={contentWrapperClasses}>
+          {/* Page Title, Errors, Info Text, Session Toggle */}
+          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+             {/* ... Title/Subtitle ... */}
+              <div className="mb-6">
+                <h1 className={pageTitleClasses}>MMC-GO: Picks</h1>
+                {currentGp && ( <p className="text-center text-lg text-gray-300 mt-1"> Próximo GP: <span className="font-semibold text-amber-300">{currentGp.gp_name}</span> </p> )}
+                <p className={pageSubtitleClasses}> Selecciona pilotos y predice si quedarán <span className="text-green-400 font-medium">Mejor</span> o <span className="text-red-400 font-medium">Peor</span> que su línea. </p>
+              </div>
+          </motion.div>
+          <AnimatePresence> {errors.length > 0 && ( <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className={errorContainerClasses}> {errors.map((err, i) => (<p key={i}>{err}</p>))} </motion.div> )} </AnimatePresence>
+          <AnimatePresence> {isDataLoaded && !errors.length && picks.qualy.length + picks.race.length === 1 && ( <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className={infoTextClasses}> ⚡ Selecciona 1 pick más para activar tu jugada ⚡ </motion.div> )} </AnimatePresence>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}>
+            {/* ... Session Toggle ... */}
+             <div className={sessionToggleContainerClasses}>
+                {isQualyEnabled ? ( <button onClick={() => { setIsQualyView(true); setSession('qualy'); }} className={`${sessionButtonBaseClasses} ${isQualyView ? sessionButtonActiveClasses : sessionButtonInactiveClasses}`}> Qualy </button> ) : ( <span className={`${sessionButtonBaseClasses} ${sessionButtonDisabledClasses}`}> Qualy </span> )}
+                {isRaceEnabled ? ( <button onClick={() => { setIsQualyView(false); setSession('race'); }} className={`${sessionButtonBaseClasses} ${!isQualyView ? sessionButtonActiveClasses : sessionButtonInactiveClasses}`}> Carrera </button> ) : ( <span className={`${sessionButtonBaseClasses} ${sessionButtonDisabledClasses}`}> Carrera </span> )}
+             </div>
+          </motion.div>
 
-          {errors.length > 0 && (
-            <div className="text-red-400 text-center mb-4">
-              {errors.map((err, i) => (
-                <p key={i}>{err}</p>
-              ))}
-            </div>
-          )}
+          {/* Driver Selection Grid */}
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}>
+            <div className={driverGridContainerClasses}>
+              <section className={driverGridClasses}>
+                {staticDrivers.map((driver, index) => {
+                  const image = `/images/pilots/${driver.toLowerCase().replace(/ /g, '-')}.png`;
+                  const team = driverToTeam[driver] || 'Unknown Team';
+                  const pick = getUserPick(driver);
+                  const line = driverLines[driver];
 
-          {picks.qualy.length + picks.race.length === 1 && (
-            <div className="text-center text-sm text-amber-400 mb-4">
-              Selecciona 1 pick más para activar tu jugada.
-            </div>
-          )}
+                  if (line === undefined || line === null) { return null; }
 
-          <div className="flex justify-center gap-4 mb-6">
-            {isQualyEnabled ? (
-              <button
-                onClick={() => {
-                  setIsQualyView(true);
-                  setSession('qualy');
-                }}
-                className={`px-4 py-2 rounded ${isQualyView ? 'bg-blue-600' : 'bg-gray-700'}`}
-              >
-                Qualy
-              </button>
-            ) : (
-              <span className="px-4 py-2 rounded bg-gray-800 text-gray-500 cursor-not-allowed">
-                Qualy (Desactivado)
-              </span>
-            )}
-
-            {isRaceEnabled ? (
-              <button
-                onClick={() => {
-                  setIsQualyView(false);
-                  setSession('race');
-                }}
-                className={`px-4 py-2 rounded ${!isQualyView ? 'bg-blue-600' : 'bg-gray-700'}`}
-              >
-                Carrera
-              </button>
-            ) : (
-              <span className="px-4 py-2 rounded bg-gray-800 text-gray-500 cursor-not-allowed">
-                Carrera (Desactivado)
-              </span>
-            )}
-          </div>
-
-          <div className="bg-gradient-to-br from-gray-900 to-black p-4 sm:p-6 rounded-xl shadow-lg">
-            <section className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-4">
-              {staticDrivers.map((driver) => {
-                const image = `/images/pilots/${driver.toLowerCase().replace(/ /g, '-')}.png`;
-                const team = driverToTeam[driver] || 'Default';
-                const pick = getUserPick(driver);
-                const line = driverLines[driver];
-                const borderStyle = driverBorderStyles[driver];
-
-                return (
-                  <div
-                    key={driver}
-                    className="animate-rotate-border rounded-lg p-px"
-                    style={{
-                      background: borderStyle.gradient,
-                      animationDuration: borderStyle.speed,
-                      animationDirection: borderStyle.direction,
-                    }}
-                  >
+                  return (
+                    // Outer div for entry animation and layout
                     <motion.div
-                      whileHover={{ scale: 1.02 }}
-                      className="relative bg-gray-800 p-4 rounded-lg shadow-md text-center transition-all duration-200"
+                      key={`${driver}-${currentSession}`}
+                      className={driverCardWrapperClasses} // No border animation class
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.2, delay: index * 0.02 }}
                     >
-                      {pick && (
-                        <button
-                          onClick={() => handleReset(driver)}
-                          className="absolute top-2 right-2 bg-yellow-500 text-black text-xs font-bold px-2 py-1 rounded hover:bg-yellow-600 transition-colors"
-                          title="Resetear selección"
-                        >
-                          Reset
-                        </button>
-                      )}
-                      <Image src={image} alt={driver} width={64} height={64} className="mx-auto rounded-full" />
-                      <h3 className="text-sm font-bold mt-2">{driver}</h3>
-                      <p className="text-xs text-gray-300">{team}</p>
-                      <p className="text-xs text-amber-400">
-                        {isQualyView ? 'Qualy' : 'Carrera'}: {line?.toFixed(1)}
-                      </p>
-                      <div className="flex justify-center gap-2 mt-2">
-                        <button
-                          onClick={() => handlePick(driver, 'mejor')}
-                          className={`px-2 py-1 rounded text-xs font-bold ${
-                            pick === 'mejor' ? 'bg-green-500' : 'bg-gray-700'
-                          }`}
-                        >
-                          Mejor
-                        </button>
-                        <button
-                          onClick={() => handlePick(driver, 'peor')}
-                          className={`px-2 py-1 rounded text-xs font-bold ${
-                            pick === 'peor' ? 'bg-red-500' : 'bg-gray-700'
-                          }`}
-                        >
-                          Peor
-                        </button>
+                      {/* Inner card content */}
+                      <div className={`${driverCardInnerBaseClasses} ${driverCardHoverClasses}`}>
+                        {pick && ( <button onClick={() => handleReset(driver)} className={resetButtonClasses} aria-label={`Resetear selección para ${driver}`}> <FaSyncAlt size={10} /> </button> )}
+                        {/* Driver Info */}
+                        <div className="flex-grow flex flex-col items-center">
+                          <Image src={image} alt={driver} width={80} height={80} className={driverImageClasses} unoptimized priority={index < 10} onError={(e) => { e.currentTarget.src = '/images/pilots/default-pilot.png'; }} />
+                          <h3 className={driverNameClasses}>{driver}</h3>
+                          <p className={driverTeamClasses}>{team}</p>
+                          <p className={driverLineClasses}> {isQualyView ? 'Qualy' : 'Carrera'}: {line?.toFixed(1)} </p>
+                        </div>
+                        {/* Pick Buttons Section */}
+                        <div className={pickButtonContainerClasses}>
+                          <button onClick={() => handlePick(driver, 'mejor')} className={`${pickButtonBaseClasses} ${pick === 'mejor' ? pickButtonSelectedBetterClasses : pickButtonBetterClasses}`} disabled={pick === 'mejor'}> <FaCheck size={12} /> Mejor </button>
+                          <button onClick={() => handlePick(driver, 'peor')} className={`${pickButtonBaseClasses} ${pick === 'peor' ? pickButtonSelectedWorseClasses : pickButtonWorseClasses}`} disabled={pick === 'peor'}> <FaTimes size={12} /> Peor </button>
+                        </div>
                       </div>
                     </motion.div>
-                  </div>
-                );
-              })}
-            </section>
-          </div>
+                  );
+                })}
+                {/* No lines available message */}
+                {isDataLoaded && Object.keys(driverLines).length === 0 && !errors.length && (
+                   <div className={`col-span-full ${noLinesAvailableClasses}`}> No hay líneas disponibles para {isQualyView ? 'Qualy' : 'Carrera'} en este momento. </div>
+                )}
+              </section>
+            </div>
+          </motion.div>
 
+          {/* Tutorial Button & Modals */}
+          <button onClick={() => setShowTutorial(true)} className={tutorialButtonClasses} aria-label="¿Cómo jugar?"> <FaQuestionCircle /> ¿Cómo Jugar? </button>
           <TutorialModal show={showTutorial} onClose={() => setShowTutorial(false)} />
-
-          <button
-          onClick={() => setShowTutorial(true)}
-          className="fixed bottom-6 right-6 z-50 bg-white text-black shadow-xl p-3 rounded-full hover:scale-105 transition"
-          aria-label="¿Cómo jugar?"
-          >
-         Cómo Jugar?
-         </button>                
-
-          <StickyModal
-            onFinish={async () => {
-              if (!isSignedIn) {
-                setShowAuthModal(true);
-                return;
-              }
-              setShowFullModal(true);
-            }}
-          />
+          <StickyModal onFinish={async () => { if (!isSignedIn) { localStorage.setItem('pendingPicks', JSON.stringify(picks)); setShowAuthModal(true); return; } setShowFullModal(true); }} />
           {showFullModal && <FullModal isOpen={showFullModal} onClose={() => setShowFullModal(false)} />}
 
-          {showAuthModal && (
-            <Dialog open={true} onClose={() => setShowAuthModal(false)} className="relative z-50">
-              <div className="fixed inset-0 bg-black/50" aria-hidden="true" />
-              <div className="fixed inset-0 flex items-center justify-center p-4">
-                <Dialog.Panel className="mx-auto max-w-sm rounded-xl bg-white p-6 text-black shadow-xl text-center">
-                  <Dialog.Title className="text-lg font-bold mb-2">Inicia sesión</Dialog.Title>
-                  <Dialog.Description className="text-sm mb-4 text-gray-600">
-                    Debes iniciar sesión para confirmar tus picks en MMC GO.
-                  </Dialog.Description>
-                  <button
-                    onClick={() => {
-                      console.log('Initiating sign-in redirect to /sign-in?redirect_url=/mmc-go'); // Debug log
-                      localStorage.setItem('pendingPicks', JSON.stringify(picks));
-                      router.push(`/sign-in?redirect_url=${encodeURIComponent('/mmc-go')}`);
-                    }}
-                    className="px-4 py-2 bg-black text-white rounded hover:bg-gray-900 transition"
+          {/* --- MODALS USING Headless UI Transition --- */}
+          <AnimatePresence>
+            {showAuthModal && (
+              <Transition appear show={showAuthModal} as={Fragment}>
+                <Dialog as="div" className="relative z-[60]" onClose={() => setShowAuthModal(false)}>
+                  {/* Backdrop using Transition.Child */}
+                  <Transition.Child
+                    as={Fragment}
+                    enter="ease-out duration-200"
+                    enterFrom="opacity-0"
+                    enterTo="opacity-100"
+                    leave="ease-in duration-150"
+                    leaveFrom="opacity-100"
+                    leaveTo="opacity-0"
                   >
-                    Iniciar sesión
-                  </button>
-                </Dialog.Panel>
-              </div>
-            </Dialog>
-          )}
+                    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm" aria-hidden="true" />
+                  </Transition.Child>
 
-          {showRealtimeModal && (
-            <Dialog open={true} onClose={() => setShowRealtimeModal(false)} className="relative z-50">
-              <div className="fixed inset-0 bg-black/50" aria-hidden="true" />
-              <div className="fixed inset-0 flex items-center justify-center p-4">
-                <Dialog.Panel className="mx-auto max-w-sm rounded-xl bg-white p-6 text-black shadow-xl">
-                  <Dialog.Title className="text-lg font-bold">⚡ Estado actualizado</Dialog.Title>
-                  <Dialog.Description className="mt-1 text-sm text-gray-700">
-                    Picks habilitados o deshabilitados en tiempo real.
-                  </Dialog.Description>
-                  <div className="mt-4 text-right">
-                    <button
-                      onClick={() => setShowRealtimeModal(false)}
-                      className="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded hover:bg-blue-700"
+                  {/* Modal Panel */}
+                  <div className="fixed inset-0 flex items-center justify-center p-4">
+                    <Transition.Child
+                       as={Fragment}
+                       enter="ease-out duration-200"
+                       enterFrom="opacity-0 scale-95"
+                       enterTo="opacity-100 scale-100"
+                       leave="ease-in duration-150"
+                       leaveFrom="opacity-100 scale-100"
+                       leaveTo="opacity-0 scale-95"
                     >
-                      Entendido
-                    </button>
+                      <Dialog.Panel className="mx-auto max-w-sm rounded-xl bg-gradient-to-br from-gray-800 to-black border border-amber-500/30 p-6 text-white shadow-xl text-center">
+                        <Dialog.Title className="text-lg font-bold mb-2 text-amber-400">Inicia sesión</Dialog.Title>
+                        <Dialog.Description className="text-sm mb-4 text-gray-300"> Debes iniciar sesión para confirmar tus picks en MMC GO. Tus selecciones se guardarán. </Dialog.Description>
+                        <button onClick={() => { router.push(`/sign-in?redirect_url=${encodeURIComponent('/mmc-go')}`); }} className="w-full px-4 py-2 bg-amber-500 text-black font-bold rounded-md hover:bg-amber-400 transition-colors duration-200"> Iniciar sesión / Registrarse </button>
+                        <button onClick={() => setShowAuthModal(false)} className="mt-2 text-xs text-gray-400 hover:text-gray-200"> Cancelar </button>
+                      </Dialog.Panel>
+                     </Transition.Child>
                   </div>
-                </Dialog.Panel>
-              </div>
-            </Dialog>
-          )}
+                </Dialog>
+              </Transition>
+            )}
+
+            {showRealtimeModal && (
+               <Transition appear show={showRealtimeModal} as={Fragment}>
+                <Dialog as="div" className="relative z-[60]" onClose={() => setShowRealtimeModal(false)}>
+                   {/* Backdrop using Transition.Child */}
+                   <Transition.Child
+                    as={Fragment}
+                    enter="ease-out duration-200"
+                    enterFrom="opacity-0"
+                    enterTo="opacity-100"
+                    leave="ease-in duration-150"
+                    leaveFrom="opacity-100"
+                    leaveTo="opacity-0"
+                  >
+                    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm" aria-hidden="true" />
+                  </Transition.Child>
+
+                  {/* Modal Panel */}
+                  <div className="fixed inset-0 flex items-center justify-center p-4">
+                     <Transition.Child
+                       as={Fragment}
+                       enter="ease-out duration-200"
+                       enterFrom="opacity-0 scale-95"
+                       enterTo="opacity-100 scale-100"
+                       leave="ease-in duration-150"
+                       leaveFrom="opacity-100 scale-100"
+                       leaveTo="opacity-0 scale-95"
+                    >
+                      <Dialog.Panel className="mx-auto max-w-sm rounded-xl bg-gradient-to-br from-gray-800 to-black border border-cyan-500/30 p-6 text-white shadow-xl">
+                        <Dialog.Title className="text-lg font-bold text-cyan-400">⚡ Estado Actualizado</Dialog.Title>
+                        <Dialog.Description className="mt-1 text-sm text-gray-300"> La disponibilidad de los picks (Qualy/Carrera) ha cambiado en tiempo real. </Dialog.Description>
+                        <div className="mt-4 text-right"> <button onClick={() => setShowRealtimeModal(false)} className="px-4 py-2 text-sm font-medium bg-cyan-600 text-white rounded-md hover:bg-cyan-700 transition-colors duration-200" > Entendido </button> </div>
+                      </Dialog.Panel>
+                     </Transition.Child>
+                  </div>
+                </Dialog>
+               </Transition>
+            )}
+          </AnimatePresence>
+
         </main>
       )}
     </div>
