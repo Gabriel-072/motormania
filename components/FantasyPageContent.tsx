@@ -707,8 +707,6 @@ const handleSubmit = async () => {
         submitted_at: submissionTime.toISOString(),
         submission_week: week,
         submission_year: submissionTime.getFullYear(),
-        // Add race_date for better filtering later if needed
-        race_date: currentGp.race_time.split('T')[0]
       });
 
       if (predError) {
