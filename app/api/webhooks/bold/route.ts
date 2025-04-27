@@ -1,192 +1,304 @@
-// 📁 app/api/webhooks/bold/route.ts
-'use server';
+// 📁 /app/api/webhooks/bold/route.ts
+// REMOVED 'use server';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
 
 // ──────────────────────────────
-// 🔐 ENV
+// 🔐 ENV & Clients
 // ──────────────────────────────
-const sb = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-const BOLD_SECRET  = process.env.BOLD_SECRET_KEY!;
-const SITE_URL     = process.env.NEXT_PUBLIC_SITE_URL!;
-const EXTRA_COUNT  = 5;               // números extra que vendes
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+// Esta es la llave secreta de Bold para VERIFICAR webhooks (Tleqx...)
+const BOLD_WEBHOOK_SECRET = process.env.BOLD_WEBHOOK_SECRET_KEY; // Nombre consistente con código previo
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL; // URL Producción
+
+// --- Startup Checks ---
+if (!supabaseUrl || !supabaseServiceKey) {
+    console.error("FATAL ERROR: Supabase Env Vars missing for Bold Webhook.");
+}
+if (!BOLD_WEBHOOK_SECRET) {
+    console.error("FATAL ERROR: BOLD_WEBHOOK_SECRET_KEY env var is not set.");
+}
+if (!SITE_URL) {
+    console.error("FATAL ERROR: NEXT_PUBLIC_SITE_URL env var is not set.");
+}
+
+// Inicializa cliente Supabase con Service Role Key
+const sb = createClient(supabaseUrl!, supabaseServiceKey!);
+
+// --- Constantes ---
+const EXTRA_COUNT = 5; // números extra que vendes
+const SUPPORT_EMAIL = 'soporte@motormaniacolombia.com';
 
 // ──────────────────────────────
-// 1. Signature check
+// 1. Signature check Helper
 // ──────────────────────────────
-async function verify(sig: string, raw: string) {
-  try {
-    const bodyB64  = Buffer.from(raw).toString('base64');
-    const expected = crypto
-      .createHmac('sha256', BOLD_SECRET)
-      .update(bodyB64)
-      .digest('hex');
-
-    return crypto.timingSafeEqual(Buffer.from(sig, 'hex'), Buffer.from(expected, 'hex'));
-  } catch {
-    return false;
-  }
+async function verify(sig: string, raw: string): Promise<boolean> {
+    if (!BOLD_WEBHOOK_SECRET) {
+        console.error("BOLD_WEBHOOK_SECRET_KEY not configured.");
+        return false; // No se puede verificar sin el secreto
+    }
+    try {
+        const bodyB64 = Buffer.from(raw).toString('base64');
+        const expected = crypto
+            .createHmac('sha256', BOLD_WEBHOOK_SECRET) // Usa la variable correcta
+            .update(bodyB64)
+            .digest('hex');
+        // Importante: Usa timingSafeEqual y asegura que los buffers tengan la misma longitud
+        const sigBuffer = Buffer.from(sig, 'hex');
+        const expectedBuffer = Buffer.from(expected, 'hex');
+        if (sigBuffer.length !== expectedBuffer.length) {
+            return false;
+        }
+        return crypto.timingSafeEqual(sigBuffer, expectedBuffer);
+    } catch (error) {
+        console.error("Error during Bold signature verification:", error);
+        return false;
+    }
 }
 
 // ──────────────────────────────
 // Utils
 // ──────────────────────────────
-async function uniqueSix(existing: string[], n: number) {
-  const pool = new Set(existing);
-  const out: string[] = [];
-  while (out.length < n) {
-    const v = Math.floor(100_000 + Math.random() * 900_000).toString();
-    if (!pool.has(v)) { pool.add(v); out.push(v); }
-  }
-  return out;
+// Generador de números únicos (parece correcto)
+async function uniqueSix(existing: string[], n: number): Promise<string[]> {
+    const pool = new Set(existing);
+    const out: string[] = [];
+    let attempts = 0;
+    while (out.length < n && attempts < (n * 100)) { // Límite de intentos
+        const v = Math.floor(100_000 + Math.random() * 900_000).toString();
+        if (!pool.has(v)) { pool.add(v); out.push(v); }
+        attempts++;
+    }
+    if (out.length < n) { console.warn(`uniqueSix: Could only generate ${out.length}/${n} unique numbers.`); }
+    return out;
 }
 
 // ──────────────────────────────
-// 2-A. Compra de NÚMEROS EXTRA
+// 2-A. Compra de NÚMEROS EXTRA Handler
 // ──────────────────────────────
 async function handleNumberPurchase(db: SupabaseClient, data: any) {
-  const ref   = data.metadata?.reference as string;            // ORDER-user_…
-  const total = data.amount?.total      as number;
-  const payId = data.payment_id;
+    console.log("[Bold WH]: Handling Number Purchase...");
+    const ref = data.metadata?.reference as string; // Espera: MM-EXTRA-${userId}-${timestamp}
+    const total = data.amount?.total as number;
+    const payId = data.payment_id as string; // ID de pago de Bold
 
-  const userId = ref.match(/user_[A-Za-z0-9]+/)?.[0];
-  if (!userId) throw new Error('userId no encontrado en referencia');
+    if (!ref || total === undefined || !payId) {
+        throw new Error('Datos incompletos en webhook para compra de números extra.');
+    }
 
-  const desc = `Compra de ${EXTRA_COUNT} números extra (BoldID:${payId})`;
+    // --- CORRECCIÓN: Parsear userId desde formato MM-EXTRA-... ---
+    let userId: string | null = null;
+    try {
+        const parts = ref.split('-');
+        // Espera 4 partes: MM, EXTRA, user_..., timestamp
+        if (parts.length === 4 && parts[0] === 'MM' && parts[1] === 'EXTRA' && parts[2].startsWith('user_')) {
+            userId = parts[2]; // El user_id es la tercera parte
+        } else {
+            throw new Error(`Formato inesperado`); // Lanza error si no coincide
+        }
+    } catch (e) {
+         throw new Error(`No se pudo parsear userId de la referencia "${ref}": ${e instanceof Error ? e.message : e}`);
+    }
+    if (!userId) throw new Error('UserId inválido o no extraído de la referencia.');
+    // --- FIN CORRECCIÓN ---
 
-  // idempotencia por descripción
-  const { data: exists } = await db.from('transactions').select('id')
-                                   .eq('description', desc).maybeSingle();
-  if (exists) return console.info('↩️ números ya procesados', ref);
+    console.log(`[Bold WH Num]: UserID=${userId}, PaymentID=${payId}, Ref=${ref}`);
 
-  // 1. transacción
-  await db.from('transactions').insert({
-    user_id: userId,
-    type   : 'recarga',
-    amount : total,
-    description: desc
-  });
+    // Idempotencia: Usa una descripción única incluyendo el payment_id de Bold
+    const desc = `Compra de ${EXTRA_COUNT} números extra via Bold (Ref: ${ref}, BoldID:${payId})`;
+    console.log("[Bold WH Num]: Checking idempotency...");
+    const { data: exists, error: checkErr } = await db.from('transactions').select('id')
+        .eq('description', desc).limit(1).maybeSingle(); // Asume columna 'description'
+    if (checkErr) throw new Error(`DB Error (Idempotency check): ${checkErr.message}`);
+    if (exists) { console.info(`↩️ [Bold WH Num]: Transacción ya procesada (Idempotencia): ${ref}`); return; }
 
-  // 2. entries
-  const { data: entry } = await db.from('entries')
-                                  .select('numbers, paid_numbers_count')
-                                  .eq('user_id', userId).maybeSingle();
+    // 1. Log Transacción
+    console.log(`[Bold WH Num]: Inserting into transactions for ${userId}...`);
+    const { error: txErr } = await db.from('transactions').insert({ user_id: userId, type: 'recarga', amount: total, description: desc });
+    // Verifica FK constraint después de insertar
+    if (txErr?.code === '23503') { console.error(`[Bold WH Num] DB Error: User ID ${userId} no existe en clerk_users.`); throw txErr; }
+    else if (txErr) throw new Error(`DB Error (Insert Transaction): ${txErr.message}`);
+    console.log("[Bold WH Num]: Transaction logged.");
 
-  const merged = [
-    ...(entry?.numbers ?? []),
-    ...(await uniqueSix(entry?.numbers ?? [], EXTRA_COUNT))
-  ];
+    // 2. Actualizar entries
+    console.log(`[Bold WH Num]: Fetching entries for ${userId}...`);
+    const { data: entry, error: entryErr } = await db.from('entries').select('numbers, paid_numbers_count').eq('user_id', userId).maybeSingle();
+    if (entryErr) throw new Error(`DB Error (Fetch Entry): ${entryErr.message}`);
+    if (!entry) throw new Error(`Usuario ${userId} no encontrado en entries.`); // User debe existir
 
-  await db.from('entries').upsert({
-    user_id           : userId,
-    numbers           : merged,
-    paid_numbers_count: (entry?.paid_numbers_count ?? 0) + EXTRA_COUNT
-  }, { onConflict: 'user_id' });
+    console.log(`[Bold WH Num]: Generating ${EXTRA_COUNT} unique numbers...`);
+    const existingNumbers = entry.numbers ?? [];
+    const newNumbers = await uniqueSix(existingNumbers, EXTRA_COUNT);
+    const merged = [...existingNumbers, ...newNumbers];
+    const newPaidCount = (entry.paid_numbers_count ?? 0) + EXTRA_COUNT;
 
-  // 3. e-mail
-  const { data: u } = await db.from('clerk_users')
-                              .select('email, full_name')
-                              .eq('clerk_id', userId).maybeSingle();
+    console.log(`[Bold WH Num]: Upserting entries for ${userId}...`);
+    const { error: upsertErr } = await db.from('entries').upsert({
+        user_id: userId, numbers: merged, paid_numbers_count: newPaidCount
+    }, { onConflict: 'user_id' }); // REQUIRES UNIQUE(user_id)
+    if (upsertErr) throw new Error(`DB Error (Upsert Entry): ${upsertErr.message}`);
+    console.log("[Bold WH Num]: Entries updated.");
 
-  if (u?.email) {
-    fetch(`${SITE_URL}/api/send-numbers-confirmation`, {
-      method : 'POST',
-      headers: { 'Content-Type':'application/json', Referer: SITE_URL },
-      body   : JSON.stringify({
-        to      : u.email,
-        name    : u.full_name || 'Usuario',
-        numbers : merged.slice(-EXTRA_COUNT),
-        context : 'compra',
-        orderId : ref,
-        amount  : total
-      })
-    }).catch(e => console.error('✉️  Email números error', e));
-  }
+    // 3. Enviar E-mail
+    console.log(`[Bold WH Num]: Fetching email for ${userId}...`);
+    const { data: u, error: userFetchErr } = await db.from('clerk_users').select('email, full_name').eq('clerk_id', userId).maybeSingle();
+    if (userFetchErr) { console.warn(`[Bold WH Num]: Could not fetch user email (User: ${userId}): ${userFetchErr.message}`); }
 
-  console.log('✅ números extra procesados', ref);
+    if (u?.email && SITE_URL) {
+        console.log(`[Bold WH Num]: Triggering confirmation email to ${u.email}...`);
+        // Llama a la API centralizada (SIN el Auth header porque lo quitamos)
+        fetch(`${SITE_URL}/api/send-numbers-confirmation`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                to: u.email, name: u.full_name || 'Usuario', numbers: newNumbers, // Envía solo los nuevos
+                context: 'compra', orderId: ref, amount: total
+            })
+        }).catch(e => console.error('✉️ [Bold WH Num]: Failed to trigger Email API:', e));
+    } else {
+        console.warn(`[Bold WH Num]: Email not sent for ${userId}: Email address or SITE_URL missing.`);
+    }
+
+    console.log('✅ [Bold WH Num]: Extra numbers processed successfully for', ref);
 }
 
 // ──────────────────────────────
-// 2-B. Compra de PICKS (MMC-…)
+// 2-B. Compra de PICKS (MMC-GO) Handler
 // ──────────────────────────────
 async function handlePickPurchase(db: SupabaseClient, data: any) {
-  const ref = data.metadata?.reference as string;              // MMC-…
-  if (!ref) throw new Error('reference faltante en pick');
+    console.log("[Bold WH]: Handling Pick Purchase...");
+    const ref = data.metadata?.reference as string; // Espera: MMC-${userId}-${pickTxId}-${timestamp}
+    const payId = data.payment_id as string;
 
-  // 1) localizar la fila pendiente
-  const { data: tx } = await db.from('pick_transactions').select('*')
-                              .eq('order_id', ref).maybeSingle();
+    if (!ref) throw new Error('Referencia (orderId) faltante en webhook de compra de picks.');
+    if (!payId) throw new Error('Payment ID de Bold faltante.');
 
-  if (!tx)          return console.warn('pick_transactions no encontrada', ref);
-  if (tx.payment_status === 'paid') {
-    return console.info('↩️ pick ya marcada paid', ref);
-  }
+    console.log(`[Bold WH Pick]: Processing Ref: ${ref}, PaymentID: ${payId}`);
 
-  // 2) marcar paid + picks_saved=true (idempotencia)
-  await db.from('pick_transactions')
-          .update({ payment_status: 'paid', picks_saved: true })
-          .eq('id', tx.id);
+    // 1. Localizar transacción pendiente en pick_transactions
+    // ¡¡IMPORTANTE!! Esta lógica asume que ANTES de llamar a Bold desde el frontend,
+    // ya guardaste los picks del usuario en 'pick_transactions' con status 'pending'
+    // y usaste el 'order_id' de esa tabla como 'reference'/'orderId' para Bold.
+    console.log(`[Bold WH Pick]: Finding pending pick transaction with order_id: ${ref}...`);
+    const { data: tx, error: findTxErr } = await db.from('pick_transactions') // CONFIRMA tabla/columnas
+        .select('*').eq('order_id', ref).maybeSingle();
 
-  // 3) copiar a tabla picks (respetando tipos de tu esquema)
-  await db.from('picks').insert({
-    user_id      : tx.user_id,
-    gp_name      : tx.gp_name,
-    session_type : 'combined',
-    picks        : tx.picks ?? [],            // jsonb
-    multiplier   : Number(tx.multiplier ?? 0),// integer en schema
-    wager_amount : tx.wager_amount ?? 0,      // numeric(10,2)
-    potential_win: tx.potential_win ?? 0,     // numeric(10,2)
-    name         : tx.full_name,
-    mode         : tx.mode,
-    order_id     : ref
-  });
+    if (findTxErr) throw new Error(`DB Error (Find pick_transactions): ${findTxErr.message}`);
+    if (!tx) {
+        console.warn(`[Bold WH Pick]: pick_transactions con order_id ${ref} no encontrada. ¿Webhook muy rápido o error al guardar picks pendientes?`);
+        return; // Responde OK a Bold, pero no procesa. Requiere lógica adicional o revisión.
+    }
+    if (tx.payment_status === 'paid') {
+        console.info(`↩️ [Bold WH Pick]: Pick transaction ${ref} ya marcada como 'paid'. Evento duplicado.`);
+        return;
+    }
+    console.log(`[Bold WH Pick]: Found pending tx ID: ${tx.id} for User: ${tx.user_id}`);
 
-  // 4) e-mail
-  if (tx.email) {
-    fetch(`${SITE_URL}/api/send-pick-confirmation`, {
-      method : 'POST',
-      headers: { 'Content-Type':'application/json', Referer: SITE_URL },
-      body   : JSON.stringify({
-        to     : tx.email,
-        name   : tx.full_name,
-        amount : tx.wager_amount,
-        mode   : tx.mode,
-        picks  : tx.picks
-      })
-    }).catch(e => console.error('✉️  Email picks error', e));
-  }
+    // 2. Marcar como pagada en pick_transactions
+    console.log(`[Bold WH Pick]: Updating pick_transactions ${tx.id} to paid...`);
+    const { error: updateTxErr } = await db.from('pick_transactions')
+        .update({ payment_status: 'paid', bold_payment_id: payId }).eq('id', tx.id);
+    if (updateTxErr) throw new Error(`DB Error (Update pick_transactions): ${updateTxErr.message}`);
+    console.log("[Bold WH Pick]: pick_transactions marked paid.");
 
-  console.log('✅ pick procesada', ref);
+    // 3. Insertar en tabla final 'picks'
+    console.log(`[Bold WH Pick]: Inserting into picks table for user ${tx.user_id}...`);
+    const { error: insertPickErr } = await db.from('picks').insert({ // CONFIRMA tabla/columnas
+        user_id: tx.user_id, gp_name: tx.gp_name, session_type: 'combined',
+        picks: tx.picks ?? [], multiplier: Number(tx.multiplier ?? 0),
+        wager_amount: tx.wager_amount ?? 0, potential_win: tx.potential_win ?? 0,
+        name: tx.full_name, mode: tx.mode, order_id: ref,
+        pick_transaction_id: tx.id // FK a pick_transactions
+    });
+    if (insertPickErr) throw new Error(`DB Error (Insert Picks): ${insertPickErr.message}`);
+    console.log("[Bold WH Pick]: Picks inserted.");
+
+    // 4. Actualizar Wallet (si aplica - usa datos de la tx pendiente)
+    if (tx.wager_amount && tx.user_id) {
+        const mmcCoinsToAdd = Math.round(tx.wager_amount / 1000); // CONFIRMA CONVERSIÓN
+        const fuelCoinsToAdd = tx.wager_amount; // CONFIRMA CONVERSIÓN
+        console.log(`[Bold WH Pick]: Calling RPC increment_wallet_balances for user ${tx.user_id}...`);
+        const { error: rpcError } = await db.rpc('increment_wallet_balances', { // CONFIRMA RPC
+            uid: tx.user_id, mmc_amount: mmcCoinsToAdd, fuel_amount: fuelCoinsToAdd, cop_amount: tx.wager_amount
+        });
+        if (rpcError) { console.warn(`[Bold WH Pick] DB Warning (RPC Wallet ${tx.user_id}): ${rpcError.message}`); }
+        else { console.log(`[Bold WH Pick]: Wallet balances incremented for user ${tx.user_id}.`); }
+    }
+
+    // 5. Enviar Email de Confirmación de Picks
+    if (tx.email && SITE_URL) {
+        console.log(`[Bold WH Pick]: Triggering pick confirmation email to ${tx.email}...`);
+        fetch(`${SITE_URL}/api/send-pick-confirmation`, { // Necesitas esta ruta API
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }, // Sin Auth header si esa API no lo necesita
+            body: JSON.stringify({
+                to: tx.email, name: tx.full_name || 'Jugador', amount: tx.wager_amount,
+                mode: tx.mode, picks: tx.picks, orderId: ref
+            })
+        }).catch(e => console.error('✉️ [Bold WH Pick]: Failed to trigger Email API for picks:', e));
+    } else {
+        console.warn(`[Bold WH Pick]: Email not sent for pick confirmation ${ref}: Email or SITE_URL missing.`);
+    }
+
+    console.log('✅ [Bold WH Pick]: Pick transaction processed successfully for', ref);
 }
 
 // ──────────────────────────────
-// 3. Entrypoint
+// 3. Entrypoint POST Handler
 // ──────────────────────────────
 export async function POST(req: NextRequest) {
-  const raw = await req.text();
-  const sig = req.headers.get('x-bold-signature') ?? '';
+    console.log("Bold Webhook: Request received.");
+    let rawBody: string;
+    try {
+        rawBody = await req.text();
+        const sig = req.headers.get('x-bold-signature') ?? '';
 
-  if (!(await verify(sig, raw))) {
-    return new NextResponse('Bad signature', { status: 401 });
-  }
+        console.log("Bold Webhook: Verifying signature...");
+        const isValid = await verify(sig, rawBody);
+        if (!isValid) { console.warn("⚠️ Invalid Bold webhook signature."); return new NextResponse('Invalid signature', { status: 401 }); }
+        console.log("Bold Webhook: Signature verified.");
 
-  const evt = JSON.parse(raw);
-  if (evt.type !== 'SALE_APPROVED') return NextResponse.json({ ok: true });
+        const evt = JSON.parse(rawBody);
+        console.log(`Bold Webhook: Processing event type: ${evt.type}`);
 
-  try {
-    const ref: string = evt.data?.metadata?.reference ?? '';
-    if (ref.startsWith('ORDER-user_'))  await handleNumberPurchase(sb, evt.data);
-    else if (ref.startsWith('MMC-'))    await handlePickPurchase(sb, evt.data);
-    else console.warn('Referencia desconocida:', ref);
+        // Solo procesamos ventas aprobadas
+        if (evt.type !== 'SALE_APPROVED') {
+             console.log(`Bold Webhook: Event type ${evt.type} ignored.`);
+             return NextResponse.json({ ok: true, message: "Event ignored" });
+        }
 
-    return NextResponse.json({ ok: true });
-  } catch (e) {
-    console.error('🔥 Webhook error', e);
-    return new NextResponse('Internal Server Error', { status: 500 });
-  }
+        // Procesar Venta Aprobada
+        const ref: string = evt.data?.metadata?.reference ?? '';
+        if (!ref) {
+             console.warn("Bold Webhook Warning: SALE_APPROVED received without metadata.reference.");
+             return NextResponse.json({ ok: true, message: "Reference missing" }); // OK to Bold
+        }
+
+        console.log(`Bold Webhook: Routing reference: ${ref}`);
+        // --- ENRUTAMIENTO CORREGIDO ---
+        if (ref.startsWith('MM-EXTRA-')) { // <-- Busca el prefijo correcto para números extra
+            await handleNumberPurchase(sb, evt.data);
+        } else if (ref.startsWith('MMC-')) { // Asumiendo que las tx de picks usan este prefijo
+            await handlePickPurchase(sb, evt.data);
+        } else {
+            console.warn(`Bold Webhook: Referencia desconocida o inesperada: ${ref}`);
+        }
+        // --- FIN CORRECCIÓN ---
+
+        // Respondemos OK a Bold si no hubo error CRÍTICO antes de este punto
+        // Los errores dentro de los handlers se loguean pero intentamos responder OK
+        return NextResponse.json({ ok: true, message: "Webhook received and processed/routed." });
+
+    } catch (e) {
+        // Captura errores de: verify, JSON.parse, o errores lanzados por los handlers
+        console.error('❌ Bold Webhook Error:', e instanceof Error ? e.message : e);
+        // IMPORTANTE: Considera si devolver 500 o 200 aquí.
+        // 200 evita reintentos de Bold si ya logueaste la tx o sabes que no se puede procesar.
+        // 500 podría ser apropiado si fue un error temporal de tu lado ANTES de hacer cambios en DB.
+        // Por seguridad ante procesamiento parcial, devolvemos 200 con error logueado.
+        return NextResponse.json({ ok: false, error: "Internal processing error occurred." }, { status: 200 });
+    }
 }
