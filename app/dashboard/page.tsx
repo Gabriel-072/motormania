@@ -285,5 +285,3 @@ const SkeletonLoader = ({ count = 5 }: { count?: number }) => (
     </div>
   );
 }
-
-// Remember to copy the actual JSX for F1, MMC-GO sections if truncated above

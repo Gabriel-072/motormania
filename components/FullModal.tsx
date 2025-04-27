@@ -47,7 +47,7 @@ const FullModal: React.FC<FullModalProps> = ({ isOpen, onClose }) => {
   const { user } = useUser();
 
   // estado local
-  const [amount, setAmount]             = useState(10000);
+  const [amount, setAmount]             = useState(2000);
   const [mode, setMode]                 = useState<'full' | 'safety'>('full');
   const [error, setError]               = useState<string | null>(null);
   const [isValid, setIsValid]           = useState(false);
@@ -67,7 +67,7 @@ const FullModal: React.FC<FullModalProps> = ({ isOpen, onClose }) => {
     else if (totalPicks > 8) msg = 'Máximo 8 picks por jugada';
     else if (combinedPicks.some(p => !p.betterOrWorse))
       msg = 'Completa todos tus picks (Mejor/Peor)';
-    else if (amount < 10000) msg = 'Monto mínimo $10.000 COP';
+    else if (amount < 2000) msg = 'Monto mínimo $2.000 COP';
     else if (mode === 'safety' && totalPicks < 3)
       msg = 'Modo Safety requiere 3+ picks';
     setError(msg);
@@ -257,7 +257,7 @@ const FullModal: React.FC<FullModalProps> = ({ isOpen, onClose }) => {
                     type="number"
                     value={amount || ''}
                     onChange={e=>setAmount(Math.max(0, parseInt(e.target.value)||0))}
-                    min={10000} step={1000}
+                    min={2000} step={1000}
                     placeholder="Monto (min $10.000)"
                     className="w-full py-2.5 px-4 pl-7 rounded-lg bg-gray-700/60 border border-gray-600/80 text-white font-semibold text-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
                   />
