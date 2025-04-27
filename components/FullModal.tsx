@@ -20,7 +20,7 @@ const FullModal: React.FC<FullModalProps> = ({ isOpen, onClose }) => {
   const { picks, setQualyPicks, setRacePicks } = useStickyStore();
   const { user } = useUser();
   const { getToken } = useAuth();
-  const [amount, setAmount] = useState<number>(10000);
+  const [amount, setAmount] = useState<number>(1000);
   const [mode, setMode] = useState<'full' | 'safety'>('full');
   const [error, setError] = useState<string | null>(null);
   const [isValid, setIsValid] = useState<boolean>(false);
@@ -38,7 +38,7 @@ const FullModal: React.FC<FullModalProps> = ({ isOpen, onClose }) => {
     if (totalPicks < 2) msg = 'Elige al menos 2 picks';
     else if (totalPicks > 8) msg = 'Máximo 8 picks por jugada';
     else if (combinedPicks.some((p) => !p.betterOrWorse)) msg = 'Completa todos tus picks (Mejor/Peor)';
-    else if (amount < 10000) msg = 'Monto mínimo $10.000 COP';
+    else if (amount < 2000) msg = 'Monto mínimo $2.000 COP';
 
     setError(msg);
     setIsValid(!msg);
@@ -89,6 +89,21 @@ const FullModal: React.FC<FullModalProps> = ({ isOpen, onClose }) => {
       if (!orderId || !amtStr || !callbackUrl || !integrityKey) {
         throw new Error('Respuesta inválida del servidor para iniciar el pago.');
       }
+
+      await fetch('/api/transactions/register-pick-transaction', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          fullName: user.fullName || 'Jugador MMC',
+          orderId,
+          gpName: combinedPicks[0]?.gp_name || 'GP Desconocido',
+          wagerAmount: amount,
+        }),
+      }).catch((err) => {
+        console.error('❌ Error registering pick transaction:', err);
+        // Nota: aún así permitimos que siga el checkout
+      });
 
       openBoldCheckout({
         apiKey: process.env.NEXT_PUBLIC_BOLD_BUTTON_KEY!,
@@ -265,7 +280,7 @@ const FullModal: React.FC<FullModalProps> = ({ isOpen, onClose }) => {
                     setAmount(val === '' ? 0 : Math.max(0, parseInt(val) || 0));
                   }}
                   placeholder="Monto (min $10.000)"
-                  min="10000"
+                  min="2000"
                   step="1000"
                   className={`${amountInputClasses} pl-7`}
                 />

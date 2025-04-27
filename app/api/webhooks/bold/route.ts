@@ -3,158 +3,191 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 🔐 Env Vars
-// ─────────────────────────────────────────────────────────────────────────────
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const boldWebhookSecret = process.env.BOLD_SECRET_KEY!;
-const appUrl = process.env.NEXT_PUBLIC_SITE_URL!;
-const EXTRA_NUMBER_COUNT = 5;
+// ──────────────────────────────────────────────────────────────────────────
+// 🔐 ENV VARS
+// ──────────────────────────────────────────────────────────────────────────
+const supabaseUrl         = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseServiceKey  = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const boldWebhookSecret   = process.env.BOLD_SECRET_KEY!;
+const siteUrl             = process.env.NEXT_PUBLIC_SITE_URL!;
+const EXTRA_NUMBER_COUNT  = 5;                           // números que vendes
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 📦 Supabase Client (Service Role)
-// ─────────────────────────────────────────────────────────────────────────────
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+// ──────────────────────────────────────────────────────────────────────────
+// 📦 SUPABASE (service-role)
+// ──────────────────────────────────────────────────────────────────────────
+const sb = createClient(supabaseUrl, supabaseServiceKey);
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ✅ Verify Bold webhook signature (Base64-encoded body)
-// ─────────────────────────────────────────────────────────────────────────────
-async function verifyBoldSignature(signature: string, rawBody: string): Promise<boolean> {
+// ──────────────────────────────────────────────────────────────────────────
+// 🔎 VERIFY SIGNATURE
+// ──────────────────────────────────────────────────────────────────────────
+async function verifyBoldSignature(sig: string, raw: string): Promise<boolean> {
   try {
-    // 1) Encode raw payload to Base64
-    const encoded = Buffer.from(rawBody).toString('base64');
-    // 2) Compute HMAC-SHA256 over the Base64 string
-    const expectedSignature = crypto
+    const bodyB64 = Buffer.from(raw).toString('base64');
+    const expected = crypto
       .createHmac('sha256', boldWebhookSecret)
-      .update(encoded)
+      .update(bodyB64)
       .digest('hex');
 
-    const isValid = crypto.timingSafeEqual(
-      Buffer.from(signature, 'hex'),
-      Buffer.from(expectedSignature, 'hex')
-    );
-
-    console.log('🔐 Bold signature verification:', { isValid, signature, expectedSignature });
-    return isValid;
-  } catch (error) {
-    console.error('❌ Signature verification error:', error);
+    const ok = crypto.timingSafeEqual(Buffer.from(sig, 'hex'), Buffer.from(expected, 'hex'));
+    console.log('🔐 Signature check →', ok);
+    return ok;
+  } catch (e) {
+    console.error('❌ Signature check failed:', e);
     return false;
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 🔢 Generate unique 6-digit numbers
-// ─────────────────────────────────────────────────────────────────────────────
-async function generateUniqueNumbers(existing: string[], count: number): Promise<string[]> {
-  const newNums: string[] = [];
+// ──────────────────────────────────────────────────────────────────────────
+// 🛠 HELPERS
+// ──────────────────────────────────────────────────────────────────────────
+async function generateUniqueNumbers(existing: string[], n: number): Promise<string[]> {
   const pool = new Set(existing);
-  while (newNums.length < count) {
-    const num = Math.floor(100000 + Math.random() * 900000).toString();
-    if (!pool.has(num)) {
-      pool.add(num);
-      newNums.push(num);
-    }
+  const out: string[] = [];
+  while (out.length < n) {
+    const num = Math.floor(100_000 + Math.random() * 900_000).toString();
+    if (!pool.has(num)) { pool.add(num); out.push(num); }
   }
-  return newNums;
+  return out;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 💰 Process SALE_APPROVED events
-// ─────────────────────────────────────────────────────────────────────────────
-async function processApprovedSale(db: SupabaseClient, data: any) {
-  console.log('🎟️ Processing SALE_APPROVED:', JSON.stringify(data, null, 2));
+// ──────────────────────────────────────────────────────────────────────────
+// 📍 1)  EXTRA-NUMBERS FLOW  (ORDER-user_<id>-…)
+// ──────────────────────────────────────────────────────────────────────────
+async function handleNumberPurchase(db: SupabaseClient, data: any) {
   const { payment_id, amount, metadata } = data;
   const reference = metadata?.reference as string;
-  const total = amount?.total as number;
-  if (!payment_id || !reference || typeof total !== 'number') {
-    throw new Error(`Invalid payload: ${JSON.stringify(data)}`);
-  }
+  const total     = amount?.total      as number;
 
-  // Extract userId from reference: e.g. 'ORDER-user_<id>-<ts>'
+  // Idempotencia por descripción
+  const desc = `Compra de ${EXTRA_NUMBER_COUNT} números extra via Bold (Ref:${reference}, BoldID:${payment_id})`;
+
+  // Si ya existe, salimos
+  const { data: already } = await db.from('transactions').select('id').eq('description', desc).maybeSingle();
+  if (already) { console.info('⚠️ Repeated number-purchase:', reference); return; }
+
+  // Parsear userId dentro del reference
   const m = reference.match(/user_[A-Za-z0-9]+/);
   const userId = m?.[0];
-  if (!userId) throw new Error(`Cannot parse userId from reference ${reference}`);
+  if (!userId) throw new Error(`No userId in reference ${reference}`);
 
-  // Ensure user exists
-  const { data: userRec } = await db.from('clerk_users').select('clerk_id').eq('clerk_id', userId).maybeSingle();
-  if (!userRec) throw new Error(`User not found: ${userId}`);
-
-  // Idempotency: check existing transaction
-  const description = `Compra de ${EXTRA_NUMBER_COUNT} números extra via Bold (Ref: ${reference}, BoldID: ${payment_id})`;
-  const { data: existingTx } = await db.from('transactions').select('id').eq('description', description).maybeSingle();
-  if (existingTx) {
-    console.info('⚠️ Transaction already processed:', description);
-    return;
-  }
-
-  // Record transaction
+  // 1. Registrar transacción
   const { error: txErr } = await db.from('transactions').insert({
-    user_id: userId,
-    type: 'recarga',
-    amount: total,
-    description,
+    user_id: userId, type: 'recarga', amount: total, description: desc
   });
   if (txErr) throw txErr;
 
-  // Update entries
-  const { data: entry } = await db.from('entries').select('numbers, paid_numbers_count').eq('user_id', userId).maybeSingle();
-  const existingNums = entry?.numbers || [];
-  const newNums = await generateUniqueNumbers(existingNums, EXTRA_NUMBER_COUNT);
-  const updated = [...existingNums, ...newNums];
-  const paidCount = (entry?.paid_numbers_count || 0) + EXTRA_NUMBER_COUNT;
+  // 2. Actualizar tabla entries
+  const { data: entry } = await db.from('entries')
+    .select('numbers, paid_numbers_count')
+    .eq('user_id', userId).maybeSingle();
 
-  const { error: upErr } = await db.from('entries').upsert({
-    user_id: userId,
-    numbers: updated,
-    paid_numbers_count: paidCount,
-  }, { onConflict: 'user_id' });
-  if (upErr) throw upErr;
+  const existing = entry?.numbers ?? [];
+  const newNums  = await generateUniqueNumbers(existing, EXTRA_NUMBER_COUNT);
+  const merged   = [...existing, ...newNums];
+  const paidCnt  = (entry?.paid_numbers_count ?? 0) + EXTRA_NUMBER_COUNT;
 
-  // Fetch user email
-  const { data: userInfo } = await db.from('clerk_users').select('email, full_name').eq('clerk_id', userId).maybeSingle();
-  const to = userInfo?.email;
-  if (to) {
-    // Notify via email
-    await fetch(`${appUrl}/api/send-numbers-confirmation`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Referer: appUrl },
-      body: JSON.stringify({
-        to,
-        name: userInfo.full_name || 'Usuario',
+  const { error: entErr } = await db.from('entries')
+    .upsert({ user_id: userId, numbers: merged, paid_numbers_count: paidCnt },
+            { onConflict: 'user_id' });
+  if (entErr) throw entErr;
+
+  // 3. Email de confirmación
+  const { data: uInfo } = await db.from('clerk_users')
+    .select('email, full_name').eq('clerk_id', userId).maybeSingle();
+
+  if (uInfo?.email) {
+    await fetch(`${siteUrl}/api/send-numbers-confirmation`, {
+      method : 'POST',
+      headers: { 'Content-Type': 'application/json', Referer: siteUrl },
+      body   : JSON.stringify({
+        to: uInfo.email,
+        name: uInfo.full_name || 'Usuario',
         numbers: newNums,
         context: 'compra',
         orderId: reference,
-        amount: total,
-      }),
-    }).catch(e => console.error('❌ Email error:', e));
+        amount : total
+      })
+    }).catch(e => console.error('✉️  Email error:', e));
   }
 
-  console.log('✅ SALE_APPROVED processed:', payment_id);
+  console.log('✅ Números extra procesados:', reference);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 📬 Webhook entrypoint
-// ─────────────────────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────────────────
+// 📍 2)  PICK-TRANSACTION FLOW  (MMC-…)
+// ──────────────────────────────────────────────────────────────────────────
+async function handlePickPurchase(db: SupabaseClient, data: any) {
+  const reference = data.metadata?.reference as string;   // = orderId que envías
+  if (!reference) throw new Error('Missing order reference for pick');
+
+  // Buscar la transacción “pendiente”
+  const { data: pickTx, error } = await db
+    .from('pick_transactions')
+    .select('*')
+    .eq('order_id', reference)
+    .maybeSingle();
+
+  if (error)  throw error;
+  if (!pickTx) {
+    console.warn('⚠️ pick_transactions no encontrada →', reference);
+    return; // ignoramos, no rompemos el webhook
+  }
+  if (pickTx.payment_status === 'paid') {
+    console.info('⚠️ Pick transaction ya pagada:', reference);
+    return;
+  }
+
+  // 1.  Marcar como paid
+  const { error: updErr } = await db
+    .from('pick_transactions')
+    .update({ payment_status: 'paid' })
+    .eq('id', pickTx.id);
+  if (updErr) throw updErr;
+
+  // 2.  Crear registro definitivo en picks
+  const { error: picksErr } = await db.from('picks').insert({
+    user_id      : pickTx.user_id,
+    gp_name      : pickTx.gp_name,
+    session_type : 'combined',
+    picks        : [],             // (si quieres guardar picks reales cámbialo)
+    multiplier   : 0,
+    wager_amount : pickTx.wager_amount,
+    potential_win: 0,
+    name         : pickTx.full_name,
+    mode         : 'Full Throttle',
+    order_id     : reference
+  });
+  if (picksErr) throw picksErr;
+
+  console.log('✅ Pick registrada:', reference);
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// 📬  MAIN HANDLER
+// ──────────────────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   try {
-    const rawBody = await req.text();
-    const sig = req.headers.get('x-bold-signature') || '';
-    console.log('📩 Webhook received:', { sig, len: rawBody.length });
-
-    if (!(await verifyBoldSignature(sig, rawBody))) {
-      console.warn('❌ Invalid signature');
+    const raw = await req.text();
+    const sig = req.headers.get('x-bold-signature') ?? '';
+    if (!(await verifyBoldSignature(sig, raw))) {
       return new NextResponse('Unauthorized', { status: 401 });
     }
 
-    const evt = JSON.parse(rawBody);
-    if (evt.type === 'SALE_APPROVED') {
-      await processApprovedSale(supabase, evt.data);
+    const evt = JSON.parse(raw);
+    if (evt.type !== 'SALE_APPROVED') return new NextResponse('OK');
+
+    const ref: string = evt.data?.metadata?.reference ?? '';
+    if (ref.startsWith('ORDER-user_')) {
+      await handleNumberPurchase(sb, evt.data);
+    } else if (ref.startsWith('MMC-')) {
+      await handlePickPurchase(sb, evt.data);
+    } else {
+      console.warn('⚠️ Webhook con referencia desconocida:', ref);
     }
 
-    return new NextResponse('OK', { status: 200 });
+    return new NextResponse('OK');
   } catch (err) {
-    console.error('🔥 Webhook handler error:', err);
+    console.error('🔥 Webhook error:', err);
     return new NextResponse('Internal Server Error', { status: 500 });
   }
 }
