@@ -208,14 +208,23 @@ async function handlePickPurchase(db: SupabaseClient, data: any) {
     console.log("[Bold WH Pick]: Picks inserted.");
 
     if (tx.wager_amount && tx.user_id) {
-        const mmcCoinsToAdd = Math.round(tx.wager_amount / 1000);
-        const fuelCoinsToAdd = tx.wager_amount;
-        console.log(`[Bold WH Pick]: Calling RPC increment_wallet_balances for user ${tx.user_id}...`);
-        const { error: rpcError } = await db.rpc('increment_wallet_balances', {
-            uid: tx.user_id, mmc_amount: mmcCoinsToAdd, fuel_amount: fuelCoinsToAdd, cop_amount: tx.wager_amount
-        });
-        if (rpcError) { console.warn(`[Bold WH Pick] DB Warning (RPC Wallet ${tx.user_id}): ${rpcError.message}`); }
-        else { console.log(`[Bold WH Pick]: Wallet balances incremented for user ${tx.user_id}.`); }
+      const mmcCoinsToAdd  = Math.round(tx.wager_amount / 1000);   // numeric
+      const fuelCoinsToAdd = tx.wager_amount;                      // numeric
+      const copInt         = Math.round(Number(tx.wager_amount));  // integer ✅
+    
+      console.log(`[Bold WH Pick]: Calling RPC increment_wallet_balances for user ${tx.user_id}…`);
+      const { error: rpcError } = await db.rpc('increment_wallet_balances', {
+        uid:         tx.user_id,
+        mmc_amount:  mmcCoinsToAdd,
+        fuel_amount: fuelCoinsToAdd,
+        cop_amount:  copInt          // ← ahora INTEGER
+      });
+    
+      if (rpcError) {
+        console.warn(`[Bold WH Pick] DB Warning (RPC Wallet ${tx.user_id}): ${rpcError.message}`);
+      } else {
+        console.log(`[Bold WH Pick]: Wallet balances incremented for user ${tx.user_id}.`);
+      }
     }
 
     if (tx.email && SITE_URL) {
