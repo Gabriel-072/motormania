@@ -1,298 +1,234 @@
 // 📁 app/api/webhooks/bold/route.ts
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import crypto from 'crypto';
+import { NextRequest, NextResponse }       from 'next/server';
+import { createClient, SupabaseClient }    from '@supabase/supabase-js';
+import crypto                              from 'crypto';
+import { Resend }                          from 'resend';
 
-// ──────────────────────────────
-// 🔐 ENV & Clients
-// ──────────────────────────────
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const BOLD_WEBHOOK_SECRET = process.env.BOLD_WEBHOOK_SECRET_KEY;
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL;
-const INTERNAL_KEY = process.env.INTERNAL_API_KEY;
+// ─── ENV ─────────────────────────────────────────────────────────────────
+const supabaseUrl        = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const BOLD_WEBHOOK_SECRET= process.env.BOLD_WEBHOOK_SECRET_KEY!;
+const SITE_URL           = process.env.NEXT_PUBLIC_SITE_URL!;
+const INTERNAL_KEY       = process.env.INTERNAL_API_KEY!;
+const RESEND_API_KEY     = process.env.RESEND_API_KEY!;
 
-// --- Startup Checks ---
-if (!supabaseUrl || !supabaseServiceKey) {
-    console.error("FATAL ERROR: Supabase Env Vars missing for Bold Webhook.");
-}
-if (!BOLD_WEBHOOK_SECRET) {
-    console.error("FATAL ERROR: BOLD_WEBHOOK_SECRET_KEY env var is not set.");
-}
-if (!SITE_URL) {
-    console.error("FATAL ERROR: NEXT_PUBLIC_SITE_URL env var is not set.");
-}
-if (!INTERNAL_KEY) {
-    console.error("FATAL ERROR: INTERNAL_API_KEY env var is not set.");
-}
+// ­-- instancias
+const sb     = createClient(supabaseUrl, supabaseServiceKey);
+const resend = new Resend(RESEND_API_KEY);
 
-// Inicializa cliente Supabase con Service Role Key
-const sb = createClient(supabaseUrl!, supabaseServiceKey!);
-
-// --- Constantes ---
-const EXTRA_COUNT = 5;
+// ─── CONSTANTES ─────────────────────────────────────────────────────────
+const EXTRA_COUNT   = 5;
 const SUPPORT_EMAIL = 'soporte@motormaniacolombia.com';
+const FROM_EMAIL    = 'MotorMania <noreply@motormaniacolombia.com>';
 
-// ──────────────────────────────
-// 1. Signature check Helper
-// ──────────────────────────────
-async function verify(sig: string, raw: string): Promise<boolean> {
-    if (!BOLD_WEBHOOK_SECRET) {
-        console.error("BOLD_WEBHOOK_SECRET_KEY not configured.");
-        return false;
-    }
-    try {
-        const bodyB64 = Buffer.from(raw).toString('base64');
-        const expected = crypto
-            .createHmac('sha256', BOLD_WEBHOOK_SECRET)
-            .update(bodyB64)
-            .digest('hex');
-        const sigBuffer = Buffer.from(sig, 'hex');
-        const expectedBuffer = Buffer.from(expected, 'hex');
-        if (sigBuffer.length !== expectedBuffer.length) {
-            return false;
-        }
-        return crypto.timingSafeEqual(sigBuffer, expectedBuffer);
-    } catch (error) {
-        console.error("Error during Bold signature verification:", error);
-        return false;
-    }
+// ─── TOOLS ──────────────────────────────────────────────────────────────
+function verify(sig: string, raw: string): boolean {
+  const bodyB64  = Buffer.from(raw).toString('base64');
+  const expected = crypto
+    .createHmac('sha256', BOLD_WEBHOOK_SECRET)
+    .update(bodyB64)
+    .digest('hex');
+
+  try {
+    return crypto.timingSafeEqual(Buffer.from(sig, 'hex'), Buffer.from(expected, 'hex'));
+  } catch {
+    return false;
+  }
 }
 
-// ──────────────────────────────
-// Utils
-// ──────────────────────────────
-async function uniqueSix(existing: string[], n: number): Promise<string[]> {
-    const pool = new Set(existing);
-    const out: string[] = [];
-    let attempts = 0;
-    while (out.length < n && attempts < (n * 100)) {
-        const v = Math.floor(100_000 + Math.random() * 900_000).toString();
-        if (!pool.has(v)) { pool.add(v); out.push(v); }
-        attempts++;
+async function uniqueSix(existing: string[], n: number) {
+  const pool = new Set(existing);
+  const out: string[] = [];
+  while (out.length < n) {
+    const num = Math.floor(100_000 + Math.random() * 900_000).toString();
+    if (!pool.has(num)) {
+      pool.add(num);
+      out.push(num);
     }
-    if (out.length < n) { console.warn(`uniqueSix: Could only generate ${out.length}/${n} unique numbers.`); }
-    return out;
+  }
+  return out;
 }
 
-// ──────────────────────────────
-// 2-A. Compra de NÚMEROS EXTRA Handler
-// ──────────────────────────────
+// ─── HANDLER: COMPRA DE NÚMEROS EXTRA ───────────────────────────────────
 async function handleNumberPurchase(db: SupabaseClient, data: any) {
-    console.log("[Bold WH]: Handling Number Purchase...");
-    const ref = data.metadata?.reference as string;
-    const total = data.amount?.total as number;
-    const payId = data.payment_id as string;
+  console.log('[Bold WH] Number purchase flow');
+  const ref   = data.metadata?.reference as string;
+  const total = data.amount?.total       as number;
+  const payId = data.payment_id          as string;
 
-    if (!ref || total === undefined || !payId) {
-        throw new Error('Datos incompletos en webhook para compra de números extra.');
-    }
+  if (!ref || total === undefined || !payId) throw new Error('Datos incompletos');
 
-    let userId: string | null = null;
-    try {
-        const parts = ref.split('-');
-        if (parts.length === 4 && parts[0] === 'MM' && parts[1] === 'EXTRA' && parts[2].startsWith('user_')) {
-            userId = parts[2];
-        } else {
-            throw new Error(`Formato inesperado`);
-        }
-    } catch (e) {
-        throw new Error(`No se pudo parsear userId de la referencia "${ref}": ${e instanceof Error ? e.message : e}`);
-    }
-    if (!userId) throw new Error('UserId inválido o no extraído de la referencia.');
+  // userId desde referencia MM-EXTRA-user_xxx-TIMESTAMP
+  const parts = ref.split('-');
+  if (parts.length !== 4 || parts[0] !== 'MM' || parts[1] !== 'EXTRA')
+    throw new Error('Formato referencia inesperado');
 
-    console.log(`[Bold WH Num]: UserID=${userId}, PaymentID=${payId}, Ref=${ref}`);
+  const userId = parts[2]; // user_xxx
+  console.log(`[Bold WH Num] user=${userId} ref=${ref}`);
 
-    const desc = `Compra de ${EXTRA_COUNT} números extra via Bold (Ref: ${ref}, BoldID:${payId})`;
-    console.log("[Bold WH Num]: Checking idempotency...");
-    const { data: exists, error: checkErr } = await db.from('transactions').select('id')
-        .eq('description', desc).limit(1).maybeSingle();
-    if (checkErr) throw new Error(`DB Error (Idempotency check): ${checkErr.message}`);
-    if (exists) { console.info(`↩️ [Bold WH Num]: Transacción ya procesada (Idempotencia): ${ref}`); return; }
+  // idempotencia
+  const desc = `Compra de ${EXTRA_COUNT} números extra via Bold (Ref:${ref}, BoldID:${payId})`;
+  const { data: already } = await db.from('transactions')
+    .select('id').eq('description', desc).maybeSingle();
+  if (already) { console.info('↩️ ya procesado'); return; }
 
-    console.log(`[Bold WH Num]: Inserting into transactions for ${userId}...`);
-    const { error: txErr } = await db.from('transactions').insert({ user_id: userId, type: 'recarga', amount: total, description: desc });
-    if (txErr?.code === '23503') { console.error(`[Bold WH Num] DB Error: User ID ${userId} no existe en clerk_users.`); throw txErr; }
-    else if (txErr) throw new Error(`DB Error (Insert Transaction): ${txErr.message}`);
-    console.log("[Bold WH Num]: Transaction logged.");
+  // 1. registrar transacción
+  await db.from('transactions').insert({
+    user_id: userId, type: 'recarga', amount: total, description: desc
+  });
 
-    console.log(`[Bold WH Num]: Fetching entries for ${userId}...`);
-    const { data: entry, error: entryErr } = await db.from('entries').select('numbers, paid_numbers_count').eq('user_id', userId).maybeSingle();
-    if (entryErr) throw new Error(`DB Error (Fetch Entry): ${entryErr.message}`);
-    if (!entry) throw new Error(`Usuario ${userId} no encontrado en entries.`);
+  // 2. generar números y actualizar entries
+  const { data: entry } = await db.from('entries')
+    .select('numbers, paid_numbers_count').eq('user_id', userId).maybeSingle();
+  if (!entry) throw new Error('Entry no encontrado');
 
-    console.log(`[Bold WH Num]: Generating ${EXTRA_COUNT} unique numbers...`);
-    const existingNumbers = entry.numbers ?? [];
-    const newNumbers = await uniqueSix(existingNumbers, EXTRA_COUNT);
-    const merged = [...existingNumbers, ...newNumbers];
-    const newPaidCount = (entry.paid_numbers_count ?? 0) + EXTRA_COUNT;
+  const newNums = await uniqueSix(entry.numbers ?? [], EXTRA_COUNT);
+  await db.from('entries').upsert({
+    user_id: userId,
+    numbers: [...(entry.numbers ?? []), ...newNums],
+    paid_numbers_count: (entry.paid_numbers_count ?? 0) + EXTRA_COUNT
+  }, { onConflict: 'user_id' });
 
-    console.log(`[Bold WH Num]: Upserting entries for ${userId}...`);
-    const { error: upsertErr } = await db.from('entries').upsert({
-        user_id: userId, numbers: merged, paid_numbers_count: newPaidCount
-    }, { onConflict: 'user_id' });
-    if (upsertErr) throw new Error(`DB Error (Upsert Entry): ${upsertErr.message}`);
-    console.log("[Bold WH Num]: Entries updated.");
+  // 3. email al usuario (vía tu ruta interna existente)
+  const { data: userRow } = await db.from('clerk_users')
+    .select('email, full_name').eq('clerk_id', userId).maybeSingle();
 
-    console.log(`[Bold WH Num]: Fetching email for ${userId}...`);
-    const { data: u, error: userFetchErr } = await db.from('clerk_users').select('email, full_name').eq('clerk_id', userId).maybeSingle();
-    if (userFetchErr) { console.warn(`[Bold WH Num]: Could not fetch user email (User: ${userId}): ${userFetchErr.message}`); }
-
-    if (u?.email && SITE_URL) {
-        console.log(`[Bold WH Num]: Triggering confirmation email to ${u.email}...`);
-        fetch(`${SITE_URL}/api/send-numbers-confirmation`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-internal-key': INTERNAL_KEY!
-            },
-            body: JSON.stringify({
-                to: u.email,
-                name: u.full_name || 'Usuario',
-                numbers: newNumbers,
-                context: 'compra',
-                orderId: ref,
-                amount: total
-            })
-        }).catch(e => console.error('✉️ [Bold WH Num]: Failed to trigger Email API:', e));
-    } else {
-        console.warn(`[Bold WH Num]: Email not sent for ${userId}: Email address or SITE_URL missing.`);
-    }
-
-    console.log('✅ [Bold WH Num]: Extra numbers processed successfully for', ref);
+  if (userRow?.email) {
+    fetch(`${SITE_URL}/api/send-numbers-confirmation`, {
+      method : 'POST',
+      headers: {
+        'Content-Type' : 'application/json',
+        'x-internal-key': INTERNAL_KEY
+      },
+      body   : JSON.stringify({
+        to: userRow.email,
+        name: userRow.full_name || 'Usuario',
+        numbers: newNums,
+        context: 'compra',
+        orderId: ref,
+        amount : total
+      })
+    }).catch(e => console.error('✉️ num-email error', e));
+  }
+  console.log('✅ Números extra procesados');
 }
 
-// ──────────────────────────────
-// 2-B. Compra de PICKS (MMC-GO) Handler
-// ──────────────────────────────
+// ─── HANDLER: COMPRA DE PICKS MMC-GO ────────────────────────────────────
 async function handlePickPurchase(db: SupabaseClient, data: any) {
-    console.log("[Bold WH]: Handling Pick Purchase...");
-    const ref = data.metadata?.reference as string;
-    const payId = data.payment_id as string;
+  console.log('[Bold WH] Pick purchase flow');
+  const ref   = data.metadata?.reference as string;
+  const payId = data.payment_id          as string;
+  if (!ref || !payId) throw new Error('Referencia/payId faltante');
 
-    if (!ref) throw new Error('Referencia (orderId) faltante en webhook de compra de picks.');
-    if (!payId) throw new Error('Payment ID de Bold faltante.');
+  // 1. localizar transacción pendiente
+  const { data: tx } = await db
+    .from('pick_transactions').select('*').eq('order_id', ref).maybeSingle();
+  if (!tx) { console.warn('pick_transactions no encontrada'); return; }
+  if (tx.payment_status === 'paid') { console.info('pick ya pagada'); return; }
 
-    console.log(`[Bold WH Pick]: Processing Ref: ${ref}, PaymentID: ${payId}`);
+  // 2. marcar pagada
+  await db.from('pick_transactions')
+    .update({ payment_status: 'paid', bold_payment_id: payId })
+    .eq('id', tx.id);
 
-    console.log(`[Bold WH Pick]: Finding pending pick transaction with order_id: ${ref}...`);
-    const { data: tx, error: findTxErr } = await db.from('pick_transactions')
-        .select('*').eq('order_id', ref).maybeSingle();
+  // 3. mover a tabla picks
+  await db.from('picks').insert({
+    user_id           : tx.user_id,
+    gp_name           : tx.gp_name,
+    session_type      : 'combined',
+    picks             : tx.picks ?? [],
+    multiplier        : Number(tx.multiplier ?? 0),
+    wager_amount      : tx.wager_amount ?? 0,
+    potential_win     : tx.potential_win ?? 0,
+    name              : tx.full_name,
+    mode              : tx.mode,
+    order_id          : ref,
+    pick_transaction_id: tx.id
+  });
 
-    if (findTxErr) throw new Error(`DB Error (Find pick_transactions): ${findTxErr.message}`);
-    if (!tx) {
-        console.warn(`[Bold WH Pick]: pick_transactions con order_id ${ref} no encontrada. ¿Webhook muy rápido o error al guardar picks pendientes?`);
-        return;
-    }
-    if (tx.payment_status === 'paid') {
-        console.info(`↩️ [Bold WH Pick]: Pick transaction ${ref} ya marcada como 'paid'. Evento duplicado.`);
-        return;
-    }
-    console.log(`[Bold WH Pick]: Found pending tx ID: ${tx.id} for User: ${tx.user_id}`);
-
-    console.log(`[Bold WH Pick]: Updating pick_transactions ${tx.id} to paid...`);
-    const { error: updateTxErr } = await db.from('pick_transactions')
-        .update({ payment_status: 'paid', bold_payment_id: payId }).eq('id', tx.id);
-    if (updateTxErr) throw new Error(`DB Error (Update pick_transactions): ${updateTxErr.message}`);
-    console.log("[Bold WH Pick]: pick_transactions marked paid.");
-
-    console.log(`[Bold WH Pick]: Inserting into picks table for user ${tx.user_id}...`);
-    const { error: insertPickErr } = await db.from('picks').insert({
-        user_id: tx.user_id, gp_name: tx.gp_name, session_type: 'combined',
-        picks: tx.picks ?? [], multiplier: Number(tx.multiplier ?? 0),
-        wager_amount: tx.wager_amount ?? 0, potential_win: tx.potential_win ?? 0,
-        name: tx.full_name, mode: tx.mode, order_id: ref,
-        pick_transaction_id: tx.id
+  // 4. wallet
+  if (tx.wager_amount) {
+    const mmc  = Math.round(tx.wager_amount / 1000);
+    const fuel = tx.wager_amount;
+    const cop  = Math.round(Number(tx.wager_amount));
+    const { error: rpcErr } = await db.rpc('increment_wallet_balances', {
+      uid: tx.user_id, mmc_amount: mmc, fuel_amount: fuel, cop_amount: cop
     });
-    if (insertPickErr) throw new Error(`DB Error (Insert Picks): ${insertPickErr.message}`);
-    console.log("[Bold WH Pick]: Picks inserted.");
+    if (rpcErr) console.warn('RPC wallet error', rpcErr.message);
+  }
 
-    if (tx.wager_amount && tx.user_id) {
-      const mmcCoinsToAdd  = Math.round(tx.wager_amount / 1000);   // numeric
-      const fuelCoinsToAdd = tx.wager_amount;                      // numeric
-      const copInt         = Math.round(Number(tx.wager_amount));  // integer ✅
-    
-      console.log(`[Bold WH Pick]: Calling RPC increment_wallet_balances for user ${tx.user_id}…`);
-      const { error: rpcError } = await db.rpc('increment_wallet_balances', {
-        uid:         tx.user_id,
-        mmc_amount:  mmcCoinsToAdd,
-        fuel_amount: fuelCoinsToAdd,
-        cop_amount:  copInt          // ← ahora INTEGER
+  // 5. e-mail con Resend (directo)
+  if (tx.email) {
+    try {
+      const subject = `✅ Tus Picks de MMC-GO (${ref.slice(-6)}) ¡Confirmados!`;
+      const picksHtml = (tx.picks ?? []).map((p: any) => `
+        <li style="margin-bottom:6px">
+          <strong>${p.driver}</strong>
+          <span style="color:#6b7280;font-size:12px">
+            (${p.session_type === 'qualy' ? 'Q' : 'R'} ${p.line.toFixed(1)})
+          </span>
+          <span style="float:right;font-weight:bold;color:${p.betterOrWorse === 'mejor' ? '#16a34a' : '#dc2626'}">
+            ${p.betterOrWorse?.toUpperCase()}
+          </span>
+        </li>`).join('');
+
+      const html = `
+        <div style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto">
+          <h2 style="color:#8b5cf6;text-align:center">¡Jugada Confirmada, ${tx.full_name || 'Jugador'}!</h2>
+          <p style="text-align:center">Referencia: <strong>${ref}</strong></p>
+          <p style="text-align:center">Monto: <strong>${
+            Intl.NumberFormat('es-CO', { style:'currency', currency:'COP', minimumFractionDigits:0 })
+              .format(tx.wager_amount || 0)
+          }</strong></p>
+          <ul style="list-style:none;padding:0">${picksHtml}</ul>
+          <p style="text-align:center;margin-top:24px">
+            <a href="${SITE_URL}/dashboard" style="background:#8b5cf6;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none">Ver Dashboard</a>
+          </p>
+          <hr style="margin-top:30px;border:none;border-top:1px solid #eee">
+          <p style="font-size:12px;color:#999;text-align:center">
+            MotorManía • Bogotá, CO • <a href="mailto:${SUPPORT_EMAIL}" style="color:#999">${SUPPORT_EMAIL}</a>
+          </p>
+        </div>`;
+
+      const { error: mailErr } = await resend.emails.send({
+        from   : FROM_EMAIL,
+        to     : [tx.email],
+        subject: subject,
+        html   : html
       });
-    
-      if (rpcError) {
-        console.warn(`[Bold WH Pick] DB Warning (RPC Wallet ${tx.user_id}): ${rpcError.message}`);
-      } else {
-        console.log(`[Bold WH Pick]: Wallet balances incremented for user ${tx.user_id}.`);
-      }
+      if (mailErr) console.error('Resend error:', mailErr);
+      else         console.log('📧 Pick e-mail sent to', tx.email);
+    } catch (e) {
+      console.error('Send-pick-email failed', e);
     }
+  } else {
+    console.warn('Pick e-mail no enviado: user sin email');
+  }
 
-    if (tx.email && SITE_URL) {
-        console.log(`[Bold WH Pick]: Triggering pick confirmation email to ${tx.email}...`);
-        fetch(`${SITE_URL}/api/send-pick-confirmation`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-internal-key': INTERNAL_KEY!
-            },
-            body: JSON.stringify({
-                to: tx.email,
-                name: tx.full_name || 'Jugador',
-                amount: tx.wager_amount,
-                mode: tx.mode,
-                picks: tx.picks,
-                orderId: ref
-            })
-        }).catch(e => console.error('✉️ [Bold WH Pick]: Failed to trigger Email API for picks:', e));
-    } else {
-        console.warn(`[Bold WH Pick]: Email not sent for pick confirmation ${ref}: Email or SITE_URL missing.`);
-    }
-
-    console.log('✅ [Bold WH Pick]: Pick transaction processed successfully for', ref);
+  console.log('✅ Pick flow finished for', ref);
 }
 
-// ──────────────────────────────
-// 3. Entrypoint POST Handler
-// ──────────────────────────────
+// ─── ENTRYPOINT ─────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
-    console.log("Bold Webhook: Request received.");
-    let rawBody: string;
-    try {
-        rawBody = await req.text();
-        const sig = req.headers.get('x-bold-signature') ?? '';
+  const raw = await req.text();
+  const sig = req.headers.get('x-bold-signature') ?? '';
 
-        console.log("Bold Webhook: Verifying signature...");
-        const isValid = await verify(sig, rawBody);
-        if (!isValid) { console.warn("⚠️ Invalid Bold webhook signature."); return new NextResponse('Invalid signature', { status: 401 }); }
-        console.log("Bold Webhook: Signature verified.");
+  if (!verify(sig, raw))
+    return new NextResponse('Bad signature', { status: 401 });
 
-        const evt = JSON.parse(rawBody);
-        console.log(`Bold Webhook: Processing event type: ${evt.type}`);
+  const evt = JSON.parse(raw);
+  if (evt.type !== 'SALE_APPROVED')
+    return NextResponse.json({ ok: true, ignored: true });
 
-        if (evt.type !== 'SALE_APPROVED') {
-            console.log(`Bold Webhook: Event type ${evt.type} ignored.`);
-            return NextResponse.json({ ok: true, message: "Event ignored" });
-        }
+  const ref: string = evt.data?.metadata?.reference ?? '';
+  try {
+    if      (ref.startsWith('MM-EXTRA-')) await handleNumberPurchase(sb, evt.data);
+    else if (ref.startsWith('MMC-'))      await handlePickPurchase(sb, evt.data);
+    else   console.warn('Referencia desconocida:', ref);
 
-        const ref: string = evt.data?.metadata?.reference ?? '';
-        if (!ref) {
-            console.warn("Bold Webhook Warning: SALE_APPROVED received without metadata.reference.");
-            return NextResponse.json({ ok: true, message: "Reference missing" });
-        }
-
-        console.log(`Bold Webhook: Routing reference: ${ref}`);
-        if (ref.startsWith('MM-EXTRA-')) {
-            await handleNumberPurchase(sb, evt.data);
-        } else if (ref.startsWith('MMC-')) {
-            await handlePickPurchase(sb, evt.data);
-        } else {
-            console.warn(`Bold Webhook: Referencia desconocida o inesperada: ${ref}`);
-        }
-
-        return NextResponse.json({ ok: true, message: "Webhook received and processed/routed." });
-
-    } catch (e) {
-        console.error('❌ Bold Webhook Error:', e instanceof Error ? e.message : e);
-        return NextResponse.json({ ok: false, error: "Internal processing error occurred." }, { status: 200 });
-    }
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    console.error('🔥 Webhook error', e);
+    return new NextResponse('Internal error', { status: 500 });
+  }
 }
