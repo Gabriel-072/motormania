@@ -5,6 +5,7 @@
 import React, { useState, useEffect, useRef, useCallback, Fragment } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import dynamic from 'next/dynamic'; // <--- AÑADIDO: Import for dynamic loading
 
 // --- Authentication and UI Libraries ---
 import { useUser, useAuth } from '@clerk/nextjs';
@@ -19,7 +20,7 @@ import MMCGoSubHeader from '@/components/MMCGoSubHeader'; // KEEP this import
 import LoadingAnimation from '@/components/LoadingAnimation';
 import StickyModal from '@/components/StickyModal';
 import FullModal from '@/components/FullModal';
-import TutorialModal from '@/components/TutorialModal';
+// REMOVED: import TutorialModal from '@/components/TutorialModal'; // <-- ELIMINADO: Import estático
 import { createAuthClient } from '@/lib/supabase';
 import { useStickyStore } from '@/stores/stickyStore';
 import { PickSelection } from '@/app/types/picks';
@@ -34,7 +35,6 @@ interface GpSchedule { gp_name: string; race_time: string; }
 interface PicksConfig { id: string; is_qualy_enabled: boolean; is_race_enabled: boolean; updated_at?: string; }
 import type { PostgrestSingleResponse, PostgrestResponse } from '@supabase/supabase-js';
 
-
 // --- CONSTANTS & MAPPINGS ---
 const driverToTeam: Record<string, string> = {
   'Max Verstappen': 'Red Bull Racing', 'Yuki Tsunoda': 'Red Bull Racing', 'Lando Norris': 'McLaren', 'Oscar Piastri': 'McLaren', 'Lewis Hamilton': 'Ferrari', 'Charles Leclerc': 'Ferrari', 'George Russell': 'Mercedes', 'Kimi Antonelli': 'Mercedes', 'Fernando Alonso': 'Aston Martin', 'Lance Stroll': 'Aston Martin', 'Liam Lawson': 'RB', 'Isack Hadjar': 'RB', 'Nico Hulkenberg': 'Sauber', 'Gabriel Bortoleto': 'Sauber', 'Pierre Gasly': 'Alpine', 'Jack Doohan': 'Alpine', 'Alex Albon': 'Williams', 'Carlos Sainz': 'Williams', 'Oliver Bearman': 'Haas F1 Team', 'Esteban Ocon': 'Haas F1 Team',
@@ -45,6 +45,17 @@ const soundManager = {
   click: new Howl({ src: ['/sounds/f1-click.mp3'], volume: 0.4, preload: true }),
   rev: new Howl({ src: ['/sounds/f1-rev.mp3'], volume: 0.3, preload: true }),
 };
+
+// --- LAZY-LOADED COMPONENTS ---
+const DynamicTutorialModal = dynamic(() => import('@/components/TutorialModal'), {
+  loading: () => (
+      <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <p className="text-white text-lg font-semibold animate-pulse">Cargando Tutorial...</p>
+      </div>
+  ),
+  // ssr: false // Consider enabling if issues arise, usually not needed for 'use client' components
+});
+
 
 // --- COMPONENT DEFINITION ---
 export default function MMCGoContent() {
@@ -64,7 +75,7 @@ export default function MMCGoContent() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [isQualyEnabled, setIsQualyEnabled] = useState(true);
   const [isRaceEnabled, setIsRaceEnabled] = useState(true);
-  const [showTutorial, setShowTutorial] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false); // State to control tutorial visibility
 
   // --- REFS ---
   const channelRef = useRef<any>(null);
@@ -245,8 +256,7 @@ export default function MMCGoContent() {
 
   // --- Tailwind Class Definitions ---
   const mainContainerClasses = "min-h-screen bg-gradient-to-b from-gray-950 via-gray-900 to-black text-white font-exo2";
-  // ADJUSTED PADDING HERE - Account for SubHeader height (fixed at top-20 which is 5rem) + its internal padding
-  const contentWrapperClasses = "container mx-auto px-4 sm:px-6 lg:px-8 pt-36 pb-32"; // Increased pt significantly
+  const contentWrapperClasses = "container mx-auto px-4 sm:px-6 lg:px-8 pt-36 pb-32";
   const pageTitleClasses = "text-3xl sm:text-4xl font-bold text-center text-amber-400 tracking-tight";
   const pageSubtitleClasses = "text-sm text-center text-gray-400 mt-1 mb-8";
   const sessionToggleContainerClasses = "flex justify-center items-center gap-2 mb-8 p-1 bg-gray-800 rounded-lg shadow-md max-w-xs mx-auto";
@@ -354,47 +364,58 @@ export default function MMCGoContent() {
 
           {/* Tutorial Button & Modals */}
           <button onClick={() => setShowTutorial(true)} className={tutorialButtonClasses} aria-label="¿Cómo jugar?"> <FaQuestionCircle /> ¿Cómo Jugar? </button>
-          <TutorialModal show={showTutorial} onClose={() => setShowTutorial(false)} />
+
+          {/* ---> MODIFICACIÓN: Renderizar modal dinámico <--- */}
+          {showTutorial && (
+            <DynamicTutorialModal
+              show={showTutorial} // La prop 'show' todavía es necesaria para las animaciones internas de AnimatePresence
+              onClose={() => setShowTutorial(false)}
+            />
+          )}
+
+          {/* Sticky y Full Modals (sin cambios) */}
           <StickyModal onFinish={async () => { if (!isSignedIn) { localStorage.setItem('pendingPicks', JSON.stringify(picks)); setShowAuthModal(true); return; } setShowFullModal(true); }} />
           {showFullModal && <FullModal isOpen={showFullModal} onClose={() => setShowFullModal(false)} />}
 
-          {/* Authentication & Realtime Modals */}
+          {/* Authentication & Realtime Modals (sin cambios) */}
           <AnimatePresence>
             {showAuthModal && (
                <Transition appear show={showAuthModal} as={Fragment}>
                   <Dialog as="div" className="relative z-[60]" onClose={() => setShowAuthModal(false)}>
-                    <Transition.Child as={Fragment} enter="ease-out duration-200" enterFrom="opacity-0" enterTo="opacity-100" leave="ease-in duration-150" leaveFrom="opacity-100" leaveTo="opacity-0">
-                      <div className="fixed inset-0 bg-black/70 backdrop-blur-sm" aria-hidden="true" />
-                    </Transition.Child>
-                    <div className="fixed inset-0 flex items-center justify-center p-4">
-                      <Transition.Child as={Fragment} enter="ease-out duration-200" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100" leave="ease-in duration-150" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95">
-                        <Dialog.Panel className="mx-auto max-w-sm rounded-xl bg-gradient-to-br from-gray-800 to-black border border-amber-500/30 p-6 text-white shadow-xl text-center">
-                          <Dialog.Title className="text-lg font-bold mb-2 text-amber-400">Inicia sesión</Dialog.Title>
-                          <Dialog.Description className="text-sm mb-4 text-gray-300"> Debes iniciar sesión para confirmar tus picks en MMC GO. Tus selecciones se guardarán. </Dialog.Description>
-                          <button onClick={() => { router.push(`/sign-in?redirect_url=${encodeURIComponent('/mmc-go')}`); }} className="w-full px-4 py-2 bg-amber-500 text-black font-bold rounded-md hover:bg-amber-400 transition-colors duration-200"> Iniciar sesión / Registrarse </button>
-                          <button onClick={() => setShowAuthModal(false)} className="mt-2 text-xs text-gray-400 hover:text-gray-200"> Cancelar </button>
-                        </Dialog.Panel>
-                      </Transition.Child>
-                    </div>
+                    {/* ... Contenido del Dialog Auth ... */}
+                     <Transition.Child as={Fragment} enter="ease-out duration-200" enterFrom="opacity-0" enterTo="opacity-100" leave="ease-in duration-150" leaveFrom="opacity-100" leaveTo="opacity-0">
+                       <div className="fixed inset-0 bg-black/70 backdrop-blur-sm" aria-hidden="true" />
+                     </Transition.Child>
+                     <div className="fixed inset-0 flex items-center justify-center p-4">
+                       <Transition.Child as={Fragment} enter="ease-out duration-200" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100" leave="ease-in duration-150" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95">
+                         <Dialog.Panel className="mx-auto max-w-sm rounded-xl bg-gradient-to-br from-gray-800 to-black border border-amber-500/30 p-6 text-white shadow-xl text-center">
+                           <Dialog.Title className="text-lg font-bold mb-2 text-amber-400">Inicia sesión</Dialog.Title>
+                           <Dialog.Description className="text-sm mb-4 text-gray-300"> Debes iniciar sesión para confirmar tus picks en MMC GO. Tus selecciones se guardarán. </Dialog.Description>
+                           <button onClick={() => { router.push(`/sign-in?redirect_url=${encodeURIComponent('/mmc-go')}`); }} className="w-full px-4 py-2 bg-amber-500 text-black font-bold rounded-md hover:bg-amber-400 transition-colors duration-200"> Iniciar sesión / Registrarse </button>
+                           <button onClick={() => setShowAuthModal(false)} className="mt-2 text-xs text-gray-400 hover:text-gray-200"> Cancelar </button>
+                         </Dialog.Panel>
+                       </Transition.Child>
+                     </div>
                   </Dialog>
                </Transition>
             )}
             {showRealtimeModal && (
                <Transition appear show={showRealtimeModal} as={Fragment}>
                  <Dialog as="div" className="relative z-[60]" onClose={() => setShowRealtimeModal(false)}>
-                    <Transition.Child as={Fragment} enter="ease-out duration-200" enterFrom="opacity-0" enterTo="opacity-100" leave="ease-in duration-150" leaveFrom="opacity-100" leaveTo="opacity-0">
-                      <div className="fixed inset-0 bg-black/70 backdrop-blur-sm" aria-hidden="true" />
-                    </Transition.Child>
-                    <div className="fixed inset-0 flex items-center justify-center p-4">
-                       <Transition.Child as={Fragment} enter="ease-out duration-200" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100" leave="ease-in duration-150" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95">
-                        <Dialog.Panel className="mx-auto max-w-sm rounded-xl bg-gradient-to-br from-gray-800 to-black border border-cyan-500/30 p-6 text-white shadow-xl">
-                          <Dialog.Title className="text-lg font-bold text-cyan-400">⚡ Estado Actualizado</Dialog.Title>
-                          <Dialog.Description className="mt-1 text-sm text-gray-300"> La disponibilidad de los picks (Qualy/Carrera) ha cambiado en tiempo real. </Dialog.Description>
-                          <div className="mt-4 text-right"> <button onClick={() => setShowRealtimeModal(false)} className="px-4 py-2 text-sm font-medium bg-cyan-600 text-white rounded-md hover:bg-cyan-700 transition-colors duration-200" > Entendido </button> </div>
-                        </Dialog.Panel>
-                       </Transition.Child>
-                    </div>
-                  </Dialog>
+                    {/* ... Contenido del Dialog Realtime ... */}
+                     <Transition.Child as={Fragment} enter="ease-out duration-200" enterFrom="opacity-0" enterTo="opacity-100" leave="ease-in duration-150" leaveFrom="opacity-100" leaveTo="opacity-0">
+                       <div className="fixed inset-0 bg-black/70 backdrop-blur-sm" aria-hidden="true" />
+                     </Transition.Child>
+                     <div className="fixed inset-0 flex items-center justify-center p-4">
+                        <Transition.Child as={Fragment} enter="ease-out duration-200" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100" leave="ease-in duration-150" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95">
+                         <Dialog.Panel className="mx-auto max-w-sm rounded-xl bg-gradient-to-br from-gray-800 to-black border border-cyan-500/30 p-6 text-white shadow-xl">
+                           <Dialog.Title className="text-lg font-bold text-cyan-400">⚡ Estado Actualizado</Dialog.Title>
+                           <Dialog.Description className="mt-1 text-sm text-gray-300"> La disponibilidad de los picks (Qualy/Carrera) ha cambiado en tiempo real. </Dialog.Description>
+                           <div className="mt-4 text-right"> <button onClick={() => setShowRealtimeModal(false)} className="px-4 py-2 text-sm font-medium bg-cyan-600 text-white rounded-md hover:bg-cyan-700 transition-colors duration-200" > Entendido </button> </div>
+                         </Dialog.Panel>
+                        </Transition.Child>
+                     </div>
+                   </Dialog>
                </Transition>
             )}
           </AnimatePresence>
