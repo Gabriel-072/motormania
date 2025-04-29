@@ -1,8 +1,8 @@
 // 📁 app/api/webhooks/bold/route.ts
-import { NextRequest, NextResponse }       from 'next/server';
-import { createClient, SupabaseClient }    from '@supabase/supabase-js';
-import crypto                              from 'crypto';
-import { Resend }                          from 'resend';
+import { NextRequest, NextResponse }    from 'next/server';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import crypto                           from 'crypto';
+import { Resend }                       from 'resend';
 
 // ─── ENV ─────────────────────────────────────────────────────────────────
 const supabaseUrl        = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -36,7 +36,7 @@ function verify(sig: string, raw: string): boolean {
   }
 }
 
-async function uniqueSix(existing: string[], n: number) {
+async function uniqueSix(existing: string[], n: number): Promise<string[]> {
   const pool = new Set(existing);
   const out: string[] = [];
   while (out.length < n) {
@@ -63,7 +63,7 @@ async function handleNumberPurchase(db: SupabaseClient, data: any) {
   if (parts.length !== 4 || parts[0] !== 'MM' || parts[1] !== 'EXTRA')
     throw new Error('Formato referencia inesperado');
 
-  const userId = parts[2]; // user_xxx
+  const userId = parts[2];
   console.log(`[Bold WH Num] user=${userId} ref=${ref}`);
 
   // idempotencia
@@ -89,27 +89,41 @@ async function handleNumberPurchase(db: SupabaseClient, data: any) {
     paid_numbers_count: (entry.paid_numbers_count ?? 0) + EXTRA_COUNT
   }, { onConflict: 'user_id' });
 
-  // 3. email al usuario (vía tu ruta interna existente)
+  // 3. e-mail de confirmación (ruta interna)
   const { data: userRow } = await db.from('clerk_users')
     .select('email, full_name').eq('clerk_id', userId).maybeSingle();
 
   if (userRow?.email) {
-    fetch(`${SITE_URL}/api/send-numbers-confirmation`, {
-      method : 'POST',
-      headers: {
-        'Content-Type' : 'application/json',
-        'x-internal-key': INTERNAL_KEY
-      },
-      body   : JSON.stringify({
-        to: userRow.email,
-        name: userRow.full_name || 'Usuario',
-        numbers: newNums,
-        context: 'compra',
-        orderId: ref,
-        amount : total
-      })
-    }).catch(e => console.error('✉️ num-email error', e));
+    try {
+      const resp = await fetch(`${SITE_URL}/api/send-numbers-confirmation`, {
+        method : 'POST',
+        headers: {
+          'Content-Type'  : 'application/json',
+          'x-internal-key': INTERNAL_KEY
+        },
+        body: JSON.stringify({
+          to      : userRow.email,
+          name    : userRow.full_name || 'Usuario',
+          numbers : newNums,
+          context : 'compra',
+          orderId : ref,
+          amount  : total
+        })
+      });
+
+      if (!resp.ok) {
+        const txt = await resp.text();
+        console.error(`✉️ num-email API error (${resp.status}):`, txt || '(sin cuerpo)');
+      } else {
+        console.log('📧 num-email enviado a', userRow.email);
+      }
+    } catch (err) {
+      console.error('✉️ num-email fetch failed:', err);
+    }
+  } else {
+    console.warn('Usuario sin email — no se envió confirmación.');
   }
+
   console.log('✅ Números extra procesados');
 }
 
@@ -133,68 +147,80 @@ async function handlePickPurchase(db: SupabaseClient, data: any) {
 
   // 3. mover a tabla picks
   await db.from('picks').insert({
-    user_id           : tx.user_id,
-    gp_name           : tx.gp_name,
-    session_type      : 'combined',
-    picks             : tx.picks ?? [],
-    multiplier        : Number(tx.multiplier ?? 0),
-    wager_amount      : tx.wager_amount ?? 0,
-    potential_win     : tx.potential_win ?? 0,
-    name              : tx.full_name,
-    mode              : tx.mode,
-    order_id          : ref,
+    user_id            : tx.user_id,
+    gp_name            : tx.gp_name,
+    session_type       : 'combined',
+    picks              : tx.picks ?? [],
+    multiplier         : Number(tx.multiplier ?? 0),
+    wager_amount       : tx.wager_amount ?? 0,
+    potential_win      : tx.potential_win ?? 0,
+    name               : tx.full_name,
+    mode               : tx.mode,
+    order_id           : ref,
     pick_transaction_id: tx.id
   });
 
-  // 4. wallet
+  // 4. wallet (si lo requieres)
   if (tx.wager_amount) {
     const mmc  = Math.round(tx.wager_amount / 1000);
     const fuel = tx.wager_amount;
-    const cop  = Math.round(Number(tx.wager_amount));
+    const cop  = Math.round(tx.wager_amount);
     const { error: rpcErr } = await db.rpc('increment_wallet_balances', {
-      uid: tx.user_id, mmc_amount: mmc, fuel_amount: fuel, cop_amount: cop
+      uid        : tx.user_id,
+      mmc_amount : mmc,
+      fuel_amount: fuel,
+      cop_amount : cop
     });
     if (rpcErr) console.warn('RPC wallet error', rpcErr.message);
   }
 
-  // 5. e-mail con Resend (directo)
+  // 5. e-mail de confirmación de picks
   if (tx.email) {
     try {
       const subject = `✅ Tus Picks de MMC-GO (${ref.slice(-6)}) ¡Confirmados!`;
       const picksHtml = (tx.picks ?? []).map((p: any) => `
         <li style="margin-bottom:6px">
-          <strong>${p.driver}</strong>
+          <strong>${p.driver}</strong> 
           <span style="color:#6b7280;font-size:12px">
             (${p.session_type === 'qualy' ? 'Q' : 'R'} ${p.line.toFixed(1)})
           </span>
-          <span style="float:right;font-weight:bold;color:${p.betterOrWorse === 'mejor' ? '#16a34a' : '#dc2626'}">
+          <span style="float:right;font-weight:bold;color:${
+            p.betterOrWorse==='mejor' ? '#16a34a' : '#dc2626'
+          }">
             ${p.betterOrWorse?.toUpperCase()}
           </span>
         </li>`).join('');
 
       const html = `
         <div style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto">
-          <h2 style="color:#8b5cf6;text-align:center">¡Jugada Confirmada, ${tx.full_name || 'Jugador'}!</h2>
-          <p style="text-align:center">Referencia: <strong>${ref}</strong></p>
-          <p style="text-align:center">Monto: <strong>${
-            Intl.NumberFormat('es-CO', { style:'currency', currency:'COP', minimumFractionDigits:0 })
-              .format(tx.wager_amount || 0)
-          }</strong></p>
+          <h2 style="color:#8b5cf6;text-align:center">
+            ¡Jugada Confirmada, ${tx.full_name || 'Jugador'}!
+          </h2>
+          <p style="text-align:center">
+            Referencia: <strong>${ref}</strong>
+          </p>
           <ul style="list-style:none;padding:0">${picksHtml}</ul>
           <p style="text-align:center;margin-top:24px">
-            <a href="${SITE_URL}/dashboard" style="background:#8b5cf6;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none">Ver Dashboard</a>
+            <a href="${SITE_URL}/dashboard"
+               style="background:#8b5cf6;color:#fff;padding:10px 18px;
+                      border-radius:6px;text-decoration:none">
+              Ver Dashboard
+            </a>
           </p>
           <hr style="margin-top:30px;border:none;border-top:1px solid #eee">
           <p style="font-size:12px;color:#999;text-align:center">
-            MotorManía • Bogotá, CO • <a href="mailto:${SUPPORT_EMAIL}" style="color:#999">${SUPPORT_EMAIL}</a>
+            MotorManía • Bogotá, CO • 
+            <a href="mailto:${SUPPORT_EMAIL}" style="color:#999">
+              ${SUPPORT_EMAIL}
+            </a>
           </p>
         </div>`;
 
       const { error: mailErr } = await resend.emails.send({
         from   : FROM_EMAIL,
         to     : [tx.email],
-        subject: subject,
-        html   : html
+        subject,
+        html
       });
       if (mailErr) console.error('Resend error:', mailErr);
       else         console.log('📧 Pick e-mail sent to', tx.email);
