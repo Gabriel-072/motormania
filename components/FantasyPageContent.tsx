@@ -95,25 +95,25 @@ const teamColors: Record<string, { gradientFrom: string; gradientTo: string; bor
 // SECTION: Driver to Team Mapping (Ensure this is accurate for 2025)
 const driverToTeam: Record<string, string> = {
   'Max Verstappen': 'Red Bull',
-  'Yuki Tsunoda': 'Red Bull', // Note: RB team often under RBR umbrella
+  'Yuki Tsunoda': 'Red Bull', 
   'Lando Norris': 'McLaren',
   'Oscar Piastri': 'McLaren',
-  'Lewis Hamilton': 'Ferrari', // Updated for 2025
+  'Lewis Hamilton': 'Ferrari', 
   'Charles Leclerc': 'Ferrari',
   'George Russell': 'Mercedes',
-  'Kimi Antonelli': 'Mercedes', // Rookie assumption for 2025
+  'Kimi Antonelli': 'Mercedes', 
   'Fernando Alonso': 'Aston Martin',
   'Lance Stroll': 'Aston Martin',
-  'Liam Lawson': 'RB', // Potentially RB
-  'Isack Hadjar': 'RB', // Potentially RB
-  'Nico Hulkenberg': 'Sauber', // Moving to Sauber/Audi
-  'Gabriel Bortoleto': 'Sauber', // Rookie assumption for Sauber/Audi
+  'Liam Lawson': 'RB', 
+  'Isack Hadjar': 'RB', 
+  'Nico Hulkenberg': 'Sauber', 
+  'Gabriel Bortoleto': 'Sauber', 
   'Pierre Gasly': 'Alpine',
-  'Jack Doohan': 'Alpine', // Assumed promotion for 2025
+  'Jack Doohan': 'Alpine', 
   'Alex Albon': 'Williams',
-  'Carlos Sainz': 'Williams', // Updated for 2025
-  'Oliver Bearman': 'Haas F1 Team', // Assumed Haas seat for 2025
-  'Esteban Ocon': 'Haas F1 Team', // Updated for 2025
+  'Carlos Sainz': 'Williams', 
+  'Oliver Bearman': 'Haas F1 Team', 
+  'Esteban Ocon': 'Haas F1 Team', 
 };
 
 // SECTION: Flag Mapping

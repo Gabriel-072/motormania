@@ -47,7 +47,7 @@ export async function POST(req:NextRequest){
     /* 3️⃣  Validación mínima */
     if(!Array.isArray(picks) || picks.length<2 || picks.length>8)
       return NextResponse.json({ error:'Nº de picks inválido'}, {status:400});
-    if(amount<2000) return NextResponse.json({ error:'Monto mínimo $2.000'}, {status:400});
+    if(amount<10000) return NextResponse.json({ error:'Monto mínimo $10.000'}, {status:400});
     if(mode==='safety' && picks.length<3)
       return NextResponse.json({ error:'Safety requiere ≥3 picks'},{status:400});
 
