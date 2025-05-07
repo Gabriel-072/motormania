@@ -2,10 +2,15 @@
 'use client';
 
 import React from 'react';
+import { usePathname } from 'next/navigation';
 
 export default function MovingBar() {
   const message = "Participa ahora por un Coleccionable Lego McLaren P1";
   const separator = " • ";
+
+  const pathname = usePathname();
+  if (pathname === '/mmc-go') return null;
+
 
   // repeat enough times to guarantee coverage; you can bump this up if your message is very short
   const repeats = Array.from({ length: 12 });

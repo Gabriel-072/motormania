@@ -12,6 +12,9 @@ export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const pathname = usePathname();
 
+  if (pathname === '/mmc-go') return null; // no renderiza aquí
+
+
   useEffect(() => {
     if (isMenuOpen) setIsMenuOpen(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
