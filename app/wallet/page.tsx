@@ -120,8 +120,8 @@ export default function WalletPage() {
         body: JSON.stringify({ orderId, amount, currency: 'COP' })
       });
       if (!res.ok) throw new Error('Error generando firma');
-      const { hash } = await res.json();
-      if (!hash) throw new Error('Firma inválida');
+      const { integrityKey } = await res.json();
+      if (!integrityKey) throw new Error('Firma inválida');
 
       openBoldCheckout({
         apiKey: process.env.NEXT_PUBLIC_BOLD_BUTTON_KEY!,
@@ -130,7 +130,7 @@ export default function WalletPage() {
         currency: 'COP',
         description: `Recarga $${fmt(amount)} COP`,
         redirectionUrl: `${process.env.NEXT_PUBLIC_SITE_URL}/wallet`,
-        integritySignature: hash,
+        integritySignature: integrityKey,
         customerData: JSON.stringify({
           email: user.primaryEmailAddress?.emailAddress ?? '',
           fullName: user.fullName || 'Jugador MMC',
