@@ -118,7 +118,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     bonusMmc = Math.min(bonusMmc, promo.max_bonus_mmc);
     bonusFuel = Math.min(bonusFuel, promo.max_bonus_fuel);
     setPromoMessage(
-      `Con $${amount.toLocaleString('es-CO')} COP recibes +${bonusMmc} MMC Coins y +${bonusFuel} Fuel Coins bloqueados.`
+      `Con $${amount.toLocaleString('es-CO')} COP recibes +${bonusMmc} MMC Coins y +${bonusFuel} Fuel Coins para tu próxima jugada.`
     );
   }, [amount, promo]);
 

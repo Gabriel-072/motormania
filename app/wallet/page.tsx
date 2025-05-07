@@ -17,8 +17,8 @@ import ActionButton                       from '@/components/ActionButton';
 import PlayThroughProgress                from '@/components/PlayThroughProgress';
 
 /* Lazy modals */
-const DepositModal  = dynamic(()=>import('@/components/DepositModal'));
-const WithdrawModal = dynamic(()=>import('@/components/WithdrawModal'));
+const DepositModal  = dynamic(() => import('@/components/DepositModal'));
+const WithdrawModal = dynamic(() => import('@/components/WithdrawModal'));
 
 /* Types --------------------------------------------------------- */
 interface WalletRow {
@@ -29,10 +29,10 @@ interface WalletRow {
   fuel_coins       : number;
   locked_fuel      : number;
 }
-interface PromoProgress { remaining:number; total:number; }
+interface PromoProgress { remaining: number; total: number; }
 type TxType = 'recarga'|'apuesta'|'ganancia'|'reembolso'|'retiro_pending'|'retiro';
-interface Transaction { id:string; type:TxType; amount:number; description:string; created_at:string; }
-const fmt = (n:number)=>n.toLocaleString('es-CO');
+interface Transaction { id: string; type: TxType; amount: number; description: string; created_at: string; }
+const fmt = (n: number) => n.toLocaleString('es-CO');
 
 /* Page ---------------------------------------------------------- */
 export default function WalletPage() {
@@ -40,116 +40,159 @@ export default function WalletPage() {
   const { getToken }         = useAuth();
   const uid                  = user?.id;
 
-  const [wallet,setWallet]   = useState<WalletRow|null>(null);
-  const [promo,setPromo]     = useState<PromoProgress|null>(null);
-  const [txs,setTxs]         = useState<Transaction[]>([]);
-  const [showDep,setDep]     = useState(false);
-  const [showWith,setWith]   = useState(false);
-  const [loadingW,setLW]     = useState(true);
-  const [loadingT,setLT]     = useState(true);
+  const [wallet, setWallet]   = useState<WalletRow | null>(null);
+  const [promo, setPromo]     = useState<PromoProgress | null>(null);
+  const [txs, setTxs]         = useState<Transaction[]>([]);
+  const [showDep, setDep]     = useState(false);
+  const [showWith, setWith]   = useState(false);
+  const [loadingW, setLW]     = useState(true);
+  const [loadingT, setLT]     = useState(true);
 
   /* Realtime & initial fetch ----------------------------------- */
-  useEffect(()=>{
-    if(!isSignedIn||!uid) return;
-    let supabase:ReturnType<typeof createAuthClient>, chW:any,chT:any;
-    (async()=>{
-      const token = await getToken({template:'supabase'});
-      supabase    = createAuthClient(token!);
+  useEffect(() => {
+    if (!isSignedIn || !uid) return;
+    let supabase: ReturnType<typeof createAuthClient>, chW: any, chT: any;
+
+    (async () => {
+      const token = await getToken({ template: 'supabase' });
+      if (!token) return;
+      supabase = createAuthClient(token);
 
       /* Wallet */
-      const {data:w} = await supabase
+      const { data: w } = await supabase
         .from('wallet')
         .select('balance_cop,withdrawable_cop,mmc_coins,locked_mmc,fuel_coins,locked_fuel')
-        .eq('user_id',uid).single();
-      setWallet(w); setLW(false);
+        .eq('user_id', uid)
+        .single();
+      setWallet(w || null);
+      setLW(false);
 
       /* Promo progress */
-      const {data:pr} = await supabase
+      const { data: pr } = await supabase
         .from('promotions_user')
         .select('wager_remaining_mmc, locked_amount_mmc')
-        .eq('user_id',uid)
-        .eq('status','active')
+        .eq('user_id', uid)
+        .eq('status', 'active')
         .maybeSingle();
-      if(pr) setPromo({ remaining: pr.wager_remaining_mmc, total: pr.locked_amount_mmc*2 });
+      if (pr) setPromo({ remaining: pr.wager_remaining_mmc, total: pr.locked_amount_mmc * 2 });
 
-      /* TX */
-      const {data:ts} = await supabase
+      /* Transactions */
+      const { data: ts } = await supabase
         .from('transactions')
         .select('*')
-        .eq('user_id',uid)
-        .order('created_at',{ascending:false})
+        .eq('user_id', uid)
+        .order('created_at', { ascending: false })
         .limit(30);
-      setTxs(ts||[]); setLT(false);
+      setTxs(ts || []);
+      setLT(false);
 
-      /* realtime wallet */
-      chW = supabase.channel(`w-${uid}`)
-        .on('postgres_changes',{event:'*',schema:'public',table:'wallet',filter:`user_id=eq.${uid}`},
-          p=>setWallet(p.new as WalletRow)).subscribe();
-      /* realtime tx */
-      chT = supabase.channel(`t-${uid}`)
-        .on('postgres_changes',{event:'INSERT',schema:'public',table:'transactions',filter:`user_id=eq.${uid}`},
-          p=>setTxs(prev=>[p.new as Transaction,...prev].slice(0,30))).subscribe();
+      /* Realtime wallet */
+      chW = supabase.channel(`rt-wallet-${uid}`)
+        .on('postgres_changes',
+          { event: '*', schema: 'public', table: 'wallet', filter: `user_id=eq.${uid}` },
+          payload => setWallet(payload.new as WalletRow)
+        )
+        .subscribe();
+
+      /* Realtime transactions */
+      chT = supabase.channel(`rt-tx-${uid}`)
+        .on('postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'transactions', filter: `user_id=eq.${uid}` },
+          payload => setTxs(prev => [payload.new as Transaction, ...prev].slice(0, 30))
+        )
+        .subscribe();
     })();
-    return ()=>{chW?.unsubscribe();chT?.unsubscribe();};
-  },[isSignedIn,uid,getToken]);
+
+    return () => {
+      chW?.unsubscribe();
+      chT?.unsubscribe();
+    };
+  }, [isSignedIn, uid, getToken]);
 
   /* Deposit ----------------------------------------------------- */
-  const onDeposit = async(amount:number)=>{
-    if(!uid||!user) return;
-    try{
-      const orderId=`MM-DEP-${uid}-${Date.now()}`;
-      const r = await fetch('/api/bold/hash',{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({orderId,amount,currency:'COP'})});
-      const {hash}=await r.json();
+  const onDeposit = async (amount: number) => {
+    if (!uid || !user) return;
+    try {
+      const orderId = `MM-DEP-${uid}-${Date.now()}`;
+      const res = await fetch('/api/bold/hash', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId, amount, currency: 'COP' })
+      });
+      if (!res.ok) throw new Error('Error generando firma');
+      const { hash } = await res.json();
+      if (!hash) throw new Error('Firma inválida');
+
       openBoldCheckout({
-        apiKey            : process.env.NEXT_PUBLIC_BOLD_BUTTON_KEY!,
+        apiKey: process.env.NEXT_PUBLIC_BOLD_BUTTON_KEY!,
         orderId,
-        amount            : String(amount),
-        currency          : 'COP',
-        description       : `Recarga $${fmt(amount)} COP`,
-        redirectionUrl    : `${process.env.NEXT_PUBLIC_SITE_URL}/wallet`,
+        amount: String(amount),
+        currency: 'COP',
+        description: `Recarga $${fmt(amount)} COP`,
+        redirectionUrl: `${process.env.NEXT_PUBLIC_SITE_URL}/wallet`,
         integritySignature: hash,
-        customerData      : {
-          email   : user.primaryEmailAddress?.emailAddress ?? '',
+        customerData: JSON.stringify({
+          email: user.primaryEmailAddress?.emailAddress ?? '',
           fullName: user.fullName || 'Jugador MMC',
-        },
+        }),
+        renderMode: 'embedded',
         onSuccess: () => {
           toast.success('✅ Recarga recibida, se reflejará pronto');
         },
         onFailed: ({ message }: { message?: string }) => {
-          // Aquí el parámetro 'message' ya está tipado
-          toast.error(`Pago falló: ${message ?? 'Intenta de nuevo.'}`);
+          toast.error(`Algo salió mal: ${message ?? 'Intenta de nuevo.'}`);
         },
         onPending: () => {
           toast.info('Pago pendiente de confirmación.');
         },
         onClose: () => setDep(false),
       });
-    }catch(e:any){toast.error(e.message);}
+    } catch (e: any) {
+      console.error(e);
+      toast.error(
+        'Algo salió mal al conectar con el comercio y Bold. Por favor, inténtalo más tarde.'
+      );
+    }
   };
 
   /* Withdraw ---------------------------------------------------- */
-  const MIN=10_000;
-  const onWithdraw=async(amount:number,m:string,a:string)=>{
-    if(amount<MIN) {toast.error(`Mínimo $${fmt(MIN)}`); return;}
-    const r = await fetch('/api/withdraw',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({amount,method:m,account:a})});
-    if(r.ok){toast.success('Solicitud enviada');setWith(false);}
-    else toast.error(await r.text());
+  const MIN = 10_000;
+  const onWithdraw = async (amount: number, method: string, account: string) => {
+    if (amount < MIN) { toast.error(`Mínimo $${fmt(MIN)}`); return; }
+    const res = await fetch('/api/withdraw', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount, method, account })
+    });
+    if (res.ok) {
+      toast.success('Solicitud de retiro enviada');
+      setWith(false);
+    } else {
+      toast.error(await res.text());
+    }
   };
 
   /* Tx icon helper --------------------------------------------- */
-  const txIcon=(t:TxType)=>({recarga:<FaArrowUp/>,ganancia:<FaCoins/>,reembolso:<FaCheckCircle/>,
-     retiro_pending:<FaClock/>,retiro:<FaMoneyBillWave/>,apuesta:<FaArrowDown/>}[t]||<FaExclamationCircle/>);
+  const txIcon = (t: TxType) => {
+    switch (t) {
+      case 'recarga': return <FaArrowUp />;
+      case 'ganancia': return <FaCoins />;
+      case 'reembolso': return <FaCheckCircle />;
+      case 'retiro_pending': return <FaClock />;
+      case 'retiro': return <FaMoneyBillWave />;
+      case 'apuesta': return <FaArrowDown />;
+      default: return <FaExclamationCircle />;
+    }
+  };
 
   /* UI ---------------------------------------------------------- */
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-950 to-gray-900 text-white pb-24 font-exo2">
-      <Header/>
+      <Header />
 
       <main className="pt-16 max-w-3xl mx-auto px-4 sm:px-6 space-y-8">
 
-        {/* tarjeta saldo */}
+        {/* WalletCard */}
         {wallet && (
           <WalletCard
             balanceCop={wallet.balance_cop}
@@ -161,42 +204,47 @@ export default function WalletPage() {
           />
         )}
 
-        {/* barra play-through */}
-        {promo && promo.remaining>0 && (
-          <PlayThroughProgress remaining={promo.remaining} total={promo.total}/>
+        {/* Play-through */}
+        {promo && promo.remaining > 0 && (
+          <PlayThroughProgress remaining={promo.remaining} total={promo.total} />
         )}
 
-        {/* acciones */}
+        {/* Actions */}
         <div className="grid grid-cols-2 gap-4">
-          <ActionButton title="Depositar" icon={<FaArrowUp/>} color="amber" onClick={()=>setDep(true)}/>
-          <ActionButton title="Retirar"   icon={<FaArrowDown/>} color="cyan"  onClick={()=>setWith(true)}/>
+          <ActionButton title="Depositar" icon={<FaArrowUp />} color="amber" onClick={() => setDep(true)} />
+          <ActionButton title="Retirar" icon={<FaArrowDown />} color="cyan" onClick={() => setWith(true)} />
         </div>
 
-        {/* historial tx */}
+        {/* Transactions */}
         <section className="bg-gray-800/70 rounded-xl p-5 border border-gray-700/50 shadow">
           <h2 className="text-lg font-bold mb-4">Transacciones recientes</h2>
           {loadingT ? (
             <div className="flex justify-center py-10 text-gray-400 gap-2">
-              <FaSpinner className="animate-spin"/> Cargando…
+              <FaSpinner className="animate-spin" /> Cargando…
             </div>
-          ) : txs.length===0 ? (
+          ) : txs.length === 0 ? (
             <p className="text-center text-gray-400 py-10">Sin movimientos.</p>
           ) : (
             <ul className="divide-y divide-gray-700/80 -mb-3">
-              {txs.map(t=>(
+              {txs.map(t => (
                 <li key={t.id} className="flex justify-between items-center py-3">
                   <div className="flex items-center gap-3">
                     <span className="text-lg">{txIcon(t.type)}</span>
                     <div>
-                      <p className="capitalize">{t.description||t.type}</p>
+                      <p className="capitalize">{t.description || t.type}</p>
                       <p className="text-xs text-gray-400">
-                        {new Date(t.created_at).toLocaleString('es-CO',
-                          {day:'2-digit',month:'short',hour:'numeric',minute:'2-digit',hour12:true})}
+                        {new Date(t.created_at).toLocaleString('es-CO', {
+                          day: '2-digit',
+                          month: 'short',
+                          hour: 'numeric',
+                          minute: '2-digit',
+                          hour12: true
+                        })}
                       </p>
                     </div>
                   </div>
-                  <span className={`font-semibold ${t.amount>=0?'text-green-400':'text-red-400'}`}>
-                    {t.amount>=0?'+':'-'}${fmt(Math.abs(t.amount))}
+                  <span className={`font-semibold ${t.amount >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                    {t.amount >= 0 ? '+' : '-'}${fmt(Math.abs(t.amount))}
                   </span>
                 </li>
               ))}
@@ -205,13 +253,13 @@ export default function WalletPage() {
         </section>
       </main>
 
-      {/* modals */}
+      {/* Modals */}
       <AnimatePresence>
-        {showDep  && <DepositModal  onClose={()=>setDep(false)}  onDeposit={onDeposit}/> }
+        {showDep && <DepositModal onClose={() => setDep(false)} onDeposit={onDeposit} />}
         {showWith && wallet && (
           <WithdrawModal
             max={wallet.withdrawable_cop}
-            onClose={()=>setWith(false)}
+            onClose={() => setWith(false)}
             onSubmit={onWithdraw}
           />
         )}
