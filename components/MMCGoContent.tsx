@@ -72,7 +72,7 @@ const driverToTeam: Record<string, string> = {
   'Nico Hulkenberg': 'Sauber',
   'Gabriel Bortoleto': 'Sauber',
   'Pierre Gasly': 'Alpine',
-  'Jack Doohan': 'Alpine',
+  'Franco Colapinto': 'Alpine',
   'Alex Albon': 'Williams',
   'Carlos Sainz': 'Williams',
   'Oliver Bearman': 'Haas F1 Team',
