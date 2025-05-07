@@ -1,165 +1,145 @@
-// 📁 /components/FullModal.tsx
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import {
-  FaTimes,
-  FaTrashAlt,
-  FaCheck,
-  FaExclamationTriangle,
-  FaDollarSign,
-  FaSpinner
+  FaTimes, FaTrashAlt, FaCheck, FaExclamationTriangle,
+  FaDollarSign, FaSpinner
 } from 'react-icons/fa';
-import { useUser } from '@clerk/nextjs';
+import { useUser, useAuth } from '@clerk/nextjs';
 import { useStickyStore } from '@/stores/stickyStore';
 import { openBoldCheckout } from '@/lib/bold';
-import { trackFBEvent } from '@/lib/trackFBEvent';
-import { PickSelection } from '@/app/types/picks';
 import { toast } from 'sonner';
+import { createAuthClient } from '@/lib/supabase';          // 👈 NUEVO
+import { PickSelection } from '@/app/types/picks';
 
-// ────────── tablas de multiplicadores ──────────
-const payoutCombos: Record<number, number> = {
-  2: 3, 3: 6, 4: 10, 5: 20, 6: 35, 7: 60, 8: 100
-};
+/* ────────── payout tables ────────── */
+const payoutCombos: Record<number, number> = { 2:3,3:6,4:10,5:20,6:35,7:60,8:100 };
 const safetyPayouts: Record<number, number[]> = {
-  3: [2, 1],
-  4: [5, 1.5],
-  5: [10, 1.5, 1],
-  6: [20, 1.5, 0.4],
-  7: [30, 2.5, 1],
-  8: [50, 5, 1.5]
+  3:[2,1],4:[5,1.5],5:[10,1.5,1],6:[20,1.5,0.4],7:[30,2.5,1],8:[50,5,1.5]
 };
 
-// ────────── tipos ──────────
 interface FullModalProps { isOpen: boolean; onClose: () => void; }
 type RegisterPickApiResponse = {
-  orderId: string;
-  amount: string;
-  callbackUrl: string;
-  integrityKey: string;
+  orderId: string; amount: string; callbackUrl: string; integrityKey: string;
 };
 
 const FullModal: React.FC<FullModalProps> = ({ isOpen, onClose }) => {
-  // store Zustand
+
+  /* ────────── stores & auth ────────── */
   const { picks, setQualyPicks, setRacePicks } = useStickyStore();
   const { user } = useUser();
+  const { getToken } = useAuth();
 
-  // estado local
-  const [amount, setAmount]             = useState(2000);
-  const [mode, setMode]                 = useState<'full' | 'safety'>('full');
-  const [error, setError]               = useState<string | null>(null);
+  /* ────────── local state ────────── */
+  const [amount, setAmount]             = useState(20000);
+  const [mode, setMode]                 = useState<'full'|'safety'>('full');
+  const [error, setError]               = useState<string|null>(null);
   const [isValid, setIsValid]           = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // picks combinados
+  /* ────────── picks merged ────────── */
   const combinedPicks: PickSelection[] = [
     ...(picks.qualy ?? []),
     ...(picks.race  ?? [])
   ];
   const totalPicks = combinedPicks.length;
 
-  // validación
+  /* ────────── validation ────────── */
   useEffect(() => {
     let msg: string | null = null;
     if (totalPicks < 2) msg = 'Elige al menos 2 picks';
     else if (totalPicks > 8) msg = 'Máximo 8 picks por jugada';
     else if (combinedPicks.some(p => !p.betterOrWorse))
       msg = 'Completa todos tus picks (Mejor/Peor)';
-    else if (amount < 2000) msg = 'Monto mínimo $2.000 COP';
-    else if (mode === 'safety' && totalPicks < 3)
-      msg = 'Modo Safety requiere 3+ picks';
+    else if (amount < 10000) msg = 'Monto mínimo $10.000 COP';
+    else if (mode==='safety' && totalPicks < 3) msg = 'Safety requiere mínimo 3 picks';
     setError(msg);
     setIsValid(!msg);
-  }, [combinedPicks, totalPicks, amount, mode]);
+  }, [combinedPicks,totalPicks,amount,mode]);
 
-  // helpers de edición
-  const updatePick = useCallback((idx: number, better: boolean) => {
-    const flag = better ? 'mejor' : 'peor';
+  /* ────────── helpers edición ────────── */
+  const updatePick = useCallback((idx:number, better:boolean)=>{
+    const flag = better ? 'mejor':'peor';
     if (idx < picks.qualy.length) {
-      setQualyPicks(
-        picks.qualy.map((p, i) => i === idx ? { ...p, betterOrWorse: flag } : p)
-      );
+      setQualyPicks(picks.qualy.map((p,i)=>i===idx?{...p,betterOrWorse:flag}:p));
     } else {
       const rel = idx - picks.qualy.length;
-      setRacePicks(
-        picks.race.map((p, i) => i === rel ? { ...p, betterOrWorse: flag } : p)
-      );
+      setRacePicks(picks.race.map((p,i)=>i===rel?{...p,betterOrWorse:flag}:p));
     }
-  }, [picks.qualy, picks.race, setQualyPicks, setRacePicks]);
+  },[picks,setQualyPicks,setRacePicks]);
 
-  const removePick = useCallback((idx: number) => {
-    if (idx < picks.qualy.length) {
-      setQualyPicks(picks.qualy.filter((_, i) => i !== idx));
-    } else {
+  const removePick = useCallback((idx:number)=>{
+    if (idx < picks.qualy.length) setQualyPicks(picks.qualy.filter((_,i)=>i!==idx));
+    else {
       const rel = idx - picks.qualy.length;
-      setRacePicks(picks.race.filter((_, i) => i !== rel));
+      setRacePicks(picks.race.filter((_,i)=>i!==rel));
     }
-  }, [picks.qualy, picks.race, setQualyPicks, setRacePicks]);
+  },[picks,setQualyPicks,setRacePicks]);
 
-  // pago
+  /* ────────── pago Bold (sin cambios salvo  consume_locked_mmc) ────────── */
   const handleBoldPayment = async () => {
     if (!user?.id || isProcessing || !isValid) return;
     const email = user.primaryEmailAddress?.emailAddress;
-    if (!email) { toast.error('Tu cuenta no tiene email.'); return; }
+    if (!email) { toast.error('Tu cuenta no tiene email'); return; }
 
-    setIsProcessing(true);
-    setError(null);
+    setIsProcessing(true); setError(null);
 
     try {
-      // 1. registrar transacción pendiente en backend
-      const res = await fetch('/api/transactions/register-pick-transaction', {
-        method : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body   : JSON.stringify({
-          picks: combinedPicks,
-          mode,
-          amount,
-          gpName  : combinedPicks[0]?.gp_name ?? 'GP Desconocido',
-          fullName: user.fullName,
-          email
+      /* 1. registrar pending TX */
+      const res = await fetch('/api/transactions/register-pick-transaction',{
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          picks: combinedPicks, mode, amount,
+          gpName  : combinedPicks[0]?.gp_name ?? 'GP',
+          fullName: user.fullName, email
         })
       });
-
       if (!res.ok) {
-        const { error: e } = await res.json().catch(() => ({}));
+        const { error:e } = await res.json().catch(()=>({}));
         throw new Error(e ?? 'Error registrando jugada.');
       }
-
-      const { orderId, amount: amtStr, callbackUrl, integrityKey }
+      const { orderId, amount:amtStr, callbackUrl, integrityKey }
         = (await res.json()) as RegisterPickApiResponse;
 
-      // 2. abrir Bold Checkout
+      /* 2. abrir Bold */
       openBoldCheckout({
         apiKey            : process.env.NEXT_PUBLIC_BOLD_BUTTON_KEY!,
-        orderId,
-        amount            : amtStr,
-        currency          : 'COP',
-        description       : `MMC GO (${totalPicks} picks) - ${mode === 'full' ? 'Full' : 'Safety'}`,
+        orderId, amount   : amtStr, currency:'COP',
+        description       : `MMC GO (${totalPicks} picks) - ${mode==='full'?'Full':'Safety'}`,
         redirectionUrl    : callbackUrl,
         integritySignature: integrityKey,
         customerData      : JSON.stringify({ email, fullName: user.fullName ?? 'Jugador MMC' }),
-        renderMode        : 'embedded',
-        onSuccess: () => {
+        renderMode:'embedded',
+        onSuccess: async () => {
           toast.success('Pago recibido, procesando…');
-          setQualyPicks([]);
-          setRacePicks([]);
-          onClose();
+
+          /* 2.b  Descuenta MMC bloqueados del wagering */
+          try {
+            const token = await getToken({ template:'supabase' });
+            if (token) {
+              const supabase = createAuthClient(token);
+              const { error } = await supabase.rpc('consume_locked_mmc',{
+                p_user_id : user.id,
+                p_bet_mmc : Math.round(amount/1000)
+              });
+              if (error) console.warn('consume_locked_mmc error', error.message);
+            }
+          } catch (err) { console.warn('consume_locked_mmc failed', err); }
+
+          /* 3. limpia store y cierra modal */
+          setQualyPicks([]); setRacePicks([]);
+          setIsProcessing(false); onClose();
         },
-        onFailed : ({ message }: { message?: string }) => {
-          toast.error(`Pago falló: ${message ?? ''}`);
-          setIsProcessing(false);
+        onFailed : ({ message }:{message?:string}) => {
+          toast.error(`Pago falló: ${message ?? ''}`); setIsProcessing(false);
         },
         onClose  : () => setIsProcessing(false),
-        onPending: () => {
-          toast.info('Pago pendiente de confirmación.');
-          setIsProcessing(false);
-        }
+        onPending: () => { toast.info('Pago pendiente'); setIsProcessing(false); }
       });
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Error iniciando pago.');
-      setIsProcessing(false);
+    } catch (err:any) {
+      toast.error(err.message ?? 'Error iniciando pago'); setIsProcessing(false);
     }
   };
 
