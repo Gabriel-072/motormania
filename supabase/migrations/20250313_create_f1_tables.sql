@@ -1,4 +1,4 @@
-CREATE TABLE predictions (
+create table if not exists predictions (
   id SERIAL PRIMARY KEY,
   user_id TEXT NOT NULL,
   pole1 TEXT,
@@ -10,13 +10,10 @@ CREATE TABLE predictions (
   submitted_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE TABLE leaderboard (
+create table if not exists transactions leaderboard (
   id SERIAL PRIMARY KEY,
   user_id TEXT NOT NULL,
   name TEXT NOT NULL,
   score INTEGER NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-
-CREATE INDEX idx_predictions_user_id ON predictions(user_id);
-CREATE INDEX idx_leaderboard_score ON leaderboard(score DESC);
