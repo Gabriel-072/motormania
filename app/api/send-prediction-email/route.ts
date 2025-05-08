@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
     </ul>
 
     <p style="text-align:center; margin-top:30px;">
-      <a href="https://motormaniacolombia.com/jugar-y-gana" 
+      <a href="https://motormaniacolombia.com/fantasy" 
          style="display:inline-block; background:#0ea5e9; color:#fff; padding:12px 25px; text-decoration:none; border-radius:5px; font-weight:bold;">
         Ver clasificación
       </a>

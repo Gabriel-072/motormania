@@ -49,7 +49,7 @@ type RaceResult = {
 };
 
 // SECTION: Props Interface
-interface JugarYGanaProps {
+interface FantasyProps {
   triggerSignInModal?: () => void; // Optional function to trigger sign-in modal
 }
 
@@ -184,7 +184,7 @@ const instructions = {
 };
 
 // SECTION: Main Component
-export default function JugarYGana({ triggerSignInModal }: JugarYGanaProps) {
+export default function Fantasy({ triggerSignInModal }: FantasyProps) {
   const { isSignedIn, user, isLoaded } = useUser();
   const { getToken } = useAuth();
   const router = useRouter();
@@ -596,7 +596,7 @@ const handleSubmit = async () => {
       } else {
         // Fallback to redirect if modal trigger is unavailable
         console.warn('triggerSignInModal not provided, falling back to redirect.');
-        const redirectUrl = `/jugar-y-gana?modal=review`; // Try to reopen review modal after login
+        const redirectUrl = `/fantasy?modal=review`; // Try to reopen review modal after login
         router.push(`/sign-in?redirect_url=${encodeURIComponent(redirectUrl)}`);
       }
       return;
@@ -730,7 +730,7 @@ const handleSubmit = async () => {
       // 9. Track Events (Meta Pixel + CAPI)
       const eventId = generateEventId();
       trackFBEvent('PrediccionEnviada', {
-        params: { page: 'jugar-y-gana', gp_name: currentGp.gp_name },
+        params: { page: 'fantasy', gp_name: currentGp.gp_name },
         email: userEmail,
         event_id: eventId,
       });
@@ -743,7 +743,7 @@ const handleSubmit = async () => {
             event_name: 'PrediccionEnviada',
             event_id: eventId,
             event_source_url: window.location.href,
-            params: { page: 'jugar-y-gana', gp_name: currentGp.gp_name },
+            params: { page: 'fantasy', gp_name: currentGp.gp_name },
             email: userEmail,
           }),
         });
@@ -818,7 +818,7 @@ const handleSubmit = async () => {
            // Let's assume 'Lead' tracks initial engagement with the prediction process.
            if (!Object.values(predictions).some(Boolean)) { // Track Lead if no predictions made yet
                  trackFBEvent('Lead', {
-                   params: { page: 'jugar-y-gana', action: 'open_prediction_modal' },
+                   params: { page: 'fantasy', action: 'open_prediction_modal' },
                    email,
                    event_id: `lead_${eventId}`, // Distinguish event IDs if needed
                  });

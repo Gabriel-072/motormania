@@ -104,7 +104,7 @@ export default function Home() {
   const [isFetchingTier, setIsFetchingTier] = useState<boolean>(false); // Loading state for tier fetch
 
   const reviewControls: AnimationControls = useAnimation(); // Controls for Framer Motion animations
-  const autoRotateIntervalRef = useRef<NodeJS.Timeout | null>(null); // Ref to manage the interval timer
+  const autoRotateIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const totalReviewPages = Math.ceil(reviews.length / REVIEWS_PER_PAGE);
   const userEmail = user?.primaryEmailAddress?.emailAddress; // Cache user email
@@ -318,7 +318,7 @@ export default function Home() {
                   Explorar Aliados <span className="opacity-0 group-hover:opacity-100 transition-opacity">→</span>
                 </Link>
                 <span className="hidden sm:inline text-gray-600">|</span>
-                <Link href={isSignedIn ? '/jugar-y-gana' : '/landing-fantasy'} onClick={() => trackEvent('ButtonClick', { page: 'home', button: 'juega_y_gana' }, userEmail)}
+                <Link href={isSignedIn ? '/fantasy' : '/landing-fantasy'} onClick={() => trackEvent('ButtonClick', { page: 'home', button: 'juega_y_gana' }, userEmail)}
                       className="text-cyan-400 hover:text-cyan-300 transition-colors duration-300 group">
                   Juega y Gana <span className="opacity-0 group-hover:opacity-100 transition-opacity">→</span>
                 </Link>
@@ -422,7 +422,7 @@ export default function Home() {
                       Adivina los podios de la Fórmula 1, compite con fanáticos y gana premios exclusivos.
                     </p>
                 </div>
-                <Link href={isSignedIn ? '/jugar-y-gana' : '/landing-fantasy'} onClick={() => trackEvent('ButtonClick', { page: 'home', button: 'f1_fantasy' }, userEmail)}>
+                <Link href={isSignedIn ? '/fantasy' : '/landing-fantasy'} onClick={() => trackEvent('ButtonClick', { page: 'home', button: 'f1_fantasy' }, userEmail)}>
                   <motion.button
                     whileHover={{ scale: 1.05, boxShadow: '0 0 20px rgba(34, 211, 238, 0.5)' }} whileTap={{ scale: 0.95 }}
                     className="w-full sm:w-auto bg-gradient-to-r from-cyan-500 to-purple-500 text-white px-6 py-3 rounded-full font-semibold hover:from-cyan-600 hover:to-purple-600 transition-all"

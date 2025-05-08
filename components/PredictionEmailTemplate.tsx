@@ -77,7 +77,7 @@ export function PredictionEmailTemplate({ predictions, userName, unsubscribeLink
         </p>
         <div style={{ textAlign: 'center', marginBottom: '40px' }}>
           <a
-            href="https://motormania.co/jugar-y-gana"
+            href="https://motormania.co/fantasy"
             style={{
               backgroundColor: '#F59E0B',
               color: '#1F2937',
@@ -131,7 +131,7 @@ Race (GP):
 3. ${predictions.gp3 || 'No seleccionado'}
 
 ¡Compite por premios! Los 3 mejores por carrera y los 3 mejores de la temporada ganan recompensas exclusivas.
-Ver clasificación: https://motormania.co/jugar-y-gana
+Ver clasificación: https://motormania.co/fantasy
 
 Información legal:
 MotorMania SAS - NIT 900.123.456-7

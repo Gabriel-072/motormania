@@ -1,12 +1,26 @@
-// app/mmc-go/page.tsx
-import { Suspense } from 'react';
-import MMCGoContent from '@/components/MMCGoContent';
+// 📁 app/mmc-go/page.tsx
+'use client';
+
+import dynamic from 'next/dynamic';
 import LoadingAnimation from '@/components/LoadingAnimation';
 
-export default function MMCGoPageWrapper() {
-  return (
-    <Suspense fallback={<LoadingAnimation text="Cargando página MMC-GO..." animationDuration={3} />}>
-      <MMCGoContent />
-    </Suspense>
-  );
+/**
+ * Cargamos MMCGoContent únicamente en el navegador para
+ * evitar el desajuste de hidratación (React error #300).
+ */
+const MMCGoContent = dynamic(
+  () => import('@/components/MMCGoContent'),
+  {
+    ssr    : false,                                         // ⬅️  Sin render SSR
+    loading: () => (
+      <LoadingAnimation
+        text="Cargando MMC-GO…"
+        animationDuration={3}
+      />
+    ),
+  }
+);
+
+export default function MMCGoPage() {
+  return <MMCGoContent />;
 }
