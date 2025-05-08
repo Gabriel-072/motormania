@@ -10,6 +10,7 @@ import { useUser, useAuth }             from '@clerk/nextjs';
 import { useRouter }                    from 'next/navigation';
 import { createAuthClient }             from '@/lib/supabase';
 import { motion, AnimatePresence }      from 'framer-motion';
+import Link                             from 'next/link';
 import { CoinsExplainModal }            from '@/components/CoinsExplainModal'; // ← named export
 
 import {
