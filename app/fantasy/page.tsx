@@ -1,4 +1,4 @@
-// app/jugar-y-gana/page.tsx
+// app/fantasy/page.tsx
 'use client';
 
 import { useUser } from '@clerk/nextjs';
@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation';
 import FantasyPageContent from '@/components/FantasyPageContent';
 import LoadingAnimation from '@/components/LoadingAnimation';
 
-export default function JugarYGanaPage() {
+export default function FantasyPage() {
   const { isLoaded } = useUser();
   const router = useRouter();
   const [showSignInModal, setShowSignInModal] = useState(false);

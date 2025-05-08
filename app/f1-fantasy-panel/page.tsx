@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useUser, useAuth } from '@clerk/nextjs';
+import { toast } from 'sonner';               // ← importa Sonner
+import { useRouter } from 'next/navigation';  // ← importa router
 import { motion } from 'framer-motion';
 import { createAuthClient } from '@/lib/supabase';
 import Image from 'next/image';
@@ -109,6 +111,7 @@ const getTeamCarImage = (teamName: string): string =>
   `/images/cars/${teamName.toLowerCase().replace(' ', '-')}.png` || '/images/cars/default-car.png';
 
 export default function F1FantasyPanel() {
+  const router = useRouter(); 
   const { isLoaded, isSignedIn, user } = useUser();
   const { getToken } = useAuth();
   const [seasonScore, setSeasonScore] = useState<number | null>(null);
@@ -436,6 +439,23 @@ export default function F1FantasyPanel() {
     }
   }, [getToken, isSignedIn, user]);
 
+  // ── este efecto dispara el toast 3 segundos tras montar
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      toast('🚀 ¡Psst… tenemos MMC GO abierto! ¿Envías tus PICKS?', {
+        duration: 8_000,
+        action: {
+          label: 'Jugar MMC GO',
+          onClick: () => {
+            router.push('/mmc-go');
+          }
+        }
+      });
+    }, 3_000);
+    return () => clearTimeout(timer);
+  }, [router]);
+  
+  
   useEffect(() => {
     if (!isSignedIn || !user) return;
     fetchData();

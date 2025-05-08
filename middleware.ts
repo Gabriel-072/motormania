@@ -9,7 +9,7 @@ const isPublicRoute = createRouteMatcher([
   '/api/webhooks/bold(.*)', // Específico para el webhook de Bold
   '/api/webhooks(.*)', // Mantiene compatibilidad con otros webhooks
   '/f1-fantasy-panel(.*)',
-  '/jugar-y-gana(.*)',
+  '/fantasy(.*)',
 ]);
 
 const isProtectedRoute = createRouteMatcher(['/dashboard(.*)', '/api/entries(.*)']);

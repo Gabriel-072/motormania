@@ -165,7 +165,7 @@ export default function LandingFantasy() {
                 </motion.button>
               </Link>
               {isSignedIn ? (
-                <Link href="/jugar-y-gana">
+                <Link href="/fantasy">
                   <motion.button
                     whileHover={{ scale: 1.05, boxShadow: '0 0 15px rgba(21, 94, 117, 0.7)' }}
                     whileTap={{ scale: 0.95 }}

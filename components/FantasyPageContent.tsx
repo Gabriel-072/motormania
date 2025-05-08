@@ -826,7 +826,7 @@ const handleSubmit = async () => {
 
 
            trackFBEvent('IntentoPrediccion', {
-             params: { page: 'jugar-y-gana', modal_opened: modal },
+             params: { page: 'fantasy', modal_opened: modal },
              email,
              event_id: `attempt_${eventId}`,
            });
@@ -841,7 +841,7 @@ const handleSubmit = async () => {
                    event_name: 'IntentoPrediccion',
                    event_id: `attempt_${eventId}`,
                    event_source_url: window.location.href,
-                   params: { page: 'jugar-y-gana', modal_opened: modal },
+                   params: { page: 'fantasy', modal_opened: modal },
                    email,
                  }),
             }).catch(err => console.error('CAPI IntentoPrediccion error:', err));

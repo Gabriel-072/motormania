@@ -12,7 +12,7 @@ export default function Header() {
   const pathname = usePathname();
 
   if (pathname === '/mmc-go') return null;
-  if (pathname === '/jugar-y-gana') return null; // no renderiza aquí
+  if (pathname === '/fantasy') return null; // no renderiza aquí
 
 
   useEffect(() => {
@@ -30,7 +30,7 @@ export default function Header() {
 
   const navItems = [
     { href: "/", label: "Inicio", icon: Home },
-    { href: "/jugar-y-gana", label: "F1 Fantasy", icon: Trophy },
+    { href: "/fantasy", label: "F1 Fantasy", icon: Trophy },
     { href: "/mmc-go", label: "MMC GO", icon: Rocket },
   ];
 

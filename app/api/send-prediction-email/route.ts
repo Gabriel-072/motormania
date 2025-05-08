@@ -104,7 +104,7 @@ Predicciones Adicionales:
 - Piloto del Día: ${predictions.driver_of_the_day || 'No seleccionado'}
 
 ¡Compite por premios! Los 3 mejores por carrera y los 3 mejores de la temporada ganan recompensas exclusivas.
-Ver clasificación: https://motormania.co/jugar-y-gana
+Ver clasificación: https://motormania.co/fantasy
 
 Información legal:
 MotorMania SAS - NIT 900.123.456-7
