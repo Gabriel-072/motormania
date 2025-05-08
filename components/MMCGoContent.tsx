@@ -127,7 +127,6 @@ export default function MMCGoContent() {
   const configChannelRef       = useRef<any>(null);
   const visibilityChannelRef   = useRef<any>(null);
   const linesChannelRef        = useRef<any>(null);
-  const hasPlayedRev           = useRef(false);
   const {
     picks, currentSession, setSession,
     addPick, removePick, setShowSticky,
@@ -414,7 +413,23 @@ export default function MMCGoContent() {
 
   }, [picks.qualy, picks.race, setShowSticky, setMultiplier, setPotentialWin]); // Dependencias correctas
 
-  // FX: engine rev once on first load
+  // Sounds FX:
+
+  // ■■■ CREATE CLICK SOUND ON CLIENT ■■■
+  const clickSound = useRef<Howl | null>(null);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    clickSound.current = new Howl({
+      src: ['/sounds/f1-click.mp3'],
+      volume: 0.4,
+      preload: true,
+    });
+    // fuerza la carga inmediata
+    clickSound.current.load();
+  }, []);
+
+  // ■■■ engine rev once on first load (sigue usando tu rev global) ■■■
+  const hasPlayedRev = useRef(false);
   useEffect(() => {
     if (isDataLoaded && !hasPlayedRev.current) {
       soundManager.rev.play();
@@ -568,31 +583,46 @@ export default function MMCGoContent() {
                             <p className="mb-2 px-1 text-xs font-semibold text-amber-400"> {isQualyView ? 'Qualy' : 'Carrera'}: <span className="text-base">{typeof line === 'number' ? line.toFixed(1) : 'N/A'}</span> </p>
                           </div>
 
-                          {/* Botones Mejor/Peor */}
-                          <div className="mt-auto flex w-full overflow-hidden rounded-b-lg">
-                            {(['mejor', 'peor'] as const).map((opt) => {
-                              const selected = pick === opt;
-                              const isBetter = opt === 'mejor';
-                              const baseClasses = 'flex-1 py-2.5 text-sm font-bold flex items-center justify-center gap-1.5 transition-all duration-150 ease-in-out';
-                              const colorClasses = isBetter
-                                ? selected ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-inner' : 'bg-gray-700/80 text-green-400 hover:bg-green-700/90 hover:text-white'
-                                : selected ? 'bg-gradient-to-r from-red-500 to-rose-600 text-white shadow-inner'   : 'bg-gray-700/80 text-red-400 hover:bg-red-700/90 hover:text-white';
-                              const Icon = isBetter ? FaCheck : FaTimes;
-                              return (
-                                <button
-                                  key={opt}
-                                  disabled={selected}
-                                  onClick={() => {
-                                      soundManager.click.play();
-                                      addPick({ driver, team: driverToTeam[driver] || 'N/A', line: typeof line === 'number' ? line : 0, betterOrWorse: opt, gp_name: currentGp?.gp_name ?? '', session_type: currentSession });
-                                      // CORREGIDO: trackFBEvent con `params`
-                                      trackFBEvent('Lead', { params: { content_name: `Pick_${currentSession}_${driver}_${opt}` } });
-                                  }}
-                                  className={`${baseClasses} ${colorClasses} ${selected ? 'cursor-default' : 'hover:scale-[1.02]'}`}
-                                > <Icon size={12} /> {isBetter ? 'Mejor' : 'Peor'} </button>
-                              );
-                            })}
-                          </div>
+                           {/* Botones Mejor/Peor */}
+<div className="mt-auto flex w-full overflow-hidden rounded-b-lg">
+  {(['mejor','peor'] as const).map(opt => {
+    const selected = getUserPick(driver) === opt;
+    const isBetter = opt === 'mejor';
+
+    // 👇 vuelve a poner estas dos líneas:
+    const baseClasses = 'flex-1 py-2.5 text-sm font-bold flex items-center justify-center gap-1.5 transition-all duration-150 ease-in-out';
+    const colorClasses = isBetter
+      ? selected
+        ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-inner'
+        : 'bg-gray-700/80 text-green-400 hover:bg-green-700/90 hover:text-white'
+      : selected
+        ? 'bg-gradient-to-r from-red-500 to-rose-600 text-white shadow-inner'
+        : 'bg-gray-700/80 text-red-400 hover:bg-red-700/90 hover:text-white';
+
+    const Icon = isBetter ? FaCheck : FaTimes;
+
+    return (
+      <button
+        key={opt}
+        disabled={selected}
+        onClick={() => {
+          clickSound.current?.play();
+          addPick({ driver, team: driverToTeam[driver] || 'N/A',
+                    line: typeof line === 'number' ? line : 0,
+                    betterOrWorse: opt,
+                    gp_name: currentGp?.gp_name ?? '',
+                    session_type: currentSession });
+          trackFBEvent('Lead', { params: { content_name: `Pick_${currentSession}_${driver}_${opt}` } });
+        }}
+        className={`${baseClasses} ${colorClasses} ${selected ? 'cursor-default' : 'hover:scale-[1.02]'}`}
+      >
+        <Icon size={12}/> {isBetter ? 'Mejor' : 'Peor'}
+      </button>
+    );
+  })}
+</div>
+
+
                         </div>
                       </motion.div>
                     );

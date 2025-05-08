@@ -2,13 +2,16 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useUser, useAuth } from '@clerk/nextjs';
-import { toast } from 'sonner';               // ← importa Sonner
-import { useRouter } from 'next/navigation';  // ← importa router
+import { toast, Toaster } from 'sonner';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { createAuthClient } from '@/lib/supabase';
 import Image from 'next/image';
 import Link from 'next/link';
 import LoadingAnimation from '@/components/LoadingAnimation';
+import { Dialog, Transition } from '@headlessui/react';
+import { Fragment } from 'react';  // si no lo tienes ya
+import { Howl } from 'howler';
 
 type Prediction = {
   gp_name: string;
@@ -59,7 +62,7 @@ type LeaderboardEntry = {
   score: number;
   updated_at: string;
   quiz_completed: boolean;
-  signup_bonus_claimed: boolean; // New field to track sign-up bonus
+  signup_bonus_claimed: boolean;
 };
 
 // Team Colors for Gradients
@@ -111,7 +114,7 @@ const getTeamCarImage = (teamName: string): string =>
   `/images/cars/${teamName.toLowerCase().replace(' ', '-')}.png` || '/images/cars/default-car.png';
 
 export default function F1FantasyPanel() {
-  const router = useRouter(); 
+  const router = useRouter();
   const { isLoaded, isSignedIn, user } = useUser();
   const { getToken } = useAuth();
   const [seasonScore, setSeasonScore] = useState<number | null>(null);
@@ -129,6 +132,10 @@ export default function F1FantasyPanel() {
   const [showQuizModal, setShowQuizModal] = useState(false);
   const [quizAnswers, setQuizAnswers] = useState<string[]>(Array(5).fill(''));
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [showRedirectModal, setShowRedirectModal] = useState(false);
+  const [demoPick, setDemoPick] = useState<'mejor' | 'peor' | null>(null);
+  const clickSound = new Howl({ src: ['/sounds/f1-click.mp3'], volume: 5, preload: true });
+
 
   // 5-Question F1 Quiz
   const quizQuestions = [
@@ -285,7 +292,6 @@ export default function F1FantasyPanel() {
       }
 
       if (!data) {
-        // Shouldn't happen since sign-up bonus creates an entry, but handle it anyway
         const userName = getUserName();
         const { error: insertError } = await supabase.from('leaderboard').insert({
           user_id: userId,
@@ -439,23 +445,11 @@ export default function F1FantasyPanel() {
     }
   }, [getToken, isSignedIn, user]);
 
-  // ── este efecto dispara el toast 3 segundos tras montar
   useEffect(() => {
-    const timer = setTimeout(() => {
-      toast('🚀 ¡Psst… tenemos MMC GO abierto! ¿Envías tus PICKS?', {
-        duration: 8_000,
-        action: {
-          label: 'Jugar MMC GO',
-          onClick: () => {
-            router.push('/mmc-go');
-          }
-        }
-      });
-    }, 3_000);
+    const timer = setTimeout(() => setShowRedirectModal(true), 3000);
     return () => clearTimeout(timer);
-  }, [router]);
-  
-  
+  }, []);
+
   useEffect(() => {
     if (!isSignedIn || !user) return;
     fetchData();
@@ -476,49 +470,49 @@ export default function F1FantasyPanel() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-950 to-gray-900 text-white overflow-hidden relative">
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16">
-    {/* Hero Section with CTAs */}
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6 }}
-      className="mb-6"
-    >
-      <div
-        className="animate-rotate-border rounded-xl p-0.5"
-        style={{
-          background: `conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #9333ea 20deg, #c084fc 30deg, #9333ea 40deg, transparent 50deg, transparent 360deg)`,
-          animationDuration: '6s',
-          willChange: 'background',
-        }}
-      >
-        <div className="bg-gradient-to-br from-gray-900 to-black p-6 rounded-xl shadow-lg text-center">
-          <h2 className="text-2xl font-bold text-white mb-4 font-exo2">¡Bienvenido a tu Panel Fantasy!</h2>
-          <p className="text-gray-300 mb-6 font-exo2">
-            Tus predicciones están listas. Únete a ligas privadas para competir con amigos o chatea con otros fans en el Paddock.
-          </p>
-          <div className="flex flex-col sm:flex-row justify-center gap-4">
-  <Link href="/ligas-fantasy" passHref legacyBehavior prefetch>
-    <motion.a
-      whileHover={{ scale: 1.05, transition: { duration: 0.1 } }}
-      whileTap={{ scale: 0.95, transition: { duration: 0.05 } }}
-      className="px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-400 text-white rounded-full font-exo2 font-semibold transition-all"
-    >
-      Explorar Ligas Privadas
-    </motion.a>
-  </Link>
-  <Link href="/paddock" passHref legacyBehavior prefetch>
-    <motion.a
-      whileHover={{ scale: 1.05, transition: { duration: 0.1 } }}
-      whileTap={{ scale: 0.95, transition: { duration: 0.05 } }}
-      className="px-6 py-3 bg-gradient-to-r from-cyan-600 to-cyan-400 text-white rounded-full font-exo2 font-semibold transition-all"
-    >
-      Ir al Chat del Paddock
-    </motion.a>
-  </Link>
-</div>
-        </div>
-      </div>
-    </motion.div>
+        {/* Hero Section with CTAs */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="mb-6"
+        >
+          <div
+            className="animate-rotate-border rounded-xl p-0.5"
+            style={{
+              background: `conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #9333ea 20deg, #c084fc 30deg, #9333ea 40deg, transparent 50deg, transparent 360deg)`,
+              animationDuration: '6s',
+              willChange: 'background',
+            }}
+          >
+            <div className="bg-gradient-to-br from-gray-900 to-black p-6 rounded-xl shadow-lg text-center">
+              <h2 className="text-2xl font-bold text-white mb-4 font-exo2">¡Bienvenido a tu Panel Fantasy!</h2>
+              <p className="text-gray-300 mb-6 font-exo2">
+                Tus predicciones están listas. Únete a ligas privadas para competir con amigos o chatea con otros fans en el Paddock.
+              </p>
+              <div className="flex flex-col sm:flex-row justify-center gap-4">
+                <Link href="/ligas-fantasy" passHref legacyBehavior prefetch>
+                  <motion.a
+                    whileHover={{ scale: 1.05, transition: { duration: 0.1 } }}
+                    whileTap={{ scale: 0.95, transition: { duration: 0.05 } }}
+                    className="px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-400 text-white rounded-full font-exo2 font-semibold transition-all"
+                  >
+                    Explorar Ligas Privadas
+                  </motion.a>
+                </Link>
+                <Link href="/paddock" passHref legacyBehavior prefetch>
+                  <motion.a
+                    whileHover={{ scale: 1.05, transition: { duration: 0.1 } }}
+                    whileTap={{ scale: 0.95, transition: { duration: 0.05 } }}
+                    className="px-6 py-3 bg-gradient-to-r from-cyan-600 to-cyan-400 text-white rounded-full font-exo2 font-semibold transition-all"
+                  >
+                    Ir al Chat del Paddock
+                  </motion.a>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </motion.div>
 
         {/* Row 1: Key Highlights */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -1012,18 +1006,110 @@ export default function F1FantasyPanel() {
         )}
 
         {/* Error Messages */}
-        {errors.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-center text-red-400 font-exo2 bg-red-900/30 p-4 rounded-xl border border-red-500/50"
+      {errors.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="text-center text-red-400 font-exo2 bg-red-900/30 p-4 rounded-xl border border-red-500/50"
+        >
+          {errors.map((error, index) => (
+            <p key={index}>{error}</p>
+          ))}
+        </motion.div>
+      )}
+    </main>
+
+    {/* === Popup interactivo + glassmorphism === */}
+    <Transition appear show={showRedirectModal} as={Fragment}>
+      <Dialog as="div" className="relative z-50" onClose={() => setShowRedirectModal(false)}>
+        {/* Fondo */}
+        <Transition.Child
+          as={Fragment}
+          enter="ease-out duration-300"
+          enterFrom="opacity-0"
+          enterTo="opacity-100"
+          leave="ease-in duration-200"
+          leaveFrom="opacity-100"
+          leaveTo="opacity-0"
+        >
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" />
+        </Transition.Child>
+
+        {/* Panel */}
+        <div className="fixed inset-0 flex items-center justify-center p-4">
+          <Transition.Child
+            as={Fragment}
+            enter="ease-out duration-300"
+            enterFrom="opacity-0 scale-95"
+            enterTo="opacity-100 scale-100"
+            leave="ease-in duration-200"
+            leaveFrom="opacity-100 scale-100"
+            leaveTo="opacity-0 scale-95"
           >
-            {errors.map((error, index) => (
-              <p key={index}>{error}</p>
-            ))}
-          </motion.div>
-        )}
-      </main>
-    </div>
-  );
+            <Dialog.Panel className="w-full max-w-sm rounded-xl bg-gradient-to-br from-gray-800 to-black p-6 text-center text-white shadow-xl">
+              <Dialog.Title className="text-lg font-bold mb-4">🚀 ¡MMC GO te espera!</Dialog.Title>
+              <p className="text-sm mb-6">Prueba un pick de demo antes de jugar:</p>
+
+              {/* Glassmorphism Demo Card */}
+              <div className="flex flex-col items-center mb-6 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-4 space-y-2">
+                <Image
+                  src="/images/pilots/max-verstappen.png"
+                  alt="Max Verstappen"
+                  width={80}
+                  height={80}
+                  className="rounded-full mb-1"
+                />
+                <h3 className="text-white font-bold">Max Verstappen</h3>
+                <p className="text-gray-300">Línea: 6.5</p>
+
+                <div className="flex w-full gap-2 mt-2">
+                  <button
+                    disabled={demoPick === 'mejor'}
+                    onClick={() => {
+                      clickSound.play();
+                      setDemoPick('mejor');
+                    }}
+                    className={`flex-1 py-2 rounded-xl font-semibold transition ${
+                      demoPick === 'mejor'
+                        ? 'bg-green-500 text-white'
+                        : 'bg-white/20 text-green-400 hover:bg-green-700 hover:text-white'
+                    }`}
+                  >
+                    Mejor
+                  </button>
+                  <button
+                    disabled={demoPick === 'peor'}
+                    onClick={() => {
+                      clickSound.play();
+                      setDemoPick('peor');
+                    }}
+                    className={`flex-1 py-2 rounded-xl font-semibold transition ${
+                      demoPick === 'peor'
+                        ? 'bg-red-500 text-white'
+                        : 'bg-white/20 text-red-400 hover:bg-red-700 hover:text-white'
+                    }`}
+                  >
+                    Peor
+                  </button>
+                </div>
+              </div>
+
+              {/* Botón Confirmar */}
+              <button
+                disabled={!demoPick}
+                onClick={() => {
+                  router.push('/mmc-go');
+                  setShowRedirectModal(false);
+                }}
+                className="w-full px-4 py-2 bg-amber-500 text-black font-semibold rounded-xl disabled:opacity-50"
+              >
+                Ir a MMC GO
+              </button>
+            </Dialog.Panel>
+          </Transition.Child>
+        </div>
+      </Dialog>
+    </Transition>
+  </div>
+);
 }

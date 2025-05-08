@@ -5,25 +5,32 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SignedIn, SignedOut, UserButton } from '@clerk/nextjs';
-import { Menu, X, Home, Users, Trophy, Rocket, LogIn } from 'lucide-react';
+import { Menu, X, Home, Trophy, Rocket, LogIn } from 'lucide-react';
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const pathname = usePathname();
 
-  if (pathname === '/mmc-go') return null;
-  if (pathname === '/fantasy') return null; // no renderiza aquí
-
-
+  // 1) Hooks incondicionales
   useEffect(() => {
+    // Cierra el menú si cambias de ruta
     if (isMenuOpen) setIsMenuOpen(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
   useEffect(() => {
+    // Bloquea scroll cuando el menú móvil está abierto
     document.body.style.overflow = isMenuOpen ? 'hidden' : '';
-    return () => { document.body.style.overflow = ''; };
+    return () => {
+      document.body.style.overflow = '';
+    };
   }, [isMenuOpen]);
+
+  // 2) Early return: después de los hooks
+  if (pathname === '/mmc-go' || pathname === '/fantasy') {
+    return null;
+  }
+
+  // 3) Resto del componente
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
   const isActive = (href: string) => pathname === href;
@@ -41,26 +48,19 @@ export default function Header() {
     border-b border-white/10
     shadow-lg shadow-black/20
   `;
-
   const containerClasses = "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8";
   const contentWrapperClasses = "flex h-16 items-center justify-between";
-
-  // Desktop Nav
   const desktopNavClasses = "hidden md:flex items-center space-x-6";
   const desktopLinkBase = "relative text-sm font-medium transition-colors duration-200 group focus:outline-none focus-visible:text-amber-400";
   const desktopLinkActive = "text-amber-400";
   const desktopLinkInactive = "text-gray-300 hover:text-white";
   const desktopLinkUnderline = "absolute bottom-[-4px] left-0 h-0.5 bg-amber-400 w-full scale-x-0 group-hover:scale-x-100 group-focus-visible:scale-x-100 transition-transform duration-300 origin-center";
-
-  // Mobile Nav
   const mobileMenuButtonClasses = "md:hidden inline-flex items-center justify-center p-2 rounded-md text-gray-300 hover:text-white hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-amber-500 transition";
   const mobileMenuPanelClasses = "fixed inset-y-8 right-0 z-50 w-full max-w-xs bg-gray-900 shadow-xl p-6 flex flex-col";
   const mobileCloseButtonClasses = "absolute top-4 right-4 p-2 -m-2 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded-full transition";
   const mobileNavLinkBase = "flex items-center gap-3 rounded-md px-3 py-2 text-base font-medium transition-colors duration-200 focus:outline-none focus-visible:bg-gray-700/70 focus-visible:text-amber-300";
   const mobileNavLinkActive = "bg-amber-600/10 text-amber-300";
   const mobileNavLinkInactive = "text-gray-300 hover:bg-gray-800/60 hover:text-amber-300";
-
-  // Auth Buttons
   const authContainerClasses = "flex items-center gap-4";
   const loginButtonDesktopClasses = `${desktopLinkInactive} ${desktopLinkBase} bg-gray-800/70 hover:bg-gray-700/80 px-4 py-1.5 rounded-md text-xs`;
   const loginButtonMobileClasses = "flex items-center justify-center gap-2 w-full text-center bg-gradient-to-r from-amber-500 to-orange-500 text-black font-bold py-3 px-4 rounded-lg transition-all duration-300 hover:shadow-lg hover:shadow-amber-500/40 active:scale-95";
@@ -108,15 +108,19 @@ export default function Header() {
                   </Link>
                 ))}
               </nav>
-              {/* Desktop Auth Buttons */}
               <div className={authContainerClasses}>
                 <SignedOut>
                   <Link href="/sign-in" className={loginButtonDesktopClasses}>Log In</Link>
                 </SignedOut>
                 <SignedIn>
-                  <UserButton afterSignOutUrl="/" appearance={{
-                    elements: { userButtonAvatarBox: "w-8 h-8 ring-1 ring-offset-1 ring-offset-gray-900 ring-white/20 hover:ring-amber-400/80" }
-                  }} />
+                  <UserButton
+                    afterSignOutUrl="/"
+                    appearance={{
+                      elements: {
+                        userButtonAvatarBox: "w-8 h-8 ring-1 ring-offset-1 ring-offset-gray-900 ring-white/20 hover:ring-amber-400/80"
+                      }
+                    }}
+                  />
                 </SignedIn>
               </div>
             </div>
@@ -143,15 +147,13 @@ export default function Header() {
         </div>
       </header>
 
-      {/* Mobile Menu - Using Framer Motion */}
+      {/* Mobile Menu */}
       <AnimatePresence>
         {isMenuOpen && (
           <>
-            {/* Backdrop */}
             <motion.div
-              key="mobile-backdrop"
+              key="backdrop"
               className="fixed inset-0 z-40 bg-black/80 backdrop-blur-md md:hidden"
-              aria-hidden="true"
               variants={backdropVariants}
               initial="hidden"
               animate="visible"
@@ -159,20 +161,18 @@ export default function Header() {
               onClick={toggleMenu}
             />
 
-            {/* Panel */}
             <motion.div
-              key="mobile-panel"
+              key="panel"
               id="mobile-menu"
               className={mobileMenuPanelClasses}
               variants={panelVariants}
               initial="hidden"
               animate="visible"
-              exit="hidden"
+              exit="exit"
               role="dialog"
               aria-modal="true"
               aria-labelledby="mobile-menu-title"
             >
-              {/* Close Button */}
               <div className="flex justify-end">
                 <button
                   type="button"
@@ -183,14 +183,12 @@ export default function Header() {
                   <X className="h-7 w-7" aria-hidden="true" />
                 </button>
               </div>
-              {/* Links */}
               <nav className="mt-6 flex-1 flow-root">
                 <div className="-my-6 divide-y divide-gray-700/50">
                   <div className="space-y-2 py-6">
-                    {/* Stagger link animation */}
                     <AnimatePresence initial={false}>
                       {navItems.map((item, i) => (
-                        <motion.div key={item.href} custom={i} variants={mobileLinkVariants} animate="visible" initial="hidden" exit="exit">
+                        <motion.div key={item.href} custom={i} variants={mobileLinkVariants} initial="hidden" animate="visible" exit="exit">
                           <Link
                             href={item.href}
                             className={`${mobileNavLinkBase} ${isActive(item.href) ? mobileNavLinkActive : mobileNavLinkInactive}`}
@@ -204,7 +202,6 @@ export default function Header() {
                       ))}
                     </AnimatePresence>
                   </div>
-                  {/* Auth section at bottom */}
                   <div className="py-6">
                     <SignedOut>
                       <Link href="/sign-in" className={loginButtonMobileClasses} onClick={toggleMenu}>

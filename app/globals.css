@@ -352,4 +352,42 @@ body::after {
   overflow: hidden;
 }
 
-/*/ Hiding header and moving bar on MMC GO/*/
+/*/ Animaciones Toast F1 Panel /*/
+
+.animate-in {
+  animation: slideIn 0.5s ease-out forwards;
+}
+
+.animate-out {
+  animation: slideOut 0.5s ease-in forwards;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOut {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+}
+
+.slide-in-from-bottom {
+  animation: slideIn 0.5s ease-out forwards;
+}
+
+.slide-out-to-bottom {
+  animation: slideOut 0.5s ease-in forwards;
+}
