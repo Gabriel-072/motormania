@@ -1,16 +1,18 @@
 // app/page.tsx
 'use client';
 
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useUser, useAuth, SignedOut } from '@clerk/nextjs';
 import { motion, AnimatePresence, useAnimation, AnimationControls } from 'framer-motion';
 import { useState, useEffect, useCallback, useRef } from 'react';
-
+import SplashCursor from '@/components/Animations/SplashCursor/SplashCursor'
 import MovingBar from '@/components/MovingBar';
 import { InfiniteLogoCarousel } from '@/components/InfiniteLogoCarousel';
 import { trackFBEvent } from '@/lib/trackFBEvent';
 import { createAuthClient } from '@/lib/supabase'; // Assuming this is correctly set up for client-side auth
+
 
 // --- Types ---
 type Tier = 'Intro' | 'Estándar' | 'Premium';
@@ -264,7 +266,9 @@ export default function Home() {
 
   // --- Component Render ---
   return (
-    // Added overflow-x-hidden to prevent horizontal scroll caused by animations/carousels
+    <>
+    
+    <SplashCursor />
     <div className="min-h-screen text-white overflow-x-hidden bg-gray-950 font-exo2">
       <MovingBar />
 
@@ -576,7 +580,7 @@ export default function Home() {
            <motion.h2
              initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} viewport={{ once: true }}
              className="text-3xl sm:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-cyan-400 mb-6"
-           > ¡Tus Entradas Se Acumulan! </motion.h2>
+           > Muy pronto podras acumular entradas en cada juego promocional! </motion.h2>
            <motion.p
              initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.1 }} viewport={{ once: true }}
              className="text-gray-400 mb-10 text-lg"
@@ -748,5 +752,6 @@ export default function Home() {
        </section>
       {/* Minimal Footer */}
     </div>
+    </>
   );
 }

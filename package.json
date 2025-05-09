@@ -36,6 +36,7 @@
     "lucide-react": "^0.487.0",
     "next": "^14.2.24",
     "openssl": "^2.0.0",
+    "postprocessing": "^6.37.3",
     "puppeteer": "^19.0.0",
     "puppeteer-screen-recorder": "^3.0.6",
     "react": "^18.3.1",
@@ -53,6 +54,7 @@
     "svix": "^1.61.2",
     "tailwind-merge": "^3.2.0",
     "tailwindcss-animate": "^1.0.7",
+    "three": "^0.167.1",
     "uuid": "^11.1.0",
     "vercel": "^41.6.1",
     "zustand": "^5.0.3"
