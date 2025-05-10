@@ -42,8 +42,8 @@ export default function DepositModal({ onClose, onDeposit }: DepositModalProps) 
       await onDeposit(amount);
       onClose();
     } catch (err: any) {
-      console.error(err);
-      setError(err.message || 'Error inesperado');
+      console.error('Deposit error:', err);
+      setError(err.message || 'Ocurrió un error inesperado.');
     } finally {
       setIsLoading(false);
     }
@@ -59,13 +59,14 @@ export default function DepositModal({ onClose, onDeposit }: DepositModalProps) 
       >
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-xl font-bold flex items-center gap-2">
-            <FaDollarSign/> Depósito
+            <FaDollarSign /> Depósito
           </h3>
           <button onClick={onClose} disabled={isLoading}>
-            <FaTimes/>
+            <FaTimes size={18} />
           </button>
         </div>
 
+        {/* Montos rápidos */}
         <div className="mb-4">
           <p className="text-sm text-gray-400 mb-2 text-center">Montos rápidos</p>
           <div className="grid grid-cols-2 gap-2">
@@ -73,7 +74,11 @@ export default function DepositModal({ onClose, onDeposit }: DepositModalProps) 
               <button
                 key={v}
                 onClick={() => setAmount(v)}
-                className={`py-2 rounded ${amount === v ? 'bg-amber-500 text-black' : 'bg-gray-700 text-white'}`}
+                className={`py-2 rounded ${
+                  amount === v
+                    ? 'bg-amber-500 text-black'
+                    : 'bg-gray-700 text-white'
+                }`}
               >
                 {fmtCurrency(v)}
               </button>
@@ -81,8 +86,11 @@ export default function DepositModal({ onClose, onDeposit }: DepositModalProps) 
           </div>
         </div>
 
-        <div className="mb-4">
-          <label className="block text-sm mb-1">Otro monto (mín. {fmtCurrency(MIN)})</label>
+        {/* Monto personalizado */}
+        <div className="mb-6">
+          <label className="block text-sm mb-1 text-center">
+            Otro monto (mín. {fmtCurrency(MIN)})
+          </label>
           <input
             type="number"
             value={amount}
@@ -93,28 +101,34 @@ export default function DepositModal({ onClose, onDeposit }: DepositModalProps) 
           />
         </div>
 
+        {/* Botón de recarga */}
         <button
           onClick={submit}
           disabled={isLoading || amount < MIN}
-          className={`w-full py-2 rounded font-bold ${isLoading || amount < MIN
-            ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
-            : 'bg-amber-500 text-black hover:bg-amber-600'}`}
+          className={`w-full py-2 rounded font-bold flex items-center justify-center gap-2 ${
+            isLoading || amount < MIN
+              ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+              : 'bg-amber-500 text-black hover:bg-amber-600'
+          }`}
         >
-          {isLoading ? <FaSpinner className="animate-spin"/> : `Recargar ${fmtCurrency(amount)}`}
+          {isLoading
+            ? <FaSpinner className="animate-spin" />
+            : `Recargar ${fmtCurrency(amount)}`}
         </button>
 
         {error && (
-          <p className="text-red-400 text-sm mt-2 flex items-center gap-1">
-            <FaExclamationCircle/> {error}
+          <p className="text-red-400 text-sm mt-3 flex items-center justify-center gap-2">
+            <FaExclamationCircle /> {error}
           </p>
         )}
 
-        <div className="mt-6 text-center text-gray-400 text-xs space-y-1">
-          <div className="flex justify-center gap-2 items-center">
-            <FaLock/> <span>Conexión Segura</span> <FaShieldAlt/> <span>Datos Protegidos</span>
+        {/* Footer seguro */}
+        <div className="mt-6 text-center text-gray-400 text-xs space-y-2">
+          <div className="flex justify-center items-center gap-2">
+            <FaLock /> Conexión Segura <FaShieldAlt /> Datos Protegidos
           </div>
-          <div className="flex justify-center gap-4 mt-2">
-            <FaCcVisa/> <FaCcMastercard/>
+          <div className="flex justify-center items-center gap-4 mt-1">
+            <FaCcVisa size={24} /> <FaCcMastercard size={24} />
           </div>
           <p>Pagos procesados por <strong>Bold</strong></p>
         </div>
