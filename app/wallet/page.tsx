@@ -145,13 +145,14 @@ export default function WalletPage() {
       if (!res.ok) throw new Error('Error generando firma');
       const { integrityKey } = await res.json();
       if (!integrityKey) throw new Error('Firma inválida');
-
+  
       openBoldCheckout({
         apiKey: process.env.NEXT_PUBLIC_BOLD_BUTTON_KEY!,
         orderId,
         amount: String(amount),
         currency: 'COP',
-        description: `Recarga $${fmt(amount)} COP`,
+        // Descripción simplificada para evitar caracteres no válidos:
+        description: `Recarga ${amount} COP`,
         redirectionUrl: `${process.env.NEXT_PUBLIC_SITE_URL}/wallet`,
         integritySignature: integrityKey,
         customerData: JSON.stringify({
