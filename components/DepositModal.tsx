@@ -32,7 +32,7 @@ export default function DepositModal({ onClose, onDeposit }: DepositModalProps) 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const MIN_DEPOSIT = 5000;
+  const MIN_DEPOSIT = 2000;
   const PRESET_AMOUNTS = [10000, 20000, 50000, 100000];
 
   const handleDepositClick = async () => {
