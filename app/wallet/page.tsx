@@ -1,14 +1,14 @@
 // 📁 app/wallet/page.tsx
 'use client';
 
-import React, { useEffect, useState }    from 'react';
-import { useUser, useAuth }              from '@clerk/nextjs';
-import { motion, AnimatePresence }       from 'framer-motion';
-import dynamic                           from 'next/dynamic';
-import Header                            from '@/components/Header';
-import { createAuthClient }              from '@/lib/supabase';
-import { openBoldCheckout }              from '@/lib/bold';
-import { toast }                         from 'sonner';
+import React, { useEffect, useState } from 'react';
+import { useUser, useAuth } from '@clerk/nextjs';
+import { motion, AnimatePresence } from 'framer-motion';
+import dynamic from 'next/dynamic';
+import Header from '@/components/Header';
+import { createAuthClient } from '@/lib/supabase';
+import { openBoldCheckout } from '@/lib/bold';
+import { toast } from 'sonner';
 
 import {
   FaArrowUp,
@@ -22,23 +22,23 @@ import {
   FaTicketAlt,
   FaFileInvoiceDollar
 } from 'react-icons/fa';
-import WalletCard                        from '@/components/WalletCard';
-import RedeemCodeModal                   from '@/components/RedeemCodeModal';
-import ActionButton                      from '@/components/ActionButton';
-import PlayThroughProgress               from '@/components/PlayThroughProgress';
+import WalletCard from '@/components/WalletCard';
+import RedeemCodeModal from '@/components/RedeemCodeModal';
+import ActionButton from '@/components/ActionButton';
+import PlayThroughProgress from '@/components/PlayThroughProgress';
 
 /* Lazy modals */
-const DepositModal  = dynamic(() => import('@/components/DepositModal'));
+const DepositModal = dynamic(() => import('@/components/DepositModal'));
 const WithdrawModal = dynamic(() => import('@/components/WithdrawModal'));
 
 /* Types --------------------------------------------------------- */
 interface WalletRow {
-  balance_cop      : number;
-  withdrawable_cop : number;
-  mmc_coins        : number;
-  locked_mmc       : number;
-  fuel_coins       : number;
-  locked_fuel      : number;
+  balance_cop: number;
+  withdrawable_cop: number;
+  mmc_coins: number;
+  locked_mmc: number;
+  fuel_coins: number;
+  locked_fuel: number;
 }
 interface PromoProgress { remaining: number; total: number; }
 type TxType = 'recarga'|'apuesta'|'ganancia'|'reembolso'|'retiro_pending'|'retiro';
@@ -51,20 +51,19 @@ interface Transaction {
 }
 const fmt = (n: number) => n.toLocaleString('es-CO');
 
-/* Page ---------------------------------------------------------- */
 export default function WalletPage() {
   const { isSignedIn, user } = useUser();
-  const { getToken }         = useAuth();
-  const uid                  = user?.id;
+  const { getToken } = useAuth();
+  const uid = user?.id;
 
-  const [wallet, setWallet]     = useState<WalletRow | null>(null);
-  const [promo, setPromo]       = useState<PromoProgress | null>(null);
-  const [txs, setTxs]           = useState<Transaction[]>([]);
-  const [showDep, setDep]       = useState(false);
-  const [showWith, setWith]     = useState(false);
+  const [wallet, setWallet] = useState<WalletRow | null>(null);
+  const [promo, setPromo] = useState<PromoProgress | null>(null);
+  const [txs, setTxs] = useState<Transaction[]>([]);
+  const [showDep, setDep] = useState(false);
+  const [showWith, setWith] = useState(false);
   const [showRedeem, setRedeem] = useState(false);
-  const [loadingW, setLW]       = useState(true);
-  const [loadingT, setLT]       = useState(true);
+  const [loadingW, setLW] = useState(true);
+  const [loadingT, setLT] = useState(true);
 
   /* Realtime & initial fetch */
   useEffect(() => {
@@ -110,7 +109,8 @@ export default function WalletPage() {
       /* Realtime wallet */
       chW = supabase
         .channel(`wallet-page-rt-wallet-${uid}`)
-        .on('postgres_changes',
+        .on(
+          'postgres_changes',
           { event: '*', schema: 'public', table: 'wallet', filter: `user_id=eq.${uid}` },
           payload => setWallet(payload.new as WalletRow)
         )
@@ -119,7 +119,8 @@ export default function WalletPage() {
       /* Realtime transactions */
       chT = supabase
         .channel(`wallet-page-rt-tx-${uid}`)
-        .on('postgres_changes',
+        .on(
+          'postgres_changes',
           { event: 'INSERT', schema: 'public', table: 'transactions', filter: `user_id=eq.${uid}` },
           payload => setTxs(prev => [payload.new as Transaction, ...prev].slice(0, 30))
         )
@@ -145,14 +146,13 @@ export default function WalletPage() {
       if (!res.ok) throw new Error('Error generando firma');
       const { integrityKey } = await res.json();
       if (!integrityKey) throw new Error('Firma inválida');
-  
+
       openBoldCheckout({
         apiKey: process.env.NEXT_PUBLIC_BOLD_BUTTON_KEY!,
         orderId,
         amount: String(amount),
         currency: 'COP',
-        // Descripción simplificada para evitar caracteres no válidos:
-        description: `Recarga ${amount} COP`,
+        description: `Recarga ${amount} COP`, // simplificada
         redirectionUrl: `${process.env.NEXT_PUBLIC_SITE_URL}/wallet`,
         integritySignature: integrityKey,
         customerData: JSON.stringify({
@@ -163,8 +163,10 @@ export default function WalletPage() {
         onSuccess: () => {
           toast.success('✅ Recarga recibida, se reflejará pronto');
         },
-        onFailed: ({ message }: { message?: string }) => {
-          toast.error(`Algo salió mal: ${message ?? 'Intenta de nuevo.'}`);
+        onFailed: (err: { message?: string }) => {
+          // ahora explícitamente tipado
+          const msg = err.message;
+          toast.error(`Algo salió mal: ${msg ?? 'Intenta de nuevo.'}`);
         },
         onPending: () => {
           toast.info('Pago pendiente de confirmación.');
@@ -173,9 +175,7 @@ export default function WalletPage() {
       });
     } catch (e: any) {
       console.error(e);
-      toast.error(
-        'Algo salió mal al conectar con el comercio y Bold. Por favor, inténtalo más tarde.'
-      );
+      toast.error('Algo salió mal al conectar con Bold. Por favor, inténtalo más tarde.');
     }
   };
 
@@ -246,7 +246,6 @@ export default function WalletPage() {
         initial="hidden"
         animate="visible"
       >
-
         <WalletCard
           balanceCop={displayWallet.balance_cop}
           withdrawable={displayWallet.withdrawable_cop}
@@ -262,7 +261,7 @@ export default function WalletPage() {
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <ActionButton title="Depositar" icon={<FaArrowUp />} color="amber" onClick={() => setDep(true)} />
-          <ActionButton title="Retirar"   icon={<FaArrowDown />} color="cyan"  onClick={() => setWith(true)} />
+          <ActionButton title="Retirar" icon={<FaArrowDown />} color="cyan" onClick={() => setWith(true)} />
           <ActionButton title="Código Promocional" icon={<FaTicketAlt />} color="emerald" onClick={() => setRedeem(true)} />
         </div>
 
@@ -321,8 +320,8 @@ export default function WalletPage() {
       </motion.main>
 
       <AnimatePresence>
-        {showDep    && <DepositModal    onClose={() => setDep(false)}    onDeposit={onDeposit} />}
-        {showWith   && (
+        {showDep && <DepositModal onClose={() => setDep(false)} onDeposit={onDeposit} />}
+        {showWith && (
           <WithdrawModal
             max={displayWallet.withdrawable_cop}
             onClose={() => setWith(false)}

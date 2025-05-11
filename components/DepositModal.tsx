@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { FaSpinner, FaTimes } from 'react-icons/fa';
+import { FaSpinner, FaTimes, FaExclamationCircle } from 'react-icons/fa';
 import { motion } from 'framer-motion';
 
 interface DepositModalProps {
@@ -24,7 +24,7 @@ export default function DepositModal({ onClose, onDeposit }: DepositModalProps) 
     setError(null);
     try {
       await onDeposit(amount);
-      // El cierre del modal ocurre en tu handler de página (onClose tras Bold)
+      // el modal se cerrará desde onClose() en la página tras el callback de Bold
     } catch (err: any) {
       console.error('Deposit error caught in modal:', err);
       setError(err.message || 'Ocurrió un error inesperado.');
@@ -114,7 +114,9 @@ export default function DepositModal({ onClose, onDeposit }: DepositModalProps) 
 
         {/* Mensaje de Error */}
         {error && (
-          <p className="text-red-400 text-xs mt-3 text-center">{error}</p>
+          <p className="text-red-400 text-xs mt-3 text-center flex items-center justify-center gap-1">
+            <FaExclamationCircle /> {error}
+          </p>
         )}
 
         {/* Botón Cancelar */}
