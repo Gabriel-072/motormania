@@ -133,66 +133,43 @@ export default function WalletPage() {
     };
   }, [isSignedIn, uid, getToken]);
 
-  /* Deposit handler – usa SIEMPRE los valores que regresa el API */
+  /* Deposit handler — ahora usa /api/transactions/deposit */
 const onDeposit = async (amount: number) => {
   if (!uid || !user) return;
 
   try {
-    /* 1. Pide la firma al backend (solo envía el monto) */
-    const res = await fetch('/api/bold/hash', {
-      method: 'POST',
+    const res = await fetch('/api/transactions/deposit', {
+      method : 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ amount, currency: 'COP' })
+      body   : JSON.stringify({ amount })
     });
-
     if (!res.ok) throw new Error('Error generando firma');
 
-    /* 2. El backend devuelve todo lo necesario */
-    const {
-      orderId,          // ← el que usó para firmar
-      amount: amtStr,   // string
-      callbackUrl,      // URL a la que debe redirigir Bold
-      integrityKey      // firma SHA-256
-    }: {
-      orderId: string;
-      amount: string;
-      callbackUrl: string;
-      integrityKey: string;
-    } = await res.json();
+    const { orderId, amount: amtStr, callbackUrl, integrityKey }
+      = await res.json();
 
-    /* 3. Lanza Bold con ESOS datos */
     openBoldCheckout({
       apiKey: process.env.NEXT_PUBLIC_BOLD_BUTTON_KEY!,
-      orderId,                     // usa el del backend
-      amount: amtStr,              // idem
+      orderId,
+      amount: amtStr,
       currency: 'COP',
       description: `Recarga ${amtStr} COP`,
-      redirectionUrl: callbackUrl, // idem
+      redirectionUrl: callbackUrl,
       integritySignature: integrityKey,
       customerData: JSON.stringify({
-        email: user.primaryEmailAddress?.emailAddress ?? '',
-        fullName: user.fullName || 'Jugador MMC',
+        email    : user.primaryEmailAddress?.emailAddress ?? '',
+        fullName : user.fullName || 'Jugador MMC',
       }),
       renderMode: 'embedded',
-
-      onSuccess: async () => {                   
-        /* Llama a nuestro endpoint */
-        await fetch('/api/transactions/deposit', {
-          method : 'POST',                        
-          headers: { 'Content-Type':'application/json' },// 🆕
-          body   : JSON.stringify({ orderId, amount:Number(amtStr) })// 🆕
-        });                                       
-        toast.success('✅ Depósito registrado');  
-      },
-
-      onFailed: (err: { message?: string }) =>
-        toast.error(`Algo salió mal: ${err.message ?? 'Intenta de nuevo.'}`),
-      onPending: () => toast.info('Pago pendiente de confirmación.'),
-      onClose: () => setDep(false),
+      onSuccess : () => toast.success('✅ Recarga recibida, se reflejará pronto'),
+      onFailed  : ({ message }: { message?: string }) =>
+        toast.error(`Algo salió mal: ${message ?? 'Intenta de nuevo.'}`),
+      onPending : () => toast.info('Pago pendiente de confirmación.'),
+      onClose   : () => setDep(false),
     });
-  } catch (e: any) {
+  } catch (e) {
     console.error(e);
-    toast.error('Algo salió mal al conectar con Bold. Por favor, inténtalo más tarde.');
+    toast.error('No se pudo iniciar el pago. Intenta más tarde.');
   }
 };
 

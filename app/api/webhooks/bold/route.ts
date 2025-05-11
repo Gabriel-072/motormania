@@ -15,7 +15,7 @@ const INTERNAL_KEY        = process.env.INTERNAL_API_KEY!;
 const RESEND_API_KEY      = process.env.RESEND_API_KEY!;
 
 /* ──────────────────────── CLIENTES ───────────────────────────── */
-const sb     = createClient(supabaseUrl, supabaseServiceKey);   // Service-Role
+const sb     = createClient(supabaseUrl, supabaseServiceKey, { auth: { persistSession: false } }); // service-role
 const resend = new Resend(RESEND_API_KEY);
 
 /* ─────────────────────── CONSTANTES ─────────────────────────── */
@@ -96,7 +96,49 @@ async function handleWalletDeposit(db: SupabaseClient, data: any) {
     description: desc
   });
 
-  console.log('✅ Depósito aplicado + promo registrada');
+  /* 4. Trae datos para el e-mail (wallet + usuario) */
+  const [{ data: walletRow, error: walletErr }, { data: userRow }] = await Promise.all([
+    db.from('wallet')
+      .select('balance_cop,fuel_coins')
+      .eq('user_id', userId)
+      .single(),
+    db.from('clerk_users')
+      .select('email, full_name')
+      .eq('clerk_id', userId)
+      .maybeSingle()
+  ]);
+
+  if (walletErr) console.warn('Wallet fetch error', walletErr.message);
+
+  /* 5. Envía correo de confirmación, si hay email */
+  if (userRow?.email && walletRow) {
+    const htmlBody = `
+      <p>¡Hola ${userRow.full_name || 'Jugador'}!</p>
+      <p>Tu depósito por <strong>$${total.toLocaleString('es-CO')}</strong> COP fue confirmado ✅.</p>
+      <p>Ahora tu saldo es:</p>
+      <ul>
+        <li><strong>$${walletRow.balance_cop.toLocaleString('es-CO')}</strong> COP disponibles</li>
+        <li><strong>${walletRow.fuel_coins.toLocaleString('es-CO')}</strong> Fuel Coins (FC)</li>
+      </ul>
+      <p>¡Gracias por jugar en MMC&nbsp;GO!</p>
+      <hr/>
+      <p style="font-size:12px;color:#666;">¿Necesitas ayuda? Escríbenos a ${SUPPORT_EMAIL}</p>
+    `;
+
+    try {
+      await resend.emails.send({
+        from   : FROM_EMAIL,
+        to     : userRow.email,
+        subject: 'Depósito confirmado',
+        html   : htmlBody
+      });
+      console.log('📧 Depósito email sent to', userRow.email);
+    } catch (err) {
+      console.error('✉️  Error enviando e-mail de depósito:', err);
+    }
+  }
+
+  console.log('✅ Depósito aplicado + promo registrada + email');
 }
 
 /* ────────────── HANDLER: COMPRA DE NÚMEROS EXTRA ────────────── */
@@ -143,7 +185,7 @@ async function handleNumberPurchase(db: SupabaseClient, data: any) {
     paid_numbers_count: (entry.paid_numbers_count ?? 0) + EXTRA_COUNT
   }, { onConflict: 'user_id' });
 
-  /* 3. E-mail confirmación */
+  /* 3. E-mail confirmación números extra */
   const { data: userRow } = await db.from('clerk_users')
     .select('email, full_name')
     .eq('clerk_id', userId)
@@ -183,7 +225,7 @@ async function handleNumberPurchase(db: SupabaseClient, data: any) {
 async function handlePickPurchase(db: SupabaseClient, data: any) {
   console.log('[Bold WH] Pick purchase flow');
 
-  const ref   = data.metadata?.reference as string;    // MMC-...
+  const ref   = data.metadata?.reference as string;    // MMC-…
   const payId = data.payment_id          as string;
 
   if (!ref || !payId) throw new Error('Referencia o payId faltante');
@@ -231,8 +273,6 @@ async function handlePickPurchase(db: SupabaseClient, data: any) {
     if (rpcErr) console.warn('RPC wallet error', rpcErr.message);
   }
 
-  /* 5. e-mail confirmación picks (omitido por brevedad; igual que antes) */
-
   console.log('✅ Pick flow finished for', ref);
 }
 
@@ -253,7 +293,7 @@ export async function POST(req: NextRequest) {
   try {
     if      (ref.startsWith('MM-EXTRA-')) await handleNumberPurchase(sb, evt.data);
     else if (ref.startsWith('MMC-'))      await handlePickPurchase(sb, evt.data);
-    else if (ref.startsWith('MM-DEP-'))   await handleWalletDeposit(sb, evt.data);   // 👈 nuevo flujo
+    else if (ref.startsWith('MM-DEP-'))   await handleWalletDeposit(sb, evt.data); // 👈 depósito wallet
     else   console.warn('Referencia desconocida:', ref);
 
     return NextResponse.json({ ok: true });
