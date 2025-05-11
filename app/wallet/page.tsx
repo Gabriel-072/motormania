@@ -175,7 +175,16 @@ const onDeposit = async (amount: number) => {
       }),
       renderMode: 'embedded',
 
-      onSuccess: () => toast.success('✅ Recarga recibida, se reflejará pronto'),
+      onSuccess: async () => {                   
+        /* Llama a nuestro endpoint */
+        await fetch('/api/transactions/deposit', {
+          method : 'POST',                        
+          headers: { 'Content-Type':'application/json' },// 🆕
+          body   : JSON.stringify({ orderId, amount:Number(amtStr) })// 🆕
+        });                                       
+        toast.success('✅ Depósito registrado');  
+      },
+
       onFailed: (err: { message?: string }) =>
         toast.error(`Algo salió mal: ${err.message ?? 'Intenta de nuevo.'}`),
       onPending: () => toast.info('Pago pendiente de confirmación.'),
