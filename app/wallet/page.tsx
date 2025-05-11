@@ -133,51 +133,59 @@ export default function WalletPage() {
     };
   }, [isSignedIn, uid, getToken]);
 
-  /* Deposit handler */
-  const onDeposit = async (amount: number) => {
-    if (!uid || !user) return;
-    try {
-      const orderId = `MM-DEP-${uid}-${Date.now()}`;
-      const res = await fetch('/api/bold/hash', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId, amount, currency: 'COP' })
-      });
-      if (!res.ok) throw new Error('Error generando firma');
-      const { integrityKey } = await res.json();
-      if (!integrityKey) throw new Error('Firma inválida');
+  /* Deposit handler – usa SIEMPRE los valores que regresa el API */
+const onDeposit = async (amount: number) => {
+  if (!uid || !user) return;
 
-      openBoldCheckout({
-        apiKey: process.env.NEXT_PUBLIC_BOLD_BUTTON_KEY!,
-        orderId,
-        amount: String(amount),
-        currency: 'COP',
-        description: `Recarga ${amount} COP`, // simplificada
-        redirectionUrl: `${process.env.NEXT_PUBLIC_SITE_URL}/wallet`,
-        integritySignature: integrityKey,
-        customerData: JSON.stringify({
-          email: user.primaryEmailAddress?.emailAddress ?? '',
-          fullName: user.fullName || 'Jugador MMC',
-        }),
-        renderMode: 'embedded',
-        onSuccess: () => {
-          toast.success('✅ Recarga recibida, se reflejará pronto');
-        },
-        onFailed: (err: { message?: string }) => {
-          // ahora explícitamente tipado
-          const msg = err.message;
-          toast.error(`Algo salió mal: ${msg ?? 'Intenta de nuevo.'}`);
-        },
-        onPending: () => {
-          toast.info('Pago pendiente de confirmación.');
-        },
-        onClose: () => setDep(false),
-      });
-    } catch (e: any) {
-      console.error(e);
-      toast.error('Algo salió mal al conectar con Bold. Por favor, inténtalo más tarde.');
-    }
-  };
+  try {
+    /* 1. Pide la firma al backend (solo envía el monto) */
+    const res = await fetch('/api/bold/hash', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount, currency: 'COP' })
+    });
+
+    if (!res.ok) throw new Error('Error generando firma');
+
+    /* 2. El backend devuelve todo lo necesario */
+    const {
+      orderId,          // ← el que usó para firmar
+      amount: amtStr,   // string
+      callbackUrl,      // URL a la que debe redirigir Bold
+      integrityKey      // firma SHA-256
+    }: {
+      orderId: string;
+      amount: string;
+      callbackUrl: string;
+      integrityKey: string;
+    } = await res.json();
+
+    /* 3. Lanza Bold con ESOS datos */
+    openBoldCheckout({
+      apiKey: process.env.NEXT_PUBLIC_BOLD_BUTTON_KEY!,
+      orderId,                     // usa el del backend
+      amount: amtStr,              // idem
+      currency: 'COP',
+      description: `Recarga ${amtStr} COP`,
+      redirectionUrl: callbackUrl, // idem
+      integritySignature: integrityKey,
+      customerData: JSON.stringify({
+        email: user.primaryEmailAddress?.emailAddress ?? '',
+        fullName: user.fullName || 'Jugador MMC',
+      }),
+      renderMode: 'embedded',
+
+      onSuccess: () => toast.success('✅ Recarga recibida, se reflejará pronto'),
+      onFailed: (err: { message?: string }) =>
+        toast.error(`Algo salió mal: ${err.message ?? 'Intenta de nuevo.'}`),
+      onPending: () => toast.info('Pago pendiente de confirmación.'),
+      onClose: () => setDep(false),
+    });
+  } catch (e: any) {
+    console.error(e);
+    toast.error('Algo salió mal al conectar con Bold. Por favor, inténtalo más tarde.');
+  }
+};
 
   /* Withdraw handler */
   const MIN_WITHDRAWAL = 10_000;
