@@ -5,6 +5,7 @@ import React, { useState } from 'react';
 import { FaTimes, FaSpinner, FaTicketAlt, FaExclamationCircle } from 'react-icons/fa';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
+import { useRouter } from 'next/navigation';
 
 interface RedeemCodeModalProps {
   onClose: () => void;
@@ -14,6 +15,7 @@ export default function RedeemCodeModal({ onClose }: RedeemCodeModalProps) {
   const [code, setCode] = useState('');
   const [isLoading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
   const handleRedeem = async () => {
     const trimmed = code.trim().toUpperCase();
@@ -35,6 +37,8 @@ export default function RedeemCodeModal({ onClose }: RedeemCodeModalProps) {
 
       if (res.ok) {
         toast.success(json.message || '¡Código aplicado!');
+        window.dispatchEvent(new Event('promo-redeemed'));   // opcional
+        router.refresh();                                    // fuerza refetch
         onClose();
       } else {
         toast.error(json.error || 'No se pudo aplicar el código.');

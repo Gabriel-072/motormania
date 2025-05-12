@@ -38,7 +38,9 @@ export default function useAutoRedeem(opts: Opts = {}) {
 
     if (!isSignedIn) {
       // no logueado → al sign-up de Clerk con redirect de vuelta
-      router.replace(`/sign-up?redirect_url=/wallet?code=${code}`);
+      router.replace(
+        `/sign-up?redirect_url=${encodeURIComponent(`/wallet?code=${code}`)}`
+      );
       setDone(true);
       return;
     }

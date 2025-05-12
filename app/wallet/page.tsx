@@ -1,19 +1,15 @@
 // 📁 app/wallet/page.tsx
 'use client';
 
-import React, {
-  useEffect,
-  useState,
-  Suspense,           // <--- import Suspense aquí
-} from 'react';
-import { useUser, useAuth }           from '@clerk/nextjs';
-import { motion, AnimatePresence }    from 'framer-motion';
-import nextDynamic                    from 'next/dynamic';
-import Header                         from '@/components/Header';
-import { createAuthClient }           from '@/lib/supabase';
-import { openBoldCheckout }           from '@/lib/bold';
-import useAutoRedeem                  from '@/hooks/useAutoRedeem';
-import { toast }                      from 'sonner';
+import React, { useEffect, useState, Suspense } from 'react';
+import { useUser, useAuth } from '@clerk/nextjs';
+import { motion, AnimatePresence } from 'framer-motion';
+import dynamic from 'next/dynamic';
+import Header from '@/components/Header';
+import { createAuthClient } from '@/lib/supabase';
+import { openBoldCheckout } from '@/lib/bold';
+import useAutoRedeem from '@/hooks/useAutoRedeem';
+import { toast } from 'sonner';
 
 import {
   FaArrowUp,
@@ -27,14 +23,15 @@ import {
   FaTicketAlt,
   FaFileInvoiceDollar
 } from 'react-icons/fa';
-import WalletCard            from '@/components/WalletCard';
-import RedeemCodeModal       from '@/components/RedeemCodeModal';
-import ActionButton          from '@/components/ActionButton';
-import PlayThroughProgress   from '@/components/PlayThroughProgress';
+
+import WalletCard from '@/components/WalletCard';
+import RedeemCodeModal from '@/components/RedeemCodeModal';
+import ActionButton from '@/components/ActionButton';
+import PlayThroughProgress from '@/components/PlayThroughProgress';
 
 /* Lazy modals */
-const DepositModal  = nextDynamic(() => import('@/components/DepositModal'));
-const WithdrawModal = nextDynamic(() => import('@/components/WithdrawModal'));
+const DepositModal  = dynamic(() => import('@/components/DepositModal'));
+const WithdrawModal = dynamic(() => import('@/components/WithdrawModal'));
 
 type TxType = 'recarga'|'apuesta'|'ganancia'|'reembolso'|'retiro_pending'|'retiro';
 
@@ -46,7 +43,12 @@ interface WalletRow {
   fuel_coins: number;
   locked_fuel: number;
 }
-interface PromoProgress { remaining: number; total: number; }
+
+interface PromoProgress {
+  remaining: number;
+  total: number;
+}
+
 interface Transaction {
   id: string;
   type: TxType;
@@ -58,26 +60,26 @@ interface Transaction {
 const fmt = (n: number) => n.toLocaleString('es-CO');
 
 /**
- * Componente interno que implementa toda la lógica de cliente.
+ * Internal component with all client-side logic.
  */
 function WalletContent() {
   const { isSignedIn, user } = useUser();
   const { getToken }         = useAuth();
   const uid                  = user?.id;
 
-  const [wallet, setWallet]   = useState<WalletRow|null>(null);
-  const [promo, setPromo]     = useState<PromoProgress|null>(null);
-  const [txs, setTxs]         = useState<Transaction[]>([]);
-  const [showDep, setDep]     = useState(false);
-  const [showWith, setWith]   = useState(false);
+  const [wallet, setWallet]     = useState<WalletRow|null>(null);
+  const [promo, setPromo]       = useState<PromoProgress|null>(null);
+  const [txs, setTxs]           = useState<Transaction[]>([]);
+  const [showDep, setDep]       = useState(false);
+  const [showWith, setWith]     = useState(false);
   const [showRedeem, setRedeem] = useState(false);
-  const [loadingW, setLW]     = useState(true);
-  const [loadingT, setLT]     = useState(true);
+  const [loadingW, setLW]       = useState(true);
+  const [loadingT, setLT]       = useState(true);
 
-  /* Lee automáticamente ?code= desde la URL */
+  // Auto‐redeem promo codes from ?code=
   useAutoRedeem();
 
-  /* Realtime + fetch inicial */
+  // Initial fetch & realtime subscriptions
   useEffect(() => {
     if (!isSignedIn || !uid) return;
     let sb: ReturnType<typeof createAuthClient>, chW: any, chT: any;
@@ -87,7 +89,8 @@ function WalletContent() {
       if (!token) return;
       sb = createAuthClient(token);
 
-      setLW(true); setLT(true);
+      setLW(true);
+      setLT(true);
 
       // Wallet
       const { data: w } = await sb
@@ -95,7 +98,8 @@ function WalletContent() {
         .select('balance_cop,withdrawable_cop,mmc_coins,locked_mmc,fuel_coins,locked_fuel')
         .eq('user_id', uid)
         .single();
-      setWallet(w || null); setLW(false);
+      setWallet(w || null);
+      setLW(false);
 
       // Promo progress
       const { data: pr } = await sb
@@ -113,9 +117,10 @@ function WalletContent() {
         .eq('user_id', uid)
         .order('created_at', { ascending: false })
         .limit(30);
-      setTxs(ts || []); setLT(false);
+      setTxs(ts || []);
+      setLT(false);
 
-      // Realtime wallet
+      // Realtime wallet updates
       chW = sb.channel(`wallet-${uid}`)
         .on('postgres_changes',
           { event: '*', schema: 'public', table: 'wallet', filter: `user_id=eq.${uid}` },
@@ -132,10 +137,13 @@ function WalletContent() {
         .subscribe();
     })();
 
-    return () => { chW?.unsubscribe(); chT?.unsubscribe(); };
+    return () => {
+      chW?.unsubscribe();
+      chT?.unsubscribe();
+    };
   }, [isSignedIn, uid, getToken]);
 
-  /* Handler depósito */
+  // Deposit handler
   const onDeposit = async (amount: number) => {
     if (!uid || !user) return;
     try {
@@ -171,7 +179,7 @@ function WalletContent() {
     }
   };
 
-  /* Handler retiro */
+  // Withdraw handler
   const MIN_WITHDRAWAL = 10_000;
   const onWithdraw = async (amount: number, method: string, account: string) => {
     if (amount < MIN_WITHDRAWAL) {
@@ -191,7 +199,7 @@ function WalletContent() {
     }
   };
 
-  /* Ícono según tipo */
+  // Icon by transaction type
   const getTxIcon = (type: TxType) => {
     switch (type) {
       case 'recarga':        return <FaArrowUp className="text-green-400" />;
@@ -205,16 +213,18 @@ function WalletContent() {
   };
 
   const displayWallet: WalletRow = wallet ?? {
-    balance_cop:0, withdrawable_cop:0,
-    mmc_coins:0, locked_mmc:0,
-    fuel_coins:0, locked_fuel:0
+    balance_cop:     0,
+    withdrawable_cop:0,
+    mmc_coins:       0,
+    locked_mmc:      0,
+    fuel_coins:      0,
+    locked_fuel:     0,
   };
 
-  /* Anim variants */
-  const mainVar = { hidden:{opacity:0,y:20}, visible:{opacity:1,y:0,transition:{duration:.5}} };
+  const mainVar = { hidden:{opacity:0,y:20}, visible:{opacity:1,y:0,transition:{duration:0.5}} };
   const itemVar = {
-    hidden:{opacity:0,x:-20},
-    visible:(i:number)=>({opacity:1,x:0,transition:{delay:i*.05,duration:.3}})
+    hidden: { opacity:0,x:-20 },
+    visible: (i:number) => ({ opacity:1,x:0,transition:{ delay:i*0.05, duration:0.3 } })
   };
 
   return (
@@ -283,14 +293,18 @@ function WalletContent() {
                         </p>
                         <p className="text-xs text-gray-400">
                           {new Date(t.created_at).toLocaleString('es-CO', {
-                            day:'2-digit', month:'short', year:'numeric',
-                            hour:'numeric', minute:'2-digit', hour12:true
+                            day:   '2-digit',
+                            month: 'short',
+                            year:  'numeric',
+                            hour:  'numeric',
+                            minute:'2-digit',
+                            hour12:true
                           })}
                         </p>
                       </div>
                     </div>
-                    <span className={`font-semibold text-sm sm:text-base whitespace-nowrap pl-2 ${t.amount>=0?'text-green-400':'text-red-400'}`}>
-                      {t.amount>=0?'+':''}{fmt(t.amount)} COP
+                    <span className={`font-semibold text-sm sm:text-base whitespace-nowrap pl-2 ${t.amount >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      {t.amount >= 0 ? '+' : ''}{fmt(t.amount)} COP
                     </span>
                   </motion.li>
                 ))}
@@ -310,8 +324,8 @@ function WalletContent() {
 }
 
 /**
- * Export default envuelve WalletContent en <Suspense>
- * para poder usar useSearchParams dentro de useAutoRedeem.
+ * Default export wraps WalletContent in <Suspense>
+ * so that useAutoRedeem (which uses useSearchParams) works correctly.
  */
 export default function WalletPage() {
   return (
