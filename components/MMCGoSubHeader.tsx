@@ -2,16 +2,16 @@
 'use client';
 
 /* ─────────────────────────────────────────────────────────────
-   SUB-HEADER: balances, promo dinámica y modal educativo
+   SUB-HEADER: balances, promo y modal educativo
    ───────────────────────────────────────────────────────────── */
 
-import React, { useEffect, useState }   from 'react';
-import { useUser, useAuth }             from '@clerk/nextjs';
-import { useRouter }                    from 'next/navigation';
-import { createAuthClient }             from '@/lib/supabase';
-import { motion, AnimatePresence }      from 'framer-motion';
-import Link                             from 'next/link';
-import { CoinsExplainModal }            from '@/components/CoinsExplainModal'; // ← named export
+import React, { useEffect, useState }  from 'react';
+import { useUser, useAuth }            from '@clerk/nextjs';
+import { useRouter }                   from 'next/navigation';
+import { createAuthClient }            from '@/lib/supabase';
+import { motion, AnimatePresence }     from 'framer-motion';
+import Link                            from 'next/link';
+import { CoinsExplainModal }           from '@/components/CoinsExplainModal';
 
 import {
   FaCoins, FaGasPump, FaWallet, FaLock
@@ -25,10 +25,7 @@ type Balances = {
   locked_fuel: number;
 };
 type ModalContentType = 'mmc' | 'fuel';
-type ActivePromo = {
-  factor: number;
-  type  : 'multiplier' | 'percentage';
-};
+type ActivePromo = { factor: number; type: 'multiplier'|'percentage' };
 
 export default function MMCGoSubHeader() {
   const { isLoaded, isSignedIn, user } = useUser();
@@ -38,49 +35,75 @@ export default function MMCGoSubHeader() {
   const [balances, setBalances] = useState<Balances>({
     mmc:0, locked_mmc:0, fuel:0, locked_fuel:0
   });
-  const [promo, setPromo]       = useState<ActivePromo | null>(null);
+  const [promo, setPromo]       = useState<ActivePromo|null>(null);
   const [loading, setLoading]   = useState(true);
   const [isModalOpen, setModalOpen] = useState(false);
   const [modalContent, setModalContent] = useState<ModalContentType|null>(null);
 
-  /* ────────── fetch balances + promo ────────── */
+  /* ────────── common fetcher ────────── */
+  async function fetchBalances() {
+    if (!isLoaded || !isSignedIn || !user) return;
+    try {
+      const token = await getToken({ template:'supabase' });
+      if (!token) throw new Error('No Supabase token');
+      const supabase = createAuthClient(token);
+
+      /* Wallet */
+      const { data: wal } = await supabase
+        .from('wallet')
+        .select('mmc_coins, locked_mmc, fuel_coins, locked_fuel')
+        .eq('user_id', user.id)
+        .single();
+      if (wal) {
+        setBalances({
+          mmc        : wal.mmc_coins    ?? 0,
+          locked_mmc : wal.locked_mmc   ?? 0,
+          fuel       : wal.fuel_coins   ?? 0,
+          locked_fuel: wal.locked_fuel  ?? 0,
+        });
+      }
+
+      /* Promo */
+      const { data: promoRow } = await supabase
+        .from('deposit_promos')
+        .select('factor, type')
+        .eq('is_active', true)
+        .limit(1)
+        .single();
+      setPromo(promoRow ? { factor: promoRow.factor, type: promoRow.type } : null);
+    } catch (err) {
+      console.error('[MMCGoSubHeader] fetch error', err);
+    } finally { setLoading(false); }
+  }
+
+  /* ────────── initial + realtime ────────── */
   useEffect(() => {
     if (!isLoaded || !isSignedIn || !user) return;
 
+    setLoading(true);
+    fetchBalances();                        // primer fetch
+
+    /* escucha evento custom (promo code canjeado manual/auto) */
+    const cb = () => fetchBalances();
+    window.addEventListener('promo-redeemed', cb);
+
+    /* suscripción websocket a wallet */
+    let sub: any;
     (async () => {
-      setLoading(true);
-      try {
-        const token = await getToken({ template:'supabase' });
-        if (!token) throw new Error('No Supabase token');
-        const supabase = createAuthClient(token);
-
-        /* Wallet */
-        const { data: wal } = await supabase
-          .from('wallet')
-          .select('mmc_coins, locked_mmc, fuel_coins, locked_fuel')
-          .eq('user_id', user.id)
-          .single();
-        if (wal) {
-          setBalances({
-            mmc        : wal.mmc_coins ?? 0,
-            locked_mmc : wal.locked_mmc ?? 0,
-            fuel       : wal.fuel_coins ?? 0,
-            locked_fuel: wal.locked_fuel ?? 0,
-          });
-        }
-
-        /* Promo */
-        const { data: promoRow } = await supabase
-          .from('deposit_promos')
-          .select('factor, type')
-          .eq('is_active', true)
-          .limit(1)
-          .single();
-        if (promoRow) setPromo({ factor: promoRow.factor, type: promoRow.type });
-      } catch (err) {
-        console.error('[MMCGoSubHeader] fetch error', err);
-      } finally { setLoading(false); }
+      const token = await getToken({ template:'supabase' });
+      if (!token) return;
+      sub = createAuthClient(token)
+        .channel(`subhdr-wallet-${user.id}`)
+        .on('postgres_changes',
+            { event:'*', schema:'public', table:'wallet', filter:`user_id=eq.${user.id}` },
+            () => fetchBalances())
+        .subscribe();
     })();
+
+    return () => {
+      window.removeEventListener('promo-redeemed', cb);
+      sub?.unsubscribe();
+    };
   }, [isLoaded,isSignedIn,user,getToken]);
 
   if (!isLoaded || !isSignedIn) return null;
@@ -95,7 +118,6 @@ export default function MMCGoSubHeader() {
         : `${promo.factor}% extra`
     : 'Bono activo';
 
-  /* tailwind util */
   const iconSize = 'h-3 w-3 sm:h-3.5 sm:w-3.5';
 
   /* ────────── JSX ────────── */
