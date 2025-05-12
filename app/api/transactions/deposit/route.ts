@@ -1,64 +1,48 @@
 // 📁 app/api/transactions/deposit/route.ts
-'use server';
+export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { auth }                      from '@clerk/nextjs/server';
-import { createClient }              from '@supabase/supabase-js';
+import crypto                        from 'crypto';
 
-/* ────── ENV ────── */
-const SUPABASE_URL  = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const SERVICE_KEY   = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
-/* ────── HELPERS ────── */
-const sb = createClient(SUPABASE_URL, SERVICE_KEY, {
-  auth: { persistSession: false }
-});
+/* ───────── ENV ───────── */
+const BOLD_SECRET_KEY = process.env.BOLD_SECRET_KEY!;          // llave privada Bold
+const SITE_URL        = process.env.NEXT_PUBLIC_SITE_URL!;     // p. ej. https://motormaniacolombia.com
 
 /**
- * Cuerpo esperado:
- * { orderId: string; amount: number }
+ *  POST  →  { amount:number }
+ *  RESP  ←  { orderId, amount, callbackUrl, integrityKey }
  */
 export async function POST(req: NextRequest) {
+  /* 0. Auth */
   const { userId } = await auth();
   if (!userId) return new NextResponse('Unauthorized', { status: 401 });
 
-  let body: { orderId?: string; amount?: number };
+  /* 1. Valida body */
+  let amount: number;
   try {
-    body = await req.json();
+    const body = await req.json();
+    amount = Number(body?.amount);
+    if (!amount || amount <= 0) throw new Error();
   } catch {
     return new NextResponse('Invalid JSON', { status: 400 });
   }
-  const { orderId, amount } = body;
-  if (!orderId || !amount || amount <= 0)
-    return new NextResponse('Invalid payload', { status: 400 });
 
-  const desc = `Depósito wallet Bold (Ref:${orderId})`;
+  /* 2. orderId único */
+  const orderId = `MM-DEP-${userId}-${Date.now()}`;
 
-  /* Idempotencia */
-  const { data: already } = await sb
-    .from('transactions')
-    .select('id')
-    .eq('description', desc)
-    .maybeSingle();
-  if (already) return NextResponse.json({ ok: true, already: true });
+  /* 3. Firma HMAC-SHA256 requerida por Bold */
+  const payload      = `${orderId}|${amount}|COP`;
+  const integrityKey = crypto
+    .createHmac('sha256', BOLD_SECRET_KEY)
+    .update(payload)
+    .digest('hex');
 
-  /* 1. Aplica promo / actualiza wallet (la RPC decide si duplica) */
-  const { error: promoErr } = await sb.rpc('apply_deposit_promo', {
-    p_user_id:     userId,
-    p_amount_cop:  amount
+  /* 4. Respuesta */
+  return NextResponse.json({
+    orderId,
+    amount      : amount.toString(),       // Bold widget espera string
+    callbackUrl : `${SITE_URL}/wallet`,    // redirección tras pago
+    integrityKey
   });
-  if (promoErr)
-    return new NextResponse(promoErr.message, { status: 500 });
-
-  /* 2. Inserta transacción */
-  const { error: txErr } = await sb.from('transactions').insert({
-    user_id:    userId,
-    type:       'recarga',
-    amount:     amount,
-    description: desc
-  });
-  if (txErr)
-    return new NextResponse(txErr.message, { status: 500 });
-
-  return NextResponse.json({ ok: true });
 }

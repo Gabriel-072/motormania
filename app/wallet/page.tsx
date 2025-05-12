@@ -143,41 +143,47 @@ function WalletContent() {
     };
   }, [isSignedIn, uid, getToken]);
 
-  // Deposit handler
-  const onDeposit = async (amount: number) => {
-    if (!uid || !user) return;
-    try {
-      const res = await fetch('/api/transactions/deposit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount })
-      });
-      if (!res.ok) throw new Error('Error generando firma');
-      const { orderId, amount: amtStr, callbackUrl, integrityKey } = await res.json();
+  // Deposit handler (100 % alineado con el endpoint nuevo)
+const onDeposit = async (amount: number) => {
+  if (!uid || !user) return;
 
-      openBoldCheckout({
-        apiKey: process.env.NEXT_PUBLIC_BOLD_BUTTON_KEY!,
-        orderId,
-        amount: amtStr,
-        currency: 'COP',
-        description: `Recarga ${amtStr} COP`,
-        redirectionUrl: callbackUrl,
-        integritySignature: integrityKey,
-        customerData: JSON.stringify({
-          email: user.primaryEmailAddress?.emailAddress ?? '',
-          fullName: user.fullName || 'Jugador MMC',
-        }),
-        renderMode: 'embedded',
-        onSuccess:  () => toast.success('✅ Recarga recibida, se reflejará pronto'),
-        onFailed:   ({ message }: { message?: string }) => toast.error(message ?? 'Algo salió mal'),
-        onPending:  () => toast.info('Pago pendiente de confirmación.'),
-        onClose:    () => setDep(false),
-      });
-    } catch (e) {
-      console.error(e);
-      toast.error('No se pudo iniciar el pago. Intenta más tarde.');
-    }
-  };
+  try {
+    /* 1. Pide referencia + firma al servidor */
+    const res = await fetch('/api/transactions/deposit', {
+      method : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body   : JSON.stringify({ amount })
+    });
+    if (!res.ok) throw new Error('Error generando firma');
+
+    const { orderId, amount: amtStr, callbackUrl, integrityKey } = await res.json();
+
+    /* 2. Lanza Bold Checkout */
+    openBoldCheckout({
+      apiKey            : process.env.NEXT_PUBLIC_BOLD_BUTTON_KEY!,
+      orderId,
+      amount            : amtStr,
+      currency          : 'COP',
+      description       : `Recarga ${amtStr} COP`,
+      redirectionUrl    : callbackUrl,
+      integritySignature: integrityKey,
+      customerData      : JSON.stringify({
+        email   : user.primaryEmailAddress?.emailAddress ?? '',
+        fullName: user.fullName || 'Jugador MMC',
+      }),
+      renderMode: 'embedded',
+      onSuccess : () => toast.success('✅ Recarga recibida, se reflejará pronto'),
+      onFailed  : ({ message }: { message?: string }) =>
+                    toast.error(message ?? 'Algo salió mal'),
+      onPending : () => toast.info('Pago pendiente de confirmación.'),
+      onClose   : () => setDep(false),
+    });
+
+  } catch (err) {
+    console.error('[onDeposit]', err);
+    toast.error('No se pudo iniciar el pago. Intenta más tarde.');
+  }
+};
 
   // Withdraw handler
   const MIN_WITHDRAWAL = 10_000;
@@ -226,6 +232,8 @@ function WalletContent() {
     hidden: { opacity:0,x:-20 },
     visible: (i:number) => ({ opacity:1,x:0,transition:{ delay:i*0.05, duration:0.3 } })
   };
+ 
+  // UI
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-950 to-gray-900 text-white pb-24 font-exo2 antialiased">
