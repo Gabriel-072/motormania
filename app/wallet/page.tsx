@@ -1,10 +1,12 @@
 // 📁 app/wallet/page.tsx
 'use client';
 
+export const dynamic = 'force-dynamic'
+
 import React, { useEffect, useState } from 'react';
 import { useUser, useAuth } from '@clerk/nextjs';
 import { motion, AnimatePresence } from 'framer-motion';
-import dynamic from 'next/dynamic';
+import nextDynamic from 'next/dynamic';
 import Header from '@/components/Header';
 import { createAuthClient } from '@/lib/supabase';
 import { openBoldCheckout } from '@/lib/bold';
@@ -28,9 +30,9 @@ import RedeemCodeModal from '@/components/RedeemCodeModal';
 import ActionButton from '@/components/ActionButton';
 import PlayThroughProgress from '@/components/PlayThroughProgress';
 
-/* Lazy modals */
-const DepositModal = dynamic(() => import('@/components/DepositModal'));
-const WithdrawModal = dynamic(() => import('@/components/WithdrawModal'));
+/* Lazy modals (usa el alias) */
+const DepositModal  = nextDynamic(() => import('@/components/DepositModal'));
+const WithdrawModal = nextDynamic(() => import('@/components/WithdrawModal'));
 
 /* Types --------------------------------------------------------- */
 interface WalletRow {
