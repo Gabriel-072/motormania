@@ -5,9 +5,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth }                      from '@clerk/nextjs/server';
 import crypto                        from 'crypto';
 
-/* ───────── ENV ───────── */
-const BOLD_SECRET_KEY = process.env.BOLD_SECRET_KEY!;          // llave privada Bold
-const SITE_URL        = process.env.NEXT_PUBLIC_SITE_URL!;     // p. ej. https://motormaniacolombia.com
+/* ───────── ENV ACTUALES ─────────
+ * NEXT_PUBLIC_BOLD_BUTTON_KEY  → pública, la usa el frontend
+ * BOLD_SECRET_KEY              → **private key**  (la usamos aquí)
+ * NEXT_PUBLIC_SITE_URL         → https://motormaniacolombia.com
+ */
+const BOLD_SECRET_KEY = process.env.BOLD_SECRET_KEY!;
+const SITE_URL        = process.env.NEXT_PUBLIC_SITE_URL!;
 
 /**
  *  POST  →  { amount:number }
@@ -18,7 +22,7 @@ export async function POST(req: NextRequest) {
   const { userId } = await auth();
   if (!userId) return new NextResponse('Unauthorized', { status: 401 });
 
-  /* 1. Valida body */
+  /* 1. Body */
   let amount: number;
   try {
     const body = await req.json();
@@ -29,10 +33,11 @@ export async function POST(req: NextRequest) {
   }
 
   /* 2. orderId único */
-  const orderId = `MM-DEP-${userId}-${Date.now()}`;
+  const orderId   = `MM-DEP-${userId}-${Date.now()}`;
+  const amountStr = amount.toString();  // "20000"
 
-  /* 3. Firma HMAC-SHA256 requerida por Bold */
-  const payload      = `${orderId}|${amount}|COP`;
+  /* 3. Firma HMAC-SHA256 según Bold */
+  const payload      = `${orderId}|${amountStr}|COP`;
   const integrityKey = crypto
     .createHmac('sha256', BOLD_SECRET_KEY)
     .update(payload)
@@ -41,8 +46,8 @@ export async function POST(req: NextRequest) {
   /* 4. Respuesta */
   return NextResponse.json({
     orderId,
-    amount      : amount.toString(),       // Bold widget espera string
-    callbackUrl : `${SITE_URL}/wallet`,    // redirección tras pago
+    amount     : amountStr,
+    callbackUrl: `${SITE_URL}/wallet`,
     integrityKey
   });
 }
