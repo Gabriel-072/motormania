@@ -8,6 +8,7 @@ import dynamic from 'next/dynamic';
 import Header from '@/components/Header';
 import { createAuthClient } from '@/lib/supabase';
 import { openBoldCheckout } from '@/lib/bold';
+import useAutoRedeem from '@/hooks/useAutoRedeem';
 import { toast } from 'sonner';
 
 import {
@@ -65,6 +66,9 @@ export default function WalletPage() {
   const [loadingW, setLW] = useState(true);
   const [loadingT, setLT] = useState(true);
 
+  // ejecuta el hook para leer ?code=MMC100 de la URL, redirigir al sign-up si no está logueado
+  useAutoRedeem();
+  
   /* Realtime & initial fetch */
   useEffect(() => {
     if (!isSignedIn || !uid) return;
