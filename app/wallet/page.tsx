@@ -59,22 +59,20 @@ interface Transaction {
 
 const fmt = (n: number) => n.toLocaleString('es-CO');
 
-/**
- * Internal component with all client-side logic.
- */
 function WalletContent() {
   const { isSignedIn, user } = useUser();
-  const { getToken }         = useAuth();
-  const uid                  = user?.id;
+  const { getToken } = useAuth();
+  const uid = user?.id;
 
-  const [wallet, setWallet]     = useState<WalletRow|null>(null);
-  const [promo, setPromo]       = useState<PromoProgress|null>(null);
-  const [txs, setTxs]           = useState<Transaction[]>([]);
-  const [showDep, setDep]       = useState(false);
-  const [showWith, setWith]     = useState(false);
+  const [wallet, setWallet] = useState<WalletRow | null>(null);
+  const [promo, setPromo] = useState<PromoProgress | null>(null);
+  const [txs, setTxs] = useState<Transaction[]>([]);
+  const [hasDeposited, setHasDeposited] = useState(false);
+  const [showDep, setDep] = useState(false);
+  const [showWith, setWith] = useState(false);
   const [showRedeem, setRedeem] = useState(false);
-  const [loadingW, setLW]       = useState(true);
-  const [loadingT, setLT]       = useState(true);
+  const [loadingW, setLW] = useState(true);
+  const [loadingT, setLT] = useState(true);
 
   // Auto‐redeem promo codes from ?code=
   useAutoRedeem();
@@ -108,7 +106,20 @@ function WalletContent() {
         .eq('user_id', uid)
         .eq('status', 'active')
         .maybeSingle();
-      if (pr) setPromo({ remaining: pr.wager_remaining_mmc, total: pr.locked_amount_mmc * 2 });
+      if (pr) {
+        setPromo({
+          remaining: pr.wager_remaining_mmc,
+          total: pr.locked_amount_mmc * 2
+        });
+      }
+
+      // Check if user has made at least one recarga
+      const { count: recargas } = await sb
+        .from('transactions')
+        .select('id', { count: 'exact' })
+        .eq('user_id', uid)
+        .eq('type', 'recarga');
+      setHasDeposited((recargas ?? 0) > 0);
 
       // Transactions
       const { data: ts } = await sb
@@ -121,16 +132,20 @@ function WalletContent() {
       setLT(false);
 
       // Realtime wallet updates
-      chW = sb.channel(`wallet-${uid}`)
-        .on('postgres_changes',
+      chW = sb
+        .channel(`wallet-${uid}`)
+        .on(
+          'postgres_changes',
           { event: '*', schema: 'public', table: 'wallet', filter: `user_id=eq.${uid}` },
           payload => setWallet(payload.new as WalletRow)
         )
         .subscribe();
 
       // Realtime transactions
-      chT = sb.channel(`tx-${uid}`)
-        .on('postgres_changes',
+      chT = sb
+        .channel(`tx-${uid}`)
+        .on(
+          'postgres_changes',
           { event: 'INSERT', schema: 'public', table: 'transactions', filter: `user_id=eq.${uid}` },
           payload => setTxs(prev => [payload.new as Transaction, ...prev].slice(0, 30))
         )
@@ -143,47 +158,45 @@ function WalletContent() {
     };
   }, [isSignedIn, uid, getToken]);
 
-  // Deposit handler (100 % alineado con el endpoint nuevo)
-const onDeposit = async (amount: number) => {
-  if (!uid || !user) return;
+  // Deposit handler (alineado con /api/transactions/deposit)
+  const onDeposit = async (amount: number) => {
+    if (!uid || !user) return;
 
-  try {
-    /* 1. Pide referencia + firma al servidor */
-    const res = await fetch('/api/transactions/deposit', {
-      method : 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body   : JSON.stringify({ amount })
-    });
-    if (!res.ok) throw new Error('Error generando firma');
+    try {
+      // 1. Pide referencia + firma al servidor
+      const res = await fetch('/api/transactions/deposit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount })
+      });
+      if (!res.ok) throw new Error('Error generando firma');
+      const { orderId, amount: amtStr, callbackUrl, integrityKey } = await res.json();
 
-    const { orderId, amount: amtStr, callbackUrl, integrityKey } = await res.json();
-
-    /* 2. Lanza Bold Checkout */
-    openBoldCheckout({
-      apiKey            : process.env.NEXT_PUBLIC_BOLD_BUTTON_KEY!,
-      orderId,
-      amount            : amtStr,
-      currency          : 'COP',
-      description       : `Recarga ${amtStr} COP`,
-      redirectionUrl    : callbackUrl,
-      integritySignature: integrityKey,
-      customerData      : JSON.stringify({
-        email   : user.primaryEmailAddress?.emailAddress ?? '',
-        fullName: user.fullName || 'Jugador MMC',
-      }),
-      renderMode: 'embedded',
-      onSuccess : () => toast.success('✅ Recarga recibida, se reflejará pronto'),
-      onFailed  : ({ message }: { message?: string }) =>
-                    toast.error(message ?? 'Algo salió mal'),
-      onPending : () => toast.info('Pago pendiente de confirmación.'),
-      onClose   : () => setDep(false),
-    });
-
-  } catch (err) {
-    console.error('[onDeposit]', err);
-    toast.error('No se pudo iniciar el pago. Intenta más tarde.');
-  }
-};
+      // 2. Lanza Bold Checkout
+      openBoldCheckout({
+        apiKey: process.env.NEXT_PUBLIC_BOLD_BUTTON_KEY!,
+        orderId,
+        amount: amtStr,
+        currency: 'COP',
+        description: `Recarga ${amtStr} COP`,
+        redirectionUrl: callbackUrl,
+        integritySignature: integrityKey,
+        customerData: JSON.stringify({
+          email: user.primaryEmailAddress?.emailAddress ?? '',
+          fullName: user.fullName || 'Jugador MMC',
+        }),
+        renderMode: 'embedded',
+        onSuccess: () => toast.success('✅ Recarga recibida, se reflejará pronto'),
+        onFailed: ({ message }: { message?: string }) =>
+          toast.error(message ?? 'Algo salió mal'),
+        onPending: () => toast.info('Pago pendiente de confirmación.'),
+        onClose: () => setDep(false),
+      });
+    } catch (err) {
+      console.error('[onDeposit]', err);
+      toast.error('No se pudo iniciar el pago. Intenta más tarde.');
+    }
+  };
 
   // Withdraw handler
   const MIN_WITHDRAWAL = 10_000;
@@ -205,7 +218,6 @@ const onDeposit = async (amount: number) => {
     }
   };
 
-  // Icon by transaction type
   const getTxIcon = (type: TxType) => {
     switch (type) {
       case 'recarga':        return <FaArrowUp className="text-green-400" />;
@@ -219,21 +231,26 @@ const onDeposit = async (amount: number) => {
   };
 
   const displayWallet: WalletRow = wallet ?? {
-    balance_cop:     0,
-    withdrawable_cop:0,
-    mmc_coins:       0,
-    locked_mmc:      0,
-    fuel_coins:      0,
-    locked_fuel:     0,
+    balance_cop: 0,
+    withdrawable_cop: 0,
+    mmc_coins: 0,
+    locked_mmc: 0,
+    fuel_coins: 0,
+    locked_fuel: 0,
   };
 
-  const mainVar = { hidden:{opacity:0,y:20}, visible:{opacity:1,y:0,transition:{duration:0.5}} };
-  const itemVar = {
-    hidden: { opacity:0,x:-20 },
-    visible: (i:number) => ({ opacity:1,x:0,transition:{ delay:i*0.05, duration:0.3 } })
+  const mainVar = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.5 } }
   };
- 
-  // UI
+  const itemVar = {
+    hidden: { opacity: 0, x: -20 },
+    visible: (i: number) => ({
+      opacity: 1,
+      x: 0,
+      transition: { delay: i * 0.05, duration: 0.3 }
+    })
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-950 to-gray-900 text-white pb-24 font-exo2 antialiased">
@@ -254,20 +271,39 @@ const onDeposit = async (amount: number) => {
           lockedMmc={displayWallet.locked_mmc}
         />
 
-        {promo && promo.remaining > 0 && (
+        {hasDeposited && promo && promo.remaining > 0 && (
           <PlayThroughProgress remaining={promo.remaining} total={promo.total} />
         )}
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <ActionButton title="Depositar" icon={<FaArrowUp />} color="amber"   onClick={() => setDep(true)} />
-          <ActionButton title="Retirar"   icon={<FaArrowDown />} color="cyan"   onClick={() => setWith(true)} />
-          <ActionButton title="Código Promocional" icon={<FaTicketAlt />} color="emerald" onClick={() => setRedeem(true)} />
+          <ActionButton
+            title="Depositar"
+            icon={<FaArrowUp />}
+            color="amber"
+            onClick={() => setDep(true)}
+          />
+          <ActionButton
+            title="Retirar"
+            icon={<FaArrowDown />}
+            color="cyan"
+            onClick={() => setWith(true)}
+          />
+          <ActionButton
+            title="Código Promocional"
+            icon={<FaTicketAlt />}
+            color="emerald"
+            onClick={() => setRedeem(true)}
+          />
         </div>
 
         <section className="bg-gradient-to-br from-gray-800/70 via-black/50 to-gray-900/70 rounded-xl shadow-xl border border-gray-700/50">
           <div className="p-5 sm:p-6">
-            <h2 className="text-xl font-semibold text-gray-100 mb-1">Historial de Transacciones</h2>
-            <p className="text-sm text-gray-400 mb-6">Un resumen de tus actividades recientes en la plataforma.</p>
+            <h2 className="text-xl font-semibold text-gray-100 mb-1">
+              Historial de Transacciones
+            </h2>
+            <p className="text-sm text-gray-400 mb-6">
+              Un resumen de tus actividades recientes en la plataforma.
+            </p>
 
             {loadingT ? (
               <div className="flex flex-col items-center justify-center py-12 text-gray-500 gap-3">
@@ -278,7 +314,9 @@ const onDeposit = async (amount: number) => {
               <div className="flex flex-col items-center justify-center py-12 text-gray-500 gap-4 text-center">
                 <FaFileInvoiceDollar className="text-5xl opacity-30" />
                 <p className="text-lg font-medium mt-2">Aún no hay movimientos.</p>
-                <p className="text-sm">Cuando realices una recarga o participes, tus transacciones aparecerán aquí.</p>
+                <p className="text-sm">
+                  Cuando realices una recarga o participes, tus transacciones aparecerán aquí.
+                </p>
               </div>
             ) : (
               <ul className="space-y-1">
@@ -301,18 +339,23 @@ const onDeposit = async (amount: number) => {
                         </p>
                         <p className="text-xs text-gray-400">
                           {new Date(t.created_at).toLocaleString('es-CO', {
-                            day:   '2-digit',
+                            day: '2-digit',
                             month: 'short',
-                            year:  'numeric',
-                            hour:  'numeric',
-                            minute:'2-digit',
-                            hour12:true
+                            year: 'numeric',
+                            hour: 'numeric',
+                            minute: '2-digit',
+                            hour12: true
                           })}
                         </p>
                       </div>
                     </div>
-                    <span className={`font-semibold text-sm sm:text-base whitespace-nowrap pl-2 ${t.amount >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                      {t.amount >= 0 ? '+' : ''}{fmt(t.amount)} COP
+                    <span
+                      className={`font-semibold text-sm sm:text-base whitespace-nowrap pl-2 ${
+                        t.amount >= 0 ? 'text-green-400' : 'text-red-400'
+                      }`}
+                    >
+                      {t.amount >= 0 ? '+' : ''}
+                      {fmt(t.amount)} COP
                     </span>
                   </motion.li>
                 ))}
@@ -323,18 +366,20 @@ const onDeposit = async (amount: number) => {
       </motion.main>
 
       <AnimatePresence>
-        {showDep    && <DepositModal  onClose={() => setDep(false)}  onDeposit={onDeposit} />}
-        {showWith   && <WithdrawModal max={displayWallet.withdrawable_cop} onClose={() => setWith(false)} onSubmit={onWithdraw} />}
+        {showDep && <DepositModal onClose={() => setDep(false)} onDeposit={onDeposit} />}
+        {showWith && (
+          <WithdrawModal
+            max={displayWallet.withdrawable_cop}
+            onClose={() => setWith(false)}
+            onSubmit={onWithdraw}
+          />
+        )}
         {showRedeem && <RedeemCodeModal onClose={() => setRedeem(false)} />}
       </AnimatePresence>
     </div>
   );
 }
 
-/**
- * Default export wraps WalletContent in <Suspense>
- * so that useAutoRedeem (which uses useSearchParams) works correctly.
- */
 export default function WalletPage() {
   return (
     <Suspense fallback={null}>
