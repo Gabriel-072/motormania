@@ -30,10 +30,10 @@ export async function POST(req: NextRequest) {
 
   // 2. Construir orderId único
   const orderId   = `MM-DEP-${userId}-${Date.now()}`;
-  const amountStr = amount.toFixed(2);
+  const amountStr = String(amount); 
 
   // 3. HMAC-SHA256 sobre payload
-  const payload      = `${orderId}|${amountStr}|COP`;
+  const payload = `${orderId}|${amountStr}|COP`;
   const integrityKey = crypto
     .createHmac('sha256', BOLD_SECRET_KEY)
     .update(payload)
