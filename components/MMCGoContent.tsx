@@ -18,6 +18,7 @@ import { toast } from 'sonner'; // Import toast from sonner
 import MMCGoSubHeader from '@/components/MMCGoSubHeader'; // Ajusta ruta si es necesario
 import LoadingAnimation from '@/components/LoadingAnimation'; // Ajusta ruta si es necesario
 import StickyModal from '@/components/StickyModal'; // Ajusta ruta si es necesario
+import FomoBar from '@/components/FomoBar';
 import FullModal from '@/components/FullModal'; // Ajusta ruta si es necesario
 import NextGpCountdown from '@/components/NextGpCountdown'; // Ajusta ruta si es necesario
 import { createAuthClient } from '@/lib/supabase'; // Ajusta ruta si es necesario
@@ -637,6 +638,7 @@ export default function MMCGoContent() {
 
           {/* === Modals === */}
           {showTutorial && ( <DynamicTutorialModal show={showTutorial} onClose={() => setShowTutorial(false)} /> )}
+          <FomoBar /> 
           <StickyModal onFinish={async () => { soundManager.click.play(); if (!isSignedIn) { localStorage.setItem('pendingPicks', JSON.stringify(picks)); setShowAuthModal(true); return; } setShowFullModal(true); }} />
           {showFullModal && ( <FullModal isOpen={showFullModal} onClose={() => setShowFullModal(false)} /> )}
           <AnimatePresence>
