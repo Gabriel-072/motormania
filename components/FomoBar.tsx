@@ -121,7 +121,7 @@ export default function FomoBar() {
         />
       </div>
 
-      {/* Content Layer (Icon and Text) - Must be above shimmer */}
+      {/*Content Layer (Icon and Text) - Must be above shimmer*/}
       <div className="relative z-10 flex items-center justify-center w-full">
         <motion.div variants={iconPulseVariants} animate="pulse">
           <FaBolt className="mr-2.5 flex-shrink-0 text-amber-400" size={16} />
