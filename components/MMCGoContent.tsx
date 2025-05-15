@@ -734,7 +734,7 @@ return (
                             <p className="w-full mb-1 px-1 text-xs text-indigo-400 truncate">
                               {driverToTeam[driver] || 'Equipo desc.'}
                             </p>
-                            <p className="mb-2 px-1 text-m font-semibold text-amber-400">
+                            <p className="mb-2 px-1 text-xs font-bold text-amber-400">
                               {isQualyView ? 'Proyección Qualy' : 'Proyección Carrera'}:{' '}
                               <span className="text-base">
                                 {typeof line === 'number' ? line.toFixed(1) : 'N/A'}
