@@ -430,15 +430,6 @@ export default function MMCGoContent() {
     clickSound.current.load();
   }, []);
 
-  // ■■■ engine rev once on first load (sigue usando tu rev global) ■■■
-  const hasPlayedRev = useRef(false);
-  useEffect(() => {
-    if (isDataLoaded && !hasPlayedRev.current) {
-      soundManager.rev.play();
-      hasPlayedRev.current = true;
-    }
-  }, [isDataLoaded]);
-
   // Helper para obtener líneas de la sesión activa
   const driverLines = isQualyView ? linesBySession.qualy : linesBySession.race;
 
@@ -549,15 +540,18 @@ return (
 
         {/* Botón Tutorial */}
         <div className="mb-6 flex justify-end">
-          <button
-            onClick={() => {
-              soundManager.click.play();
-              setShowTutorial(true);
-            }}
-            className="mt-3 w-full flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 px-4 py-2 text-sm font-semibold text-black shadow-xl transition hover:scale-105 hover:shadow-amber-400/40 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 focus:ring-offset-black sm:w-auto"
-          >
-            <FaQuestionCircle /> ¿Cómo jugar?
-          </button>
+        <button
+        onClick={() => {
+        soundManager.click.play();
+        trackFBEvent('TutorialClick', {
+        params: { content_name: 'Boton_Tutorial_MMCGO' }
+        });
+        setShowTutorial(true);
+        }}
+        className="mt-3 w-full flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 px-4 py-2 text-sm font-semibold text-black shadow-xl transition hover:scale-105 hover:shadow-amber-400/40 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 focus:ring-offset-black lg:w-full"
+        >
+        <FaQuestionCircle /> ¿Cómo jugar?
+        </button>
         </div>
 
         {/* Subtítulo */}
@@ -569,7 +563,7 @@ return (
         >
           Juega Ahora — Solo elige{' '}
           <span className="text-green-400">Mejor</span> o{' '}
-          <span className="text-red-400">Peor</span> que su línea.
+          <span className="text-red-400">Peor</span> que su proyección.
         </motion.p>
 
         {/* Toggle Qualy/Race */}
@@ -720,7 +714,7 @@ return (
                          </div>
 
                           {/* Info piloto */}
-                          <div className="flex flex-col items-center px-1 text-center pt-5">
+                          <div className="flex flex-col items-center px-1 text-center pt-3">
                             <Image
                               src={imgSrc}
                               alt={driver}
@@ -734,14 +728,14 @@ return (
                                   '/images/pilots/default-pilot.png';
                               }}
                             />
-                            <h3 className="w-full px-1 text-sm font-bold text-gray-100 truncate">
+                            <h3 className="w-full px-1 text-m font-bold text-gray-100 truncate">
                               {driver}
                             </h3>
                             <p className="w-full mb-1 px-1 text-xs text-indigo-400 truncate">
                               {driverToTeam[driver] || 'Equipo desc.'}
                             </p>
-                            <p className="mb-2 px-1 text-xs font-semibold text-amber-400">
-                              {isQualyView ? 'Qualy' : 'Carrera'}:{' '}
+                            <p className="mb-2 px-1 text-m font-semibold text-amber-400">
+                              {isQualyView ? 'Proyección Qualy' : 'Proyección Carrera'}:{' '}
                               <span className="text-base">
                                 {typeof line === 'number' ? line.toFixed(1) : 'N/A'}
                               </span>
