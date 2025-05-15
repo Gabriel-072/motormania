@@ -92,7 +92,7 @@ export default function FomoBar() {
          */
         bottom-[7rem] sm:bottom-[8rem]
         left-4 right-4             /* Viewport placement, same effective width as inset-x-4 */
-        z-[60]                     /* Stacking context (above StickyModal z-50) */
+        z-[50]                     /* Stacking context (above StickyModal z-50) */
         h-11                       /* Height of the bar */
         rounded-2xl                /* Matched corner roundness with StickyModal */
         bg-neutral-900             /* Base dark background */

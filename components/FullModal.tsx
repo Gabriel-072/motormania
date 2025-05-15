@@ -4,6 +4,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
+import { useFomoFake } from '@/lib/useFomoFake';
+import { FaBolt } from 'react-icons/fa';      // icono opcional
 import {
   FaTimes,
   FaTrashAlt,
@@ -67,6 +69,9 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
   const [promo, setPromo] = useState<Promo | null>(null);
   const [promoMessage, setPromoMessage] = useState<string>('');
 
+  // Notificaciones FOMO
+  const fomoMsg = useFomoFake(2500);   // rota cada 2,5 s
+  
   // combined picks
   const combinedPicks: PickSelection[] = [
     ...(picks.qualy ?? []),
@@ -384,6 +389,25 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                     ))
                   )}
                 </div>
+
+                {/* FOMO Bar */}
+{fomoMsg && (
+  <motion.div
+    initial={{ opacity: 0, y: -6 }}
+    animate={{ opacity: 1, y: 0 }}
+    exit={{ opacity: 0, y: -6 }}
+    transition={{ duration: 0.3 }}
+    className="
+      flex items-center justify-center h-9 rounded-lg
+      bg-gradient-to-r from-yellow-600 via-amber-500 to-yellow-700
+      text-white font-bold text-sm tracking-wide
+      shadow-[0_0_10px_rgba(255,215,0,0.35)]
+      select-none
+    "
+  >
+    <FaBolt className="mr-1 text-yellow-300" /> {fomoMsg}
+  </motion.div>
+)}
 
                 {/* error */}
                 <AnimatePresence>

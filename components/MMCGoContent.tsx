@@ -21,6 +21,7 @@ import StickyModal from '@/components/StickyModal'; // Ajusta ruta si es necesar
 import FomoBar from '@/components/FomoBar';
 import FullModal from '@/components/FullModal'; // Ajusta ruta si es necesario
 import NextGpCountdown from '@/components/NextGpCountdown'; // Ajusta ruta si es necesario
+import QuickEntryBanner from '@/components/QuickEntryBanner';
 import { createAuthClient } from '@/lib/supabase'; // Ajusta ruta si es necesario
 import { useStickyStore } from '@/stores/stickyStore'; // Ajusta ruta si es necesario
 import { PickSelection } from '@/app/types/picks'; // Ajusta ruta si es necesario
@@ -476,122 +477,286 @@ export default function MMCGoContent() {
   // Obtener la lista ordenada para renderizar
   const orderedDriversForDisplay = getOrderedVisibleDrivers();
 
+  /* === Quick-Entry data (se recalcula en cada render) ================ */
+  const qualyLinesArr: PickSelection[] = Object.entries(linesBySession.qualy)
+  .map(([driver, line]) => ({ driver, line, session_type: 'qualy' } as PickSelection));
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // RENDER LOGIC
-  // ──────────────────────────────────────────────────────────────────────────
+  const raceLinesArr:  PickSelection[] = Object.entries(linesBySession.race)
+  .map(([driver, line]) => ({ driver, line, session_type: 'race' } as PickSelection));
 
-  if (!isLoaded) {
-      return <LoadingAnimation text="Cargando autenticación…" animationDuration={4} />;
-  }
 
-  const mainContainerClasses = 'min-h-screen bg-gradient-to-b from-gray-950 via-gray-900 to-black text-white font-exo2';
-  const driverGridClasses   = 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4';
+  // Detecta si estamos en lg+ (>=1024px) y ajusta el índice de inserción
+const [insertIndex, setInsertIndex] = useState(4);
 
-  return (
-    <div className={mainContainerClasses}>
-      <MMCGoSubHeader />
+useEffect(() => {
+  if (typeof window === 'undefined') return;
+  const mql = window.matchMedia('(min-width: 1024px)');
+  const onChange = (e: MediaQueryListEvent) => setInsertIndex(e.matches ? 5 : 4);
+  // Inicializa al montar
+  setInsertIndex(mql.matches ? 5 : 4);
+  mql.addEventListener('change', onChange);
+  return () => mql.removeEventListener('change', onChange);
+}, []);
+           
+          
+// ──────────────────────────────────────────────────────────────────────────
+// RENDER LOGIC
+// ──────────────────────────────────────────────────────────────────────────
 
-      {/* Estado de Carga / Error */}
-      {!isDataLoaded && !errors.length ? (
-        <LoadingAnimation text="Cargando MMC‑GO…" animationDuration={2} />
-      ) : errors.length > 0 ? (
-        <div className="container mx-auto px-4 py-10 text-center">
-            <p className="text-red-400 text-lg">Error al cargar los datos:</p>
-            {errors.map((err, i) => <p key={i} className="text-red-500 text-sm">{err}</p>)}
-            <button
-                onClick={() => { setIsDataLoaded(false); fetchData(); }}
-                className="mt-4 px-4 py-2 bg-amber-500 text-black font-semibold rounded hover:bg-amber-600"
-            >
-                Reintentar Carga
-            </button>
+
+
+if (!isLoaded) {
+  return <LoadingAnimation text="Cargando autenticación…" animationDuration={4} />;
+}
+
+const mainContainerClasses =
+  'min-h-screen bg-gradient-to-b from-gray-950 via-gray-900 to-black text-white font-exo2';
+const driverGridClasses =
+  'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4';
+
+return (
+  <div className={mainContainerClasses}>
+    <MMCGoSubHeader />
+
+    {/* Estado de Carga / Error */}
+    {!isDataLoaded && !errors.length ? (
+      <LoadingAnimation text="Cargando MMC-GO…" animationDuration={2} />
+    ) : errors.length > 0 ? (
+      <div className="container mx-auto px-4 py-10 text-center">
+        <p className="text-red-400 text-lg">Error al cargar los datos:</p>
+        {errors.map((err, i) => (
+          <p key={i} className="text-red-500 text-sm">
+            {err}
+          </p>
+        ))}
+        <button
+          onClick={() => {
+            setIsDataLoaded(false);
+            fetchData();
+          }}
+          className="mt-4 px-4 py-2 bg-amber-500 text-black font-semibold rounded hover:bg-amber-600"
+        >
+          Reintentar Carga
+        </button>
+      </div>
+    ) : (
+      /* ────────────────────── CONTENIDO PRINCIPAL ────────────────────── */
+      <main className="container mx-auto px-4 sm:px-6 lg:px-8 pb-32">
+        {/* Countdown */}
+        <div className="mb-4">
+          <NextGpCountdown currentGp={currentGp} isQualyView={isQualyView} />
         </div>
-      ) : (
-        // Contenido Principal (Datos Cargados)
-        <main className="container mx-auto px-4 sm:px-6 lg:px-8 pb-32">
 
-          {/* Countdown */}
-          <div className="mb-4">
-            <NextGpCountdown currentGp={currentGp} isQualyView={isQualyView} />
-          </div>
-
-          {/* Subtítulo */}
-          <motion.p
-            initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .3 }}
-            className="mb-6 text-center text-sm text-gray-400"
+        {/* Botón Tutorial */}
+        <div className="mb-6 flex justify-end">
+          <button
+            onClick={() => {
+              soundManager.click.play();
+              setShowTutorial(true);
+            }}
+            className="mt-3 w-full flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 px-4 py-2 text-sm font-semibold text-black shadow-xl transition hover:scale-105 hover:shadow-amber-400/40 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 focus:ring-offset-black sm:w-auto"
           >
-            Juega Ahora — Solo elige <span className="text-green-400">Mejor</span> o <span className="text-red-400">Peor</span> que su línea.
-          </motion.p>
+            <FaQuestionCircle /> ¿Cómo jugar?
+          </button>
+        </div>
 
-          {/* Toggle Qualy/Race */}
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: .1 }}>
-            <div className="relative mx-auto mb-6 flex h-10 w-[150px] items-center rounded-full bg-gray-800 p-1 shadow">
-              <motion.span layout className="absolute h-8 w-[72px] rounded-full bg-gradient-to-r from-blue-600 to-cyan-500" animate={{ x: isQualyView ? 0 : 74 }} transition={{ type: 'spring', stiffness: 350, damping: 30 }} />
-              <button disabled={!isQualyEnabled} onClick={() => { if (!isQualyView && isQualyEnabled) { soundManager.click.play(); setIsQualyView(true); setSession('qualy'); } }} className={`relative z-10 flex-1 text-center text-xs font-semibold transition-colors duration-200 ${!isQualyEnabled ? 'cursor-not-allowed text-gray-500' : isQualyView ? 'text-white' : 'text-gray-400 hover:text-gray-200'}`}> Qualy </button>
-              <button disabled={!isRaceEnabled} onClick={() => { if (isQualyView && isRaceEnabled) { soundManager.click.play(); setIsQualyView(false); setSession('race'); } }} className={`relative z-10 flex-1 text-center text-xs font-semibold transition-colors duration-200 ${!isRaceEnabled ? 'cursor-not-allowed text-gray-500' : !isQualyView ? 'text-white' : 'text-gray-400 hover:text-gray-200'}`}> Carrera </button>
-            </div>
-          </motion.div>
+        {/* Subtítulo */}
+        <motion.p
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          className="mb-6 text-center text-sm text-gray-400"
+        >
+          Juega Ahora — Solo elige{' '}
+          <span className="text-green-400">Mejor</span> o{' '}
+          <span className="text-red-400">Peor</span> que su línea.
+        </motion.p>
 
-          {/* Grid de pilotos */}
-          <motion.section initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: .2 }}>
-            <div className="bg-gradient-to-br from-gray-800/50 via-black/50 to-gray-900/50 p-4 sm:p-6 rounded-xl shadow-xl border border-gray-700/50">
-              <div className={driverGridClasses}>
-                {orderedDriversForDisplay.length === 0 && isDataLoaded ? (
-                    <p className="col-span-full text-center text-gray-400 py-8"> No hay pilotos disponibles para mostrar en esta sesión. </p>
-                ) : (
-                    orderedDriversForDisplay.map((driver, idx) => {
+        {/* Toggle Qualy/Race */}
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}>
+          <div className="relative mx-auto mb-6 flex h-10 w-[150px] items-center rounded-full bg-gray-800 p-1 shadow">
+            <motion.span
+              layout
+              className="absolute h-8 w-[72px] rounded-full bg-gradient-to-r from-blue-600 to-cyan-500"
+              animate={{ x: isQualyView ? 0 : 74 }}
+              transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+            />
+            <button
+              disabled={!isQualyEnabled}
+              onClick={() => {
+                if (!isQualyView && isQualyEnabled) {
+                  soundManager.click.play();
+                  setIsQualyView(true);
+                  setSession('qualy');
+                }
+              }}
+              className={`relative z-10 flex-1 text-center text-xs font-semibold transition-colors duration-200 ${
+                !isQualyEnabled
+                  ? 'cursor-not-allowed text-gray-500'
+                  : isQualyView
+                  ? 'text-white'
+                  : 'text-gray-400 hover:text-gray-200'
+              }`}
+            >
+              Qualy
+            </button>
+            <button
+              disabled={!isRaceEnabled}
+              onClick={() => {
+                if (isQualyView && isRaceEnabled) {
+                  soundManager.click.play();
+                  setIsQualyView(false);
+                  setSession('race');
+                }
+              }}
+              className={`relative z-10 flex-1 text-center text-xs font-semibold transition-colors duration-200 ${
+                !isRaceEnabled
+                  ? 'cursor-not-allowed text-gray-500'
+                  : !isQualyView
+                  ? 'text-white'
+                  : 'text-gray-400 hover:text-gray-200'
+              }`}
+            >
+              Carrera
+            </button>
+          </div>
+        </motion.div>
+
+        {/* Grid de pilotos + Banner Quick Entry */}
+        <motion.section initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}>
+          <div className="bg-gradient-to-br from-gray-800/50 via-black/50 to-gray-900/50 p-4 sm:p-6 rounded-xl shadow-xl border border-gray-700/50">
+            <div className={driverGridClasses}>
+              {orderedDriversForDisplay.length === 0 && isDataLoaded ? (
+                <p className="col-span-full text-center text-gray-400 py-8">
+                  No hay pilotos disponibles para mostrar en esta sesión.
+                </p>
+              ) : (
+                (() => {
+                  /* ---------------- Mapeo de tarjetas ---------------- */
+                  const cards = orderedDriversForDisplay.map((driver, idx) => {
                     const vis = driverVisibility[driver];
-                    const safeVis = vis || { driver, qualy_visible: isQualyView, race_visible: !isQualyView, qualy_order: 999, race_order: 999, is_hot: false, is_promo: false };
+                    const safeVis =
+                      vis || {
+                        driver,
+                        qualy_visible: isQualyView,
+                        race_visible: !isQualyView,
+                        qualy_order: 999,
+                        race_order: 999,
+                        is_hot: false,
+                        is_promo: false,
+                      };
                     const line = driverLines[driver];
 
+                    /* Card sin línea (pero dataLoaded) */
                     if (line === undefined && isDataLoaded) {
-                        return (
-                            <motion.div key={`${driver}-noline`} className="rounded-xl opacity-60" initial={{ opacity: 0 }} animate={{ opacity: 0.6 }} transition={{ duration: 0.3 }}>
-                                <div className="relative flex h-full flex-col items-center justify-center rounded-lg bg-gray-700/60 pt-4 shadow-md p-3 text-center">
-                                    <Image src={`/images/pilots/${driver.toLowerCase().replace(/ /g, '-')}.png`} alt={driver} width={50} height={50} className="mb-2 h-12 w-12 rounded-full border border-gray-500 object-cover opacity-50" unoptimized onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/images/pilots/default-pilot.png'; }}/>
-                                    <p className="text-sm font-semibold text-gray-300 truncate w-full px-1">{driver}</p>
-                                    <p className="text-xs text-gray-400 mt-1">Línea no disp.</p>
-                                </div>
-                            </motion.div>
-                        );
+                      return (
+                        <motion.div
+                          key={`${driver}-noline`}
+                          className="rounded-xl opacity-60"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 0.6 }}
+                          transition={{ duration: 0.3 }}
+                        >
+                          <div className="relative flex h-full flex-col items-center justify-center rounded-lg bg-gray-700/60 pt-4 shadow-md p-3 text-center">
+                            <Image
+                              src={`/images/pilots/${driver.toLowerCase().replace(/ /g, '-')}.png`}
+                              alt={driver}
+                              width={50}
+                              height={50}
+                              className="mb-2 h-12 w-12 rounded-full border border-gray-500 object-cover opacity-50"
+                              unoptimized
+                              onError={(e) => {
+                                (e.currentTarget as HTMLImageElement).src =
+                                  '/images/pilots/default-pilot.png';
+                              }}
+                            />
+                            <p className="text-sm font-semibold text-gray-300 truncate w-full px-1">
+                              {driver}
+                            </p>
+                            <p className="text-xs text-gray-400 mt-1">Línea no disp.</p>
+                          </div>
+                        </motion.div>
+                      );
                     }
+
+                    /* Card en carga inicial sin línea aún */
                     if (line === undefined && !isDataLoaded) return null;
 
-                    const pick   = getUserPick(driver);
-                    const imgSrc = `/images/pilots/${driver.toLowerCase().replace(/ /g, '-')}.png`;
+                    const pick = getUserPick(driver);
+                    const imgSrc = `/images/pilots/${driver
+                      .toLowerCase()
+                      .replace(/ /g, '-')}.png`;
 
                     return (
                       <motion.div
                         key={`${driver}-${currentSession}`}
-                        layout initial={{ opacity: 0, scale: .95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: .2, delay: idx * .015 }}
-                        className="rounded-xl group" // Añadido group para hover en padre
+                        layout
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.2, delay: idx * 0.015 }}
+                        className="rounded-xl group"
                       >
                         <div className="relative flex h-full flex-col justify-between rounded-lg bg-gray-800 pt-4 shadow-lg transition duration-200 ease-in-out hover:shadow-cyan-500/20 border border-transparent group-hover:border-cyan-600/30">
-                          {/* Badges y Reset */}
-                          <div className="absolute top-1 left-1 right-1 z-10 flex justify-between items-start h-6">
-                              <div> {safeVis.is_promo && ( <span className="rounded bg-gradient-to-r from-yellow-400 to-orange-500 px-1.5 py-0.5 text-[10px] font-bold text-black shadow">PROMO</span> )} </div>
-                              <div className="flex items-center gap-1">
-                                  {safeVis.is_hot && ( <span className="text-lg leading-none">🔥</span> )}
-                                  {pick && ( <button onClick={() => removePick(driver, currentSession)} title="Quitar pick" className="rounded-full bg-yellow-500/80 p-1 text-black hover:bg-yellow-400 transition transform hover:scale-110"> <FaSyncAlt size={10} /> </button> )}
-                              </div>
+                          {/* Badges + Reset */}
+                          <div className="absolute top-1.5 left-1.5 right-1.5 z-10 flex justify-between items-center">
+                          {/* Lado izquierdo: Badge PROMO */}
+                          <div>
+                          {safeVis.is_promo && (
+                         <span className="rounded-md bg-gradient-to-r from-yellow-400 to-orange-500 px-2 py-1 text-xs font-bold text-black shadow-md">
+                          PROMO
+                         </span>
+                         )}
+                         </div>
+
+                         {/* Lado derecho: Badge HOT y Botón Reset */}
+                         <div className="flex items-center gap-1.5"> {/* Espacio entre el badge HOT y el botón de reset */}
+                         {safeVis.is_hot && (
+                         <span className="inline-flex items-center gap-1 rounded-md bg-red-600 px-2 py-1 text-xs font-bold text-white shadow-md">
+                         <span role="img" aria-label="fuego">🔥</span>
+                         HOT
+                         </span>
+                         )}
+                         </div>
+                         </div>
+
+                          {/* Info piloto */}
+                          <div className="flex flex-col items-center px-1 text-center pt-5">
+                            <Image
+                              src={imgSrc}
+                              alt={driver}
+                              width={80}
+                              height={80}
+                              className="mb-2 h-16 w-16 rounded-full border-2 border-gray-600 object-cover group-hover:border-cyan-500 transition-colors"
+                              unoptimized
+                              priority={idx < 10}
+                              onError={(e) => {
+                                (e.currentTarget as HTMLImageElement).src =
+                                  '/images/pilots/default-pilot.png';
+                              }}
+                            />
+                            <h3 className="w-full px-1 text-sm font-bold text-gray-100 truncate">
+                              {driver}
+                            </h3>
+                            <p className="w-full mb-1 px-1 text-xs text-indigo-400 truncate">
+                              {driverToTeam[driver] || 'Equipo desc.'}
+                            </p>
+                            <p className="mb-2 px-1 text-xs font-semibold text-amber-400">
+                              {isQualyView ? 'Qualy' : 'Carrera'}:{' '}
+                              <span className="text-base">
+                                {typeof line === 'number' ? line.toFixed(1) : 'N/A'}
+                              </span>
+                            </p>
                           </div>
 
-                          {/* Info Piloto */}
-                          <div className="flex flex-col items-center px-1 text-center pt-5"> {/* Added pt-5 to make space for badges */}
-                            <Image src={imgSrc} alt={driver} width={80} height={80} className="mb-2 h-16 w-16 rounded-full border-2 border-gray-600 object-cover group-hover:border-cyan-500 transition-colors" unoptimized priority={idx < 10} onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/images/pilots/default-pilot.png'; }} />
-                            <h3 className="w-full px-1 text-sm font-bold text-gray-100 truncate">{driver}</h3>
-                            <p className="w-full mb-1 px-1 text-xs text-indigo-400 truncate">{driverToTeam[driver] || "Equipo desc."}</p>
-                            <p className="mb-2 px-1 text-xs font-semibold text-amber-400"> {isQualyView ? 'Qualy' : 'Carrera'}: <span className="text-base">{typeof line === 'number' ? line.toFixed(1) : 'N/A'}</span> </p>
-                          </div>
-
-                           {/* Botones Mejor/Peor */}
+                          {/* Botones Mejor / Peor */}
 <div className="mt-auto flex w-full overflow-hidden rounded-b-lg">
-  {(['mejor','peor'] as const).map(opt => {
-    const selected = getUserPick(driver) === opt;
-    const isBetter = opt === 'mejor';
+  {(['mejor', 'peor'] as const).map((opt) => {
+    const currentPick = getUserPick(driver);
+    const selected    = currentPick === opt;
+    const isBetter    = opt === 'mejor';
 
-    // 👇 vuelve a poner estas dos líneas:
-    const baseClasses = 'flex-1 py-2.5 text-sm font-bold flex items-center justify-center gap-1.5 transition-all duration-150 ease-in-out';
+    const baseClasses =
+      'flex-1 py-2.5 text-sm font-bold flex items-center justify-center gap-1.5 transition-all duration-150 ease-in-out';
     const colorClasses = isBetter
       ? selected
         ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-inner'
@@ -605,36 +770,60 @@ export default function MMCGoContent() {
     return (
       <button
         key={opt}
-        disabled={selected}
         onClick={() => {
           clickSound.current?.play();
-          addPick({ driver, team: driverToTeam[driver] || 'N/A',
-                    line: typeof line === 'number' ? line : 0,
-                    betterOrWorse: opt,
-                    gp_name: currentGp?.gp_name ?? '',
-                    session_type: currentSession });
-          trackFBEvent('Lead', { params: { content_name: `Pick_${currentSession}_${driver}_${opt}` } });
+          if (currentPick === opt) {
+            removePick(driver, currentSession);
+          } else {
+            addPick({
+              driver,
+              team: driverToTeam[driver] || 'N/A',
+              line: typeof line === 'number' ? line : 0,
+              betterOrWorse: opt,
+              gp_name: currentGp?.gp_name ?? '',
+              session_type: currentSession,
+            });
+            trackFBEvent('Lead', {
+              params: { content_name: `Pick_${currentSession}_${driver}_${opt}` },
+            });
+          }
         }}
-        className={`${baseClasses} ${colorClasses} ${selected ? 'cursor-default' : 'hover:scale-[1.02]'}`}
+        className={`${baseClasses} ${colorClasses} ${
+          selected ? 'cursor-default' : 'hover:scale-[1.02]'
+        }`}
       >
-        <Icon size={12}/> {isBetter ? 'Mejor' : 'Peor'}
+        <Icon size={12} /> {isBetter ? 'Mejor' : 'Peor'}
       </button>
     );
   })}
 </div>
-
-
                         </div>
                       </motion.div>
                     );
-                  }) // End map
-                )}
-              </div> {/* End driverGridClasses */}
-            </div> {/* End Section Background */}
-          </motion.section>
+                  });
 
-          {/* Botón Tutorial Fijo */}
-          <button onClick={() => { soundManager.click.play(); setShowTutorial(true); }} className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 p-3 text-sm font-semibold text-black shadow-xl transition hover:scale-110 hover:shadow-amber-400/40 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 focus:ring-offset-black"> <FaQuestionCircle /> ¿Cómo jugar? </button>
+                  /* -------- Banner Entrada Rápida (posición 4) -------- */
+                  cards.splice(
+                    insertIndex, 
+                    0,
+                    <QuickEntryBanner
+                      key="quick-entry-banner"
+                      qualyLines={qualyLinesArr}
+                      raceLines={raceLinesArr}
+                      qualyEnabled={isQualyEnabled}    // <— pásale aquí tu flag de qualy
+                      raceEnabled={isRaceEnabled}      // <— y tu flag de race
+                      onOpen={() => setShowFullModal(true)}
+                    />,
+                  );
+
+                  return cards;
+                })()
+              )}
+            </div>
+          </div>
+        </motion.section>
+
+  
 
           {/* === Modals === */}
           {showTutorial && ( <DynamicTutorialModal show={showTutorial} onClose={() => setShowTutorial(false)} /> )}
