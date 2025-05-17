@@ -118,6 +118,7 @@ export default function MMCGoContent() {
   const [currentGp, setCurrentGp]         = useState<GpSchedule | null>(null);
   const [errors, setErrors]               = useState<string[]>([]);
   const [isQualyView, setIsQualyView]     = useState(true);
+  const [view, setView]                   = useState<'qualy'|'race'>('qualy');
   const [showFullModal, setShowFullModal] = useState(false);
   const [showRealtimeModal, setShowRealtimeModal] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -131,7 +132,7 @@ export default function MMCGoContent() {
   const visibilityChannelRef   = useRef<any>(null);
   const linesChannelRef        = useRef<any>(null);
   const {
-    picks, currentSession, setSession,
+    picks, currentSession, setSession: setStoreSession,
     addPick, removePick, setShowSticky,
     setMultiplier, setPotentialWin
   } = useStickyStore();
@@ -190,7 +191,8 @@ export default function MMCGoContent() {
       const activeSession: SessionType = configData.is_qualy_enabled ? 'qualy' : configData.is_race_enabled ? 'race' : 'qualy';
       console.log("[MMCGoContent] Sesión activa determinada:", activeSession);
       setIsQualyView(activeSession === 'qualy');
-      setSession(activeSession);
+      setView(activeSession);
+      setStoreSession(activeSession);
 
       /* 3) Próximo GP */
       const now = new Date();
@@ -226,34 +228,49 @@ export default function MMCGoContent() {
       console.log("[MMCGoContent] Líneas Qualy:", Object.keys(qualyLinesMap).length, " Race:", Object.keys(raceLinesMap).length);
       setLinesBySession({ qualy: qualyLinesMap, race: raceLinesMap });
 
-      /* 5) Visibilidad */
-      console.log("[MMCGoContent] Fetching driver visibility...");
-      const visResult = await supabase.from('driver_visibility').select('*');
-      if (visResult.error) throw new Error(`Error cargando visibilidad: ${visResult.error.message}`);
-      if (!visResult.data) throw new Error('No se recibieron datos de visibilidad.');
-
-      const visMap: Record<string, DriverVisibility> = {};
-      staticDrivers.forEach(driver => {
-          const existingVis = visResult.data.find(v => v.driver === driver);
-          visMap[driver] = existingVis || { driver, qualy_visible: true, race_visible: true, qualy_order: 999, race_order: 999, is_hot: false, is_promo: false };
-      });
-      console.log("[MMCGoContent] Driver visibility mapeado para ", Object.keys(visMap).length, " pilotos.");
-      setDriverVisibility(visMap);
-
-      setIsDataLoaded(true);
-      console.log("[MMCGoContent] fetchData completado exitosamente.");
-
-    } catch (e: any) {
-      console.error("[MMCGoContent] Error en fetchData:", e);
-      setErrors(prev => [...prev, e.message ?? 'Error inesperado durante la carga']);
-      setIsDataLoaded(true);
-      setLinesBySession({ qualy: {}, race: {} });
-      setDriverVisibility({});
-      setCurrentGp(null);
-      setIsQualyEnabled(false);
-      setIsRaceEnabled(false);
-    }
-  }, [getToken, isSignedIn, setSession]); // Dependencias fetchData
+            /* 5) Visibilidad */
+            console.log("[MMCGoContent] Fetching driver visibility...");
+            const visResult = await supabase.from('driver_visibility').select('*');
+            if (visResult.error) {
+              throw new Error(`Error cargando visibilidad: ${visResult.error.message}`);
+            }
+            if (!visResult.data) {
+              throw new Error('No se recibieron datos de visibilidad.');
+            }
+      
+            const visMap: Record<string, DriverVisibility> = {};
+            staticDrivers.forEach(driver => {
+              const existingVis = visResult.data.find(v => v.driver === driver);
+              visMap[driver] = existingVis || {
+                driver,
+                qualy_visible: true,
+                race_visible: true,
+                qualy_order: 999,
+                race_order: 999,
+                is_hot: false,
+                is_promo: false,
+              };
+            });
+            console.log(
+              "[MMCGoContent] Driver visibility mapeado para",
+              Object.keys(visMap).length,
+              "pilotos."
+            );
+            setDriverVisibility(visMap);
+      
+            setIsDataLoaded(true);
+            console.log("[MMCGoContent] fetchData completado exitosamente.");
+          } catch (e: any) {
+            console.error("[MMCGoContent] Error en fetchData:", e);
+            setErrors(prev => [...prev, e.message ?? 'Error inesperado durante la carga']);
+            setIsDataLoaded(true);
+            setLinesBySession({ qualy: {}, race: {} });
+            setDriverVisibility({});
+            setCurrentGp(null);
+            setIsQualyEnabled(false);
+            setIsRaceEnabled(false);
+          }
+        }, [getToken, isSignedIn, setView, setStoreSession]); // Dependencias actualizadas
 
   // EFFECT: Fetch on initial load
   useEffect(() => {
@@ -282,38 +299,87 @@ export default function MMCGoContent() {
       console.log(`[MMCGoContent] Configurando suscripciones con cliente ${token ? 'autenticado' : 'anónimo'}.`);
 
       // --- Suscripción a picks_config ---
-      if (configChannelRef.current) { try { await supabaseClient.removeChannel(configChannelRef.current); } catch (e) { console.warn("Error limpiando canal config previo:", e); } configChannelRef.current = null; }
-      console.log('[MMCGoContent] Configurando suscripción a picks_config');
-      const newConfigChannel = supabaseClient
-        .channel('public:picks_config:mmcgo')
-        .on<PicksConfig>(
-          'postgres_changes',
-          { event: 'UPDATE', schema: 'public', table: 'picks_config', filter: 'id=eq.main' },
-          (payload) => {
-            console.log('[MMCGoContent] Cambio en picks_config:', payload.new);
-            if (payload.new) {
-              const newConfig = payload.new;
-              const didQualyChange = isQualyEnabled !== newConfig.is_qualy_enabled;
-              const didRaceChange = isRaceEnabled !== newConfig.is_race_enabled;
-              if(didQualyChange || didRaceChange) { toast.info('La disponibilidad de picks ha cambiado.'); }
-              setIsQualyEnabled(newConfig.is_qualy_enabled);
-              setIsRaceEnabled(newConfig.is_race_enabled);
-              const newActiveSession: SessionType = newConfig.is_qualy_enabled ? 'qualy' : newConfig.is_race_enabled ? 'race' : (isQualyView ? 'qualy' : 'race');
-              const currentViewSession = isQualyView ? 'qualy' : 'race';
-              if (newActiveSession !== currentViewSession) { setIsQualyView(newActiveSession === 'qualy'); setSession(newActiveSession); }
-              if (currentViewSession === 'qualy' && !newConfig.is_qualy_enabled && newConfig.is_race_enabled) { setIsQualyView(false); setSession('race'); toast.info("Picks de Qualy cerrados. Mostrando Carrera.", { duration: 5000 }); }
-              else if (currentViewSession === 'race' && !newConfig.is_race_enabled && newConfig.is_qualy_enabled) { setIsQualyView(true); setSession('qualy'); toast.info("Picks de Carrera cerrados. Mostrando Qualy.", { duration: 5000 }); }
-              else if (!newConfig.is_qualy_enabled && !newConfig.is_race_enabled) { toast.warning("¡Atención! Picks de Qualy y Carrera están cerrados.", { duration: 5000 }); } // CORREGIDO: toast.warning
-              else if (didQualyChange || didRaceChange) { setShowRealtimeModal(true); }
-            }
-          }
-        )
-        .subscribe((status: string, err?: Error) => {
-           if (status === 'SUBSCRIBED') console.log('[MMCGoContent] Suscrito a picks_config!');
-           else if (err) console.error(`[MMCGoContent] Error suscripción picks_config: ${status}`, err);
-        });
-      configChannelRef.current = newConfigChannel;
-      channelsToRemove.push(newConfigChannel);
+if (configChannelRef.current) {
+  try {
+    await supabaseClient.removeChannel(configChannelRef.current);
+  } catch (e) {
+    console.warn('Error limpiando canal config previo:', e);
+  }
+  configChannelRef.current = null;
+}
+console.log('[MMCGoContent] Configurando suscripción a picks_config');
+const newConfigChannel = supabaseClient
+  .channel('public:picks_config:mmcgo')
+  .on<PicksConfig>(
+    'postgres_changes',
+    { event: 'UPDATE', schema: 'public', table: 'picks_config', filter: 'id=eq.main' },
+    (payload) => {
+      console.log('[MMCGoContent] Cambio en picks_config:', payload.new);
+      if (!payload.new) return;
+
+      const newConfig = payload.new;
+      const didQualyChange = isQualyEnabled !== newConfig.is_qualy_enabled;
+      const didRaceChange = isRaceEnabled !== newConfig.is_race_enabled;
+      if (didQualyChange || didRaceChange) {
+        toast.info('La disponibilidad de picks ha cambiado.');
+      }
+
+      // Actualiza flags de disponibilidad
+      setIsQualyEnabled(newConfig.is_qualy_enabled);
+      setIsRaceEnabled(newConfig.is_race_enabled);
+
+      // Decide nueva sesión activa
+      const newActiveSession: SessionType = newConfig.is_qualy_enabled
+        ? 'qualy'
+        : newConfig.is_race_enabled
+        ? 'race'
+        : (isQualyView ? 'qualy' : 'race');
+      const currentViewSession = isQualyView ? 'qualy' : 'race';
+
+      // Si cambia la vista, actualiza UI y store
+      if (newActiveSession !== currentViewSession) {
+        setIsQualyView(newActiveSession === 'qualy');
+        setView(newActiveSession);
+        setStoreSession(newActiveSession);
+      }
+
+      // Mensajes puntuales si se cierran una sola sesión
+      if (
+        currentViewSession === 'qualy' &&
+        !newConfig.is_qualy_enabled &&
+        newConfig.is_race_enabled
+      ) {
+        setIsQualyView(false);
+        setView('race');
+        setStoreSession('race');
+        toast.info('Picks de Qualy cerrados. Mostrando Carrera.', { duration: 5000 });
+      } else if (
+        currentViewSession === 'race' &&
+        !newConfig.is_race_enabled &&
+        newConfig.is_qualy_enabled
+      ) {
+        setIsQualyView(true);
+        setView('qualy');
+        setStoreSession('qualy');
+        toast.info('Picks de Carrera cerrados. Mostrando Qualy.', { duration: 5000 });
+      } else if (!newConfig.is_qualy_enabled && !newConfig.is_race_enabled) {
+        toast.warning('¡Atención! Picks de Qualy y Carrera están cerrados.', { duration: 5000 });
+      } else if (didQualyChange || didRaceChange) {
+        // Si cambió disponibilidad pero se mantiene la misma sesión
+        setShowRealtimeModal(true);
+      }
+    }
+  )
+  .subscribe((status, err) => {
+    if (status === 'SUBSCRIBED') {
+      console.log('[MMCGoContent] Suscrito a picks_config!');
+    } else if (err) {
+      console.error(`[MMCGoContent] Error suscripción picks_config: ${status}`, err);
+    }
+  });
+
+configChannelRef.current = newConfigChannel;
+channelsToRemove.push(newConfigChannel);
 
       // --- Suscripción a driver_visibility ---
       if (visibilityChannelRef.current) { try { await supabaseClient.removeChannel(visibilityChannelRef.current); } catch(e) { console.warn("Error limpiando canal visibilidad previo:", e); } visibilityChannelRef.current = null; }
@@ -385,22 +451,42 @@ export default function MMCGoContent() {
 
     setupSubscriptions();
 
-    // Función de limpieza
-    return () => {
-      console.log('[MMCGoContent] Limpiando suscripciones de Supabase...');
-      const cleanupClient = createAuthClient(null); // Usar cliente genérico para limpiar
-      channelsToRemove.forEach(channel => {
-        if (channel) {
-          cleanupClient.removeChannel(channel)
-            .then(status => console.log(`[MMCGoContent] Canal ${channel.topic} desuscrito:`, status))
-            .catch(error => console.error(`[MMCGoContent] Error al desuscribir canal ${channel.topic}:`, error));
-        }
-      });
-      configChannelRef.current = null;
-      visibilityChannelRef.current = null;
-      linesChannelRef.current = null;
-    };
-  }, [isLoaded, isSignedIn, getToken, fetchData, setSession, isQualyView, currentGp]); // Dependencias suscripción
+        // Función de limpieza
+        return () => {
+          console.log('[MMCGoContent] Limpiando suscripciones de Supabase...');
+          const cleanupClient = createAuthClient(null); // Usar cliente genérico para limpiar
+          channelsToRemove.forEach(channel => {
+            if (channel) {
+              cleanupClient
+                .removeChannel(channel)
+                .then(status =>
+                  console.log(
+                    `[MMCGoContent] Canal ${channel.topic} desuscrito:`,
+                    status
+                  )
+                )
+                .catch(error =>
+                  console.error(
+                    `[MMCGoContent] Error al desuscribir canal ${channel.topic}:`,
+                    error
+                  )
+                );
+            }
+          });
+          configChannelRef.current = null;
+          visibilityChannelRef.current = null;
+          linesChannelRef.current = null;
+        };
+      }, [
+        isLoaded,
+        isSignedIn,
+        getToken,
+        fetchData,
+        setView,
+        setStoreSession,
+        isQualyView,
+        currentGp,
+      ]); // Dependencias suscripción
 
 
   // EFFECT: Sticky modal visibility / multipliers
@@ -523,7 +609,8 @@ const driverGridClasses =
         isQualyEnabled={isQualyEnabled}
         isRaceEnabled={isRaceEnabled}
         setIsQualyView={setIsQualyView}
-        setSession={setSession}
+        setSession={setView}
+        onSessionChange={setStoreSession}
         soundManager={soundManager}
       />
 
