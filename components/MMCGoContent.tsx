@@ -505,17 +505,26 @@ const mainContainerClasses =
 const driverGridClasses =
   'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4';
 
-return (
-  <div className={mainContainerClasses}>
-    <MMCGoSubHeader
-  onOpenTutorial={() => {
-    soundManager.click.play();
-    trackFBEvent('TutorialClick', {
-      params: { content_name: 'Boton_Tutorial_MMCGO' },
-    });
-    setShowTutorial(true);
-  }}
-/>
+  return (
+    <div className={mainContainerClasses}>
+      <MMCGoSubHeader
+        /* 1️⃣  Abrir tutorial */
+        onOpenTutorial={() => {
+          soundManager.click.play();
+          trackFBEvent('TutorialClick', {
+            params: { content_name: 'Boton_Tutorial_MMCGO' },
+          });
+          setShowTutorial(true);
+        }}
+  
+        /* 2️⃣  Props del toggle  */
+        isQualyView={isQualyView}
+        isQualyEnabled={isQualyEnabled}
+        isRaceEnabled={isRaceEnabled}
+        setIsQualyView={setIsQualyView}
+        setSession={setSession}
+        soundManager={soundManager}
+      />
 
 <FomoBar /> 
 
@@ -559,56 +568,6 @@ return (
           <span className="text-green-400">Mejor</span> o{' '}
           <span className="text-red-400">Peor</span> que su proyección.
         </motion.p>
-
-        {/* Toggle Qualy/Race */}
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}>
-          <div className="relative mx-auto mb-6 flex h-10 w-[150px] items-center rounded-full bg-gray-800 p-1 shadow">
-            <motion.span
-              layout
-              className="absolute h-8 w-[72px] rounded-full bg-gradient-to-r from-blue-600 to-cyan-500"
-              animate={{ x: isQualyView ? 0 : 74 }}
-              transition={{ type: 'spring', stiffness: 350, damping: 30 }}
-            />
-            <button
-              disabled={!isQualyEnabled}
-              onClick={() => {
-                if (!isQualyView && isQualyEnabled) {
-                  soundManager.click.play();
-                  setIsQualyView(true);
-                  setSession('qualy');
-                }
-              }}
-              className={`relative z-10 flex-1 text-center text-xs font-semibold transition-colors duration-200 ${
-                !isQualyEnabled
-                  ? 'cursor-not-allowed text-gray-500'
-                  : isQualyView
-                  ? 'text-white'
-                  : 'text-gray-400 hover:text-gray-200'
-              }`}
-            >
-              Qualy
-            </button>
-            <button
-              disabled={!isRaceEnabled}
-              onClick={() => {
-                if (isQualyView && isRaceEnabled) {
-                  soundManager.click.play();
-                  setIsQualyView(false);
-                  setSession('race');
-                }
-              }}
-              className={`relative z-10 flex-1 text-center text-xs font-semibold transition-colors duration-200 ${
-                !isRaceEnabled
-                  ? 'cursor-not-allowed text-gray-500'
-                  : !isQualyView
-                  ? 'text-white'
-                  : 'text-gray-400 hover:text-gray-200'
-              }`}
-            >
-              Carrera
-            </button>
-          </div>
-        </motion.div>
 
         {/* Grid de pilotos + Banner Quick Entry */}
         <motion.section initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}>
