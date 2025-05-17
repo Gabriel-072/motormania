@@ -11,6 +11,7 @@ import PixelTracker from "@/components/PixelTracker";
 import RegistrationTracker from "@/components/RegistrationTracker";
 import Footer from "@/components/Footer";
 import { Suspense } from "react";
+import HotjarInit from '@/components/HotjarInit';
 
 const exo2 = Exo_2({ subsets: ["latin"] });
 
@@ -75,6 +76,7 @@ export default function RootLayout({
           <main className="pt-20">{children}</main>
           <Footer />
         </ClerkProvider>
+        {process.env.NODE_ENV === 'production' && <HotjarInit />}
       </body>
     </html>
   );

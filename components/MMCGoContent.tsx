@@ -27,7 +27,8 @@ import { useStickyStore } from '@/stores/stickyStore'; // Ajusta ruta si es nece
 import { PickSelection } from '@/app/types/picks'; // Ajusta ruta si es necesario
 import { trackFBEvent } from '@/lib/trackFBEvent'; // Ajusta ruta si es necesario
 
-import { FaQuestionCircle, FaCheck, FaTimes, FaSyncAlt } from 'react-icons/fa';
+import { FaCheck, FaTimes, FaArrowUp, FaArrowDown } from 'react-icons/fa';
+import { TiRefresh } from 'react-icons/ti';
 
 // ──────────────────────────────────────────────────────────────────────────────
 // SECTION: Types
@@ -634,91 +635,144 @@ const driverGridClasses =
                       .toLowerCase()
                       .replace(/ /g, '-')}.png`;
 
+                    {/* Driver Card Component */}  
                     return (
                       <motion.div
-                        key={`${driver}-${currentSession}`}
-                        layout
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ duration: 0.2, delay: idx * 0.015 }}
-                        className="rounded-xl group"
-                      >
-                        <div className="relative flex h-full flex-col justify-between rounded-lg bg-gray-800 pt-4 shadow-lg transition duration-200 ease-in-out hover:shadow-cyan-500/20 border border-transparent group-hover:border-cyan-600/30">
-                          {/* Badges + Reset */}
-                          <div className="absolute top-1.5 left-1.5 right-1.5 z-10 flex justify-between items-center">
-                          {/* Lado izquierdo: Badge PROMO */}
-                          <div>
-                          {safeVis.is_promo && (
-                         <span className="rounded-md bg-gradient-to-r from-yellow-400 to-orange-500 px-2 py-1 text-xs font-bold text-black shadow-md">
-                          PROMO
-                         </span>
-                         )}
-                         </div>
+  key={`${driver}-${currentSession}`}
+  layout
+  initial={{ opacity: 0, scale: 0.95 }}
+  animate={{ opacity: 1, scale: 1 }}
+  transition={{ duration: 0.2, delay: idx * 0.015 }}
+  className="rounded-xl group"
+>
+  <div className="relative flex h-full flex-col justify-between overflow-hidden rounded-lg bg-gradient-to-b from-gray-800 via-gray-800/95 to-gray-900 pt-4 shadow-xl transition-all duration-300 ease-out border border-gray-700/40 group-hover:border-cyan-500/30 group-hover:shadow-cyan-500/10">
+    {/* Background effect elements */}
+    <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/10 to-transparent opacity-50 z-0 pointer-events-none"></div>
+    <div className="absolute -top-10 -right-10 w-24 h-24 rounded-full bg-gradient-to-br from-cyan-500/10 to-blue-600/5 blur-xl pointer-events-none"></div>
+    <div className="absolute -bottom-8 -left-8 w-32 h-32 rounded-full bg-gradient-to-br from-indigo-500/5 to-purple-600/10 blur-xl pointer-events-none"></div>
+    
+    {/* Team color accent line */}
+    <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-blue-500 to-cyan-400 pointer-events-none"></div>
+    
+    {/* Badges Container */}
+    <div className="absolute top-2 left-2 right-2 z-10 flex justify-between items-center">
+      {/* Left: PROMO Badge */}
+      <div>
+        {safeVis.is_promo && (
+          <span className="rounded-md bg-gradient-to-r from-amber-400 to-orange-500 px-2 py-1 text-xs font-bold text-black shadow-lg flex items-center gap-1">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3">
+              <path fillRule="evenodd" d="M12 1.5a.75.75 0 01.75.75V4.5a.75.75 0 01-1.5 0V2.25A.75.75 0 0112 1.5zM5.636 4.136a.75.75 0 011.06 0l1.592 1.591a.75.75 0 01-1.061 1.06l-1.591-1.59a.75.75 0 010-1.061zm12.728 0a.75.75 0 010 1.06l-1.591 1.592a.75.75 0 01-1.06-1.061l1.59-1.591a.75.75 0 011.061 0zm-6.364 5.864a4 4 0 100 8 4 4 0 000-8zm-5.657 11.657a.75.75 0 01.961-.96l2.932 2.196a.75.75 0 01-.961.96l-2.932-2.196zm16.5.196a.75.75 0 01-1.06 0l-1.591-1.592a.75.75 0 111.06-1.06l1.592 1.59a.75.75 0 010 1.061z" clipRule="evenodd" />
+            </svg>
+            PROMO
+          </span>
+        )}
+      </div>
 
-                         {/* Lado derecho: Badge HOT y Botón Reset */}
-                         <div className="flex items-center gap-1.5"> {/* Espacio entre el badge HOT y el botón de reset */}
-                         {safeVis.is_hot && (
-                         <span className="inline-flex items-center gap-1 rounded-md bg-red-600 px-2 py-1 text-xs font-bold text-white shadow-md">
-                         <span role="img" aria-label="fuego">🔥</span>
-                         HOT
-                         </span>
-                         )}
-                         </div>
-                         </div>
+      {/* Right: HOT Badge */}
+      <div className="flex items-center gap-1.5">
+        {safeVis.is_hot && (
+          <span className="rounded-md bg-gradient-to-r from-red-500 to-rose-600 px-2 py-1 text-xs font-bold text-white shadow-lg flex items-center gap-1">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3">
+              <path fillRule="evenodd" d="M12.963 2.286a.75.75 0 00-1.071-.136 9.742 9.742 0 00-3.539 6.177A7.547 7.547 0 016.648 6.61a.75.75 0 00-1.152.082A9 9 0 1015.68 4.534a7.46 7.46 0 01-2.717-2.248zM15.75 14.25a3.75 3.75 0 11-7.313-1.172c.628.465 1.35.81 2.133 1a5.99 5.99 0 011.925-3.545 3.75 3.75 0 013.255 3.717z" clipRule="evenodd" />
+            </svg>
+            HOT
+          </span>
+        )}
+      </div>
+    </div>
 
-                          {/* Info piloto */}
-                          <div className="flex flex-col items-center px-1 text-center pt-3">
-                            <Image
-                              src={imgSrc}
-                              alt={driver}
-                              width={80}
-                              height={80}
-                              className="mb-2 h-16 w-16 rounded-full border-2 border-gray-600 object-cover group-hover:border-cyan-500 transition-colors"
-                              unoptimized
-                              priority={idx < 10}
-                              onError={(e) => {
-                                (e.currentTarget as HTMLImageElement).src =
-                                  '/images/pilots/default-pilot.png';
-                              }}
-                            />
-                            <h3 className="w-full px-1 text-m font-bold text-gray-100 truncate">
-                              {driver}
-                            </h3>
-                            <p className="w-full mb-1 px-1 text-xs text-indigo-400 truncate">
-                              {driverToTeam[driver] || 'Equipo desc.'}
-                            </p>
-                            <p className="mb-2 px-1 text-xs font-bold text-amber-400">
-                              {isQualyView ? 'Proyección Qualy' : 'Proyección Carrera'}:{' '}
-                              <span className="text-base">
-                                {typeof line === 'number' ? line.toFixed(1) : 'N/A'}
-                              </span>
-                            </p>
-                          </div>
+    {/* Pilot Info Section */}
+    <div className="flex flex-col items-center px-3 pt-3 text-center relative z-10">
+      {/* Driver Image with Glowing Effect */}
+      <div className="relative mb-3">
+        <div className="absolute inset-0 rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 blur-md opacity-30 scale-110 group-hover:opacity-50 transition-opacity"></div>
+        <div className="relative">
+          <Image
+            src={imgSrc}
+            alt={driver}
+            width={80}
+            height={80}
+            className="h-20 w-20 rounded-full border-2 border-gray-600 object-cover group-hover:border-cyan-400 transition-all duration-300 ease-out shadow-xl"
+            unoptimized
+            priority={idx < 10}
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).src =
+                '/images/pilots/default-pilot.png';
+            }}
+          />
+          <div className="absolute bottom-0 right-0 h-5 w-5 rounded-full bg-gray-900 flex items-center justify-center border border-gray-700">
+            <span className="text-xs font-bold">{idx + 1}</span>
+          </div>
+        </div>
+      </div>
+      
+      {/* Driver Name with Text Shadow */}
+      <h3 className="w-full px-1 text-base font-extrabold text-white truncate text-shadow-sm">
+        {driver}
+      </h3>
+      
+      {/* Team with Icon */}
+      <div className="w-full mb-2 flex items-center justify-center gap-1">
+        <span className="w-2 h-2 rounded-full bg-indigo-400"></span>
+        <p className="px-1 text-xs text-indigo-300 truncate font-medium">
+          {driverToTeam[driver] || 'Equipo desc.'}
+        </p>
+      </div>
+      
+      {/* Projection with Glass Effect */}
+      <div className="mb-3 px-3 py-2 bg-gray-700/30 backdrop-blur-sm rounded-lg border border-gray-600/30 w-full">
+        <p className="text-xs font-bold text-gray-300">
+          {isQualyView ? 'Proyección Qualy' : 'Proyección Carrera'}
+        </p>
+        <p className="text-xl font-bold text-amber-400 mt-1">
+          {typeof line === 'number' ? line.toFixed(1) : 'N/A'}
+        </p>
+      </div>
+    </div>
 
-                          {/* Botones Mejor / Peor */}
+{/* Mejor/Peor Buttons - Enhanced with New Icons and Clearer Feedback */}
 <div className="mt-auto flex w-full overflow-hidden rounded-b-lg">
   {(['mejor', 'peor'] as const).map((opt) => {
     const currentPick = getUserPick(driver);
-    const selected    = currentPick === opt;
-    const isBetter    = opt === 'mejor';
+    const selected = currentPick === opt;
+    const isBetter = opt === 'mejor';
 
+    // --- Enhanced Styling ---
     const baseClasses =
-      'flex-1 py-2.5 text-sm font-bold flex items-center justify-center gap-1.5 transition-all duration-150 ease-in-out';
-    const colorClasses = isBetter
-      ? selected
-        ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-inner'
-        : 'bg-gray-700/80 text-green-400 hover:bg-green-700/90 hover:text-white'
-      : selected
-        ? 'bg-gradient-to-r from-red-500 to-rose-600 text-white shadow-inner'
-        : 'bg-gray-700/80 text-red-400 hover:bg-red-700/90 hover:text-white';
+      'flex-1 py-2.5 text-xs font-semibold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all duration-200 ease-in-out focus:outline-none';
 
-    const Icon = isBetter ? FaCheck : FaTimes;
+    let buttonStateClasses = '';
+    let focusRingClasses = '';
+    let IconComponent; // To dynamically assign the icon
+
+    if (isBetter) { // MEJOR button (Green, UP trend)
+      IconComponent = FaArrowUp; // Assign UP trend icon
+      focusRingClasses = 'focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-green-400';
+      if (selected) {
+        // Selected MEJOR: Brighter gradient, white text, strong inner shadow, thicker inset ring
+        buttonStateClasses = 'bg-gradient-to-b from-green-400 to-green-600 text-white shadow-inner shadow-black/40 ring-2 ring-green-300 ring-inset cursor-default';
+      } else {
+        // Default MEJOR: Standard gradient, light green text, hover effects with brighter gradient and glow
+        buttonStateClasses = 'bg-gradient-to-b from-green-500 to-green-600 text-green-100 hover:from-green-400 hover:to-green-500 active:from-green-600 active:to-green-700 hover:shadow-lg hover:shadow-green-500/40';
+      }
+    } else { // PEOR button (Red, DOWN trend)
+      IconComponent = FaArrowDown; // Assign DOWN trend icon
+      focusRingClasses = 'focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-red-400';
+      if (selected) {
+        // Selected PEOR: Brighter gradient, white text, strong inner shadow, thicker inset ring
+        buttonStateClasses = 'bg-gradient-to-b from-red-400 to-red-600 text-white shadow-inner shadow-black/40 ring-2 ring-red-300 ring-inset cursor-default';
+      } else {
+        // Default PEOR: Standard gradient, light red text, hover effects with brighter gradient and glow
+        buttonStateClasses = 'bg-gradient-to-b from-red-500 to-red-600 text-red-100 hover:from-red-400 hover:to-red-500 active:from-red-600 active:to-red-700 hover:shadow-lg hover:shadow-red-500/40';
+      }
+    }
+    // --- End Enhanced Styling ---
 
     return (
       <button
         key={opt}
         onClick={() => {
-          clickSound.current?.play();
+          clickSound.current?.play(); // Assuming clickSound is for user feedback
           if (currentPick === opt) {
             removePick(driver, currentSession);
           } else {
@@ -730,24 +784,25 @@ const driverGridClasses =
               gp_name: currentGp?.gp_name ?? '',
               session_type: currentSession,
             });
-            trackFBEvent('Lead', {
+            trackFBEvent('Lead', { // Assuming trackFBEvent is for analytics
               params: { content_name: `Pick_${currentSession}_${driver}_${opt}` },
             });
           }
         }}
-        className={`${baseClasses} ${colorClasses} ${
-          selected ? 'cursor-default' : 'hover:scale-[1.02]'
-        }`}
+        className={`${baseClasses} ${buttonStateClasses} ${focusRingClasses}`}
       >
-        <Icon size={12} /> {isBetter ? 'Mejor' : 'Peor'}
+        <IconComponent size={14} className="flex-shrink-0" /> {/* Using dynamic IconComponent */}
+        {isBetter ? 'Mejor' : 'Peor'}
       </button>
     );
   })}
 </div>
-                        </div>
-                      </motion.div>
+  </div>
+</motion.div>
                     );
                   });
+
+                  {/* End Driver Card Component */}
 
                   /* -------- Banner Entrada Rápida (posición 4) -------- */
                   cards.splice(
