@@ -76,7 +76,7 @@ export default function RootLayout({
           <main className="pt-20">{children}</main>
           <Footer />
         </ClerkProvider>
-        {process.env.NODE_ENV === 'production' && <HotjarInit />}
+        <HotjarInit />
       </body>
     </html>
   );
