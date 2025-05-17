@@ -507,7 +507,17 @@ const driverGridClasses =
 
 return (
   <div className={mainContainerClasses}>
-    <MMCGoSubHeader />
+    <MMCGoSubHeader
+  onOpenTutorial={() => {
+    soundManager.click.play();
+    trackFBEvent('TutorialClick', {
+      params: { content_name: 'Boton_Tutorial_MMCGO' },
+    });
+    setShowTutorial(true);
+  }}
+/>
+
+<FomoBar /> 
 
     {/* Estado de Carga / Error */}
     {!isDataLoaded && !errors.length ? (
@@ -534,24 +544,8 @@ return (
       /* ────────────────────── CONTENIDO PRINCIPAL ────────────────────── */
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 pb-32">
         {/* Countdown */}
-        <div className="mb-4">
+        <div className="mt-3 mb-4">
           <NextGpCountdown currentGp={currentGp} isQualyView={isQualyView} />
-        </div>
-
-        {/* Botón Tutorial */}
-        <div className="mb-6 flex justify-end">
-        <button
-        onClick={() => {
-        soundManager.click.play();
-        trackFBEvent('TutorialClick', {
-        params: { content_name: 'Boton_Tutorial_MMCGO' }
-        });
-        setShowTutorial(true);
-        }}
-        className="mt-3 w-full flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 px-4 py-2 text-sm font-semibold text-black shadow-xl transition hover:scale-105 hover:shadow-amber-400/40 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 focus:ring-offset-black lg:w-full"
-        >
-        <FaQuestionCircle /> ¿Cómo jugar?
-        </button>
         </div>
 
         {/* Subtítulo */}
@@ -821,7 +815,6 @@ return (
 
           {/* === Modals === */}
           {showTutorial && ( <DynamicTutorialModal show={showTutorial} onClose={() => setShowTutorial(false)} /> )}
-          <FomoBar /> 
           <StickyModal onFinish={async () => { soundManager.click.play(); if (!isSignedIn) { localStorage.setItem('pendingPicks', JSON.stringify(picks)); setShowAuthModal(true); return; } setShowFullModal(true); }} />
           {showFullModal && ( <FullModal isOpen={showFullModal} onClose={() => setShowFullModal(false)} /> )}
           <AnimatePresence>

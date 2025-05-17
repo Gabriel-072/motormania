@@ -1,149 +1,107 @@
+// components/FomoBar.tsx
 'use client';
 
-import { useFomoFake } from '@/lib/useFomoFake'; // Ensure this path is correct
+import { useFomoFake } from '@/lib/useFomoFake';
+import { useStickyStore } from '@/stores/stickyStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaBolt } from 'react-icons/fa';
 
-/**
- * World-class gamer style FOMO notification bar.
- * Aligned with StickyModal's corner roundness, width, and positioned consistently above it.
- * Features a dark theme, pulsating glowing accents, pulsating icon, and an enhanced subtle shimmer effect.
- * Ensure 'Exo 2' font is configured in Tailwind for 'font-exo2' to apply.
- */
+const HEADER_H = 4;   // h-16
+const GAP = 0.25;     // 0.25rem (≈4 px)
+
 export default function FomoBar() {
-  const msg = useFomoFake(3000); // Message rotation duration
+  const msg = useFomoFake(3000);
+  const { picks } = useStickyStore();
+  const total = picks ? [...picks.qualy, ...picks.race].length : 0;
+  if (total < 1 || !msg) return null;
 
-  // Bar animation (entrance/exit, and pulsating glow)
+  /* Animaciones */
   const barVariants = {
-    hidden: {
-      opacity: 0,
-      y: 25,
-      scale: 0.95,
-      boxShadow: "0 0 10px 0px rgba(250,204,21,0.0), inset 0 0 5px rgba(250,204,21,0.0)" // Initial faint shadow
-    },
+    hidden: { opacity: 0, y: -16, scale: 0.95 },
     visible: {
-      opacity: 1,
-      y: 0,
-      scale: 1,
-      boxShadow: [ // Pulsating shadow
-        "0 0 20px 3px rgba(250,204,21,0.20), inset 0 0 10px rgba(250,204,21,0.10)",
-        "0 0 28px 4px rgba(250,204,21,0.28), inset 0 0 14px rgba(250,204,21,0.14)", // Peak of pulse
-        "0 0 20px 3px rgba(250,204,21,0.20), inset 0 0 10px rgba(250,204,21,0.10)",
-      ],
-      transition: {
-        // Default spring transition for opacity, y, scale
-        default: { type: 'spring', stiffness: 180, damping: 20, delay: 0.1 },
-        // Specific transition for boxShadow pulsing
-        boxShadow: {
-          duration: 2.2, // Duration of one pulse cycle
-          repeat: Infinity,
-          ease: 'easeInOut',
-          delay: 0.1, // Start shadow pulse with or shortly after entrance
-          repeatDelay: 0.5, // Pause between pulse cycles
-        },
-      },
+      opacity: 1, y: 0, scale: 1,
+      transition: { default: { type: 'spring', stiffness: 180, damping: 20, delay: 0.05 } },
     },
-    exit: {
-      opacity: 0,
-      y: 25,
-      scale: 0.95,
-      boxShadow: "0 0 10px 0px rgba(250,204,21,0.0), inset 0 0 5px rgba(250,204,21,0.0)", // Fade out shadow
-      transition: { duration: 0.2 }
-    },
+    exit: { opacity: 0, y: -16, scale: 0.95, transition: { duration: 0.2 } },
   };
-
-  // Text animation (message change)
   const textVariants = {
     hidden: { opacity: 0, y: -8 },
-    visible: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 200, damping: 18, duration: 0.25 } },
+    visible: {
+      opacity: 1, y: 0,
+      transition: { type: 'spring', stiffness: 200, damping: 18, duration: 0.25 },
+    },
     exit: { opacity: 0, y: 8, transition: { duration: 0.15 } },
   };
-
-  // Icon pulsation
-  const iconPulseVariants = {
+  const iconPulse = {
     pulse: {
       scale: [1, 1.15, 1],
       filter: ['brightness(1.1)', 'brightness(1.6)', 'brightness(1.1)'],
-      transition: {
-        duration: 1.8,
-        repeat: Infinity,
-        ease: 'easeInOut',
-      },
+      transition: { duration: 1.8, repeat: Infinity, ease: 'easeInOut' },
     },
   };
 
-  if (!msg) {
-    return null;
-  }
-
   return (
-    <motion.div
-      key="gamer-fomo-bar-enhanced"
-      variants={barVariants}
-      initial="hidden"
-      animate="visible"
-      exit="exit"
-      className="
-        fixed
-        /*
-         * Positioning above StickyModal (bottom-4 / 1rem) with a 1rem gap:
-         * StickyModal small height (p-3 + h-14 content = 12+56+12 = 80px = 5rem). FomoBar bottom: 1rem (modal offset) + 5rem (modal height) + 1rem (gap) = 7rem.
-         * StickyModal large height (sm:p-4 + sm:h-16 content = 16+64+16 = 96px = 6rem). FomoBar bottom: 1rem (modal offset) + 6rem (modal height) + 1rem (gap) = 8rem.
-         */
-        bottom-[7rem] sm:bottom-[8rem]
-        left-4 right-4             /* Viewport placement, same effective width as inset-x-4 */
-        z-[50]                     /* Stacking context (above StickyModal z-50) */
-        h-11                       /* Height of the bar */
-        rounded-2xl                /* Matched corner roundness with StickyModal */
-        bg-neutral-900             /* Base dark background */
-        ring-1 ring-amber-500/60   /* Sharp amber accent ring */
-        /* Shadow is now handled by framer-motion variants for animation */
-        flex items-center justify-center /* Content alignment */
-        px-4                       /* Horizontal padding */
-        select-none pointer-events-none  /* Non-interactive */
-        overflow-hidden            /* Contains the shimmer effect */
-      "
+    /* ───── Sticky wrapper: controla la posición, no el ancho ───── */
+    <div
+      className="sticky z-40 pointer-events-none"
+      style={{ top: `calc(${HEADER_H}rem + ${GAP}rem)` }}
     >
-      {/* Shimmer Overlay Effect */}
-      <div className="absolute inset-0 overflow-hidden rounded-2xl pointer-events-none z-0"> {/* Ensure shimmer is clipped by rounded corners */}
+      {/* ───── Container: iguala ancho y paddings al layout ───── */}
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <motion.div
-          className="absolute top-0 h-full w-1/2 bg-gradient-to-r from-transparent via-amber-400/12 to-transparent" /* Enhanced amber shimmer */
-          style={{ transform: 'skewX(-25deg)' }} // Angled shimmer
-          initial={{ x: '-150%' }} // Start off-screen to the left
-          animate={{ x: '250%' }}  // Animate across to off-screen to the right
-          transition={{
-            duration: 3.5,       // Duration of one shimmer sweep
-            repeat: Infinity,
-            ease: 'linear',
-            delay: Math.random() * 1.5 + 0.5, // Staggered start
-            repeatDelay: 2.0     // Pause between shimmer repeats
-          }}
-        />
-      </div>
+          key="fomo-bar"
+          variants={barVariants}
+          initial="hidden"
+          animate="visible"
+          exit="exit"
+          className="
+            w-full h-11             /* mismo grosor, ancho = container */
+            rounded-2xl bg-neutral-900 ring-1 ring-amber-500/60
+            flex items-center justify-center
+            overflow-hidden
+          "
+        >
+          {/* Shimmer */}
+          <div className="absolute inset-0 overflow-hidden rounded-2xl z-0 pointer-events-none">
+            <motion.div
+              className="absolute top-0 h-full w-1/2 bg-gradient-to-r from-transparent via-amber-400/12 to-transparent"
+              style={{ transform: 'skewX(-25deg)' }}
+              initial={{ x: '-150%' }}
+              animate={{ x: '250%' }}
+              transition={{
+                duration: 3.5,
+                repeat: Infinity,
+                ease: 'linear',
+                delay: Math.random() * 1.5 + 0.5,
+                repeatDelay: 2,
+              }}
+            />
+          </div>
 
-      {/*Content Layer (Icon and Text) - Must be above shimmer*/}
-      <div className="relative z-10 flex items-center justify-center w-full">
-        <motion.div variants={iconPulseVariants} animate="pulse">
-          <FaBolt className="mr-2.5 flex-shrink-0 text-amber-400" size={16} />
+          {/* Contenido */}
+          <div className="relative z-10 flex items-center">
+            <motion.div variants={iconPulse} animate="pulse">
+              <FaBolt className="mr-2.5 flex-shrink-0 text-amber-400" size={16} />
+            </motion.div>
+            <AnimatePresence mode="wait">
+              <motion.span
+                key={msg}
+                variants={textVariants}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+                className="
+                  truncate font-exo2 font-semibold
+                  text-sm sm:text-base text-gray-100
+                  [text-shadow:0_0_10px_rgba(250,204,21,0.5),_0_0_2px_rgba(255,220,150,0.7)]
+                "
+              >
+                {msg}
+              </motion.span>
+            </AnimatePresence>
+          </div>
         </motion.div>
-        <AnimatePresence mode="wait"> {/* Ensures smooth text transitions */}
-          <motion.span
-            key={msg} // Crucial for AnimatePresence to detect message changes
-            variants={textVariants}
-            initial="hidden"
-            animate="visible"
-            exit="exit"
-            className="
-              truncate font-exo2 font-semibold  /* Exo 2 font, semibold; ensure font is configured */
-              text-sm sm:text-base             /* Text size */
-              text-gray-100                    /* Bright white text for contrast */
-              [text-shadow:0_0_10px_rgba(250,204,21,0.5),_0_0_2px_rgba(255,220,150,0.7)] /* Enhanced amber text glow */
-            "
-          >
-            {msg}
-          </motion.span>
-        </AnimatePresence>
       </div>
-    </motion.div>
+    </div>
   );
 }
