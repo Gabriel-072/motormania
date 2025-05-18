@@ -832,27 +832,35 @@ const driverGridClasses =
     let focusRingClasses = '';
     let IconComponent; // To dynamically assign the icon
 
-    if (isBetter) { // MEJOR button (Green, UP trend)
-      IconComponent = FaArrowUp; // Assign UP trend icon
-      focusRingClasses = 'focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-green-400';
-      if (selected) {
-        // Selected MEJOR: Brighter gradient, white text, strong inner shadow, thicker inset ring
-        buttonStateClasses = 'bg-gradient-to-b from-green-400 to-green-600 text-white shadow-inner shadow-black/40 ring-2 ring-green-300 ring-inset cursor-default';
-      } else {
-        // Default MEJOR: Standard gradient, light green text, hover effects with brighter gradient and glow
-        buttonStateClasses = 'bg-gradient-to-b from-green-500 to-green-600 text-green-100 hover:from-green-400 hover:to-green-500 active:from-green-600 active:to-green-700 hover:shadow-lg hover:shadow-green-500/40';
-      }
-    } else { // PEOR button (Red, DOWN trend)
-      IconComponent = FaArrowDown; // Assign DOWN trend icon
-      focusRingClasses = 'focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-red-400';
-      if (selected) {
-        // Selected PEOR: Brighter gradient, white text, strong inner shadow, thicker inset ring
-        buttonStateClasses = 'bg-gradient-to-b from-red-400 to-red-600 text-white shadow-inner shadow-black/40 ring-2 ring-red-300 ring-inset cursor-default';
-      } else {
-        // Default PEOR: Standard gradient, light red text, hover effects with brighter gradient and glow
-        buttonStateClasses = 'bg-gradient-to-b from-red-500 to-red-600 text-red-100 hover:from-red-400 hover:to-red-500 active:from-red-600 active:to-red-700 hover:shadow-lg hover:shadow-red-500/40';
-      }
-    }
+if (isBetter) {
+  IconComponent = FaArrowUp;
+  focusRingClasses =
+    'focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-green-400';
+
+  if (selected) {
+    // ✅ MEJOR seleccionado – se queda igual
+    buttonStateClasses =
+      'bg-gradient-to-b from-green-400 to-green-600 text-white shadow-inner shadow-black/40 ring-2 ring-green-300 ring-inset cursor-default';
+  } else {
+    // 🆕 MEJOR sin seleccionar – ahora gris
+    buttonStateClasses =
+      'bg-gray-700/80 text-gray-300 hover:bg-gray-600/80 active:bg-gray-700';
+  }
+} else {
+  IconComponent = FaArrowDown;
+  focusRingClasses =
+    'focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-red-400';
+
+  if (selected) {
+    // ✅ PEOR seleccionado – se queda igual
+    buttonStateClasses =
+      'bg-gradient-to-b from-red-400 to-red-600 text-white shadow-inner shadow-black/40 ring-2 ring-red-300 ring-inset cursor-default';
+  } else {
+    // 🆕 PEOR sin seleccionar – ahora gris
+    buttonStateClasses =
+      'bg-gray-700/80 text-gray-300 hover:bg-gray-600/80 active:bg-gray-700';
+  }
+}
     // --- End Enhanced Styling ---
 
     return (
