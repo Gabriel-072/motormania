@@ -3,6 +3,7 @@ import { Webhook } from "svix";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
+import { Resend } from 'resend';  // ← Añadido
 
 // ─── Env Vars & Constants ────────────────────────────────────────────────
 const CLERK_WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET!;
@@ -10,6 +11,11 @@ const APP_URL = process.env.NEXT_PUBLIC_SITE_URL!;
 const INTERNAL_KEY = process.env.INTERNAL_API_KEY!;
 const INITIAL_FREE_NUMBERS_COUNT = 5;
 const SUPPORT_EMAIL = "soporte@motormaniacolombia.com";
+const RESEND_API_KEY = process.env.RESEND_API_KEY!;           // ← Añadido
+const RESEND_AUDIENCE_ID = process.env.RESEND_AUDIENCE_ID!;   // ← Añadido
+
+// Instancia Resend
+const resend = new Resend(RESEND_API_KEY);  // ← Añadido
 
 // --- Startup Checks ---
 if (!CLERK_WEBHOOK_SECRET) {
@@ -20,6 +26,9 @@ if (!APP_URL) {
 }
 if (!INTERNAL_KEY) {
     console.error("FATAL ERROR: INTERNAL_API_KEY env var is not set.");
+}
+if (!RESEND_API_KEY || !RESEND_AUDIENCE_ID) {
+    console.error("FATAL ERROR: RESEND_API_KEY or RESEND_AUDIENCE_ID env var is not set.");
 }
 
 // ─── Types ───────────────────────────────────────────────────────────────
@@ -112,7 +121,22 @@ export async function POST(req: Request) {
                 fuel_coins: 0,
             }, { onConflict: "user_id" });
 
-            // 4. Send confirmation email
+            // ─────────────────────────────────────────────────────────────────
+            // 4. Suscribir el usuario en tu audiencia de Resend
+            try {
+                await resend.contacts.create({
+                    email,
+                    first_name: first_name || fullName,    // ← antes: firstName
+                    last_name:  last_name  || "",          // ← antes: lastName
+                    unsubscribed: false,
+                    audience_id: "3381cef5-0859-46d8-bea7-9eda45804aba",  // ← antes: audienceId
+                    });
+            } catch (err) {
+                console.error("⚠️ Error suscribiendo a Resend:", err);
+                // No abortamos el flujo principal por un fallo en Resend
+            }
+
+            // 5. Send confirmation email
             const res = await fetch(`${APP_URL}/api/send-numbers-confirmation`, {
                 method: 'POST',
                 headers: {
