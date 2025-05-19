@@ -27,6 +27,6 @@
       }
     ]
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "app/ligas-fantasy/join/[leagueId]", "components/CountdownCard.tsx-bak", "components/CountdownCard.tsxbak"],
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "app/ligas-fantasy/join/[leagueId]", "components/CountdownCard.tsx-bak", "components/CountdownCard.tsxbak", "app/giveaway.bk/imola/page.txt.backup"],
   "exclude": ["node_modules", "supabase/functions"]
 }

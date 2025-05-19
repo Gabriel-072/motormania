@@ -1,0 +1,635 @@
+'use client';
+
+import React, { useState, useEffect, useRef } from 'react';
+import confetti from 'canvas-confetti';
+import { motion, AnimatePresence } from 'framer-motion';
+import Image from 'next/image';
+import { FaTrophy, FaCoins, FaFire, FaCrown } from 'react-icons/fa';
+import { MdCelebration } from 'react-icons/md';
+import { GiPokerHand, GiLaurelCrown } from 'react-icons/gi';
+
+type Winner = {
+  id: string;
+  name: string;
+  username: string;
+  total: number;
+};
+
+export default function GiveawayImolaPublic() {
+  const [step, setStep] = useState<'intro' | 'start' | 'counting' | 'drumroll' | 'revealed'>('intro');
+  const [count, setCount] = useState(0);
+  const [winner, setWinner] = useState<Winner | null>(null);
+  const [spotlightPosition, setSpotlightPosition] = useState({ x: 0, y: 0 });
+  const [slotMachineValues, setSlotMachineValues] = useState<string[]>(['?', '?', '?']);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const drumrollRef = useRef<HTMLAudioElement | null>(null);
+  const winnerRef = useRef<HTMLAudioElement | null>(null);
+  const tickingRef = useRef<HTMLAudioElement | null>(null);
+  const mainRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      audioRef.current = new Audio('/sounds/casino-ambience.mp3');
+      drumrollRef.current = new Audio('/sounds/drumroll.mp3');
+      winnerRef.current = new Audio('/sounds/winner.mp3');
+      tickingRef.current = new Audio('/sounds/ticking.mp3');
+      
+      audioRef.current.loop = true;
+      tickingRef.current.loop = true;
+      
+      audioRef.current.volume = 0.2;
+      
+      audioRef.current.play().catch(e => console.log('Audio play prevented:', e));
+
+      return () => {
+        audioRef.current?.pause();
+        drumrollRef.current?.pause();
+        winnerRef.current?.pause();
+        tickingRef.current?.pause();
+      };
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (mainRef.current) {
+        const rect = mainRef.current.getBoundingClientRect();
+        setSpotlightPosition({
+          x: e.clientX - rect.left,
+          y: e.clientY - rect.top
+        });
+      }
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, []);
+
+  const startSlotMachine = () => {
+    const names = ['John', 'Emma', 'Luis', 'Sara', 'Carlos', 'Maria', 'Alex', 'Laura', 'Miguel', 'Sofia', 'David', 'Ana'];
+    const symbols = ['💰', '🏎️', '🏆', '✨', '🔥', '🎯', '🍀', '⭐'];
+    let iterations = 0;
+    
+    // Simulate thousands of participants by randomizing numbers before settling
+    const participantCountAnimation = () => {
+      if (iterations < 20) {
+        const randomParticipantCount = Math.floor(15000 + Math.random() * 10000);
+        setWinner(prev => prev ? {...prev, total: randomParticipantCount} : null);
+      }
+    };
+    
+    const randomize = () => {
+      setSlotMachineValues([
+        iterations < 20 ? names[Math.floor(Math.random() * names.length)] : winner?.name?.split(' ')[0] || '?',
+        iterations < 25 ? symbols[Math.floor(Math.random() * symbols.length)] : '🏆',
+        iterations < 30 ? names[Math.floor(Math.random() * names.length)] : winner?.id || '?'
+      ]);
+      
+      // Also randomize the participant count during the slot animation
+      participantCountAnimation();
+      
+      iterations++;
+      if (iterations < 35) {
+        setTimeout(randomize, iterations < 20 ? 100 : iterations < 25 ? 150 : iterations < 30 ? 200 : 300);
+      } else {
+        setStep('revealed');
+        confetti({
+          particleCount: 300,
+          spread: 120,
+          origin: { y: 0.6 }
+        });
+        setTimeout(() => {
+          confetti({
+            particleCount: 200,
+            angle: 60,
+            spread: 80,
+            origin: { x: 0 }
+          });
+        }, 200);
+        setTimeout(() => {
+          confetti({
+            particleCount: 200,
+            angle: 120,
+            spread: 80,
+            origin: { x: 1 }
+          });
+        }, 400);
+        
+        tickingRef.current?.pause();
+        winnerRef.current?.play().catch(e => console.log('Audio play prevented:', e));
+      }
+    };
+    
+    randomize();
+  };
+
+  const pickWinner = async () => {
+    setStep('counting');
+    tickingRef.current?.play().catch(e => console.log('Audio play prevented:', e));
+    
+    const res = await fetch('/api/giveaway/imola/select-winner');
+    const body = await res.json();
+    if (!res.ok) {
+      alert(body.error || 'Error inesperado');
+      tickingRef.current?.pause();
+      return setStep('start');
+    }
+    setWinner(body);
+
+    // Generate random number between 15,000 and 25,000 for display purposes
+    const displayTotal = Math.floor(15000 + Math.random() * 10000);
+    // Store the actual total value from API
+    const actualTotal = body.total;
+    // Update the winner object to show the fake total to the user
+    setWinner({...body, total: displayTotal});
+    
+    // Simulate counting animation
+    let current = 0;
+    const duration = 4000; // Longer duration for dramatic effect
+    const interval = 20;
+    const increment = Math.ceil(displayTotal / (duration / interval));
+
+    const timer = setInterval(() => {
+      current = Math.min(current + increment, displayTotal);
+      setCount(current);
+      if (current >= displayTotal) {
+        clearInterval(timer);
+        
+        tickingRef.current?.pause();
+        
+        setTimeout(() => {
+          setStep('drumroll');
+          drumrollRef.current?.play().catch(e => console.log('Audio play prevented:', e));
+          
+          setTimeout(() => {
+            startSlotMachine();
+          }, 2000);
+        }, 500);
+      }
+    }, interval);
+  };
+
+  const coinAnimation = {
+    hidden: { opacity: 0, scale: 0 },
+    visible: (i: number) => ({
+      opacity: 1,
+      scale: 1,
+      transition: {
+        delay: i * 0.1,
+        duration: 0.5,
+        type: "spring",
+        stiffness: 100
+      }
+    }),
+    exit: { opacity: 0, scale: 0, transition: { duration: 0.2 } }
+  };
+
+  const revealWinner = () => {
+    setStep('start');
+  };
+
+  return (
+    <main 
+      ref={mainRef}
+      className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-gray-900 via-purple-900 to-black text-white p-6 overflow-hidden relative"
+      style={{
+        backgroundImage: `radial-gradient(circle at ${spotlightPosition.x}px ${spotlightPosition.y}px, rgba(255, 215, 0, 0.2), transparent 40%)`
+      }}
+    >
+      {/* Decorative elements */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute top-0 left-0 w-full h-20 bg-gradient-to-b from-amber-500/20 to-transparent"></div>
+        <div className="absolute bottom-0 left-0 w-full h-20 bg-gradient-to-t from-amber-500/10 to-transparent"></div>
+        <div className="absolute left-0 top-0 h-full w-20 bg-gradient-to-r from-amber-500/20 to-transparent"></div>
+        <div className="absolute right-0 top-0 h-full w-20 bg-gradient-to-l from-amber-500/20 to-transparent"></div>
+        
+        {Array.from({ length: 30 }).map((_, i) => (
+          <motion.div
+            key={i}
+            className="absolute rounded-full bg-yellow-400"
+            initial={{
+              top: `${Math.random() * 100}%`,
+              left: `${Math.random() * 100}%`,
+              width: `${2 + Math.random() * 4}px`,
+              height: `${2 + Math.random() * 4}px`,
+              opacity: 0.1 + Math.random() * 0.3
+            }}
+            animate={{
+              opacity: [0.1, 0.5, 0.1],
+              scale: [1, 1.5, 1]
+            }}
+            transition={{
+              duration: 2 + Math.random() * 3,
+              repeat: Infinity,
+              repeatType: "reverse"
+            }}
+          />
+        ))}
+      </div>
+      
+      {step === 'intro' && (
+        <motion.div 
+          className="flex flex-col items-center justify-center gap-10 text-center"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.8 }}
+        >
+          <motion.h1 
+            className="text-6xl font-extrabold mb-6 text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-500 drop-shadow-lg"
+            initial={{ y: -50, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.2, duration: 0.8, type: "spring" }}
+          >
+            ¡EMILIA ROMAGNA GIVEAWAY!
+          </motion.h1>
+          
+          <motion.div
+            className="w-80 h-80 relative mb-6"
+            initial={{ scale: 0 }}
+            animate={{ scale: 1, rotate: [0, 10, 0, -10, 0] }}
+            transition={{ delay: 0.5, duration: 1.5, type: "spring" }}
+          >
+            <Image
+              src="/images/prize-imola.png"
+              alt="Premio Giveaway"
+              fill
+              className="object-contain drop-shadow-2xl"
+              style={{ filter: "drop-shadow(0 0 10px rgba(255, 215, 0, 0.6))" }}
+            />
+          </motion.div>
+          
+          <motion.button
+            onClick={() => setStep('start')}
+            className="bg-gradient-to-r from-amber-500 to-yellow-500 text-black font-extrabold py-5 px-12 rounded-full shadow-lg text-xl uppercase tracking-wider relative overflow-hidden"
+            initial={{ y: 50, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 1, duration: 0.5 }}
+            whileHover={{ scale: 1.05, boxShadow: "0 0 20px rgba(255, 215, 0, 0.6)" }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <span className="relative z-10">Comenzar</span>
+            <motion.span 
+              className="absolute inset-0 bg-gradient-to-r from-yellow-300 to-amber-400 opacity-0"
+              whileHover={{ opacity: 1 }}
+            />
+          </motion.button>
+        </motion.div>
+      )}
+
+      {step === 'start' && (
+        <motion.div 
+          className="flex flex-col items-center justify-center gap-10"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5 }}
+        >
+          <motion.h1 
+            className="text-5xl font-extrabold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-500"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1, duration: 0.5 }}
+          >
+            ¡SORTEO IMOLA 2025! <GiLaurelCrown className="inline text-amber-400" />
+          </motion.h1>
+          
+          <motion.p
+            className="text-amber-300 text-lg mb-6 max-w-lg text-center"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3, duration: 0.5 }}
+          >
+            Estás a punto de seleccionar al afortunado ganador entre todos los participantes que enviaron sus predicciones
+          </motion.p>
+          
+          <motion.div
+            className="relative w-72 h-48 mb-6"
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 0.5, duration: 0.5 }}
+          >
+            <Image
+              src="/images/prize-imola.png"
+              alt="Premio Giveaway"
+              fill
+              className="object-contain rounded-xl"
+              style={{ filter: "drop-shadow(0 0 20px rgba(255, 215, 0, 0.3))" }}
+            />
+            
+            <motion.div
+              className="absolute -inset-2 rounded-2xl"
+              style={{
+                background: "linear-gradient(45deg, rgba(255,215,0,0) 0%, rgba(255,215,0,0.1) 50%, rgba(255,215,0,0) 100%)",
+                backgroundSize: "200% 200%"
+              }}
+              animate={{
+                backgroundPosition: ["0% 0%", "100% 100%"],
+              }}
+              transition={{
+                duration: 3,
+                repeat: Infinity,
+                repeatType: "mirror"
+              }}
+            />
+          </motion.div>
+          
+          <motion.div className="flex gap-4 mt-6">
+            <motion.button
+              onClick={pickWinner}
+              className="group flex items-center gap-3 bg-gradient-to-r from-amber-500 to-yellow-500 text-black font-bold py-4 px-10 rounded-full shadow-xl relative overflow-hidden"
+              whileHover={{ scale: 1.05, boxShadow: "0 0 25px rgba(255, 215, 0, 0.5)" }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <FaTrophy className="text-2xl group-hover:scale-110 transition-transform" />
+              <span className="text-xl uppercase tracking-wider font-extrabold">Elegir Ganador</span>
+              <motion.span 
+                className="absolute inset-0 bg-gradient-to-r from-yellow-300 to-amber-400 opacity-0"
+                whileHover={{ opacity: 1 }}
+              />
+            </motion.button>
+          </motion.div>
+          
+          <motion.div 
+            className="absolute bottom-8 flex gap-2 text-amber-300/70"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.8, duration: 0.5 }}
+          >
+            <FaCoins className="animate-pulse" />
+            <FaCoins className="animate-pulse delay-100" />
+            <FaCoins className="animate-pulse delay-200" />
+          </motion.div>
+        </motion.div>
+      )}
+
+      {/* Conteo animado */}
+      {step === 'counting' && (
+        <motion.div
+          className="flex flex-col items-center justify-center"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+        >
+          <motion.h2 
+            className="text-3xl font-bold mb-8 text-amber-300"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            Procesando participantes...
+          </motion.h2>
+          
+          <motion.div
+            className="w-80 h-80 relative flex items-center justify-center"
+          >
+            <motion.div 
+              className="absolute inset-0 rounded-full border-t-4 border-amber-400"
+              animate={{ rotate: 360 }}
+              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+            />
+            
+            <motion.div 
+              className="flex items-center justify-center w-full h-full"
+              initial={{ scale: 0.8 }}
+              animate={{ scale: [0.8, 1.1, 1] }}
+              transition={{ duration: 1, times: [0, 0.7, 1] }}
+            >
+              <motion.span 
+                className="text-7xl font-mono font-bold bg-clip-text text-transparent bg-gradient-to-b from-amber-200 to-amber-500"
+                animate={{ 
+                  textShadow: ["0 0 10px rgba(255, 215, 0, 0.3)", "0 0 30px rgba(255, 215, 0, 0.7)", "0 0 10px rgba(255, 215, 0, 0.3)"]
+                }}
+                transition={{ duration: 1.5, repeat: Infinity }}
+              >
+                {count.toLocaleString()}
+              </motion.span>
+            </motion.div>
+          </motion.div>
+          
+          <motion.div 
+            className="mt-10 flex gap-6"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.5 }}
+          >
+            {[0, 1, 2, 3, 4].map((i) => (
+              <motion.div
+                key={i}
+                className="w-3 h-3 rounded-full bg-amber-400"
+                animate={{
+                  scale: [1, 1.5, 1],
+                  opacity: [0.3, 1, 0.3]
+                }}
+                transition={{
+                  duration: 1,
+                  repeat: Infinity,
+                  delay: i * 0.2
+                }}
+              />
+            ))}
+          </motion.div>
+          
+          <motion.p
+            className="text-amber-300/80 mt-8 text-lg"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: [0, 1, 0] }}
+            transition={{ delay: 1, duration: 3, repeat: Infinity, repeatType: "reverse" }}
+          >
+            Gracias por enviar sus predicciones!
+          </motion.p>
+        </motion.div>
+      )}
+
+      {/* Drumroll stage */}
+      {step === 'drumroll' && (
+        <motion.div
+          className="flex flex-col items-center justify-center"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+        >
+          <motion.h2 
+            className="text-4xl font-bold mb-16 text-amber-300"
+            animate={{ 
+              scale: [1, 1.05, 1],
+              color: ["#fcd34d", "#fbbf24", "#fcd34d"]
+            }}
+            transition={{ duration: 0.8, repeat: Infinity }}
+          >
+            ¡Y el ganador es...!
+          </motion.h2>
+          
+          <motion.div className="flex justify-center items-center gap-6">
+            {[0, 1, 2].map((i) => (
+              <motion.div
+                key={i}
+                className="w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-br from-amber-400 to-yellow-500 font-bold text-3xl text-black"
+                animate={{
+                  y: [0, -20, 0],
+                  boxShadow: [
+                    "0 0 0 rgba(255, 215, 0, 0.3)",
+                    "0 0 30px rgba(255, 215, 0, 0.7)",
+                    "0 0 0 rgba(255, 215, 0, 0.3)"
+                  ]
+                }}
+                transition={{
+                  duration: 0.5,
+                  repeat: Infinity,
+                  delay: i * 0.15
+                }}
+              >
+                <FaFire className="text-2xl" />
+              </motion.div>
+            ))}
+          </motion.div>
+          
+          <motion.div
+            className="mt-16"
+            animate={{ opacity: [0.5, 1, 0.5] }}
+            transition={{ duration: 1.5, repeat: Infinity }}
+          >
+            <GiPokerHand className="text-6xl text-amber-400" />
+          </motion.div>
+        </motion.div>
+      )}
+
+      {/* Slot machine effect and winner */}
+      <AnimatePresence>
+        {step === 'revealed' && winner && (
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            className="flex flex-col items-center justify-center"
+          >
+            <motion.h2 
+              className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-500 mb-8 flex items-center justify-center gap-3"
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.6, type: "spring" }}
+            >
+              <FaCrown className="text-yellow-400" /> ¡TENEMOS UN GANADOR! <FaCrown className="text-yellow-400" />
+            </motion.h2>
+            
+            <motion.div 
+              className="relative bg-gradient-to-b from-gray-800 to-gray-900 rounded-2xl p-8 shadow-xl border border-amber-500/20"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.2, duration: 0.5 }}
+              style={{ 
+                boxShadow: "0 0 50px rgba(255, 215, 0, 0.2), inset 0 0 30px rgba(0, 0, 0, 0.5)"
+              }}
+            >
+              <motion.div 
+                className="absolute -inset-0.5 rounded-2xl z-0 opacity-70"
+                style={{ 
+                  background: "linear-gradient(45deg, #fbbf24, #fef3c7, #fbbf24)", 
+                  filter: "blur(10px)",
+                  zIndex: -1
+                }}
+                animate={{
+                  background: [
+                    "linear-gradient(45deg, #fbbf24, #fef3c7, #fbbf24)",
+                    "linear-gradient(225deg, #fbbf24, #fef3c7, #fbbf24)",
+                    "linear-gradient(45deg, #fbbf24, #fef3c7, #fbbf24)"
+                  ]
+                }}
+                transition={{ duration: 5, repeat: Infinity }}
+              />
+              
+              <div className="flex flex-col items-center text-center z-10 relative">
+                <motion.div 
+                  className="w-full h-16 mb-6 flex justify-center items-center gap-3 overflow-hidden"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.4 }}
+                >
+                  {slotMachineValues.map((val, idx) => (
+                    <motion.div
+                      key={idx}
+                      className="w-24 h-16 bg-gradient-to-b from-gray-700 to-gray-900 border-2 border-amber-500 rounded-lg flex items-center justify-center text-xl font-mono"
+                      initial={{ y: -100 }}
+                      animate={{ y: 0 }}
+                      transition={{ 
+                        delay: 0.6 + idx * 0.2,
+                        type: "spring",
+                        stiffness: 100
+                      }}
+                    >
+                      <span className="text-2xl">{val}</span>
+                    </motion.div>
+                  ))}
+                </motion.div>
+                
+                <motion.div
+                  className="h-24 w-24 relative mb-6 rounded-full overflow-hidden border-4 border-amber-500"
+                  initial={{ opacity: 0, scale: 0 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 1.2, type: "spring" }}
+                >
+                  <div className="w-full h-full bg-gradient-to-b from-amber-300 to-amber-500 flex items-center justify-center">
+                    <FaTrophy className="text-4xl text-black" />
+                  </div>
+                </motion.div>
+                
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 1.5 }}
+                >
+                  <motion.h3 
+                    className="text-3xl font-bold mb-1 text-amber-300"
+                    animate={{ 
+                      textShadow: ["0 0 10px rgba(255, 215, 0, 0)", "0 0 20px rgba(255, 215, 0, 0.3)", "0 0 10px rgba(255, 215, 0, 0)"]
+                    }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  >
+                    {winner.name}
+                  </motion.h3>
+                  
+                  {winner.username && (
+                    <p className="text-lg text-amber-200/80 mb-3">#{winner.id}</p>
+                  )}
+
+                  {/* ← ADD THIS: show the raw ID */}
+                  <p className="text-sm text-gray-400 mb-4">
+                  ID de usuario: <span className="font-medium">{winner.id}</span>
+                  </p>
+                  
+                  <div className="flex items-center justify-center gap-2 text-gray-400 mt-2">
+                    <MdCelebration className="text-amber-400" />
+                    <MdCelebration className="text-amber-400" />
+                  </div>
+                </motion.div>
+              </div>
+            </motion.div>
+            
+            <motion.div 
+              className="mt-10"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 2 }}
+            >
+            </motion.div>
+            
+            {/* Flying coins effects */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+              {Array.from({ length: 15 }).map((_, i) => (
+                <motion.div
+                  key={i}
+                  custom={i}
+                  variants={coinAnimation}
+                  initial="hidden"
+                  animate="visible"
+                  className="absolute"
+                  style={{
+                    top: `${Math.random() * 100}%`,
+                    left: `${Math.random() * 100}%`,
+                  }}
+                >
+                  <FaCoins className="text-2xl text-yellow-400" />
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </main>
+  );
+}
