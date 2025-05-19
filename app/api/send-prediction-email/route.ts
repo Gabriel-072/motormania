@@ -38,11 +38,6 @@ export async function POST(request: NextRequest) {
           </p>
         </div>
 
-        <a href="https://motormaniacolombia.com/fantasy"
-           style="display:block; text-align:center; background:#0ea5e9; color:#fff; padding:12px; text-decoration:none; border-radius:5px; font-weight:bold; margin-bottom:15px;">
-          Ver clasificación
-        </a>
-
         <a href="https://www.instagram.com/motormaniacolombia/"
            style="display:block; text-align:center; background:#E1306C; color:#fff; padding:14px; text-decoration:none; border-radius:5px; font-size:16px; font-weight:bold;">
           🌟 Síguenos en Instagram
@@ -62,8 +57,6 @@ export async function POST(request: NextRequest) {
 Qualifying: ${predictions.pole1 || '–'}, ${predictions.pole2 || '–'}, ${predictions.pole3 || '–'}
 Race: ${predictions.gp1 || '–'}, ${predictions.gp2 || '–'}, ${predictions.gp3 || '–'}
 Extras: Pit Stop: ${predictions.fastest_pit_stop_team || '–'} · Vuelta Rápida: ${predictions.fastest_lap_driver || '–'} · Piloto del Día: ${predictions.driver_of_the_day || '–'}
-
-Ver clasificación: https://motormaniacolombia.com/fantasy
 
 🌟 Síguenos en Instagram: https://www.instagram.com/motormaniacolombia/
     `;
