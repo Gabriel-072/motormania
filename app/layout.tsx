@@ -12,6 +12,7 @@ import RegistrationTracker from "@/components/RegistrationTracker";
 import Footer from "@/components/Footer";
 import { Suspense } from "react";
 import HotjarInit from '@/components/HotjarInit';
+import { Analytics } from '@vercel/analytics/next';
 
 const exo2 = Exo_2({ subsets: ["latin"] });
 
@@ -76,6 +77,7 @@ export default function RootLayout({
           <main className="pt-20">{children}</main>
           <Footer />
           {process.env.NODE_ENV === 'production' && <HotjarInit />}
+          <Analytics />
         </ClerkProvider>
       </body>
     </html>
