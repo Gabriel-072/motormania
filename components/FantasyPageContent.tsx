@@ -855,18 +855,15 @@ const handleSubmit = async () => {
   };
 
   const closeModal = () => {
-    if (activeModal === 'share') {
-       // Decide where to go after successful submission
-       // Option 1: Stay on the page (just close modal)
-       setActiveModal(null);
-       // Option 2: Navigate away (e.g., to a dashboard)
-       // router.push('/f1-fantasy-panel');
-    } else {
-       setActiveModal(null);
-    }
-    setActiveSelectionModal(null); // Close selection modal if open
-    setErrors([]); // Clear errors when closing modals
-  };
+        if (activeModal === 'share') {          // se ejecuta solo al cerrar el modal de éxito
+          setActiveModal(null);                 // cierra el modal
+          router.push('/F1-fantasy-panel');     // redirige al panel
+        } else {
+          setActiveModal(null);                 // cierra cualquier otro modal
+        }
+        setActiveSelectionModal(null);
+        setErrors([]);
+      };
 
   const modalOrder = ['pole', 'gp', 'extras', 'micro', 'review'];
 
