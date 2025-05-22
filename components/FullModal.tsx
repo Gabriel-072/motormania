@@ -5,14 +5,15 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import { useFomoFake } from '@/lib/useFomoFake';
-import { FaBolt } from 'react-icons/fa';      // icono opcional
 import {
+  FaBolt,
   FaTimes,
   FaTrashAlt,
   FaCheck,
   FaExclamationTriangle,
   FaDollarSign,
-  FaSpinner
+  FaSpinner,
+  FaWallet
 } from 'react-icons/fa';
 import { useUser, useAuth } from '@clerk/nextjs';
 import { useStickyStore } from '@/stores/stickyStore';
@@ -42,6 +43,12 @@ type Promo = {
   max_bonus_fuel: number;
 };
 
+type Wallet = {
+  mmc_coins: number;
+  fuel_coins: number;
+  locked_mmc: number;
+};
+
 const payoutCombos: Record<number, number> = { 2: 3, 3: 6, 4: 10, 5: 20, 6: 35, 7: 60, 8: 100 };
 const safetyPayouts: Record<number, number[]> = {
   3: [2, 1],
@@ -65,13 +72,17 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
   const [isValid, setIsValid] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
+  // wallet
+  const [wallet, setWallet] = useState<Wallet | null>(null);
+  const [useWallet, setUseWallet] = useState(false);
+
   // promotion
   const [promo, setPromo] = useState<Promo | null>(null);
   const [promoMessage, setPromoMessage] = useState<string>('');
 
   // Notificaciones FOMO
-  const fomoMsg = useFomoFake(2500);   // rota cada 2,5 s
-  
+  const fomoMsg = useFomoFake(2500);
+
   // combined picks
   const combinedPicks: PickSelection[] = [
     ...(picks.qualy ?? []),
@@ -79,7 +90,31 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
   ];
   const totalPicks = combinedPicks.length;
 
-  // fetch active promo from Supabase
+  // ───────────────────────────────────────────
+  // Fetch wallet balance (solo si modal abierto)
+  // ───────────────────────────────────────────
+  useEffect(() => {
+    if (!isOpen || !user?.id) return;
+    (async () => {
+      try {
+        const token = await getToken({ template: 'supabase' });
+        if (!token) return;
+        const sb = createAuthClient(token);
+        const { data } = await sb
+          .from('wallet')
+          .select('mmc_coins,fuel_coins,locked_mmc')
+          .eq('user_id', user.id)
+          .single();
+        if (data) setWallet(data as Wallet);
+      } catch (e) {
+        console.warn('No se pudo leer saldo wallet', e);
+      }
+    })();
+  }, [isOpen, user, getToken]);
+
+  // ───────────────────────────────────────────
+  // Fetch active promo
+  // ───────────────────────────────────────────
   useEffect(() => {
     (async () => {
       try {
@@ -99,7 +134,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     })();
   }, [getToken]);
 
-  // compute promo message
+  // promo message
   useEffect(() => {
     if (!promo) {
       setPromoMessage('No hay promoción activa.');
@@ -111,7 +146,6 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
       );
       return;
     }
-    // calculate bonus
     const baseMmc = Math.floor(amount / 1000);
     const baseFuel = amount;
     let bonusMmc = promo.type === 'multiplier'
@@ -127,9 +161,12 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     );
   }, [amount, promo]);
 
-  // validation
+  // ───────────────────────────────────────────
+  // Validation
+  // ───────────────────────────────────────────
   useEffect(() => {
     let msg: string | null = null;
+    const betMmc = Math.round(amount / 1000);
     if (totalPicks < 2) msg = 'Elige al menos 2 picks';
     else if (totalPicks > 8) msg = 'Máximo 8 picks por jugada';
     else if (combinedPicks.some(p => !p.betterOrWorse))
@@ -137,21 +174,29 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     else if (amount < 10000) msg = 'Monto mínimo $10.000 COP';
     else if (mode === 'safety' && totalPicks < 3)
       msg = 'Safety requiere mínimo 3 picks';
+    else if (
+      useWallet &&
+      wallet &&
+      betMmc > wallet.mmc_coins - wallet.locked_mmc
+    )
+      msg = `Saldo insuficiente: necesitas ${betMmc} MMC Coins`;
     setError(msg);
     setIsValid(!msg);
-  }, [combinedPicks, totalPicks, amount, mode]);
+  }, [combinedPicks, totalPicks, amount, mode, useWallet, wallet]);
 
-  // pick editing
+  // ───────────────────────────────────────────
+  // Helpers para editar picks
+  // ───────────────────────────────────────────
   const updatePick = useCallback((idx: number, better: boolean) => {
     const flag = better ? 'mejor' : 'peor';
     if (idx < picks.qualy.length) {
       setQualyPicks(
-        picks.qualy.map((p, i) => i === idx ? { ...p, betterOrWorse: flag } : p)
+        picks.qualy.map((p, i) => (i === idx ? { ...p, betterOrWorse: flag } : p))
       );
     } else {
       const rel = idx - picks.qualy.length;
       setRacePicks(
-        picks.race.map((p, i) => i === rel ? { ...p, betterOrWorse: flag } : p)
+        picks.race.map((p, i) => (i === rel ? { ...p, betterOrWorse: flag } : p))
       );
     }
   }, [picks, setQualyPicks, setRacePicks]);
@@ -165,7 +210,55 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     }
   }, [picks, setQualyPicks, setRacePicks]);
 
-  // handle payment
+// ───────────────────────────────────────────
+// (A) Confirmación usando saldo wallet
+// ───────────────────────────────────────────
+const handleWalletBet = async () => {
+  if (!user?.id || !wallet) return;
+  setIsProcessing(true);
+
+  try {
+    const token = await getToken({ template: 'supabase' });
+    if (!token) throw new Error('Token inválido');
+    const sb = createAuthClient(token);
+
+    // 1) Registrar jugada + bloquear MMC
+    const { error } = await sb.rpc('register_picks_with_wallet', {
+      p_user_id: user.id,
+      p_picks: combinedPicks,
+      p_mode: mode,
+      p_amount: amount
+    });
+    if (error) throw new Error(error.message);
+
+    // 2) Enviar email de confirmación (via proxy)
+    await fetch('/api/picks/email-with-wallet', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        to: user.primaryEmailAddress?.emailAddress,
+        name: user.fullName,
+        amount,
+        mode,
+        picks: combinedPicks,
+        orderId: `WALLET-${Date.now()}`
+      })
+    });
+
+    // 3) Feedback UI
+    toast.success('¡Jugaste usando tu saldo! 🎉');
+    setQualyPicks([]); setRacePicks([]);
+    onClose();
+  } catch (e: any) {
+    toast.error(e.message ?? 'Error usando saldo');
+  } finally {
+    setIsProcessing(false);
+  }
+};
+
+  // ───────────────────────────────────────────
+  // (B) Flujo Bold (sin cambios de backend)
+  // ───────────────────────────────────────────
   const handleBoldPayment = async () => {
     if (!user?.id || isProcessing || !isValid) return;
     const email = user.primaryEmailAddress?.emailAddress;
@@ -175,7 +268,6 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     setError(null);
 
     try {
-      // register transaction
       const res = await fetch('/api/transactions/register-pick-transaction', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -192,8 +284,8 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
         const { error: e } = await res.json().catch(() => ({}));
         throw new Error(e ?? 'Error registrando jugada.');
       }
-      const { orderId, amount: amtStr, callbackUrl, integrityKey }
-        = await res.json() as RegisterPickApiResponse;
+      const { orderId, amount: amtStr, callbackUrl, integrityKey } =
+        (await res.json()) as RegisterPickApiResponse;
 
       openBoldCheckout({
         apiKey: process.env.NEXT_PUBLIC_BOLD_BUTTON_KEY!,
@@ -207,21 +299,20 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
         renderMode: 'embedded',
         onSuccess: async () => {
           toast.success('Pago recibido, procesando…');
-          // consume locked mmc
           try {
             const token = await getToken({ template: 'supabase' });
             if (token) {
-              const supabase = createAuthClient(token);
-              const { error } = await supabase.rpc('consume_locked_mmc', {
+              const sb = createAuthClient(token);
+              await sb.rpc('consume_locked_mmc', {
                 p_user_id: user.id,
                 p_bet_mmc: Math.round(amount / 1000)
               });
-              if (error) console.warn('consume_locked_mmc error', error.message);
             }
           } catch (err) {
             console.warn('consume_locked_mmc failed', err);
           }
-          setQualyPicks([]); setRacePicks([]); onClose(); setIsProcessing(false);
+          setQualyPicks([]); setRacePicks([]); onClose();
+          setIsProcessing(false);
         },
         onFailed: ({ message }: { message?: string }) => {
           toast.error(`Pago falló: ${message ?? ''}`);
@@ -239,6 +330,15 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     }
   };
 
+  // Decide qué handler usar
+  const handleConfirm = () => {
+    if (useWallet) return handleWalletBet();
+    handleBoldPayment();
+  };
+
+  // ───────────────────────────────────────────
+  // Render
+  // ───────────────────────────────────────────
   return (
     <AnimatePresence>
       {isOpen && (
@@ -280,7 +380,9 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                       alt={pick.driver}
                       width={48} height={48} unoptimized
                       className="rounded-full w-10 h-10 object-cover border-2 border-gray-600"
-                      onError={e => { (e.currentTarget as HTMLImageElement).src = '/images/pilots/default-pilot.png'; }}
+                      onError={e => {
+                        (e.currentTarget as HTMLImageElement).src = '/images/pilots/default-pilot.png';
+                      }}
                     />
                     <div className="flex-1 min-w-0">
                       <p className="text-white font-semibold truncate">{pick.driver}</p>
@@ -320,6 +422,30 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
 
               {/* controls */}
               <div className="mt-4 pt-4 border-t border-gray-700/50 space-y-4">
+                {/* Saldo wallet */}
+                {wallet && (
+                  <div className="flex items-center justify-between bg-gray-800/70 rounded-lg px-4 py-2">
+                    <div className="flex items-center gap-2 text-sm text-gray-200">
+                      <FaWallet className="text-amber-400" />
+                      <span>{wallet.mmc_coins - wallet.locked_mmc} MMC Coins</span>
+                      <span className="text-gray-400">
+                        (
+                        ${(wallet.mmc_coins - wallet.locked_mmc).toLocaleString('es-CO')} COP
+                        )
+                      </span>
+                    </div>
+                    <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={useWallet}
+                        onChange={() => setUseWallet(!useWallet)}
+                        className="accent-amber-500"
+                      />
+                      <span>Usar saldo</span>
+                    </label>
+                  </div>
+                )}
+
                 {/* amount */}
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
@@ -391,23 +517,23 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                 </div>
 
                 {/* FOMO Bar */}
-{fomoMsg && (
-  <motion.div
-    initial={{ opacity: 0, y: -6 }}
-    animate={{ opacity: 1, y: 0 }}
-    exit={{ opacity: 0, y: -6 }}
-    transition={{ duration: 0.3 }}
-    className="
-      flex items-center justify-center h-9 rounded-lg
-      bg-gradient-to-r from-yellow-600 via-amber-500 to-yellow-700
-      text-white font-bold text-sm tracking-wide
-      shadow-[0_0_10px_rgba(255,215,0,0.35)]
-      select-none
-    "
-  >
-    <FaBolt className="mr-1 text-yellow-300" /> {fomoMsg}
-  </motion.div>
-)}
+                {fomoMsg && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={{ duration: 0.3 }}
+                    className="
+                      flex items-center justify-center h-9 rounded-lg
+                      bg-gradient-to-r from-yellow-600 via-amber-500 to-yellow-700
+                      text-white font-bold text-sm tracking-wide
+                      shadow-[0_0_10px_rgba(255,215,0,0.35)]
+                      select-none
+                    "
+                  >
+                    <FaBolt className="mr-1 text-yellow-300" /> {fomoMsg}
+                  </motion.div>
+                )}
 
                 {/* error */}
                 <AnimatePresence>
@@ -425,7 +551,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
 
                 {/* confirm */}
                 <button
-                  onClick={handleBoldPayment}
+                  onClick={handleConfirm}
                   disabled={!isValid || isProcessing}
                   className={`
                     w-full py-3 rounded-lg font-bold text-lg flex justify-center gap-2
@@ -436,9 +562,17 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                         : 'bg-gray-600/80 text-gray-400/80 cursor-not-allowed'}
                   `}
                 >
-                  {isProcessing
-                    ? (<><FaSpinner className="animate-spin" /> Procesando…</>)
-                    : (<><FaDollarSign /> Confirmar y Pagar ${amount.toLocaleString('es-CO')}</>)}
+                  {isProcessing ? (
+                    <>
+                      <FaSpinner className="animate-spin" /> Procesando…
+                    </>
+                  ) : useWallet ? (
+                    <>🎮 Jugar ${amount.toLocaleString('es-CO')}</>
+                  ) : (
+                    <>
+                      <FaDollarSign /> Confirmar y Pagar ${amount.toLocaleString('es-CO')}
+                    </>
+                  )}
                 </button>
               </div>
             </motion.div>
