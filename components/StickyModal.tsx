@@ -1,4 +1,4 @@
-// /Users/imgabrieltoro/Projects/motormania/components/StickyModal.tsx
+//components/StickyModal.tsx
 'use client';
 
 import React from 'react';
@@ -216,16 +216,47 @@ const StickyModal: React.FC<StickyModalProps> = ({ onFinish }) => {
         </div>
 
         {/* Right Section: Finish Button */}
-        <motion.button
-          onClick={async () => {
-            if (!isValid) return;
-            // --- Tracking ---
-            window.fbq?.('track', 'Lead');
-            window.fbq?.('trackCustom', 'IntentoFinalizarPicks');
-            fetch('/api/fb-track', { /* ... */ }).catch(/* ... */);
-            // --- End Tracking ---
-            await onFinish();
-          }}
+<motion.button
+  onClick={async () => {
+    if (!isValid) return;
+    
+    try {
+      // 1. Fire tracking events (non-blocking but with error handling)
+      try {
+        await fetch('/api/fb-track', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ event: 'IntentoFinalizarPicks' })
+        });
+      } catch (trackingError) {
+        console.warn('Tracking failed:', trackingError);
+        // Don't block the main flow if tracking fails
+      }
+
+      // Fire Facebook Pixel events (with safety checks)
+      if (typeof window !== 'undefined' && window.fbq) {
+        try {
+          window.fbq('track', 'Lead');
+          window.fbq('trackCustom', 'IntentoFinalizarPicks');
+        } catch (fbError) {
+          console.warn('Facebook Pixel tracking failed:', fbError);
+        }
+      }
+
+      // 2. Open the full modal - this is the critical part
+      await onFinish();
+      
+    } catch (error) {
+      console.error('Error in sticky modal handler:', error);
+      // Even if something fails, try to open the modal
+      try {
+        await onFinish();
+      } catch (modalError) {
+        console.error('Failed to open full modal:', modalError);
+      }
+    }
+  }}
+
           disabled={!isValid}
           className={buttonClasses} // Apply dynamic button styles
           initial={false}
