@@ -16,7 +16,7 @@ export default function FantasyPage() {
   if (!isLoaded) return <LoadingAnimation animationDuration={2} text="Cargando cuenta..." />;
 
   const handleSignIn = () => {
-    router.push(`/sign-in?redirect_url=${encodeURIComponent('/jugar-y-gana')}`);
+    router.push(`/sign-in?redirect_url=${encodeURIComponent('/fantasy')}`);
   };
 
   const handleCloseModal = () => {
