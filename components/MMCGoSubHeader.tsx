@@ -41,34 +41,44 @@ export default function MMCGoSubHeader({
       >
         {/* Contenedor para alinear con grid y countdown */}
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-2">
-          <div className="flex w-full items-center justify-between gap-4 text-xs sm:text-sm font-exo2">
+          <div className="flex w-full items-center justify-between gap-2 sm:gap-4 text-xs sm:text-sm font-exo2">
             {/* BOTÓN RECARGA YA */}
             <button
               onClick={() => router.push('/wallet')}
-              className="flex-1 flex items-center justify-center gap-2 rounded-full bg-amber-500 px-5 py-2 font-bold text-black transition hover:scale-105 hover:bg-amber-400 active:scale-95 shadow-xl"
+              className="flex-1 flex items-center justify-center gap-1 sm:gap-2 rounded-full bg-amber-500 px-3 sm:px-5 py-2 font-bold text-black transition hover:scale-105 hover:bg-amber-400 active:scale-95 shadow-xl min-w-0"
             >
-              <FaWallet className="h-4 w-4" />
-              RECARGA&nbsp;YA
+              <FaWallet className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+              <span className="truncate">RECARGA&nbsp;YA</span>
             </button>
 
             {/* BOTÓN ¿CÓMO JUGAR? */}
             <button
               onClick={onOpenTutorial}
-              className="flex-1 flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 px-5 py-2 font-bold text-black transition hover:scale-105 active:scale-95 shadow-xl"
+              className="flex-1 flex items-center justify-center gap-1 sm:gap-2 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 px-3 sm:px-5 py-2 font-bold text-black transition hover:scale-105 active:scale-95 shadow-xl min-w-0"
             >
-              <FaQuestionCircle className="h-4 w-4" />
-              ¿CÓMO&nbsp;JUGAR?
+              <FaQuestionCircle className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+              <span className="truncate">¿CÓMO&nbsp;JUGAR?</span>
             </button>
 
-            {/* TOGGLE QUALY / CARRERA */}
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1">
-              <div className="relative flex w-full h-10 items-center rounded-full bg-gray-800 p-1 shadow">
-                {/* Slider */}
+            {/* TOGGLE QUALY / CARRERA - MEJORADO */}
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              className="flex-1 min-w-0"
+            >
+              <div className="relative flex w-full h-9 sm:h-10 items-center rounded-full bg-gray-800/90 p-0.5 sm:p-1 shadow-lg border border-gray-700/50">
+                {/* Slider mejorado */}
                 <motion.span
                   layout
-                  className="absolute h-8 w-1/2 rounded-full bg-gradient-to-r from-blue-600 to-cyan-500"
-                  animate={{ x: isQualyView ? 0 : '100%' }}
-                  transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+                  className="absolute h-7 sm:h-8 rounded-full bg-gradient-to-r from-blue-600 to-cyan-500 shadow-md"
+                  style={{
+                    width: 'calc(50% - 2px)',
+                    left: isQualyView ? '2px' : 'calc(50% + 0px)',
+                  }}
+                  animate={{ 
+                    x: 0,
+                    transition: { type: 'spring', stiffness: 400, damping: 35 }
+                  }}
                 />
 
                 {/* Botón Qualy */}
@@ -82,15 +92,15 @@ export default function MMCGoSubHeader({
                       onSessionChange?.('qualy');
                     }
                   }}
-                  className={`relative z-10 flex-1 text-center text-[11px] font-semibold transition-colors duration-200 ${
+                  className={`relative z-10 flex-1 text-center text-xs sm:text-sm font-semibold transition-all duration-200 rounded-full py-1.5 sm:py-2 px-1 sm:px-2 ${
                     !isQualyEnabled
                       ? 'cursor-not-allowed text-gray-500'
                       : isQualyView
-                      ? 'text-white'
+                      ? 'text-white drop-shadow-sm'
                       : 'text-gray-300 hover:text-gray-100'
-                  } px-4 py-2`}
+                  }`}
                 >
-                  Qualy
+                  <span className="block truncate">Qualy</span>
                 </button>
 
                 {/* Botón Carrera */}
@@ -104,15 +114,15 @@ export default function MMCGoSubHeader({
                       onSessionChange?.('race');
                     }
                   }}
-                  className={`relative z-10 flex-1 text-center text-[11px] font-semibold transition-colors duration-200 ${
+                  className={`relative z-10 flex-1 text-center text-xs sm:text-sm font-semibold transition-all duration-200 rounded-full py-1.5 sm:py-2 px-1 sm:px-2 ${
                     !isRaceEnabled
                       ? 'cursor-not-allowed text-gray-500'
                       : !isQualyView
-                      ? 'text-white'
+                      ? 'text-white drop-shadow-sm'
                       : 'text-gray-300 hover:text-gray-100'
-                  } px-4 py-2`}
+                  }`}
                 >
-                  Carrera
+                  <span className="block truncate">Carrera</span>
                 </button>
               </div>
             </motion.div>
