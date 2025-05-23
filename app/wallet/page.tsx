@@ -28,7 +28,7 @@ import WalletCard from '@/components/WalletCard';
 import RedeemCodeModal from '@/components/RedeemCodeModal';
 import ActionButton from '@/components/ActionButton';
 import PlayThroughProgress from '@/components/PlayThroughProgress';
-
+import PicksResumen from '@/components/PicksResumen'
 /* Lazy modals */
 const DepositModal  = dynamic(() => import('@/components/DepositModal'));
 const WithdrawModal = dynamic(() => import('@/components/WithdrawModal'));
@@ -363,7 +363,14 @@ function WalletContent() {
             )}
           </div>
         </section>
-      </motion.main>
+
+        {/* ────────────────────────
+        Picks activos / historial
+       ──────────────────────── */}
+       <Suspense fallback={null}>
+       <PicksResumen />
+       </Suspense>
+       </motion.main>
 
       <AnimatePresence>
         {showDep && <DepositModal onClose={() => setDep(false)} onDeposit={onDeposit} />}
