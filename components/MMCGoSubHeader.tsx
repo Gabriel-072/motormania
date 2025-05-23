@@ -48,7 +48,7 @@ export default function MMCGoSubHeader({
               className="flex-1 flex items-center justify-center gap-1 sm:gap-2 rounded-full bg-amber-500 px-3 sm:px-5 py-2 font-bold text-black transition hover:scale-105 hover:bg-amber-400 active:scale-95 shadow-xl min-w-0"
             >
               <FaWallet className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
-              <span className="truncate">RECARGA&nbsp;YA</span>
+              <span className="truncate">MIS&nbsp;PICKS</span>
             </button>
 
             {/* BOTÓN ¿CÓMO JUGAR? */}
