@@ -126,6 +126,7 @@ export default function MMCGoContent() {
   const [isRaceEnabled,  setIsRaceEnabled]  = useState(true);
   const [showTutorial,  setShowTutorial]    = useState(false);
   const [driverVisibility, setDriverVisibility] = useState<Record<string, DriverVisibility>>({});
+  const [highlightFirstTwoCards, setHighlightFirstTwoCards] = useState(true);
 
   // Refs & stores
   const configChannelRef       = useRef<any>(null);
@@ -156,6 +157,17 @@ export default function MMCGoContent() {
         localStorage.removeItem('pendingPicks');
     }
   }, [isSignedIn, isLoaded]);
+
+  useEffect(() => {
+    if (highlightFirstTwoCards && isDataLoaded) {
+      const timer = setTimeout(() => {
+        setHighlightFirstTwoCards(false);
+      }, 7000); // Se quita el highlight después de 5 segundos
+  
+      return () => clearTimeout(timer);
+    }
+  }, [highlightFirstTwoCards, isDataLoaded]);
+  
 
   // FUNCTION: Fetch data (config, schedule, lines, visibility)
   const fetchData = useCallback(async (): Promise<void> => {
@@ -824,6 +836,12 @@ const driverGridClasses =
     const selected = currentPick === opt;
     const isBetter = opt === 'mejor';
 
+    // Determinar si este botón específico debe tener highlight inicial
+    const shouldHighlight = highlightFirstTwoCards && (
+      (idx === 0 && isBetter) ||  // Tarjeta 1: iluminar MEJOR
+      (idx === 1 && !isBetter)    // Tarjeta 2: iluminar PEOR
+    );
+
     // --- Enhanced Styling ---
     const baseClasses =
       'flex-1 py-2.5 text-xs font-semibold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all duration-200 ease-in-out focus:outline-none';
@@ -837,60 +855,75 @@ if (isBetter) {
   focusRingClasses =
     'focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-green-400';
 
-  if (selected) {
-    // ✅ MEJOR seleccionado – se queda igual
-    buttonStateClasses =
-      'bg-gradient-to-b from-green-400 to-green-600 text-white shadow-inner shadow-black/40 ring-2 ring-green-300 ring-inset cursor-default';
+    if (selected) {
+      // ✅ MEJOR seleccionado – se queda igual
+      buttonStateClasses =
+        'bg-gradient-to-b from-green-400 to-green-600 text-white shadow-inner shadow-black/40 ring-2 ring-green-300 ring-inset cursor-default';
+    } else if (shouldHighlight) {
+      // 🌟 NUEVO: MEJOR con highlight inicial - pulso lento
+      buttonStateClasses =
+        'bg-gradient-to-b from-green-500/70 to-green-600/70 text-white hover:from-green-400 hover:to-green-600 active:from-green-600 active:to-green-700 shadow-lg shadow-green-500/30' +
+        ' animate-pulse [animation-duration:2.5s]';
+    } else {
+      // 🆕 MEJOR sin seleccionar – gris normal
+      buttonStateClasses =
+        'bg-gray-700/80 text-gray-300 hover:bg-gray-600/80 active:bg-gray-700';
+    }
   } else {
-    // 🆕 MEJOR sin seleccionar – ahora gris
-    buttonStateClasses =
-      'bg-gray-700/80 text-gray-300 hover:bg-gray-600/80 active:bg-gray-700';
-  }
-} else {
-  IconComponent = FaArrowDown;
-  focusRingClasses =
-    'focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-red-400';
+    IconComponent = FaArrowDown;
+    focusRingClasses =
+      'focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-red-400';
 
-  if (selected) {
-    // ✅ PEOR seleccionado – se queda igual
-    buttonStateClasses =
-      'bg-gradient-to-b from-red-400 to-red-600 text-white shadow-inner shadow-black/40 ring-2 ring-red-300 ring-inset cursor-default';
-  } else {
-    // 🆕 PEOR sin seleccionar – ahora gris
-    buttonStateClasses =
-      'bg-gray-700/80 text-gray-300 hover:bg-gray-600/80 active:bg-gray-700';
+    if (selected) {
+      // ✅ PEOR seleccionado – se queda igual
+      buttonStateClasses =
+        'bg-gradient-to-b from-red-400 to-red-600 text-white shadow-inner shadow-black/40 ring-2 ring-red-300 ring-inset cursor-default';
+    } else if (shouldHighlight) {
+      // 🌟 NUEVO: PEOR con highlight inicial - pulso lento
+      buttonStateClasses =
+        'bg-gradient-to-b from-red-500/70 to-red-600/70 text-white hover:from-red-400 hover:to-red-600 active:from-red-600 active:to-red-700 shadow-lg shadow-red-500/30' +
+        ' animate-pulse [animation-duration:2.5s]';
+    } else {
+      // 🆕 PEOR sin seleccionar – gris normal
+      buttonStateClasses =
+        'bg-gray-700/80 text-gray-300 hover:bg-gray-600/80 active:bg-gray-700';
+    }
   }
-}
-    // --- End Enhanced Styling ---
+  // --- End Enhanced Styling ---
 
-    return (
-      <button
-        key={opt}
-        onClick={() => {
-          clickSound.current?.play(); // Assuming clickSound is for user feedback
-          if (currentPick === opt) {
-            removePick(driver, currentSession);
-          } else {
-            addPick({
-              driver,
-              team: driverToTeam[driver] || 'N/A',
-              line: typeof line === 'number' ? line : 0,
-              betterOrWorse: opt,
-              gp_name: currentGp?.gp_name ?? '',
-              session_type: currentSession,
-            });
-            trackFBEvent('Lead', { // Assuming trackFBEvent is for analytics
-              params: { content_name: `Pick_${currentSession}_${driver}_${opt}` },
-            });
-          }
-        }}
-        className={`${baseClasses} ${buttonStateClasses} ${focusRingClasses}`}
-      >
-        <IconComponent size={14} className="flex-shrink-0" /> {/* Using dynamic IconComponent */}
-        {isBetter ? 'Mejor' : 'Peor'}
-      </button>
-    );
-  })}
+  return (
+    <button
+      key={opt}
+      onClick={() => {
+        clickSound.current?.play();
+        // Quitar el highlight cuando el usuario interactúe
+        if (shouldHighlight) {
+          setHighlightFirstTwoCards(false);
+        }
+        
+        if (currentPick === opt) {
+          removePick(driver, currentSession);
+        } else {
+          addPick({
+            driver,
+            team: driverToTeam[driver] || 'N/A',
+            line: typeof line === 'number' ? line : 0,
+            betterOrWorse: opt,
+            gp_name: currentGp?.gp_name ?? '',
+            session_type: currentSession,
+          });
+          trackFBEvent('Lead', {
+            params: { content_name: `Pick_${currentSession}_${driver}_${opt}` },
+          });
+        }
+      }}
+      className={`${baseClasses} ${buttonStateClasses} ${focusRingClasses}`}
+    >
+      <IconComponent size={14} className="flex-shrink-0" />
+      {isBetter ? 'Mejor' : 'Peor'}
+    </button>
+  );
+})}
 </div>
   </div>
 </motion.div>
