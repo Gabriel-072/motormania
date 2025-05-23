@@ -128,6 +128,7 @@ export default function MMCGoContent() {
   const [driverVisibility, setDriverVisibility] = useState<Record<string, DriverVisibility>>({});
   const [highlightFirstTwoCards, setHighlightFirstTwoCards] = useState(true);
 
+
   // Refs & stores
   const configChannelRef       = useRef<any>(null);
   const visibilityChannelRef   = useRef<any>(null);
@@ -162,7 +163,7 @@ export default function MMCGoContent() {
     if (highlightFirstTwoCards && isDataLoaded) {
       const timer = setTimeout(() => {
         setHighlightFirstTwoCards(false);
-      }, 7000); // Se quita el highlight después de 5 segundos
+      }, 5000); // Se quita el highlight después de 5 segundos
   
       return () => clearTimeout(timer);
     }
@@ -606,6 +607,19 @@ const driverGridClasses =
 
   return (
     <div className={mainContainerClasses}>
+              {/* Overlay mientras los botones están destacados */}
+    <AnimatePresence>
+      {highlightFirstTwoCards && (
+        <motion.div
+          key="dim-overlay"
+          className="fixed inset-0 bg-black pointer-events-none z-[80]"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 0.6 }}   // Opacidad a gusto (0.6 ≈ 60% oscuridad)
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.5, ease: 'easeOut' }}
+        />
+      )}
+    </AnimatePresence>
       <MMCGoSubHeader
         /* 1️⃣  Abrir tutorial */
         onOpenTutorial={() => {
@@ -734,6 +748,9 @@ const driverGridClasses =
                       .toLowerCase()
                       .replace(/ /g, '-')}.png`;
 
+                  const isFocusCard =
+                  highlightFirstTwoCards && (idx === 0 || idx === 1);
+
                     {/* Driver Card Component */}  
                     return (
                       <motion.div
@@ -742,7 +759,7 @@ const driverGridClasses =
   initial={{ opacity: 0, scale: 0.95 }}
   animate={{ opacity: 1, scale: 1 }}
   transition={{ duration: 0.2, delay: idx * 0.015 }}
-  className="rounded-xl group"
+  className={`rounded-xl group ${isFocusCard ? 'relative z-[90]' : ''}`}
 >
   <div className="relative flex h-full flex-col justify-between overflow-hidden rounded-lg bg-gradient-to-b from-gray-800 via-gray-800/95 to-gray-900 pt-4 shadow-xl transition-all duration-300 ease-out border border-gray-700/40 group-hover:border-cyan-500/30 group-hover:shadow-cyan-500/10">
     {/* Background effect elements */}
@@ -863,7 +880,7 @@ if (isBetter) {
       // 🌟 NUEVO: MEJOR con highlight inicial - pulso lento
       buttonStateClasses =
         'bg-gradient-to-b from-green-500/70 to-green-600/70 text-white hover:from-green-400 hover:to-green-600 active:from-green-600 active:to-green-700 shadow-lg shadow-green-500/30' +
-        ' animate-pulse [animation-duration:2.5s]';
+        ' animate-pulse [animation-duration:2s]';
     } else {
       // 🆕 MEJOR sin seleccionar – gris normal
       buttonStateClasses =
@@ -882,7 +899,7 @@ if (isBetter) {
       // 🌟 NUEVO: PEOR con highlight inicial - pulso lento
       buttonStateClasses =
         'bg-gradient-to-b from-red-500/70 to-red-600/70 text-white hover:from-red-400 hover:to-red-600 active:from-red-600 active:to-red-700 shadow-lg shadow-red-500/30' +
-        ' animate-pulse [animation-duration:2.5s]';
+        ' animate-pulse [animation-duration:2s]';
     } else {
       // 🆕 PEOR sin seleccionar – gris normal
       buttonStateClasses =
