@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 
 export async function POST() {
+  console.log("🚀 process_picks_results invocado");  // ← este log
   const response = await fetch(
     'https://zbytlqhtgwbwksrnaxnw.functions.supabase.co/process_picks_results',
     {
