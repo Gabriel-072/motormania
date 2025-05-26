@@ -45,10 +45,12 @@ export default function PicksResumen() {
       const token = await getToken({ template: 'supabase' });
       const supabase = createAuthClient(token!);
 
-      // 1) Traer picks (sin genéricos para evitar el error TS 2558)
+      // 1) Traer picks
       const { data: picks, error: picksError } = await supabase
         .from('picks')
-        .select('*');
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
       if (picksError) {
         console.error('Error fetching picks:', picksError);
         setLoading(false);
@@ -58,7 +60,8 @@ export default function PicksResumen() {
       // 2) Traer resultados procesados
       const { data: results, error: resultsError } = await supabase
         .from('pick_results')
-        .select('*');
+        .select('*')
+        .eq('user_id', user.id);
       if (resultsError) {
         console.error('Error fetching pick results:', resultsError);
       }
@@ -92,7 +95,6 @@ export default function PicksResumen() {
 
   const renderPickCard = (pick: CombinedPick, idx: number) => {
     const isFull = pick.mode === 'Full Throttle';
-    // Si no hay resultado asumimos cero
     const payout = pick.payout ?? 0;
 
     return (
@@ -101,8 +103,28 @@ export default function PicksResumen() {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3, delay: idx * 0.1 }}
-        className="bg-[#0b1f27] p-4 rounded-xl border border-white/10 shadow hover:shadow-cyan-500/10 transition-all"
+        className="relative bg-[#0b1f27] p-4 rounded-xl border border-white/10 shadow hover:shadow-cyan-500/10 transition-all"
       >
+        {/* Badge con estado del pick */}
+        {pick.result && (
+          <div
+            className={
+              `absolute top-2 left-2 px-3 py-1 rounded-full text-xs font-semibold ` +
+              (pick.result === 'won'
+                ? 'bg-green-500 text-white'
+                : pick.result === 'partial'
+                ? 'bg-yellow-500 text-black'
+                : 'bg-red-500 text-white')
+            }
+          >
+            {pick.result === 'won'
+              ? '🏆 ¡Ganaste!'
+              : pick.result === 'partial'
+              ? '⚖️ Parcial'
+              : '❌ Perdiste'}
+          </div>
+        )}
+
         <div className="flex justify-between items-center mb-2">
           <h4 className="text-white text-sm font-bold">
             {pick.gp_name} — {pick.session_type}
@@ -128,46 +150,26 @@ export default function PicksResumen() {
 
         <div className="mt-3 text-sm text-white space-y-1">
           <p>
-            <span className="text-cyan-300">Monto:</span>{' '}
-            ${pick.wager_amount.toLocaleString()}
+            <span className="text-cyan-300">Monto:</span> ${pick.wager_amount.toLocaleString()}
           </p>
           <p>
-            <span className="text-green-400">Posible Ganancia:</span>{' '}
-            ${pick.potential_win.toLocaleString()} ({pick.multiplier}x)
+            <span className="text-green-400">Posible Ganancia:</span> ${pick.potential_win.toLocaleString()} ({pick.multiplier}x)
           </p>
 
-          {/* Si ya existe resultado, muéstralo */}
           {pick.result && (
             <div className="mt-2 p-2 bg-gray-800 rounded space-y-1">
               <p>
-                <strong>Resultado:</strong>{' '}
-                <span
-                  className={
-                    pick.result === 'won'
-                      ? 'text-green-400'
-                      : pick.result === 'partial'
-                      ? 'text-yellow-400'
-                      : 'text-red-400'
-                  }
-                >
-                  {pick.result.toUpperCase()}
-                </span>
+                <strong>Resultado:</strong> {pick.result.toUpperCase()}
               </p>
               <p>
                 <strong>Aciertos:</strong> {pick.correct_count}/{pick.total_picks}
               </p>
               <p>
                 <strong>Payout:</strong>{' '}
-                {payout.toLocaleString('es-CO', {
-                  style: 'currency',
-                  currency: 'COP'
-                })}
+                {payout.toLocaleString('es-CO', { style: 'currency', currency: 'COP' })}
               </p>
               <p className="text-xs text-gray-500">
-                Procesado:{' '}
-                {pick.processed_at
-                  ? new Date(pick.processed_at).toLocaleDateString('es-CO')
-                  : '-'}
+                Procesado: {pick.processed_at ? new Date(pick.processed_at).toLocaleDateString('es-CO') : '-'}
               </p>
             </div>
           )}
