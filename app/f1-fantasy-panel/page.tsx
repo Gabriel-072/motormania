@@ -793,7 +793,7 @@ export default function F1FantasyPanel() {
                   pastPredictions.map((pred, index) => {
                     const raceDate = pred.submitted_at.split('T')[0];
                     const scoreKey = `${pred.gp_name}-${raceDate}`;
-                    const score = scoreMap.get(pred.gp_name);
+                    const score = scoreMap.get(scoreKey);
                     return (
                       <div
                         key={index}
