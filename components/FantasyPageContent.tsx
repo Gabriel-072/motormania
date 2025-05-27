@@ -1239,36 +1239,41 @@ const handleSubmit = async () => {
         >
           {/* Row 1: Key Highlights */}
 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-
-{/* ─────── Columna 1: Barra + Countdown ─────── */}
-<div className="col-span-1">
-  <div className="overflow-hidden rounded-xl shadow-lg">
-    {/* Barra superior */}
-    <div className="bg-amber-700 px-4 py-2 flex items-center justify-between">
+   
+            {/* Mi Puntaje: ocupa toda la fila en md+ y solo 1 col en móvil */}
+<div className="col-span-1 md:col-span-3">
+  <div className="bg-amber-700 px-6 py-3 rounded-xl shadow-lg flex items-center justify-between">
+    {/* Izquierda: tu puntaje */}
+    <div>
       {myScore === null ? (
-        <span className="text-xs sm:text-sm font-exo2 text-white/90 italic">
+        <span className="text-sm font-exo2 text-white/90 italic">
           Cargando puntuación…
         </span>
       ) : myScore > 0 ? (
         <>
-          <span className="font-exo2 font-semibold text-white text-sm sm:text-base">
+          <span className="text-base font-exo2 font-semibold text-white">
             Tu puntaje: {myScore} pts
           </span>
           {myRank !== null && (
-            <span className="font-exo2 text-xs sm:text-sm text-white/90">
+            <span className="ml-2 text-sm font-exo2 text-white/90">
               #{myRank}
             </span>
           )}
         </>
       ) : (
-        <span className="text-xs sm:text-sm font-exo2 text-white/90 italic">
+        <span className="text-sm font-exo2 text-white/90 italic">
           Aún no tienes puntos
         </span>
       )}
     </div>
-   </div>
-   </div>
-
+    {/* Derecha: botón al panel */}
+    <Link href="/f1-fantasy-panel">
+      <button className="ml-4 bg-white text-amber-700 font-exo2 font-semibold px-3 py-1 rounded-md text-sm hover:bg-gray-100 transition">
+        Ir al Panel
+      </button>
+    </Link>
+  </div>
+</div>
            {/* Column 1 - Countdown - PROPOSAL 2 */}
             {/* Outer animated border div REMOVED */}
             <div className="relative group bg-gradient-to-b from-blue-800 to-sky-600 p-4 rounded-xl shadow-lg z-10 min-h-40 flex flex-col justify-between overflow-hidden shadow-blue-500/20">

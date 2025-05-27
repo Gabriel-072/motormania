@@ -118,6 +118,7 @@ export default function F1FantasyPanel() {
   const { isLoaded, isSignedIn, user } = useUser();
   const { getToken } = useAuth();
   const [seasonScore, setSeasonScore] = useState<number | null>(null);
+  const [myRank, setMyRank] = useState<number | null>(null);
   const [pastPredictions, setPastPredictions] = useState<Prediction[]>([]);
   const [pastScores, setPastScores] = useState<PredictionScore[]>([]);
   const [scoreMap, setScoreMap] = useState<Map<string, number>>(new Map());
@@ -385,8 +386,19 @@ export default function F1FantasyPanel() {
         setSeasonScore(leaderboardData.score ?? 0);
         setQuizCompleted(leaderboardData.quiz_completed ?? false);
         setSignupBonusClaimed(leaderboardData.signup_bonus_claimed ?? false);
+        if (leaderboardData.score != null) {
+          const { count, error: countError } = await supabase
+            .from('leaderboard')
+            .select('user_id', { head: true, count: 'exact' })
+            .gt('score', leaderboardData.score);
+          if (!countError) {
+            setMyRank((count ?? 0) + 1);
+          } else {
+            console.error('Error al calcular posición:', countError);
+          }
+        }
       }
-
+      
       if (predictionsError) fetchErrors.push(`Error al cargar predicciones: ${predictionsError.message}`);
       setPastPredictions(predictionsData || []);
 
@@ -466,54 +478,10 @@ export default function F1FantasyPanel() {
       </div>
     );
   }
-
+  //*JSX*//
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-950 to-gray-900 text-white overflow-hidden relative">
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16">
-        {/* Hero Section with CTAs */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="mb-6"
-        >
-          <div
-            className="animate-rotate-border rounded-xl p-0.5"
-            style={{
-              background: `conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #9333ea 20deg, #c084fc 30deg, #9333ea 40deg, transparent 50deg, transparent 360deg)`,
-              animationDuration: '6s',
-              willChange: 'background',
-            }}
-          >
-            <div className="bg-gradient-to-br from-gray-900 to-black p-6 rounded-xl shadow-lg text-center">
-              <h2 className="text-2xl font-bold text-white mb-4 font-exo2">¡Bienvenido a tu Panel Fantasy!</h2>
-              <p className="text-gray-300 mb-6 font-exo2">
-                Tus predicciones están listas. Únete a ligas privadas para competir con amigos o chatea con otros fans en el Paddock.
-              </p>
-              <div className="flex flex-col sm:flex-row justify-center gap-4">
-                <Link href="/ligas-fantasy" passHref legacyBehavior prefetch>
-                  <motion.a
-                    whileHover={{ scale: 1.05, transition: { duration: 0.1 } }}
-                    whileTap={{ scale: 0.95, transition: { duration: 0.05 } }}
-                    className="px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-400 text-white rounded-full font-exo2 font-semibold transition-all"
-                  >
-                    Explorar Ligas Privadas
-                  </motion.a>
-                </Link>
-                <Link href="/paddock" passHref legacyBehavior prefetch>
-                  <motion.a
-                    whileHover={{ scale: 1.05, transition: { duration: 0.1 } }}
-                    whileTap={{ scale: 0.95, transition: { duration: 0.05 } }}
-                    className="px-6 py-3 bg-gradient-to-r from-cyan-600 to-cyan-400 text-white rounded-full font-exo2 font-semibold transition-all"
-                  >
-                    Ir al Chat del Paddock
-                  </motion.a>
-                </Link>
-              </div>
-            </div>
-          </div>
-        </motion.div>
-
         {/* Row 1: Key Highlights */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <div
@@ -539,33 +507,19 @@ export default function F1FantasyPanel() {
                   {seasonScore !== null ? (
                     <>
                       <span className="text-2xl sm:text-3xl font-bold text-amber-400 font-exo2">{seasonScore} puntos</span>
+                      {myRank != null && (
+                     <span className="text-sm text-gray-300 font-exo2">
+                     Posición: #{myRank}
+                     </span>
+                     )}
                       {seasonScore > 1000 && <span className="text-xl sm:text-2xl">🏆</span>}
                     </>
                   ) : (
                     <span className="text-xl sm:text-2xl font-bold text-amber-400 font-exo2">Cargando...</span>
                   )}
                 </div>
+
                 <div className="flex flex-col gap-2 mt-2">
-                  {!signupBonusClaimed && seasonScore !== null && (
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={handleClaimSignupBonus}
-                      className="px-4 py-2 bg-amber-500 text-white rounded-full font-exo2 text-sm"
-                    >
-                      ¡Reclama 10 Puntos!
-                    </motion.button>
-                  )}
-                  {!quizCompleted && seasonScore !== null && (
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => setShowQuizModal(true)}
-                      className="px-4 py-2 bg-amber-500 text-white rounded-full font-exo2 text-sm"
-                    >
-                      ¡Gana 10 Puntos Extra con un Quiz!
-                    </motion.button>
-                  )}
                 </div>
               </div>
             </div>
