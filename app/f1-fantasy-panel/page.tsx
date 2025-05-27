@@ -131,6 +131,7 @@ export default function F1FantasyPanel() {
   const { isLoaded, isSignedIn, user } = useUser();
   const { getToken } = useAuth();
   const [seasonScore, setSeasonScore] = useState<number | null>(null);
+  const [lastGpScore, setLastGpScore] = useState<number | null>(null);
   const [myRank, setMyRank] = useState<number | null>(null);
   const [pastPredictions, setPastPredictions] = useState<Prediction[]>([]);
   const [pastScores, setPastScores] = useState<PredictionScore[]>([]);
@@ -420,6 +421,11 @@ export default function F1FantasyPanel() {
         setPastScores([]);
       } else {
         setPastScores(scoresData || []);
+        if (scoresData && scoresData.length > 0) {
+          setLastGpScore(scoresData[0].score ?? null);   // el registro más nuevo va primero
+        } else {
+          setLastGpScore(null);
+        }
         const map = new Map<string, number>();
         scoresData?.forEach((score) => {
         map.set(score.gp_name, score.score);     
@@ -507,7 +513,37 @@ export default function F1FantasyPanel() {
               animationDirection: 'reverse',
             }}
           >
-            <div className="relative group bg-gradient-to-br from-gray-900 to-black p-3 sm:p-4 rounded-xl shadow-lg z-10 min-h-40 flex flex-col justify-between overflow-hidden">
+            {/* ─── Cabecera ─── */}
+<motion.h2
+  className="text-sm sm:text-base font-bold text-white font-exo2 leading-tight mb-2"
+  initial={{ opacity: 0, y: -10 }}
+  animate={{ opacity: 1, y: 0 }}
+  transition={{ duration: 0.5 }}
+>
+  Resumen de Puntaje
+</motion.h2>
+
+{/* ─── Números ─── */}
+<div className="flex flex-col items-center justify-center flex-grow gap-2">
+  {/* TOTAL TEMPORADA */}
+  <div className="text-center">
+    <p className="text-xs sm:text-sm text-gray-300 font-exo2">Temporada</p>
+    <span className="text-2xl sm:text-3xl font-bold text-amber-400 font-exo2">
+      {seasonScore ?? '…'} pts
+    </span>
+    {myRank != null && (
+      <p className="text-xs text-gray-400 font-exo2 mt-1">#{myRank} global</p>
+    )}
+  </div>
+
+  {/* ÚLTIMO GP */}
+  <div className="text-center">
+    <p className="text-xs sm:text-sm text-gray-300 font-exo2">Último GP</p>
+    <span className="text-xl sm:text-2xl font-bold text-emerald-300 font-exo2">
+      {lastGpScore ?? '…'} pts
+    </span>
+  </div>
+</div>
               <div className="absolute inset-0 bg-gradient-to-tr from-transparent to-black/50 backdrop-blur-sm z-0 pointer-events-none" />
               <div className="relative z-10 flex flex-col justify-between h-full">
                 <motion.h2
@@ -538,7 +574,7 @@ export default function F1FantasyPanel() {
                 </div>
               </div>
             </div>
-          </div>
+          
 
           <div
             className="animate-rotate-border rounded-xl p-px"
