@@ -227,8 +227,10 @@ export default function Fantasy({ triggerSignInModal }: FantasyProps) {
   const hasPlayedRev = useRef(false);
   const [activeStandingsModal, setActiveStandingsModal] = useState<'drivers' | 'constructors' | null>(null);
   const [scoringModalOpen, setScoringModalOpen] = useState(false);
-  const [myScore, setMyScore] = useState<number | null>(null);
-  const [myRank,  setMyRank]  = useState<number | null>(null);
+  // ── NUEVO: puntaje GP actual / total ──
+  const [gpScore,     setGpScore]     = useState<number | null>(null);   // del último GP corrido
+  const [totalScore,  setTotalScore]  = useState<number | null>(null);   // tabla LEADERBOARD
+  const [totalRank,   setTotalRank]   = useState<number | null>(null);   // posición en LEADERBOARD
 
   // SECTION: Hydration for Clerk
   useEffect(() => {
@@ -308,13 +310,12 @@ console.log('🎯 myRow al final:', myRow);
 
 // Actualiza estado de score/rank inmediatamente
 if (myRow) {
-  setMyScore(myRow.score);
-  // cuenta cuántos tienen más puntos para calcular posición
+  setTotalScore(myRow.score);
   const higher = (leaderboardData || []).filter(e => e.score > myRow.score).length;
-  setMyRank(higher + 1);
+  setTotalRank(higher + 1);
 } else {
-  setMyScore(0);
-  setMyRank(null);
+  setTotalScore(0);
+  setTotalRank(null);
 }
 // ——— FIN MI FILA ———
 
@@ -412,7 +413,7 @@ if (myRow) {
             .maybeSingle();
 
           if (scoreError) fetchErrors.push('No se pudo cargar el puntaje anterior: ' + scoreError.message);
-          setUserPreviousScore(scoreData?.score || null);
+          setGpScore(scoreData?.score || null);
         }
       } else if (!previousGp && !currentGp && scheduleData && scheduleData.length > 0){
         // If it's before the first race, there are no previous results for this season yet.
@@ -1241,41 +1242,33 @@ const handleSubmit = async () => {
           {/* Row 1: Key Highlights */}
 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
    
-            {/* Mi Puntaje: ocupa toda la fila en md+ y solo 1 col en móvil */}
+            {/* ─── Barra de puntajes ─── */}
 <div className="col-span-1 md:col-span-3">
-  <div className="bg-amber-700 px-6 py-3 rounded-xl shadow-lg flex items-center justify-between">
-    {/* Izquierda: tu puntaje */}
-    <div>
-      {myScore === null ? (
-        <span className="text-sm font-exo2 text-white/90 italic">
-          Cargando puntuación…
-        </span>
-      ) : myScore > 0 ? (
-        <>
-          <span className="text-base font-exo2 font-semibold text-white">
-            Tu puntaje: {myScore} pts
-          </span>
-          {myRank !== null && (
-            <span className="ml-2 text-sm font-exo2 text-white/90">
-              #{myRank}
-            </span>
-          )}
-        </>
-      ) : (
-        <span className="text-sm font-exo2 text-white/90 italic">
-          Aún no tienes puntos
-        </span>
+  <div className="bg-amber-700 px-6 py-3 rounded-xl shadow-lg flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+    {/* Puntaje TOTAL */}
+    <div className="flex items-center gap-2">
+      <span className="text-white font-exo2 font-semibold text-base">
+        Total: {totalScore ?? '…'} pts
+      </span>
+      {totalRank !== null && (
+        <span className="text-white/80 text-sm font-exo2">#{totalRank}</span>
       )}
     </div>
-    {/* Derecha: botón al panel */}
-    <Link href="/f1-fantasy-panel">
-      <button className="ml-4 bg-white text-amber-700 font-exo2 font-semibold px-3 py-1 rounded-md text-sm hover:bg-gray-100 transition">
+
+    {/* Puntaje del último GP */}
+    <div className="text-white/90 text-sm font-exo2">
+      Último GP: {gpScore ?? '…'} pts
+    </div>
+
+    {/* Botón al panel */}
+    <Link href="/f1-fantasy-panel" className="shrink-0">
+      <button className="bg-white text-amber-700 font-exo2 font-semibold px-3 py-1 rounded-md text-sm hover:bg-gray-100 transition">
         Ir al Panel
       </button>
     </Link>
   </div>
 </div>
-           {/* Column 1 - Countdown - PROPOSAL 2 */}
+           {/* Countdown - PROPOSAL 2 */}
             {/* Outer animated border div REMOVED */}
             <div className="relative group bg-gradient-to-b from-blue-800 to-sky-600 p-4 rounded-xl shadow-lg z-10 min-h-40 flex flex-col justify-between overflow-hidden shadow-blue-500/20">
                 {/* Background Flag - More subtle */}
