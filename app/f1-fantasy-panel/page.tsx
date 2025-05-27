@@ -822,9 +822,7 @@ export default function F1FantasyPanel() {
                               <p>
                                 <strong>Piloto del Día:</strong> {pred.driver_of_the_day || '-'}
                               </p>
-                              {score !== undefined && (
-                                <p className="text-green-400 mt-2 font-exo2">Puntaje: {score} puntos</p>
-                              )}
+
                             </div>
                           </div>
                         </motion.div>
