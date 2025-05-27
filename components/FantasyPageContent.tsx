@@ -240,19 +240,6 @@ export default function Fantasy({ triggerSignInModal }: FantasyProps) {
     }
   }, [isLoaded]);
 
-// SECTION: Puntaje del jugador
-useEffect(() => {
-  if (!leaderboard.length || !user?.id) return;
-
-  const sorted = [...leaderboard].sort((a, b) => b.score - a.score);
-  const idx    = sorted.findIndex(e => e.user_id === user.id);
-
-  if (idx !== -1) {
-    setMyScore(sorted[idx].score);
-    setMyRank(idx + 1);
-  }
-}, [leaderboard, user?.id]);
-
  // SECTION: Fetch Data Function
  const fetchData = useCallback(async () => {
     const startTime = performance.now();
@@ -299,6 +286,37 @@ useEffect(() => {
 
       if (leaderboardError) fetchErrors.push('Error al cargar leaderboard: ' + leaderboardError.message);
       setLeaderboard(leaderboardData || []);
+
+// ——— TRAER MI FILA POR SEPARADO ———
+let myRow: LeaderboardEntry | null = null;
+if (user) {
+  const { data: meData, error: meError } = await supabase
+    .from('leaderboard')
+    .select('user_id, name, score, updated_at')
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  console.log('🏷️ meData:', meData, 'meError:', meError);
+  if (meError) {
+    fetchErrors.push('Error al cargar tu puntaje: ' + meError.message);
+  } else if (meData) {
+    myRow = meData as LeaderboardEntry;
+  }
+}
+
+console.log('🎯 myRow al final:', myRow);
+
+// Actualiza estado de score/rank inmediatamente
+if (myRow) {
+  setMyScore(myRow.score);
+  // cuenta cuántos tienen más puntos para calcular posición
+  const higher = (leaderboardData || []).filter(e => e.score > myRow.score).length;
+  setMyRank(higher + 1);
+} else {
+  setMyScore(0);
+  setMyRank(null);
+}
+// ——— FIN MI FILA ———
 
       if (driverError) fetchErrors.push('Error al cargar driver standings: ' + driverError.message);
       setDriverStandings(driverData || []);
@@ -1217,7 +1235,7 @@ const handleSubmit = async () => {
       ) : (
         <main
           key={`main-${forceRender}`} // Re-render key
-          className="container mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-16" // Increased top padding
+          className="container mx-auto px-4 sm:px-6 lg:px-8 pt-1 pb-16" 
         >
           {/* Row 1: Key Highlights */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
