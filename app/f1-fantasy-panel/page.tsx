@@ -110,8 +110,21 @@ const getDriverImage = (driverName: string): string => {
   return `/images/pilots/${normalizedName}.png`;
 };
 
-const getTeamCarImage = (teamName: string): string =>
-  `/images/cars/${teamName.toLowerCase().replace(' ', '-')}.png` || '/images/cars/default-car.png';
+// Get team car image by team name
+const getTeamCarImage = (teamName: string): string => {
+  if (!teamName) return '/images/cars/default-car.png';
+  // Generate a slug from the team name (lowercase, replace spaces with hyphens)
+  const slug = teamName.toLowerCase().replace(/\s+/g, '-');
+  // Check if an image exists for that slug, otherwise use default
+  // Note: This requires pre-naming car images 
+  // consistently (e.g., red-bull-racing.png)
+  // A direct lookup via team.car_image_url if available in DB would be more robust.
+  // Basic check (won't work reliably server-side, better for client-side display):
+  // For robustness, you might need a known list of available car images.
+  // const knownCarImages = ['red-bull-racing', 'mclaren', ...];
+  // if (knownCarImages.includes(slug)) { return `/images/cars/${slug}.png`; } else { return '/images/cars/default-car.png'; }
+  return `/images/cars/${slug}.png`; // Assuming path structure works
+};
 
 export default function F1FantasyPanel() {
   const router = useRouter();
@@ -825,6 +838,15 @@ export default function F1FantasyPanel() {
 
                             </div>
                           </div>
+                          {/* — Footer con puntaje del GP —*/}
+{score !== undefined && (
+  <p className="mt-4 text-center text-green-400 font-exo2 text-sm sm:text-base">
+    HICISTE&nbsp;
+    <span className="font-bold">{score}</span>&nbsp;
+    PUNTOS EN&nbsp;
+    <span className="uppercase">{pred.gp_name}</span>
+  </p>
+)}
                         </motion.div>
                       </div>
                     );

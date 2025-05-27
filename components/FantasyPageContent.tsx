@@ -973,7 +973,8 @@ const handleSubmit = async () => {
       // Generate a slug from the team name (lowercase, replace spaces with hyphens)
       const slug = teamName.toLowerCase().replace(/\s+/g, '-');
       // Check if an image exists for that slug, otherwise use default
-      // Note: This requires pre-naming car images consistently (e.g., red-bull-racing.png)
+      // Note: This requires pre-naming car images 
+      // consistently (e.g., red-bull-racing.png)
       // A direct lookup via team.car_image_url if available in DB would be more robust.
       // Basic check (won't work reliably server-side, better for client-side display):
       // For robustness, you might need a known list of available car images.
