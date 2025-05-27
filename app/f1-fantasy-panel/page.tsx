@@ -422,9 +422,8 @@ export default function F1FantasyPanel() {
         setPastScores(scoresData || []);
         const map = new Map<string, number>();
         scoresData?.forEach((score) => {
-             const key = `${score.gp_name}-${score.race_date}`;
-             map.set(key, score.score);
-           });
+        map.set(score.gp_name, score.score);     
+        });
         setScoreMap(map);
       }
 
