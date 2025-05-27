@@ -227,6 +227,8 @@ export default function Fantasy({ triggerSignInModal }: FantasyProps) {
   const hasPlayedRev = useRef(false);
   const [activeStandingsModal, setActiveStandingsModal] = useState<'drivers' | 'constructors' | null>(null);
   const [scoringModalOpen, setScoringModalOpen] = useState(false);
+  const [myScore, setMyScore] = useState<number | null>(null);
+  const [myRank,  setMyRank]  = useState<number | null>(null);
 
   // SECTION: Hydration for Clerk
   useEffect(() => {
@@ -237,6 +239,19 @@ export default function Fantasy({ triggerSignInModal }: FantasyProps) {
       return () => clearTimeout(timeout);
     }
   }, [isLoaded]);
+
+// SECTION: Puntaje del jugador
+useEffect(() => {
+  if (!leaderboard.length || !user?.id) return;
+
+  const sorted = [...leaderboard].sort((a, b) => b.score - a.score);
+  const idx    = sorted.findIndex(e => e.user_id === user.id);
+
+  if (idx !== -1) {
+    setMyScore(sorted[idx].score);
+    setMyRank(idx + 1);
+  }
+}, [leaderboard, user?.id]);
 
  // SECTION: Fetch Data Function
  const fetchData = useCallback(async () => {
@@ -1224,6 +1239,27 @@ const handleSubmit = async () => {
 
                 {/* Content */}
                 <div className="relative z-10 flex flex-col h-full">
+{/* -- MI PUNTAJE / POSICIÓN ----------------------- */}
+{myScore !== null && myScore > 0 ? (
+  <div className="mb-1">
+    <p className="text-xs sm:text-sm font-exo2 font-semibold text-amber-300">
+      Tu puntaje:&nbsp;<span className="text-white">{myScore} pts</span>
+    </p>
+
+    {myRank !== null && (
+      <p className="text-[10px] sm:text-xs font-exo2 text-gray-200">
+        Tu posición:&nbsp;#{myRank}
+      </p>
+    )}
+  </div>
+) : (
+  <div className="mb-1">
+    <p className="text-xs sm:text-sm font-exo2 text-gray-300 italic">
+      Aún no tienes puntos
+    </p>
+  </div>
+)}
+{/* ----------------------------------------------- */}
                   {/* Top Section: GP Name */}
                   <div className="flex items-center gap-2 mb-2">
                       {/* Calendar Icon */}
