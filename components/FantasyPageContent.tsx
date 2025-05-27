@@ -1238,7 +1238,37 @@ const handleSubmit = async () => {
           className="container mx-auto px-4 sm:px-6 lg:px-8 pt-1 pb-16" 
         >
           {/* Row 1: Key Highlights */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+<div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+
+{/* ─────── Columna 1: Barra + Countdown ─────── */}
+<div className="col-span-1">
+  <div className="overflow-hidden rounded-xl shadow-lg">
+    {/* Barra superior */}
+    <div className="bg-amber-700 px-4 py-2 flex items-center justify-between">
+      {myScore === null ? (
+        <span className="text-xs sm:text-sm font-exo2 text-white/90 italic">
+          Cargando puntuación…
+        </span>
+      ) : myScore > 0 ? (
+        <>
+          <span className="font-exo2 font-semibold text-white text-sm sm:text-base">
+            Tu puntaje: {myScore} pts
+          </span>
+          {myRank !== null && (
+            <span className="font-exo2 text-xs sm:text-sm text-white/90">
+              #{myRank}
+            </span>
+          )}
+        </>
+      ) : (
+        <span className="text-xs sm:text-sm font-exo2 text-white/90 italic">
+          Aún no tienes puntos
+        </span>
+      )}
+    </div>
+   </div>
+   </div>
+
            {/* Column 1 - Countdown - PROPOSAL 2 */}
             {/* Outer animated border div REMOVED */}
             <div className="relative group bg-gradient-to-b from-blue-800 to-sky-600 p-4 rounded-xl shadow-lg z-10 min-h-40 flex flex-col justify-between overflow-hidden shadow-blue-500/20">
@@ -1257,27 +1287,6 @@ const handleSubmit = async () => {
 
                 {/* Content */}
                 <div className="relative z-10 flex flex-col h-full">
-{/* -- MI PUNTAJE / POSICIÓN ----------------------- */}
-{myScore !== null && myScore > 0 ? (
-  <div className="mb-1">
-    <p className="text-xs sm:text-sm font-exo2 font-semibold text-amber-300">
-      Tu puntaje:&nbsp;<span className="text-white">{myScore} pts</span>
-    </p>
-
-    {myRank !== null && (
-      <p className="text-[10px] sm:text-xs font-exo2 text-gray-200">
-        Tu posición:&nbsp;#{myRank}
-      </p>
-    )}
-  </div>
-) : (
-  <div className="mb-1">
-    <p className="text-xs sm:text-sm font-exo2 text-gray-300 italic">
-      Aún no tienes puntos
-    </p>
-  </div>
-)}
-{/* ----------------------------------------------- */}
                   {/* Top Section: GP Name */}
                   <div className="flex items-center gap-2 mb-2">
                       {/* Calendar Icon */}
