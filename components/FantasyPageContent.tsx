@@ -231,6 +231,10 @@ export default function Fantasy({ triggerSignInModal }: FantasyProps) {
   const [gpScore,     setGpScore]     = useState<number | null>(null);   // del último GP corrido
   const [totalScore,  setTotalScore]  = useState<number | null>(null);   // tabla LEADERBOARD
   const [totalRank,   setTotalRank]   = useState<number | null>(null);   // posición en LEADERBOARD
+  // justo debajo de tus hooks existing, antes de cualquier useEffect o fetchData
+  const [myScore, setMyScore] = useState<number | null>(null);
+  const [myRank, setMyRank] = useState<number | null>(null);
+  const [prevGpRank, setPrevGpRank] = useState<number | null>(null);
 
   // SECTION: Hydration for Clerk
   useEffect(() => {
@@ -318,6 +322,21 @@ if (myRow) {
   setTotalRank(null);
 }
 // ——— FIN MI FILA ———
+
+// ——— AÑADE ESTO JUSTO AQUÍ ———
+if (previousResults?.gp_name && user) {
+  const { data: gpScores, error: gpError } = await supabase
+    .from('prediction_scores')
+    .select('user_id, score')
+    .eq('gp_name', previousResults.gp_name)
+    .order('score', { ascending: false });
+
+  if (!gpError && gpScores) {
+    const idx = gpScores.findIndex(r => r.user_id === user.id);
+    setPrevGpRank(idx !== -1 ? idx + 1 : null);
+  }
+}
+// ——— FIN CÁLCULO ÚLTIMO GP ———
 
       if (driverError) fetchErrors.push('Error al cargar driver standings: ' + driverError.message);
       setDriverStandings(driverData || []);
@@ -1242,31 +1261,101 @@ const handleSubmit = async () => {
           {/* Row 1: Key Highlights */}
 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
    
-            {/* ─── Barra de puntajes ─── */}
+{/* ─── Barra de Puntaje + Botón (F1 World Class UI) ─── */}
 <div className="col-span-1 md:col-span-3">
-  <div className="bg-amber-700 px-6 py-3 rounded-xl shadow-lg flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
-    {/* Puntaje TOTAL */}
-    <div className="flex items-center gap-2">
-      <span className="text-white font-exo2 font-semibold text-base">
-        Total: {totalScore ?? '…'} pts
-      </span>
-      {totalRank !== null && (
-        <span className="text-white/80 text-sm font-exo2">#{totalRank}</span>
-      )}
-    </div>
+  {/* MODIFIED: Enhanced container styling for a more premium, tech feel */}
+  <div
+    className="bg-gradient-to-br from-neutral-800 via-neutral-900 to-black rounded-xl shadow-2xl
+               border border-neutral-700/60 hover:border-sky-500/70 transition-all duration-300 overflow-hidden group relative"
+  >
+    {/* Optional: Subtle animated gradient glow for an "active" feel - more advanced */}
+    <div className="absolute -inset-px rounded-xl opacity-0 group-hover:opacity-50 transition-opacity duration-300 
+                    bg-gradient-to-r from-sky-700 via-sky-500 to-sky-700 blur-lg animate-pulse-slow-läufig"
+         style={{ animationDuration: '4s' }}></div> {/* Slower pulse */}
 
-    {/* Puntaje del último GP */}
-    <div className="text-white/90 text-sm font-exo2">
-      Último GP: {gpScore ?? '…'} pts
-    </div>
+    {/* Inner bevel/highlight effect */}
+    <div className="absolute inset-0 rounded-xl ring-1 ring-inset ring-white/10 pointer-events-none z-10"></div>
 
-    {/* Botón al panel */}
-    <Link href="/f1-fantasy-panel" className="shrink-0">
-      <button className="bg-white text-amber-700 font-exo2 font-semibold px-3 py-1 rounded-md text-sm hover:bg-gray-100 transition">
-        Ir al Panel
-      </button>
-    </Link>
+    <div className="relative z-20 px-5 py-4 sm:px-7 sm:py-5 flex items-center justify-between gap-x-6">
+      {/* ── Bloque de textos en fila ── */}
+      <div className="flex items-baseline gap-x-5 sm:gap-x-8"> {/* Adjusted gap slightly */}
+        {/* Total de la temporada */}
+        <div className="flex items-baseline gap-x-1.5 sm:gap-x-2"> {/* Adjusted gap slightly */}
+          {/* MODIFIED: Main score - more prominent */}
+          <div className="relative">
+            <span className="font-exo2 font-bold text-sky-400 text-xl sm:text-2xl md:text-3xl tracking-tight">
+              {myScore ?? <span className="opacity-50">---</span>}
+            </span>
+            {/* Subtle glow for the main score */}
+            {myScore && <span className="absolute inset-0 -z-10 bg-sky-400/30 blur-md"></span>}
+          </div>
+          <span className="text-xs sm:text-sm font-medium text-neutral-400 uppercase tracking-wider">PTS</span> {/* MODIFIED: Styling for PTS unit */}
+          
+          {myRank != null && myRank > 0 && (
+            <span
+              className="text-xs sm:text-sm font-exo2 font-semibold text-sky-300/90 bg-sky-700/40 
+                         px-2.5 py-1 rounded-md tracking-wider border border-sky-600/50" // MODIFIED: More of a "data chip" or "badge" feel
+            >
+              P{myRank}
+            </span>
+          )}
+        </div>
+        {/* Puntaje del último GP */}
+        <div>
+          <span className="text-xs sm:text-sm font-exo2 text-neutral-400/90 tracking-wide"> {/* MODIFIED: Tracking for readability */}
+            Último GP:&nbsp;
+            <span className="font-semibold text-neutral-100">{gpScore ?? '-'} pts</span> {/* MODIFIED: Brighter text for score */}
+          </span>
+        </div>
+      </div>
+
+      {/* ── Botón siempre a la derecha ── */}
+      <Link href="/f1-fantasy-panel" passHref>
+        {/* MODIFIED: Button styling for a more tech/F1 feel */}
+        <button
+          className="bg-gradient-to-r from-sky-600 to-sky-500 text-white font-exo2 font-bold text-xs sm:text-sm
+                     px-5 py-2.5 rounded-md shadow-lg hover:from-sky-500 hover:to-sky-400 
+                     focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400
+                     active:scale-95 transition-all duration-150 ease-in-out
+                     flex items-center gap-x-2 group/button border border-sky-700 hover:border-sky-500" // Added border, group for icon
+        >
+          <svg
+            className="w-4 h-4 sm:w-5 sm:h-5 group-hover/button:translate-x-0.5 group-hover/button:scale-110 transition-transform duration-150 text-sky-200" // MODIFIED: Icon styling & interaction
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            // Example of a more "F1" or "Gaming" style icon if you want to change it
+            // For now, keeping your icon path but styled
+          >
+            {/* Alternative "Chevron Right" style icon example (more streamlined) */}
+            {/* <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" /> */}
+            <path // Your original icon path
+              fillRule="evenodd"
+              d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-1 1H4a1 1 0 01-1-1V3zm10.293 9.293a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L13 13.414V17a1 1 0 11-2 0v-3.586l-1.293 1.293a1 1 0 01-1.414-1.414l3-3z"
+              clipRule="evenodd"
+            />
+          </svg>
+          Panel
+        </button>
+      </Link>
+    </div>
   </div>
+    {/* ←←← Pega aquí el bloque de ranking global y GP anterior: */}
+    {(totalRank || prevGpRank) && (
+    <div className="col-span-1 md:col-span-3 px-5">
+      <p className="mt-2 text-sm text-gray-300 font-exo2">
+        {totalRank
+          ? <>Actualmente ocupas la posición <span className="font-semibold text-white">{totalRank}</span> global</>
+          : <>Aún no estás rankeado globalmente</>
+        }
+        {prevGpRank != null && previousResults?.gp_name && (
+          <>, y ocupaste la posición <span className="font-semibold text-white">{prevGpRank}</span> en el {previousResults.gp_name}</>
+        )}
+        .
+      </p>
+    </div>
+  )}
+  {/* ←←← Fin bloque ranking */}
 </div>
            {/* Countdown - PROPOSAL 2 */}
             {/* Outer animated border div REMOVED */}
@@ -1927,7 +2016,7 @@ const handleSubmit = async () => {
                       >
                        ✕
                      </button>
-                    <h2 className="text-lg sm:text-xl font-bold text-white mb-5 font-exo2 text-center text-teal-300">Sistema de Puntuación</h2>
+                    <h2 className="text-lg sm:text-xl font-bold text-white mb-5 font-exo2 text-center">Sistema de Puntuación</h2>
                     <div className="text-gray-300 font-exo2 text-sm sm:text-base space-y-3 flex-grow overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-teal-600 scrollbar-track-gray-800"> {/* List styling */}
                          <p><strong className='text-amber-400'>Pole / GP (Exacto):</strong> <span className='text-white'>5 pts</span> por acertar la posición exacta (1º, 2º o 3º).</p>
                          <p><strong className='text-amber-400'>Pole / GP (Top 3):</strong> <span className='text-white'>2 pts</span> si el piloto está en el Top 3 pero no en la posición exacta.</p>
@@ -2189,7 +2278,7 @@ const handleSubmit = async () => {
                        >
                         ✕
                      </button>
-                    <h2 className="text-lg sm:text-xl font-bold text-white mb-4 font-exo2 text-center text-blue-300">
+                    <h2 className="text-lg sm:text-xl font-bold text-white mb-4 font-exo2 text-center">
                       {activeStandingsModal === 'drivers' ? 'Clasificación Completa de Pilotos 2025' : 'Clasificación Completa de Constructores 2025'}
                     </h2>
                     <div className="flex-grow overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-blue-600 scrollbar-track-gray-800">

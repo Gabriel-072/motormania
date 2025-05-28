@@ -13,6 +13,7 @@ import { Dialog, Transition } from '@headlessui/react';
 import { Fragment } from 'react';  // si no lo tienes ya
 import { Howl } from 'howler';
 
+
 type Prediction = {
   gp_name: string;
   pole1: string;
@@ -500,173 +501,177 @@ export default function F1FantasyPanel() {
     );
   }
   //*JSX*//
-  return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-950 to-gray-900 text-white overflow-hidden relative">
-      <main className="container mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16">
-        {/* Row 1: Key Highlights */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <div
-            className="animate-rotate-border rounded-xl p-px"
-            style={{
-              background: `conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #f59e0b 20deg, #d4af37 30deg, #f59e0b 40deg, transparent 50deg, transparent 360deg)`,
-              animationDuration: '3s',
-              animationDirection: 'reverse',
-            }}
-          >
-            {/* ─── Cabecera ─── */}
-<motion.h2
-  className="text-sm sm:text-base font-bold text-white font-exo2 leading-tight mb-2"
-  initial={{ opacity: 0, y: -10 }}
-  animate={{ opacity: 1, y: 0 }}
-  transition={{ duration: 0.5 }}
->
-  Resumen de Puntaje
-</motion.h2>
+return (
+  <div className="min-h-screen bg-gradient-to-b from-gray-950 to-gray-900 text-white overflow-hidden relative">
+    <main className="container mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16">
+      {/* Row 1: Key Highlights */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
 
-{/* ─── Números ─── */}
-<div className="flex flex-col items-center justify-center flex-grow gap-2">
-  {/* TOTAL TEMPORADA */}
-  <div className="text-center">
-    <p className="text-xs sm:text-sm text-gray-300 font-exo2">Temporada</p>
-    <span className="text-2xl sm:text-3xl font-bold text-amber-400 font-exo2">
-      {seasonScore ?? '…'} pts
-    </span>
-    {myRank != null && (
-      <p className="text-xs text-gray-400 font-exo2 mt-1">#{myRank} global</p>
-    )}
-  </div>
+        {/* ───────── Tarjeta Resumen de Puntaje ───────── */}
+{/* MODIFICADO: Outer container for a more complex border/background */}
+<div className="relative rounded-xl shadow-2xl  
+                bg-gradient-to-br from-gray-800 to-black 
+                border border-gray-700/80 
+                hover:border-amber-400/80 transition-colors duration-300"> {/* <-- NEW: Base dark theme, subtle border */}
 
-  {/* ÚLTIMO GP */}
-  <div className="text-center">
-    <p className="text-xs sm:text-sm text-gray-300 font-exo2">Último GP</p>
-    <span className="text-xl sm:text-2xl font-bold text-emerald-300 font-exo2">
-      {lastGpScore ?? '…'} pts
-    </span>
+  {/* Optional: Inner "carbon fiber" like pattern or texture. 
+       Could be a subtle background image or a CSS gradient pattern. 
+       For simplicity, we'll stick to gradients here but keep this in mind. */}
+  {/* <div className="absolute inset-0 bg-carbon-pattern opacity-5"></div> */}
+
+  {/* MODIFICADO: Enhanced blur and subtle inner glow/gradient for depth */}
+  <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-black/30 to-black/70 backdrop-blur-md z-0 pointer-events-none rounded-xl opacity-80" />
+  {/* Adding a subtle inner bevel/highlight effect */}
+  <div className="absolute inset-0 rounded-xl ring-1 ring-inset ring-white/10 pointer-events-none z-10" />
+
+
+  {/* Contenido encima del blur */}
+  <div className="relative z-20 flex flex-col justify-between h-40 p-4 sm:p-6"> {/* <-- h-40 maintained */}
+    {/* Cabecera */}
+    <motion.h2
+      className="text-sm sm:text-base font-bold text-neutral-200 font-exo2 uppercase tracking-wider leading-tight mb-2" /* MOD: Color, tracking */
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+    >
+      Resumen de Puntaje
+    </motion.h2>
+
+    {/* Números */}
+    <div className="grid grid-cols-2 place-items-center flex-grow gap-3">
+      {/* TOTAL TEMPORADA */}
+      <div className="text-center">
+        <p className="text-xs sm:text-sm text-gray-400 font-exo2 uppercase tracking-wide">Temporada</p> {/* MOD: Color, tracking */}
+        {/* MOD: Enhanced text styling for the score */}
+        <div className="relative">
+          <span className="text-3xl sm:text-4xl font-bold text-amber-400 font-exo2">
+            {seasonScore ?? <span className="animate-pulse">...</span>}
+          </span>
+          <span className="absolute -top-1 -right-2 text-lg sm:text-xl font-bold text-amber-500/80 font-exo2">pts</span>
+          {/* Subtle glow effect for the score */}
+          <div className="absolute inset-0 text-amber-400 blur-md opacity-30 -z-10">
+            {seasonScore ?? ''}
+          </div>
+        </div>
+        {myRank != null && (
+          <p className="text-xs text-gray-500 font-exo2 mt-1">#{myRank} global</p> /* MOD: Color */
+        )}
+      </div>
+
+      {/* ÚLTIMO GP */}
+      <div className="text-center">
+        <p className="text-xs sm:text-sm text-gray-400 font-exo2 uppercase tracking-wide">Último GP</p> {/* MOD: Color, tracking */}
+        {/* MOD: Enhanced text styling for the score */}
+        <div className="relative">
+          <span className="text-2xl sm:text-3xl font-bold text-emerald-400 font-exo2"> {/* MOD: Color slightly brighter */}
+            {lastGpScore ?? <span className="animate-pulse">...</span>}
+          </span>
+          <span className="absolute -top-1 -right-2 text-md sm:text-lg font-bold text-emerald-500/80 font-exo2">pts</span>
+          {/* Subtle glow effect for the score */}
+          <div className="absolute inset-0 text-emerald-400 blur-sm opacity-30 -z-10">
+            {lastGpScore ?? ''}
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
-              <div className="absolute inset-0 bg-gradient-to-tr from-transparent to-black/50 backdrop-blur-sm z-0 pointer-events-none" />
-              <div className="relative z-10 flex flex-col justify-between h-full">
-                <motion.h2
-                  className="text-sm sm:text-base font-bold text-white font-exo2 leading-tight mb-2"
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5 }}
-                >
-                  Tu Puntaje de Temporada
-                </motion.h2>
-                <div className="flex flex-col items-center justify-center flex-grow gap-1">
-                  {seasonScore !== null ? (
-                    <>
-                      <span className="text-2xl sm:text-3xl font-bold text-amber-400 font-exo2">{seasonScore} puntos</span>
-                      {myRank != null && (
-                     <span className="text-sm text-gray-300 font-exo2">
-                     Posición: #{myRank}
-                     </span>
-                     )}
-                      {seasonScore > 1000 && <span className="text-xl sm:text-2xl">🏆</span>}
-                    </>
-                  ) : (
-                    <span className="text-xl sm:text-2xl font-bold text-amber-400 font-exo2">Cargando...</span>
-                  )}
-                </div>
 
-                <div className="flex flex-col gap-2 mt-2">
-                </div>
-              </div>
+        {/* ───────── Tarjeta Ganador último GP ───────── */}
+        <div
+          className="animate-rotate-border rounded-xl p-px"
+          style={{
+            background:
+              'conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #f59e0b 20deg, #d4af37 30deg, #f59e0b 40deg, transparent 50deg, transparent 360deg)',
+            animationDuration: '3s',
+            animationDirection: 'reverse',
+          }}
+        >
+          <motion.div
+            className={`relative p-2 sm:p-4 pb-0 rounded-xl shadow-lg z-10 bg-gradient-to-br h-40 overflow-hidden ${ // <-- Altura de referencia h-40
+              previousResults?.gp1 && driverToTeam[previousResults.gp1]
+                ? `${teamColors[driverToTeam[previousResults.gp1]].gradientFrom} ${teamColors[driverToTeam[previousResults.gp1]].gradientTo}`
+                : 'from-gray-700 to-gray-600'
+            }`}
+          >
+            <div className="absolute inset-0 bg-gradient-to-tr from-black/50 to-transparent z-0 pointer-events-none" />
+            <div className="relative z-10 pr-[30%] sm:pr-[40%] flex flex-col justify-center h-full space-y-1">
+              {previousResults?.gp1 ? (
+                <>
+                  <div className="flex items-center gap-2">
+                    <span className="text-amber-400 text-lg sm:text-xl">🏆</span>
+                    <p className="text-base sm:text-lg font-semibold text-white font-exo2 leading-tight">
+                      Ganador: {previousResults.gp1}
+                    </p>
+                  </div>
+                  <p className="text-xs sm:text-sm text-gray-300 font-exo2 leading-tight">
+                    {previousResults.gp_name} • {driverToTeam[previousResults.gp1]}
+                  </p>
+                </>
+              ) : (
+                <p className="text-gray-400 font-exo2 text-xs sm:text-sm">
+                  No hay resultados previos disponibles.
+                </p>
+              )}
             </div>
-          
+            {previousResults?.gp1 && (
+              <Image
+                src={getDriverImage(previousResults.gp1)}
+                alt={previousResults.gp1}
+                width={156}
+                height={160}
+                className="absolute bottom-0 right-0 w-[40%] sm:w-[50%] max-w-[156px] h-full object-contain object-bottom"
+              />
+            )}
+          </motion.div>
+        </div>
 
-          <div
-            className="animate-rotate-border rounded-xl p-px"
-            style={{
-              background: `conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #f59e0b 20deg, #d4af37 30deg, #f59e0b 40deg, transparent 50deg, transparent 360deg)`,
-              animationDuration: '3s',
-              animationDirection: 'reverse',
-            }}
+        {/* ───────── Tarjeta Pole ───────── */}
+        <div
+          className="animate-rotate-border rounded-xl p-px"
+          style={{
+            background:
+              'conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #1d4ed8 20deg, #3b82f6 30deg, #1d4ed8 40deg, transparent 50deg, transparent 360deg)',
+            animationDuration: '3.5s',
+          }}
+        >
+          <motion.div
+            className={`relative p-2 sm:p-4 pb-0 rounded-xl shadow-lg z-10 bg-gradient-to-br h-40 overflow-hidden ${
+              previousResults?.pole1 && driverToTeam[previousResults.pole1]
+                ? `${teamColors[driverToTeam[previousResults.pole1]].gradientFrom} ${teamColors[driverToTeam[previousResults.pole1]].gradientTo}`
+                : 'from-gray-700 to-gray-600'
+            }`}
           >
-            <motion.div
-              className={`relative p-2 sm:p-4 pb-0 rounded-xl shadow-lg z-10 bg-gradient-to-br h-40 overflow-hidden ${
-                previousResults?.gp1 && driverToTeam[previousResults.gp1]
-                  ? `${teamColors[driverToTeam[previousResults.gp1]].gradientFrom} ${teamColors[driverToTeam[previousResults.gp1]].gradientTo}`
-                  : 'from-gray-700 to-gray-600'
-              }`}
-            >
-              <div className="absolute inset-0 bg-gradient-to-tr from-black/50 to-transparent z-0 pointer-events-none" />
-              <div className="relative z-10 pr-[30%] sm:pr-[40%] flex flex-col justify-center h-full space-y-1">
-                {previousResults?.gp1 ? (
-                  <>
-                    <div className="flex items-center gap-2">
-                      <span className="text-amber-400 text-lg sm:text-xl">🏆</span>
-                      <p className="text-base sm:text-lg font-semibold text-white font-exo2 leading-tight">
-                        Ganador: {previousResults.gp1}
-                      </p>
-                    </div>
-                    <p className="text-xs sm:text-sm text-gray-300 font-exo2 leading-tight">
-                      {previousResults.gp_name} • {driverToTeam[previousResults.gp1]}
+            <div className="absolute inset-0 bg-gradient-to-tr from-black/50 to-transparent z-0 pointer-events-none" />
+            <div className="relative z-10 pr-[30%] sm:pr-[40%] flex flex-col justify-center h-full space-y-1">
+              {previousResults?.pole1 ? (
+                <>
+                  <div className="flex items-center gap-2">
+                    <span className="text-blue-400 text-lg sm:text-xl">🏁</span>
+                    <p className="text-base sm:text-lg font-semibold text-white font-exo2 leading-tight">
+                      Pole: {previousResults.pole1}
                     </p>
-                  </>
-                ) : (
-                  <p className="text-gray-400 font-exo2 text-xs sm:text-sm">
-                    No hay resultados previos disponibles.
+                  </div>
+                  <p className="text-xs sm:text-sm text-gray-300 font-exo2 leading-tight">
+                    {previousResults.gp_name} • {driverToTeam[previousResults.pole1]}
                   </p>
-                )}
-              </div>
-              {previousResults?.gp1 && (
-                <Image
-                  src={getDriverImage(previousResults.gp1)}
-                  alt={previousResults.gp1}
-                  width={156}
-                  height={160}
-                  className="absolute bottom-0 right-0 w-[40%] sm:w-[50%] max-w-[156px] h-full object-contain object-bottom"
-                />
+                </>
+              ) : (
+                <p className="text-gray-400 font-exo2 text-xs sm:text-sm">
+                  No hay datos de pole.
+                </p>
               )}
-            </motion.div>
-          </div>
-
-          <div
-            className="animate-rotate-border rounded-xl p-px"
-            style={{
-              background: `conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #1d4ed8 20deg, #3b82f6 30deg, #1d4ed8 40deg, transparent 50deg, transparent 360deg)`,
-              animationDuration: '3.5s',
-            }}
-          >
-            <motion.div
-              className={`relative p-2 sm:p-4 pb-0 rounded-xl shadow-lg z-10 bg-gradient-to-br h-40 overflow-hidden ${
-                previousResults?.pole1 && driverToTeam[previousResults.pole1]
-                  ? `${teamColors[driverToTeam[previousResults.pole1]].gradientFrom} ${teamColors[driverToTeam[previousResults.pole1]].gradientTo}`
-                  : 'from-gray-700 to-gray-600'
-              }`}
-            >
-              <div className="absolute inset-0 bg-gradient-to-tr from-black/50 to-transparent z-0 pointer-events-none" />
-              <div className="relative z-10 pr-[30%] sm:pr-[40%] flex flex-col justify-center h-full space-y-1">
-                {previousResults?.pole1 ? (
-                  <>
-                    <div className="flex items-center gap-2">
-                      <span className="text-blue-400 text-lg sm:text-xl">🏁</span>
-                      <p className="text-base sm:text-lg font-semibold text-white font-exo2 leading-tight">
-                        Pole: {previousResults.pole1}
-                      </p>
-                    </div>
-                    <p className="text-xs sm:text-sm text-gray-300 font-exo2 leading-tight">
-                      {previousResults.gp_name} • {driverToTeam[previousResults.pole1]}
-                    </p>
-                  </>
-                ) : (
-                  <p className="text-gray-400 font-exo2 text-xs sm:text-sm">
-                    No hay datos de pole.
-                  </p>
-                )}
-              </div>
-              {previousResults?.pole1 && (
-                <Image
-                  src={getDriverImage(previousResults.pole1)}
-                  alt={previousResults.pole1}
-                  width={156}
-                  height={160}
-                  className="absolute bottom-0 right-0 w-[40%] sm:w-[50%] max-w-[156px] h-full object-contain object-bottom"
-                />
-              )}
-            </motion.div>
+            </div>
+            {previousResults?.pole1 && (
+              <Image
+                src={getDriverImage(previousResults.pole1)}
+                alt={previousResults.pole1}
+                width={156}
+                height={160}
+                className="absolute bottom-0 right-0 w-[40%] sm:w-[50%] max-w-[156px] h-full object-contain object-bottom"
+              />
+            )}
+          </motion.div>
           </div>
         </div>
 
