@@ -5,7 +5,7 @@ import React from 'react';
 import { usePathname } from 'next/navigation';
 
 export default function MovingBar() {
-  const message = "Registrate GRATIS y participa por un Lego McLaren P1";
+  const message = "Envía tus predicciones GRATIS y participa por un Lego McLaren P1";
   const separator = " • ";
 
   const pathname = usePathname();

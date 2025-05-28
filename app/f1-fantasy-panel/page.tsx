@@ -4,11 +4,12 @@ import { useState, useEffect, useCallback } from 'react';
 import { useUser, useAuth } from '@clerk/nextjs';
 import { toast, Toaster } from 'sonner';
 import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { createAuthClient } from '@/lib/supabase';
 import Image from 'next/image';
 import Link from 'next/link';
 import LoadingAnimation from '@/components/LoadingAnimation';
+import LeaderboardsSection from '@/components/LeaderboardsSection';
 import { Dialog, Transition } from '@headlessui/react';
 import { Fragment } from 'react';  // si no lo tienes ya
 import { Howl } from 'howler';
@@ -350,6 +351,7 @@ export default function F1FantasyPanel() {
     }
   };
 
+
   // Fetch Data Function
   const fetchData = useCallback(async () => {
     if (!user || !isSignedIn) return;
@@ -479,6 +481,11 @@ export default function F1FantasyPanel() {
     }
   }, [getToken, isSignedIn, user]);
 
+  /** Navega a la página de predicciones */
+  function handleGoToPredictions() {
+    router.push('/fantasy'); // ajusta la ruta si es distinta
+  }
+
   useEffect(() => {
     const timer = setTimeout(() => setShowRedirectModal(true), 3000);
     return () => clearTimeout(timer);
@@ -576,7 +583,6 @@ return (
     </div>
   </div>
 </div>
-
         {/* ───────── Tarjeta Ganador último GP ───────── */}
         <div
           className="animate-rotate-border rounded-xl p-px"
@@ -815,6 +821,8 @@ return (
           </div>
         </div>
 
+        <LeaderboardsSection />
+
         {/* Row 3: Past Predictions */}
         <div className="grid grid-cols-1 gap-4 mb-6">
           <motion.div
@@ -899,6 +907,42 @@ return (
             </div>
           </motion.div>
         </div>
+
+        {/* --- STICKY BUTTON (solo móvil) --- */}
+      <AnimatePresence>
+        <motion.div
+          key="sticky-fantasy-btn"
+          initial={{ opacity: 0, scale: 0.5, y: 50 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.5, y: 50 }}
+          transition={{ type: 'spring', stiffness: 200, damping: 25 }}
+          className="fixed bottom-6 right-6 z-40 md:hidden"
+        >
+          <button
+            onClick={handleGoToPredictions}
+            className="flex items-center gap-2 pl-3 pr-4 py-3 bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 text-white font-exo2 font-bold text-sm rounded-full shadow-xl hover:from-amber-600 hover:to-red-600 focus:outline-none focus:ring-4 focus:ring-amber-300 focus:ring-offset-2 focus:ring-offset-gray-900 transition-all duration-200 transform hover:scale-105 active:scale-100"
+            aria-label="Ir a predecir"
+          >
+            {/* Icono rayo */}
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-5 w-5"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fillRule="evenodd"
+                d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z"
+                clipRule="evenodd"
+              />
+            </svg>
+            <span>¡Predecir!</span>
+          </button>
+        </motion.div>
+      </AnimatePresence>
+
+      {/* Toaster global */}
+      <Toaster richColors position="top-center" />
 
         {/* Quiz Modal */}
         {showQuizModal && (
@@ -1033,98 +1077,6 @@ return (
         </motion.div>
       )}
     </main>
-
-    {/* === Popup interactivo + glassmorphism === */}
-    <Transition appear show={showRedirectModal} as={Fragment}>
-      <Dialog as="div" className="relative z-50" onClose={() => setShowRedirectModal(false)}>
-        {/* Fondo */}
-        <Transition.Child
-          as={Fragment}
-          enter="ease-out duration-300"
-          enterFrom="opacity-0"
-          enterTo="opacity-100"
-          leave="ease-in duration-200"
-          leaveFrom="opacity-100"
-          leaveTo="opacity-0"
-        >
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" />
-        </Transition.Child>
-
-        {/* Panel */}
-        <div className="fixed inset-0 flex items-center justify-center p-4">
-          <Transition.Child
-            as={Fragment}
-            enter="ease-out duration-300"
-            enterFrom="opacity-0 scale-95"
-            enterTo="opacity-100 scale-100"
-            leave="ease-in duration-200"
-            leaveFrom="opacity-100 scale-100"
-            leaveTo="opacity-0 scale-95"
-          >
-            <Dialog.Panel className="w-full max-w-sm rounded-xl bg-gradient-to-br from-gray-800 to-black p-6 text-center text-white shadow-xl">
-              <Dialog.Title className="text-lg font-bold mb-4">🚀 ¡MMC GO te espera!</Dialog.Title>
-              <p className="text-sm mb-6">Prueba un pick de demo antes de jugar:</p>
-
-              {/* Glassmorphism Demo Card */}
-              <div className="flex flex-col items-center mb-6 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-4 space-y-2">
-                <Image
-                  src="/images/pilots/max-verstappen.png"
-                  alt="Max Verstappen"
-                  width={80}
-                  height={80}
-                  className="rounded-full mb-1"
-                />
-                <h3 className="text-white font-bold">Max Verstappen</h3>
-                <p className="text-gray-300">Línea: 6.5</p>
-
-                <div className="flex w-full gap-2 mt-2">
-                  <button
-                    disabled={demoPick === 'mejor'}
-                    onClick={() => {
-                      clickSound.play();
-                      setDemoPick('mejor');
-                    }}
-                    className={`flex-1 py-2 rounded-xl font-semibold transition ${
-                      demoPick === 'mejor'
-                        ? 'bg-green-500 text-white'
-                        : 'bg-white/20 text-green-400 hover:bg-green-700 hover:text-white'
-                    }`}
-                  >
-                    Mejor
-                  </button>
-                  <button
-                    disabled={demoPick === 'peor'}
-                    onClick={() => {
-                      clickSound.play();
-                      setDemoPick('peor');
-                    }}
-                    className={`flex-1 py-2 rounded-xl font-semibold transition ${
-                      demoPick === 'peor'
-                        ? 'bg-red-500 text-white'
-                        : 'bg-white/20 text-red-400 hover:bg-red-700 hover:text-white'
-                    }`}
-                  >
-                    Peor
-                  </button>
-                </div>
-              </div>
-
-              {/* Botón Confirmar */}
-              <button
-                disabled={!demoPick}
-                onClick={() => {
-                  router.push('/mmc-go');
-                  setShowRedirectModal(false);
-                }}
-                className="w-full px-4 py-2 bg-amber-500 text-black font-semibold rounded-xl disabled:opacity-50"
-              >
-                Ir a MMC GO
-              </button>
-            </Dialog.Panel>
-          </Transition.Child>
-        </div>
-      </Dialog>
-    </Transition>
   </div>
 );
 }

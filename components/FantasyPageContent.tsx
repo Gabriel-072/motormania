@@ -1,7 +1,7 @@
 'use client';
 
 // SECTION: Imports
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { Fragment, useState, useEffect, useRef, useCallback } from 'react';
 import { useUser, useAuth } from '@clerk/nextjs';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createAuthClient } from '@/lib/supabase';
@@ -15,6 +15,8 @@ import { Howl } from 'howler';
 import { Suspense } from 'react';
 import { generateEventId, trackFBEvent } from '@/lib/trackFBEvent';
 import { DriverStanding, ConstructorStanding, RookieStanding, DestructorStanding, Team } from '@/app/types/standings';
+import { Dialog, Transition } from '@headlessui/react';
+import { XMarkIcon } from '@heroicons/react/24/solid';
 
 // SECTION: Type Definitions
 type Prediction = {
@@ -210,6 +212,7 @@ export default function Fantasy({ triggerSignInModal }: FantasyProps) {
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [activeModal, setActiveModal] = useState<string | null>(null);
+  const [showPromoModal, setShowPromoModal] = useState(false);
   const [activeSelectionModal, setActiveSelectionModal] = useState<{ position: keyof Prediction; isTeam: boolean } | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const [currentGp, setCurrentGp] = useState<GpSchedule | null>(null);
@@ -245,6 +248,13 @@ export default function Fantasy({ triggerSignInModal }: FantasyProps) {
       return () => clearTimeout(timeout);
     }
   }, [isLoaded]);
+
+  //Lego promo modal
+  useEffect(() => {
+    // Solo una vez, 2 s después de montar
+    const timer = setTimeout(() => setShowPromoModal(true), 2000);
+    return () => clearTimeout(timer);
+  }, []);
 
  // SECTION: Fetch Data Function
  const fetchData = useCallback(async () => {
@@ -1974,35 +1984,131 @@ const handleSubmit = async () => {
                </motion.div>
              </div>
            </div>
+           
+             {/* --- Leveled-Up Lego MODAL --- */}
+<Transition appear show={showPromoModal} as={Fragment}>
+  <Dialog as="div" className="relative z-50 font-exo2" onClose={() => setShowPromoModal(false)}>
+    {/* Backdrop - slightly darker, more blur */}
+    <Transition.Child
+      as={Fragment}
+      enter="ease-out duration-300"
+      enterFrom="opacity-0"
+      enterTo="opacity-100"
+      leave="ease-in duration-200"
+      leaveFrom="opacity-100"
+      leaveTo="opacity-0"
+    >
+      <div className="fixed inset-0 bg-slate-900/75 backdrop-blur-md" />
+    </Transition.Child>
 
-           {/* --- STICKY PREDICT BUTTON (MOBILE ONLY) --- */}
-           <AnimatePresence>
-               {/* Conditions: GP exists, predictions open (Q or R), not submitted */}
-               {currentGp && (isQualyAllowed || isRaceAllowed) && !submitted && (
-                 <motion.div
-                   initial={{ opacity: 0, scale: 0.5, y: 50 }}
-                   animate={{ opacity: 1, scale: 1, y: 0 }}
-                   exit={{ opacity: 0, scale: 0.5, y: 50 }}
-                   transition={{ type: 'spring', stiffness: 200, damping: 25 }}
-                   // Fixed position, bottom-right, high z-index, hide on medium+ screens
-                   className="fixed bottom-6 right-6 z-40 md:hidden"
-                 >
-                   <button
-                     onClick={handleStickyButtonClick} // Assumes handleStickyButtonClick is defined in the component scope
-                     className="flex items-center gap-2 pl-3 pr-4 py-3 bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 text-white font-exo2 font-bold text-sm rounded-full shadow-xl hover:from-amber-600 hover:to-red-600 focus:outline-none focus:ring-4 focus:ring-amber-300 focus:ring-offset-2 focus:ring-offset-gray-900 transition-all duration-200 transform hover:scale-105 active:scale-100"
-                     aria-label={progress > 0 ? "Continuar predicción" : "Iniciar predicción"} // Assumes 'progress' state is available
-                   >
-                     {/* Lightning Bolt Icon */}
-                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                       <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" />
-                     </svg>
-                     {/* Dynamic Text */}
-                     <span>{progress > 0 ? 'Continuar' : '¡Predecir!'}</span>
-                   </button>
-                 </motion.div>
-               )}
-             </AnimatePresence>
-             {/* --- END STICKY PREDICT BUTTON --- */}
+    {/* Modal Panel Container */}
+    <div className="fixed inset-0 flex items-center justify-center p-4 sm:p-6">
+      <Transition.Child
+        as={Fragment}
+        enter="ease-out duration-300" // Original good, could try spring-like if desired, e.g., transition-[transform,opacity]
+        enterFrom="opacity-0 scale-90" // Start slightly smaller for a more dynamic pop
+        enterTo="opacity-100 scale-100"
+        leave="ease-in duration-200"
+        leaveFrom="opacity-100 scale-100"
+        leaveTo="opacity-0 scale-95"
+      >
+        <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl {/* More rounded */}
+                               bg-gradient-to-br from-slate-800 via-slate-900 to-black {/* Richer dark gradient */}
+                               p-6 sm:p-8 {/* Generous padding */}
+                               text-center text-white shadow-2xl {/* Stronger shadow */}
+                               ring-1 ring-white/10 {/* Subtle border highlight */}
+                              ">
+          {/* Optional: Close Button for accessibility and common UX pattern */}
+          <button
+            type="button"
+            onClick={() => setShowPromoModal(false)}
+            className="absolute top-4 right-4 text-gray-400 hover:text-gray-200 transition-colors duration-150
+                       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 rounded-full p-1"
+            aria-label="Cerrar modal"
+          >
+            <XMarkIcon className="h-6 w-6" />
+          </button>
+
+          <Dialog.Title className="text-xl sm:text-2xl font-bold text-slate-100 mb-3">
+            🚀 ¡Envía tus predicciones!
+          </Dialog.Title>
+
+          {/* Using Dialog.Description for semantic correctness */}
+          <Dialog.Description className="text-sm sm:text-base text-slate-300 leading-relaxed mb-6">
+            Regístrate y participa por un <span className="text-amber-400 font-semibold">Lego McLaren P1</span>.
+          </Dialog.Description>
+
+          <div className="w-full flex justify-center mb-8"> {/* More margin below image */}
+            <Image
+              src="/lego-mclaren.png" // Ensure this path is correct
+              alt="Lego McLaren P1"
+              width={250} // Slightly larger image
+              height={140} // Adjust height proportionally
+              className="rounded-lg shadow-xl object-contain" // shadow-xl for image too
+            />
+          </div>
+
+          <button
+            onClick={() => {
+              // Potentially add analytics tracking here for "understood" click
+              setShowPromoModal(false);
+            }}
+            className="w-full px-5 py-3 bg-amber-500 text-slate-900 font-bold {/* Changed to bold */}
+                       text-base rounded-lg {/* Slightly less rounded than panel for hierarchy */}
+                       hover:bg-amber-400 hover:shadow-md {/* Brighter hover, subtle shadow pop */}
+                       active:bg-amber-600 active:scale-[0.98] {/* Darker active, slight shrink */}
+                       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2
+                       focus-visible:ring-amber-300 focus-visible:ring-offset-slate-900
+                       transition-all duration-150 ease-in-out transform
+                       will-change-transform, background-color, box-shadow {/* Performance hint */}
+                      "
+          >
+            ¡Entendido!
+          </button>
+        </Dialog.Panel>
+      </Transition.Child>
+    </div>
+  </Dialog>
+</Transition>
+
+{/* --- STICKY PREDICT BUTTON (MOBILE ONLY) --- */}
+<AnimatePresence>
+  {currentGp && (isQualyAllowed || isRaceAllowed) && !submitted && (
+    <motion.div
+      initial={{ opacity: 0, y: 50 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 50 }}
+      transition={{ type: 'spring', stiffness: 200, damping: 25 }}
+      // Enhanced container:
+      // - Added paddingBottom to account for iOS home bar (safe-area-inset-bottom)
+      // - Increased z-index slightly just in case, though 40 is usually enough
+      className="fixed bottom-0 inset-x-0 z-50 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:hidden"
+    >
+      <button
+        onClick={handleStickyButtonClick}
+        aria-label={progress > 0 ? 'Continuar predicción' : 'Iniciar predicción'}
+        className="w-full flex justify-center items-center gap-x-2.5 py-3.5 px-6 {/* Adjusted padding for better balance */}
+                   bg-gradient-to-r from-amber-500 via-orange-500 to-red-500
+                   text-white font-exo2 font-bold text-base rounded-xl {/* Maintained original font & rounding */}
+                   shadow-lg hover:shadow-xl {/* Softer initial shadow, more pronounced on hover */}
+                   focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-amber-300/70 {/* Softer, more modern focus ring */}
+                   focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 {/* Kept original offset for dark context */}
+                   transition-all duration-300 ease-in-out {/* Smoother, slightly longer transition */}
+                   hover:-translate-y-0.5 {/* Subtle lift on hover */}
+                   active:scale-95 active:brightness-95 {/* Keep existing scale, slightly dim on active */}
+                   will-change-transform, shadow {/* Hint browser for smoother animations */}
+                  "
+      >
+        {/* Icono rayo - slightly larger and better vertical alignment if needed, though items-center helps */}
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-[22px] w-[22px]" fill="currentColor" viewBox="0 0 20 20"> {/* Slightly increased size */}
+          <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" />
+        </svg>
+        <span className="leading-tight">{progress > 0 ? 'Continuar' : '¡Predecir!'}</span> {/* Ensure text aligns well */}
+      </button>
+    </motion.div>
+  )}
+</AnimatePresence>
+{/* --- END STICKY PREDICT BUTTON --- */}
 
             {/* Modals */}
             <AnimatePresence>
