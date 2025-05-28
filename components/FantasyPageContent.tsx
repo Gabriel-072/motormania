@@ -315,28 +315,17 @@ console.log('🎯 myRow al final:', myRow);
 // Actualiza estado de score/rank inmediatamente
 if (myRow) {
   setTotalScore(myRow.score);
-  const higher = (leaderboardData || []).filter(e => e.score > myRow.score).length;
-  setTotalRank(higher + 1);
+const { count, error: countErr } = await supabase
+  .from('leaderboard')
+  .select('user_id', { head: true, count: 'exact' })
+  .gt('score', myRow.score);
+
+if (!countErr) setTotalRank((count ?? 0) + 1);
 } else {
   setTotalScore(0);
   setTotalRank(null);
 }
 // ——— FIN MI FILA ———
-
-// ——— AÑADE ESTO JUSTO AQUÍ ———
-if (previousResults?.gp_name && user) {
-  const { data: gpScores, error: gpError } = await supabase
-    .from('prediction_scores')
-    .select('user_id, score')
-    .eq('gp_name', previousResults.gp_name)
-    .order('score', { ascending: false });
-
-  if (!gpError && gpScores) {
-    const idx = gpScores.findIndex(r => r.user_id === user.id);
-    setPrevGpRank(idx !== -1 ? idx + 1 : null);
-  }
-}
-// ——— FIN CÁLCULO ÚLTIMO GP ———
 
       if (driverError) fetchErrors.push('Error al cargar driver standings: ' + driverError.message);
       setDriverStandings(driverData || []);
@@ -421,6 +410,21 @@ if (previousResults?.gp_name && user) {
 
         if (resultsError) fetchErrors.push('No se pudieron cargar los resultados previos: ' + resultsError.message);
         setPreviousResults(resultsData || null);
+
+        // Después de setPreviousResults(...)
+
+if (resultsData && user) {
+  const { data: gpScores, error: gpError } = await supabase
+    .from('prediction_scores')
+    .select('user_id, score')
+    .eq('gp_name', resultsData.gp_name)
+    .order('score', { ascending: false });
+
+  if (!gpError && gpScores) {
+    const idx = gpScores.findIndex(r => r.user_id === user.id);
+    setPrevGpRank(idx !== -1 ? idx + 1 : null);   // ← ahora sí se guarda
+  }
+}
 
         if (isSignedIn && user) {
           const { data: scoreData, error: scoreError } = await supabase
@@ -1263,70 +1267,78 @@ const handleSubmit = async () => {
    
 {/* ─── Barra de Puntaje + Botón & Info de Ranking (F1 World Class UI) ─── */}
 <div className="col-span-1 md:col-span-3">
-  {/* Barra de Puntaje + Botón */}
-  <div
-    className="bg-gradient-to-br from-neutral-800 via-neutral-900 to-black rounded-xl shadow-2xl
-               border border-neutral-700/60 hover:border-sky-500/70 transition-all duration-300 overflow-hidden group relative"
-  >
-    {/* Optional: Subtle animated gradient glow for an "active" feel */}
-    <div className="absolute -inset-px rounded-xl opacity-0 group-hover:opacity-50 transition-opacity duration-300 
-                    bg-gradient-to-r from-sky-700 via-sky-500 to-sky-700 blur-lg animate-pulse-slow-läufig"
-         style={{ animationDuration: '4s' }}></div>
+{/* ─── Barra de Puntaje + Botón & Info de Ranking (F1 World-Class UI) ─── */}
+<div className="col-span-1 md:col-span-3">
 
-    {/* Inner bevel/highlight effect */}
-    <div className="absolute inset-0 rounded-xl ring-1 ring-inset ring-white/10 pointer-events-none z-10"></div>
+  {/* === Barra principal === */}
+  <div className="bg-gradient-to-br from-neutral-800 via-neutral-900 to-black rounded-xl shadow-2xl
+                  border border-neutral-700/60 hover:border-sky-500/70 transition-all duration-300
+                  overflow-hidden group relative">
 
+    {/* brillo animado opcional */}
+    <div className="absolute -inset-px rounded-xl opacity-0 group-hover:opacity-50 transition-opacity duration-300
+                    bg-gradient-to-r from-sky-700 via-sky-500 to-sky-700 blur-lg
+                    animate-pulse-slow-läufig"
+         style={{ animationDuration: '4s' }} />
+
+    {/* bisel interno */}
+    <div className="absolute inset-0 rounded-xl ring-1 ring-inset ring-white/10 pointer-events-none z-10" />
+
+    {/* contenido */}
     <div className="relative z-20 px-5 py-4 sm:px-7 sm:py-5 flex items-center justify-between gap-x-6">
-      {/* Bloque de textos en fila */}
-      <div className="flex items-baseline gap-x-5 sm:gap-x-8">
-        {/* Total de la temporada */}
-        <div className="flex items-baseline gap-x-1.5 sm:gap-x-2">
-          <div className="relative">
-            <span className="font-exo2 font-bold text-sky-400 text-xl sm:text-2xl md:text-3xl tracking-tight">
-              {myScore ?? <span className="opacity-50">---</span>}
-            </span>
-            {myScore && <span className="absolute inset-0 -z-10 bg-sky-400/30 blur-md"></span>}
+
+      {/* —— Totales —— */}
+      <div className="flex items-center gap-x-8">
+
+        {/* Acumulado de temporada */}
+        <div className="flex flex-col items-center">
+          <p className="text-xs text-gray-400 uppercase tracking-wide">Temporada</p>
+
+          <div className="flex items-baseline gap-x-1">
+            <span className="text-2xl font-bold text-amber-400">{totalScore ?? '0'}</span>
+            <span className="text-xs text-gray-300">pts</span>
           </div>
-          <span className="text-xs sm:text-sm font-medium text-neutral-400 uppercase tracking-wider">PTS</span>
-          
-          {myRank != null && myRank > 0 && (
-            <span
-              className="text-xs sm:text-sm font-exo2 font-semibold text-sky-300/90 bg-sky-700/40 
-                         px-2.5 py-1 rounded-md tracking-wider border border-sky-600/50"
-            >
-              P{myRank}
-            </span>
+
+          {totalRank != null && (
+            <p className="text-xs text-gray-500 mt-1">#{totalRank} global</p>
           )}
         </div>
-        {/* Puntaje del último GP */}
-        <div>
-          <span className="text-xs sm:text-sm font-exo2 text-neutral-400/90 tracking-wide">
-            Último GP:&nbsp;
-            <span className="font-semibold text-neutral-100">{gpScore ?? '-'} pts</span>
-          </span>
+
+        {/* Puntaje del GP anterior */}
+        <div className="flex flex-col items-center">
+          <p className="text-xs text-gray-400 uppercase tracking-wide">Último GP</p>
+
+          <div className="flex items-baseline gap-x-1">
+          <span className="text-xl font-bold text-emerald-300">
+  {gpScore ?? '-'}
+</span>
+            <span className="text-xs text-gray-300">pts</span>
+          </div>
+
+          {prevGpRank != null && previousResults?.gp_name && (
+            <p className="text-xs text-gray-500 mt-1">
+              P{prevGpRank}&nbsp;en&nbsp;
+              <span className="font-medium text-neutral-200">{previousResults.gp_name}</span>
+            </p>
+          )}
         </div>
       </div>
 
-      {/* Botón siempre a la derecha */}
+      {/* —— Botón Panel —— */}
       <Link href="/f1-fantasy-panel" passHref>
         <button
           className="bg-gradient-to-r from-sky-600 to-sky-500 text-white font-exo2 font-bold text-xs sm:text-sm
-                     px-5 py-2.5 rounded-md shadow-lg hover:from-sky-500 hover:to-sky-400 
+                     px-5 py-2.5 rounded-md shadow-lg hover:from-sky-500 hover:to-sky-400
                      focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400
                      active:scale-95 transition-all duration-150 ease-in-out
-                     flex items-center gap-x-2 group/button border border-sky-700 hover:border-sky-500"
-        >
-          <svg
-            className="w-4 h-4 sm:w-5 sm:h-5 group-hover/button:translate-x-0.5 group-hover/button:scale-110 transition-transform duration-150 text-sky-200"
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-          >
-            <path
-              fillRule="evenodd"
-              d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-1 1H4a1 1 0 01-1-1V3zm10.293 9.293a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L13 13.414V17a1 1 0 11-2 0v-3.586l-1.293 1.293a1 1 0 01-1.414-1.414l3-3z"
-              clipRule="evenodd"
-            />
+                     flex items-center gap-x-2 border border-sky-700 hover:border-sky-500">
+
+          <svg className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-0.5 group-hover:scale-110
+                          transition-transform duration-150 text-sky-200"
+               xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd"
+                  d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-1 1H4a1 1 0 01-1-1V3zm10.293 9.293a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L13 13.414V17a1 1 0 11-2 0v-3.586l-1.293 1.293a1 1 0 01-1.414-1.414l3-3z"
+                  clipRule="evenodd" />
           </svg>
           Panel
         </button>
@@ -1334,22 +1346,27 @@ const handleSubmit = async () => {
     </div>
   </div>
 
-  {/* ←←← Bloque de ranking global y GP anterior (ESTILIZADO) ←←← */}
-  {(totalRank || prevGpRank) && (
-    <div className="col-span-1 md:col-span-3 px-5 pt-2.5 pb-1"> {/* MODIFICADO: pt-2.5 pb-1 para un espaciado más ajustado y estético */}
-      <p className="text-xs sm:text-sm text-neutral-400 font-exo2 tracking-wide leading-relaxed"> {/* MODIFICADO: text-neutral-400, tracking, leading */}
-        {totalRank
-          ? <>Actualmente ocupas la posición <span className="font-semibold text-sky-300">{totalRank}</span> global</> // MODIFICADO: text-sky-300
-          : <>Aún no estás rankeado globalmente</>
-        }
+  {/* ——— Mensaje resumen ——— */}
+  {(totalRank != null || prevGpRank != null) && (
+    <div className="px-5 pt-2.5 pb-1">
+      <p className="text-xs sm:text-sm text-neutral-400 font-exo2 tracking-wide leading-relaxed">
+        {totalRank != null && (
+          <>Actualmente ocupas la posición&nbsp;
+            <span className="font-semibold text-sky-300">{totalRank}</span>&nbsp;global</>
+        )}
         {prevGpRank != null && previousResults?.gp_name && (
-          <>, y ocupaste la posición <span className="font-semibold text-sky-300">{prevGpRank}</span> en el <span className="font-medium text-neutral-200">{previousResults.gp_name}</span></> // MODIFICADO: text-sky-300 y text-neutral-200 para el nombre del GP
+          <>
+            {totalRank != null ? ',' : 'Actualmente'} y fuiste&nbsp;
+            <span className="font-semibold text-sky-300">{prevGpRank}</span>&nbsp;
+            en el&nbsp;
+            <span className="font-medium text-neutral-200">{previousResults.gp_name}</span>
+          </>
         )}
         .
       </p>
     </div>
   )}
-  {/* ←←← Fin bloque ranking */}
+</div>
 </div>
            {/* Countdown - PROPOSAL 2 */}
             {/* Outer animated border div REMOVED */}

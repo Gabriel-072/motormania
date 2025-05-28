@@ -132,7 +132,7 @@ export default function F1FantasyPanel() {
   const { isLoaded, isSignedIn, user } = useUser();
   const { getToken } = useAuth();
   const [seasonScore, setSeasonScore] = useState<number | null>(null);
-  const [lastGpScore, setLastGpScore] = useState<number | null>(null);
+  const [gpScore, setgpScore] = useState<number | null>(null);
   const [myRank, setMyRank] = useState<number | null>(null);
   const [pastPredictions, setPastPredictions] = useState<Prediction[]>([]);
   const [pastScores, setPastScores] = useState<PredictionScore[]>([]);
@@ -423,9 +423,9 @@ export default function F1FantasyPanel() {
       } else {
         setPastScores(scoresData || []);
         if (scoresData && scoresData.length > 0) {
-          setLastGpScore(scoresData[0].score ?? null);   // el registro más nuevo va primero
+          setgpScore(scoresData[0].score ?? null);   // el registro más nuevo va primero
         } else {
-          setLastGpScore(null);
+          setgpScore(null);
         }
         const map = new Map<string, number>();
         scoresData?.forEach((score) => {
@@ -564,12 +564,12 @@ return (
         {/* MOD: Enhanced text styling for the score */}
         <div className="relative">
           <span className="text-2xl sm:text-3xl font-bold text-emerald-400 font-exo2"> {/* MOD: Color slightly brighter */}
-            {lastGpScore ?? <span className="animate-pulse">...</span>}
+            {gpScore ?? <span className="animate-pulse">...</span>}
           </span>
           <span className="absolute -top-1 -right-2 text-md sm:text-lg font-bold text-emerald-500/80 font-exo2">pts</span>
           {/* Subtle glow effect for the score */}
           <div className="absolute inset-0 text-emerald-400 blur-sm opacity-30 -z-10">
-            {lastGpScore ?? ''}
+            {gpScore ?? ''}
           </div>
         </div>
       </div>
