@@ -2049,22 +2049,24 @@ const handleSubmit = async () => {
           </div>
 
           <button
-            onClick={() => {
-              // Potentially add analytics tracking here for "understood" click
-              setShowPromoModal(false);
-            }}
-            className="w-full px-5 py-3 bg-amber-500 text-slate-900 font-bold {/* Changed to bold */}
-                       text-base rounded-lg {/* Slightly less rounded than panel for hierarchy */}
-                       hover:bg-amber-400 hover:shadow-md {/* Brighter hover, subtle shadow pop */}
-                       active:bg-amber-600 active:scale-[0.98] {/* Darker active, slight shrink */}
-                       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2
-                       focus-visible:ring-amber-300 focus-visible:ring-offset-slate-900
-                       transition-all duration-150 ease-in-out transform
-                       will-change-transform, background-color, box-shadow {/* Performance hint */}
-                      "
-          >
-            ¡Entendido!
-          </button>
+  onClick={() => {
+    // Cierra el promo-modal…
+    setShowPromoModal(false);
+
+    // …y, si aún no hay progreso, lanza de inmediato el Paso 1
+    if (!submitted && progress === 0 && currentGp && (isQualyAllowed || isRaceAllowed)) {
+      setTimeout(() => openModal('pole'), 250); // sincrónico con el fade-out del modal
+    }
+  }}
+  className="w-full px-5 py-3 bg-amber-500 text-slate-900 font-bold text-base rounded-lg
+             hover:bg-amber-400 hover:shadow-md
+             active:bg-amber-600 active:scale-[0.98]
+             focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2
+             focus-visible:ring-amber-300 focus-visible:ring-offset-slate-900
+             transition-all duration-150 ease-in-out"
+>
+  ¡Entendido!
+</button>
         </Dialog.Panel>
       </Transition.Child>
     </div>
