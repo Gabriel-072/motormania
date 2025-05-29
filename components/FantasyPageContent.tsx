@@ -2035,7 +2035,7 @@ const handleSubmit = async () => {
 
           {/* Using Dialog.Description for semantic correctness */}
           <Dialog.Description className="text-sm sm:text-base text-slate-300 leading-relaxed mb-6">
-            Regístrate y participa por un <span className="text-amber-400 font-semibold">Lego McLaren P1</span>.
+          Además de la gorra puedes ganar un <span className="text-amber-400 font-semibold">Lego McLaren P1</span>.
           </Dialog.Description>
 
           <div className="w-full flex justify-center mb-8"> {/* More margin below image */}
