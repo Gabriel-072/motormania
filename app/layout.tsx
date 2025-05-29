@@ -13,6 +13,7 @@ import Footer from "@/components/Footer";
 import { Suspense } from "react";
 import HotjarInit from '@/components/HotjarInit';
 import { Analytics } from '@vercel/analytics/next';
+import { SpeedInsights } from "@vercel/speed-insights/next"
 
 const exo2 = Exo_2({ subsets: ["latin"] });
 
