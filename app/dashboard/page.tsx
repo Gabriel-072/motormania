@@ -55,17 +55,11 @@ export default function DashboardPage() {
   const [paymentConfirmed, setPaymentConfirmed] = useState<boolean>(false);
   const [showNumbers, setShowNumbers] = useState<boolean>(false);
 
-  // Modals en cadena: primero upsell extra, luego promo fantasy
-  const [showUpsellExtra, setShowUpsellExtra] = useState<boolean>(false);
+  // Modal promo fantasy
   const [showFantasyPromo, setShowFantasyPromo] = useState<boolean>(false);
 
   const digitalIdRef = useRef<HTMLDivElement>(null);
 
-  // Iniciar upsell de números extra a los 3s
-  useEffect(() => {
-    const timer = setTimeout(() => setShowUpsellExtra(true), 3000);
-    return () => clearTimeout(timer);
-  }, []);
 
   // Fetch de datos
   const fetchData = useCallback(
@@ -123,6 +117,12 @@ export default function DashboardPage() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  useEffect(() => {
+    if (entries.length > 0) {
+      setShowFantasyPromo(true);
+    }
+  }, [entries]);
 
   // Handlers
   const toggleNumbers = () => setShowNumbers((v) => !v);
@@ -475,76 +475,6 @@ export default function DashboardPage() {
           </motion.section>
         )}
 
-        {/* ——— POP-UP UPSELL 5 NÚMEROS EXTRA ——— */}
-        <Transition appear show={showUpsellExtra} as={Fragment}>
-          <Dialog
-            as="div"
-            className="relative z-50"
-            onClose={() => {
-              setShowUpsellExtra(false);
-              setTimeout(() => setShowFantasyPromo(true), 300);
-            }}
-          >
-            <Transition.Child
-              as={Fragment}
-              enter="ease-out duration-300"
-              enterFrom="opacity-0"
-              enterTo="opacity-100"
-              leave="ease-in duration-200"
-              leaveFrom="opacity-100"
-              leaveTo="opacity-0"
-            >
-              <div className="fixed inset-0 bg-black/70 backdrop-blur-sm" />
-            </Transition.Child>
-            <div className="fixed inset-0 flex items-center justify-center p-4">
-              <Transition.Child
-                as={Fragment}
-                enter="ease-out duration-300"
-                enterFrom="opacity-0 scale-95"
-                enterTo="opacity-100 scale-100"
-                leave="ease-in duration-200"
-                leaveFrom="opacity-100 scale-100"
-                leaveTo="opacity-0 scale-95"
-              >
-                <Dialog.Panel className="mx-auto max-w-sm rounded-xl bg-gradient-to-br from-gray-800 to-black p-6 text-center text-white shadow-xl">
-                  <Dialog.Title className="text-2xl font-bold text-amber-400 mb-2">
-                    ¡Oferta Especial!
-                  </Dialog.Title>
-                  <p className="text-gray-300 mb-4">
-                    Lleva {EXTRA_NUMBER_COUNT} números extra por solo{' '}
-                    <span className="font-semibold text-amber-300">
-                      $10.000 COP
-                    </span>
-                    .
-                  </p>
-                  <button
-                    onClick={() => {
-                      trackFBEvent('Upsell_Click', {
-                        params: { product: '5_extra_numbers' },
-                      });
-                      handleBuyExtraNumbers();
-                      setShowUpsellExtra(false);
-                      setTimeout(() => setShowFantasyPromo(true), 300);
-                    }}
-                    className="w-full px-4 py-2 mb-2 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-full transition"
-                  >
-                    ¡Lo quiero!
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowUpsellExtra(false);
-                      setTimeout(() => setShowFantasyPromo(true), 300);
-                    }}
-                    className="text-sm text-gray-400 hover:text-gray-200 underline"
-                  >
-                    Ahora no, gracias
-                  </button>
-                </Dialog.Panel>
-              </Transition.Child>
-            </div>
-          </Dialog>
-        </Transition>
-
         {/* ——— POP-UP PROMO F1 FANTASY ——— */}
         <Transition appear show={showFantasyPromo} as={Fragment}>
           <Dialog
@@ -575,11 +505,11 @@ export default function DashboardPage() {
               >
                 <Dialog.Panel className="mx-auto max-w-sm rounded-xl bg-gradient-to-br from-gray-800 to-black p-6 text-center text-white shadow-xl">
                   <Dialog.Title className="text-2xl font-bold text-cyan-400 mb-2">
-                    ¡Únete a F1 Fantasy Gratis!
+                    ¡Gana una gorra Ferrari!
                   </Dialog.Title>
                   <p className="text-gray-300 mb-4">
-                    Predice el podio, compite con tus amigos y vive la emoción de
-                    cada GP.
+                    Envía tus predicciones para el Gran Premio De España!
+                    y participa por una gorra oficial.
                   </p>
                   <button
                     onClick={() => {
