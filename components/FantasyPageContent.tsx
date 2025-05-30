@@ -238,6 +238,7 @@ export default function Fantasy({ triggerSignInModal }: FantasyProps) {
   const [myScore, setMyScore] = useState<number | null>(null);
   const [myRank, setMyRank] = useState<number | null>(null);
   const [prevGpRank, setPrevGpRank] = useState<number | null>(null);
+  const [conversionTracked, setConversionTracked] = useState(false);
 
   // SECTION: Hydration for Clerk
   useEffect(() => {
