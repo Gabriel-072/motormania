@@ -1258,6 +1258,17 @@ const handleSubmit = async () => {
   }, [isSignedIn, isLoaded, hydrated]); // Depend on Clerk state and hydration
 
 
+  useEffect(() => {
+    if (activeModal === 'share' && !conversionTracked) {
+      trackFBEvent('PrediccionEnviada', {
+        params: { gp_name: currentGp?.gp_name },
+        email: user?.primaryEmailAddress?.emailAddress,
+      });
+      setConversionTracked(true);
+    }
+  }, [activeModal, conversionTracked, currentGp, user]);
+
+
   // SECTION: JSX Return Statement
   if (!hydrated || !isLoaded) {
     return <LoadingAnimation text="Cargando autenticación..." animationDuration={4} />;
@@ -2335,46 +2346,52 @@ const handleSubmit = async () => {
 
               {/* Share/Success Modal */}
               {activeModal === 'share' && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.3 }}
-                  className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-                  onClick={closeModal} // Close on overlay click
-                >
-                  <motion.div
-                    variants={modalVariants}
-                    initial="hidden"
-                    animate="visible"
-                    exit="exit"
-                     transition={{ type: 'spring', damping: 15, stiffness: 200 }}
-                    className="bg-gradient-to-br from-green-900 via-gray-900 to-black p-6 sm:p-8 rounded-xl border border-green-500/40 shadow-xl w-full max-w-[90vw] sm:max-w-md relative text-center" // Success theme
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                     <motion.div
-                        initial={{ scale: 0.5, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        transition={{ delay: 0.2, type: 'spring', stiffness: 300 }}
-                        className="mx-auto mb-4 w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center border-2 border-green-400"
-                     >
-                        <span className="text-4xl text-green-400">✓</span>
-                     </motion.div>
-                    <h2 className="text-xl sm:text-2xl font-bold text-white mb-3 font-exo2">¡Predicciones Enviadas!</h2>
-                    <p className="text-gray-300 mb-6 font-exo2 text-sm sm:text-base">
-                      Tus predicciones para el {submittedPredictions && currentGp?.gp_name ? currentGp.gp_name : 'GP'} han sido registradas. ¡Mucha suerte!
-                      </p>
-                    {/* Optional: Add Share Buttons or Link to Dashboard */}
-                    {/* <div className="flex justify-center space-x-4 mb-6"> ... share buttons ... </div> */}
-                    <button
-                      onClick={closeModal} // Closes modal, doesn't navigate away
-                      className="w-full px-4 py-2.5 bg-gray-800 text-white rounded-lg font-exo2 hover:bg-gray-700 hover:text-green-300 hover:shadow-[0_0_10px_rgba(74,222,128,0.5)] transition-all duration-200 text-sm sm:text-base font-semibold"
-                    >
-                      Cerrar
-                    </button>
-                  </motion.div>
-                </motion.div>
-              )}
+  <motion.div
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    exit={{ opacity: 0 }}
+    transition={{ duration: 0.3 }}
+    className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+    onClick={closeModal}
+  >
+    <motion.div
+      variants={modalVariants}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
+      transition={{ type: 'spring', damping: 15, stiffness: 200 }}
+      className="bg-gradient-to-br from-green-900 via-gray-900 to-black p-6 sm:p-8 rounded-xl border border-green-500/40
+                 shadow-xl w-full max-w-[90vw] sm:max-w-md relative text-center"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <motion.div
+        initial={{ scale: 0.5, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ delay: 0.2, type: 'spring', stiffness: 300 }}
+        className="mx-auto mb-4 w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center border-2 border-green-400"
+      >
+        <span className="text-4xl text-green-400">✓</span>
+      </motion.div>
+
+      <h2 className="text-xl sm:text-2xl font-bold text-white mb-3 font-exo2">
+        ¡Predicciones Enviadas!
+      </h2>
+
+      <p className="text-gray-300 mb-6 font-exo2 text-sm sm:text-base">
+        Tus predicciones para el {submittedPredictions && currentGp?.gp_name ? currentGp.gp_name : 'GP'} han sido registradas. ¡Éxitos!
+      </p>
+
+      <button
+        onClick={closeModal}
+        className="w-full px-4 py-2.5 bg-gray-800 text-white rounded-lg font-exo2
+                   hover:bg-gray-700 hover:text-green-300 hover:shadow-[0_0_10px_rgba(74,222,128,0.5)]
+                   transition-all duration-200 text-sm sm:text-base font-semibold"
+      >
+        Cerrar
+      </button>
+    </motion.div>
+  </motion.div>
+)}
 
               {/* Full Standings Modal */}
               {activeStandingsModal && (
