@@ -8,7 +8,7 @@ import { FaTrophy, FaChevronRight } from 'react-icons/fa';
 export default function LeaderboardsSection() {
   const {
     globalTop10,
-    lastGpTop3,
+    lastGpTop10,
     lastGpName,
     loading,
     error,
@@ -54,7 +54,7 @@ export default function LeaderboardsSection() {
         </ol>
       </motion.div>
 
-      {/* ────────── TOP-3 ÚLTIMO GP ────────── */}
+      {/* ────────── TOP-10 ÚLTIMO GP ────────── */}
       {lastGpName && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -67,7 +67,7 @@ export default function LeaderboardsSection() {
           </h3>
 
           <ol className="space-y-2">
-            {lastGpTop3.map((u, i) => (
+            {lastGpTop10.map((u, i) => (
               <li key={u.user_id} className="flex justify-between">
                 <span>
                   <span

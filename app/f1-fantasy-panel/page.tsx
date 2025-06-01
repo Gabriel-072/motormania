@@ -152,6 +152,7 @@ export default function F1FantasyPanel() {
   const [showRedirectModal, setShowRedirectModal] = useState(false);
   const [demoPick, setDemoPick] = useState<'mejor' | 'peor' | null>(null);
   const clickSound = new Howl({ src: ['/sounds/f1-click.mp3'], volume: 5, preload: true });
+  const [top10LastGP, setTop10LastGP] = useState<{ name: string; score: number }[]>([]);
 
 
   // 5-Question F1 Quiz
@@ -465,6 +466,23 @@ export default function F1FantasyPanel() {
       } else {
         setPreviousResults(null);
       }
+
+      // ──────────────────────────────────────────────────────
+    // AQUÍ → LLAMA A LA VISTA top10_last_gp
+    // ──────────────────────────────────────────────────────
+    // ← ------------- Pega justo de aquí ↓
+    const { data: top10Data, error: top10Error } = await supabase
+    .from('top10_last_gp')
+    .select('*');
+
+  if (top10Error) {
+    console.error('Error al traer top10_last_gp:', top10Error.message);
+  } else {
+    // Esperamos que top10Data sea un arreglo de { name: string; score: number }
+    setTop10LastGP(top10Data || []);
+  }
+  // ← ------------- Hasta aquí ↑
+
     } catch (err) {
       fetchErrors.push('Ocurrió un error al cargar tus datos. Por favor, intenta de nuevo.');
       console.error('Fetch error:', err);
