@@ -15,32 +15,31 @@ export interface BreakdownEntry {
 }
 
 interface UseLastGpBreakdownReturn {
-  top10: BreakdownEntry[];
-  self?: BreakdownEntry;     // ← acá guardaremos el desglose del propio usuario (si existe)
+  self?: BreakdownEntry;
   loading: boolean;
   error: string | null;
 }
 
 /**
  * Hook que:
- *  • Consulta el top 10 general de desglose (prediction_breakdown) para lastGpName.
- *  • También, si le pasas un userId, busca el desglose de ese userId en ese mismo GP, 
- *    incluso si no está en el top 10.
+ *  • Consulta en prediction_breakdown el desglose para un usuario dado (userId)
+ *    en el último GP (lastGpName), y devuelve solo la fila propia.
  */
 export default function useLastGpBreakdown(
   lastGpName: string | null,
   userId?: string
 ): UseLastGpBreakdownReturn {
   const { getToken } = useAuth();
-  const [top10, setTop10]     = useState<BreakdownEntry[]>([]);
   const [self, setSelf]       = useState<BreakdownEntry | undefined>(undefined);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError]     = useState<string | null>(null);
 
   useEffect(() => {
-    if (!lastGpName) {
-      setTop10([]);
+    // Si no hay GP o no hay userId, reseteamos y salimos
+    if (!lastGpName || !userId) {
       setSelf(undefined);
+      setLoading(false);
+      setError(null);
       return;
     }
 
@@ -50,104 +49,57 @@ export default function useLastGpBreakdown(
 
     (async () => {
       try {
+        // 1) Obtener token y cliente Supabase
         const token = await getToken({ template: 'supabase' });
-        if (!token) throw new Error('No se pudo obtener token Supabase.');
-
+        if (!token) throw new Error('No se pudo obtener token de Supabase.');
         const supabase = createAuthClient(token);
 
-        //
-        // 1) TRAER TOP10 DESGLOSE
-        //
-        const { data: rows10, error: err10 } = await supabase
+        // 2) Traer DESGLOSE (prediction_breakdown) para este usuario y GP
+        const { data: breakdownRow, error: breakdownErr } = await supabase
           .from('prediction_breakdown')
-          .select('user_id, pole_score, podium_score, extras_score, total_score')
+          .select(
+            'user_id, pole_score, podium_score, extras_score, total_score'
+          )
           .eq('gp_name', lastGpName)
-          .order('total_score', { ascending: false })
-          .limit(10);
+          .eq('user_id', userId)
+          .maybeSingle();
 
-        if (err10) throw err10;
-
-        if (!rows10) {
+        if (breakdownErr && breakdownErr.code !== 'PGRST116') {
+          throw breakdownErr;
+        }
+        if (!breakdownRow) {
+          // Si no existe fila, dejamos self = undefined
           if (!isCancelled) {
-            setTop10([]);
             setSelf(undefined);
             setLoading(false);
           }
           return;
         }
 
-        //
-        // 2) SI PASARON userId, TRAER ESE DESGLOSE PARTICULAR
-        //
-        let selfRow: BreakdownEntry | undefined = undefined;
-        if (userId) {
-          const { data: ownRows, error: ownErr } = await supabase
-            .from('prediction_breakdown')
-            .select('user_id, pole_score, podium_score, extras_score, total_score')
-            .eq('gp_name', lastGpName)
-            .eq('user_id', userId)
-            .maybeSingle();
-
-          if (ownErr && ownErr.code !== 'PGRST116') throw ownErr;
-          if (ownRows) {
-            selfRow = {
-              user_id: ownRows.user_id,
-              name: '', // vendrá más abajo
-              pole_score: ownRows.pole_score,
-              podium_score: ownRows.podium_score,
-              extras_score: ownRows.extras_score,
-              total_score: ownRows.total_score,
-            };
-          }
-        }
-
-        //
-        // 3) QUERER LOS NOMBRES: sacar todos los user_id de rows10 y también el de selfRow (si existe)
-        //
-        const allIds = new Set<string>();
-        rows10.forEach((r) => allIds.add(r.user_id));
-        if (selfRow) allIds.add(selfRow.user_id);
-        const idArray = Array.from(allIds);
-
-        const { data: usersData, error: usrErr } = await supabase
+        // 3) Obtener el nombre completo desde clerk_users
+        const { data: userData, error: userErr } = await supabase
           .from('clerk_users')
-          .select('clerk_id, full_name')
-          .in('clerk_id', idArray);
+          .select('full_name')
+          .eq('clerk_id', userId)
+          .maybeSingle();
 
-        if (usrErr) throw usrErr;
-
-        // Mapear clerk_id → full_name
-        const nameMap: Record<string, string> = {};
-        usersData?.forEach((u) => {
-          nameMap[u.clerk_id] = u.full_name;
-        });
-
-        //
-        // 4) CONSTRUIR top10_final y self_final
-        //
-        const finalTop10: BreakdownEntry[] = rows10.map((r) => ({
-          user_id: r.user_id,
-          name: nameMap[r.user_id] ?? 'Unknown User',
-          pole_score: r.pole_score,
-          podium_score: r.podium_score,
-          extras_score: r.extras_score,
-          total_score: r.total_score,
-        }));
-
-        let finalSelf: BreakdownEntry | undefined;
-        if (selfRow) {
-          finalSelf = {
-            user_id: selfRow.user_id,
-            name: nameMap[selfRow.user_id] ?? 'Unknown User',
-            pole_score: selfRow.pole_score,
-            podium_score: selfRow.podium_score,
-            extras_score: selfRow.extras_score,
-            total_score: selfRow.total_score,
-          };
+        if (userErr && userErr.code !== 'PGRST116') {
+          throw userErr;
         }
+
+        const name = userData?.full_name ?? 'Unknown User';
+
+        // 4) Construir el objeto final
+        const finalSelf: BreakdownEntry = {
+          user_id: breakdownRow.user_id,
+          name,
+          pole_score: breakdownRow.pole_score,
+          podium_score: breakdownRow.podium_score,
+          extras_score: breakdownRow.extras_score,
+          total_score: breakdownRow.total_score,
+        };
 
         if (!isCancelled) {
-          setTop10(finalTop10);
           setSelf(finalSelf);
           setLoading(false);
         }
@@ -165,5 +117,5 @@ export default function useLastGpBreakdown(
     };
   }, [getToken, lastGpName, userId]);
 
-  return { top10, self, loading, error };
+  return { self, loading, error };
 }
