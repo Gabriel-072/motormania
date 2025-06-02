@@ -850,6 +850,9 @@ return (
           <LastGpBreakdown lastGpName={lastGpName} />
         </div>
 
+        {/* Separador horizontal con algo de margen */}
+        <hr className="border-gray-700 my-6" />
+
         {/* Row 3: Past Predictions */}
         <div className="grid grid-cols-1 gap-4 mb-6">
           <motion.div
