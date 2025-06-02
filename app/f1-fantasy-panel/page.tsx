@@ -10,6 +10,8 @@ import Image from 'next/image';
 import Link from 'next/link';
 import LoadingAnimation from '@/components/LoadingAnimation';
 import LeaderboardsSection from '@/components/LeaderboardsSection';
+import useFantasyLeaderboards from '@/hooks/useFantasyLeaderboards';
+import LastGpBreakdown from '@/components/LastGpBreakdown';
 import { Dialog, Transition } from '@headlessui/react';
 import { Fragment } from 'react';  // si no lo tienes ya
 import { Howl } from 'howler';
@@ -153,6 +155,8 @@ export default function F1FantasyPanel() {
   const [demoPick, setDemoPick] = useState<'mejor' | 'peor' | null>(null);
   const clickSound = new Howl({ src: ['/sounds/f1-click.mp3'], volume: 5, preload: true });
   const [top10LastGP, setTop10LastGP] = useState<{ name: string; score: number }[]>([]);
+  const { lastGpName } = useFantasyLeaderboards();
+  
 
 
   // 5-Question F1 Quiz
@@ -840,6 +844,11 @@ return (
         </div>
 
         <LeaderboardsSection />
+
+        {/* ─── Mostrar desglose (top10 + “tu fila”) ─── */}
+        <div className="mt-8">
+          <LastGpBreakdown lastGpName={lastGpName} />
+        </div>
 
         {/* Row 3: Past Predictions */}
         <div className="grid grid-cols-1 gap-4 mb-6">
