@@ -1,7 +1,8 @@
 // components/LastGpBreakdown.tsx
+
 'use client';
 
-import React, { useState } from 'react';           // <-- añadimos useState aquí
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import useLastGpBreakdown, { BreakdownEntry } from '@/hooks/useLastGpBreakdown';
 import { useUser } from '@clerk/nextjs';
@@ -14,102 +15,228 @@ interface Props {
 export default function LastGpBreakdown({ lastGpName }: Props) {
   const { user } = useUser();
   const userId = user?.id;
-  const [showModal, setShowModal] = useState(false);  // <-- estado para controlar el modal
+  const [showModal, setShowModal] = useState(false);
 
   const { self, loading, error } = useLastGpBreakdown(lastGpName, userId);
 
   if (!lastGpName) {
     return (
-      <p className="py-6 text-center text-gray-400 font-exo2">
-        Aún no hay carrera procesada.
-      </p>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="relative overflow-hidden bg-gradient-to-br from-neutral-900/90 to-neutral-800/90 backdrop-blur-sm border border-neutral-700/30 rounded-2xl p-8 shadow-2xl"
+      >
+        <div className="absolute inset-0 bg-gradient-to-r from-orange-500/5 to-amber-500/5"></div>
+        <div className="relative flex flex-col items-center justify-center min-h-[120px]">
+          <div className="w-16 h-16 rounded-full bg-neutral-800/50 flex items-center justify-center mb-4">
+            <div className="w-8 h-8 rounded-full border-2 border-neutral-600 border-dashed"></div>
+          </div>
+          <p className="text-center text-neutral-400 font-exo2 text-lg">
+            Aún no hay carrera procesada.
+          </p>
+        </div>
+      </motion.div>
     );
   }
 
   if (loading) {
     return (
-      <p className="py-6 text-center animate-pulse font-exo2">
-        Cargando tu desglose de puntos…
-      </p>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="relative overflow-hidden bg-gradient-to-br from-neutral-900/90 to-neutral-800/90 backdrop-blur-sm border border-neutral-700/30 rounded-2xl p-8 shadow-2xl"
+      >
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-purple-500/5"></div>
+        <div className="relative flex flex-col items-center justify-center min-h-[120px]">
+          <div className="relative w-16 h-16 mb-4">
+            <div className="absolute inset-0 rounded-full border-4 border-neutral-800"></div>
+            <div className="absolute inset-0 rounded-full border-4 border-blue-500 border-t-transparent animate-spin"></div>
+          </div>
+          <p className="text-center text-neutral-300 font-exo2 text-lg animate-pulse">
+            Cargando tu desglose de puntos…
+          </p>
+        </div>
+      </motion.div>
     );
   }
 
   if (error) {
     return (
-      <p className="py-6 text-center text-red-500 font-exo2">
-        {error}
-      </p>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="relative overflow-hidden bg-gradient-to-br from-red-900/20 to-neutral-900/90 backdrop-blur-sm border border-red-500/30 rounded-2xl p-8 shadow-2xl"
+      >
+        <div className="absolute inset-0 bg-gradient-to-r from-red-500/10 to-red-600/5"></div>
+        <div className="relative flex flex-col items-center justify-center min-h-[120px]">
+          <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mb-4">
+            <div className="w-8 h-8 text-red-400">⚠</div>
+          </div>
+          <p className="text-center text-red-400 font-exo2 text-lg">
+            {error}
+          </p>
+        </div>
+      </motion.div>
     );
   }
 
   if (!self) {
     return (
-      <p className="py-6 text-center text-gray-400 font-exo2">
-        No encontré tu predicción para <strong>{lastGpName}</strong> o no enviaste nada.
-      </p>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="relative overflow-hidden bg-gradient-to-br from-neutral-900/90 to-neutral-800/90 backdrop-blur-sm border border-neutral-700/30 rounded-2xl p-8 shadow-2xl"
+      >
+        <div className="absolute inset-0 bg-gradient-to-r from-gray-500/5 to-neutral-500/5"></div>
+        <div className="relative flex flex-col items-center justify-center min-h-[120px]">
+          <div className="w-16 h-16 rounded-full bg-neutral-800/50 flex items-center justify-center mb-4">
+            <div className="w-8 h-8 text-neutral-500">❓</div>
+          </div>
+          <p className="text-center text-neutral-400 font-exo2 text-lg">
+            No encontré tu predicción para <strong className="text-white">{lastGpName}</strong> o no enviaste nada.
+          </p>
+        </div>
+      </motion.div>
     );
   }
+
+  const scoreCards = [
+    {
+      label: 'Pole',
+      value: self.pole_score,
+      color: 'from-amber-500 to-yellow-500',
+      bgColor: 'bg-amber-500/10',
+      textColor: 'text-amber-300',
+      icon: '🏁'
+    },
+    {
+      label: 'Podio',
+      value: self.podium_score,
+      color: 'from-blue-500 to-cyan-500',
+      bgColor: 'bg-blue-500/10',
+      textColor: 'text-blue-300',
+      icon: '🏆'
+    },
+    {
+      label: 'Extras',
+      value: self.extras_score,
+      color: 'from-green-500 to-emerald-500',
+      bgColor: 'bg-green-500/10',
+      textColor: 'text-green-300',
+      icon: '⭐'
+    }
+  ];
 
   return (
     <>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-neutral-900/80 border border-neutral-700/60 rounded-xl p-4 shadow-xl"
+        className="relative overflow-hidden bg-gradient-to-br from-neutral-900/95 to-neutral-800/95 backdrop-blur-sm border border-neutral-700/40 rounded-2xl shadow-2xl"
       >
-        <h3 className="text-lg font-semibold mb-3 font-exo2 text-orange-400">
-          Tu desglose de puntos – {lastGpName}
-        </h3>
-
-        <div className="overflow-x-auto">
-          <table className="w-full table-auto text-sm sm:text-base font-exo2">
-            <thead>
-              <tr className="text-left text-gray-300">
-                <th className="px-2 py-1">Categoría</th>
-                <th className="px-2 py-1 text-center">Puntos</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr className="bg-gray-800/70">
-                <td className="px-2 py-1">Pole</td>
-                <td className="px-2 py-1 text-center text-amber-300">
-                  {self.pole_score}
-                </td>
-              </tr>
-              <tr className="bg-gray-800/80">
-                <td className="px-2 py-1">Podio</td>
-                <td className="px-2 py-1 text-center text-blue-300">
-                  {self.podium_score}
-                </td>
-              </tr>
-              <tr className="bg-gray-800/70">
-                <td className="px-2 py-1">Extras</td>
-                <td className="px-2 py-1 text-center text-green-300">
-                  {self.extras_score}
-                </td>
-              </tr>
-              <tr className="bg-gray-800/80">
-                <td className="px-2 py-1 font-semibold text-white">Total</td>
-                <td className="px-2 py-1 text-center font-semibold text-white">
-                  {self.total_score}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        {/* ───────── Botón para abrir el modal “Sistema de Puntuación” ───────── */}
-        <div className="mt-4 flex justify-end">
-          <button
-            className="inline-flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-exo2 font-semibold rounded-md shadow-sm transition"
-            onClick={() => setShowModal(true)}
+        {/* Decorative background elements */}
+        <div className="absolute inset-0 bg-gradient-to-r from-orange-500/5 via-transparent to-amber-500/5"></div>
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-orange-500 via-amber-500 to-orange-500"></div>
+        
+        <div className="relative p-6">
+          {/* Header */}
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.1 }}
+            className="mb-6"
           >
-            SISTEMA DE PUNTUACIÓN
-          </button>
+            <h3 className="text-2xl font-bold font-exo2 bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent mb-2">
+              Tu desglose de puntos
+            </h3>
+            <p className="text-neutral-400 font-exo2 text-lg">
+              {lastGpName}
+            </p>
+          </motion.div>
+
+          {/* Score Cards Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+            {scoreCards.map((card, index) => (
+              <motion.div
+                key={card.label}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 + index * 0.1 }}
+                className={`relative overflow-hidden ${card.bgColor} backdrop-blur-sm border border-neutral-700/50 rounded-xl p-4 group hover:scale-105 transition-all duration-300`}
+              >
+                <div className={`absolute inset-0 bg-gradient-to-br ${card.color} opacity-0 group-hover:opacity-10 transition-opacity duration-300`}></div>
+                <div className="relative">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-neutral-400 font-exo2">
+                      {card.label}
+                    </span>
+                    <span className="text-lg opacity-60">
+                      {card.icon}
+                    </span>
+                  </div>
+                  <div className={`text-2xl font-bold ${card.textColor} font-exo2`}>
+                    {card.value}
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* Total Score */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.5 }}
+            className="relative overflow-hidden bg-gradient-to-r from-neutral-800/80 to-neutral-700/80 backdrop-blur-sm border border-neutral-600/50 rounded-xl p-6 mb-6"
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-white/5 to-transparent"></div>
+            <div className="relative flex items-center justify-between">
+              <div>
+                <h4 className="text-lg font-semibold text-white font-exo2 mb-1">
+                  Puntuación Total
+                </h4>
+                <p className="text-sm text-neutral-400 font-exo2">
+                  Suma de todos los puntos obtenidos
+                </p>
+              </div>
+              <div className="text-right">
+                <div className="text-4xl font-bold text-white font-exo2 mb-1">
+                  {self.total_score}
+                </div>
+                <div className="text-sm text-neutral-400 font-exo2">
+                  puntos
+                </div>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Action Button */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6 }}
+            className="flex justify-end"
+          >
+            <button
+              className="group relative overflow-hidden bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white font-exo2 font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+              onClick={() => setShowModal(true)}
+            >
+              <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              <div className="relative flex items-center gap-2">
+                <span>SISTEMA DE PUNTUACIÓN</span>
+                <motion.div
+                  animate={{ x: [0, 4, 0] }}
+                  transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                >
+                  →
+                </motion.div>
+              </div>
+            </button>
+          </motion.div>
         </div>
       </motion.div>
 
-      {/* ───────── Componente del Modal ───────── */}
+      {/* Modal */}
       <ScoringSystemModal isOpen={showModal} onClose={() => setShowModal(false)} />
     </>
   );
