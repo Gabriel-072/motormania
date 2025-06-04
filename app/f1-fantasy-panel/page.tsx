@@ -605,133 +605,227 @@ return (
     </div>
   </div>
 </div>
-{/* ───────── Tarjeta Ganador último GP ───────── */}
-<div
-  className="animate-rotate-border rounded-xl p-px"
-  style={{
-    //@ts-ignore
-    '--border-angle': '0deg',
-    background: `conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #f59e0b 20deg, #d4af37 30deg, #f59e0b 40deg, transparent 50deg, transparent 360deg)`,
-    animation: `rotate-border 3s linear infinite reverse`,
-  }}
->
-  <motion.div
-    className={`relative p-3 sm:p-4 pb-0 rounded-xl shadow-lg z-10 bg-gradient-to-br h-40 overflow-hidden ${
-      previousResults?.gp1 && driverToTeam[previousResults.gp1] && teamColors[driverToTeam[previousResults.gp1]]
-        ? `${teamColors[driverToTeam[previousResults.gp1]].gradientFrom} ${teamColors[driverToTeam[previousResults.gp1]].gradientTo}`
-        : 'from-gray-700 to-gray-600'
-    }`}
-  >
-    <div className="absolute inset-0 bg-gradient-to-bl from-black/70 via-black/40 to-transparent z-0 pointer-events-none" />
-    <div className="relative z-10 pr-[35%] sm:pr-[40%] flex flex-col justify-center h-full space-y-1">
-      {previousResults?.gp1 ? (
-        <>
-          <div className="flex items-center gap-2">
-            <span className="text-amber-400 text-lg sm:text-xl drop-shadow-md">🏆</span>
-            <p className="text-base sm:text-lg font-semibold text-white font-exo2 leading-tight drop-shadow-md">
-              Ganador: {previousResults.gp1.split(' ')[1]}
-            </p>
-          </div>
-          <p className="text-xs sm:text-sm text-gray-200 font-exo2 leading-tight drop-shadow-md">
-            {previousResults.gp_name}
-          </p>
-          <p className="text-[10px] sm:text-xs text-gray-300 font-exo2 leading-tight drop-shadow-md">
-            {driverToTeam[previousResults.gp1] || 'Equipo Desconocido'}
-          </p>
-        </>
-      ) : (
-        <div className="flex items-center gap-2">
-          <span className="text-gray-400 text-lg sm:text-xl">🏁</span>
-          <p className="text-gray-300 font-exo2 text-xs sm:text-sm">
-            No hay resultados previos disponibles.
-          </p>
-        </div>
-      )}
-    </div>
-    {previousResults?.gp1 && (
-      <motion.div
-        initial={{ x: 50, opacity: 0 }}
-        animate={{ x: 0, opacity: 1 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
-        className="absolute bottom-0 right-[-5px] w-[70%] sm:w-[75%] max-w-[200px] h-full"
-      >
-        <Image
-          src={getDriverImage(previousResults.gp1)}
-          alt={previousResults.gp1}
-          fill
-          sizes="(max-width: 640px) 70vw, (max-width: 840px) 75vw, 200px"
-          className="object-contain object-bottom drop-shadow-xl"
-        />
-      </motion.div>
-    )}
-  </motion.div>
-</div>
 
-{/* ───────── Tarjeta Pole ───────── */}
-<div
-  className="animate-rotate-border rounded-xl p-px"
-  style={{
-    //@ts-ignore
-    '--border-angle': '45deg',
-    background: `conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #1d4ed8 20deg, #3b82f6 30deg, #1d4ed8 40deg, transparent 50deg, transparent 360deg)`,
-    animation: `rotate-border 3.5s linear infinite`,
-  }}
->
-  <motion.div
-    className={`relative p-3 sm:p-4 pb-0 rounded-xl shadow-lg z-10 bg-gradient-to-br h-40 overflow-hidden ${
-      previousResults?.pole1 && driverToTeam[previousResults.pole1] && teamColors[driverToTeam[previousResults.pole1]]
-        ? `${teamColors[driverToTeam[previousResults.pole1]].gradientFrom} ${teamColors[driverToTeam[previousResults.pole1]].gradientTo}`
-        : 'from-gray-700 to-gray-600'
-    }`}
+{/* Separador horizontal con algo de margen */}
+<hr className="border-gray-700 my-6" />
+
+{/* ─── Mostrar desglose (top10 + “tu fila”) ─── */}
+<div className="mt-8">
+          <LastGpBreakdown lastGpName={lastGpName} />
+        </div>
+
+{/* Separador horizontal con algo de margen */}
+<hr className="border-gray-700 my-6" />
+
+<LeaderboardsSection />
+
+        {/* Separador horizontal con algo de margen */}
+        <hr className="border-gray-700 my-6" />
+
+{/* ──────────────────────────────────────────────
+   BLOQUE PRINCIPAL DE RESULTADOS (3 tarjetas) ─
+   Copia / pega este bloque completo en lugar de
+   la sección anterior de Ganador-Pole-Vuelta   ─
+────────────────────────────────────────────── */}
+<div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+  {/* ───────── Tarjeta Ganador último GP ───────── */}
+  <div
+    className="animate-rotate-border rounded-xl p-px"
+    style={{
+      //@ts-ignore
+      '--border-angle': '0deg',
+      background:
+        'conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #f59e0b 20deg, #d4af37 30deg, #f59e0b 40deg, transparent 50deg, transparent 360deg)',
+      animation: 'rotate-border 3s linear infinite reverse',
+    }}
   >
-    <div className="absolute inset-0 bg-gradient-to-bl from-black/70 via-black/40 to-transparent z-0 pointer-events-none" />
-    <div className="relative z-10 pr-[35%] sm:pr-[40%] flex flex-col justify-center h-full space-y-1">
-      {previousResults?.pole1 ? (
-        <>
+    <motion.div
+      className={`relative p-3 sm:p-4 pb-0 rounded-xl shadow-lg z-10 bg-gradient-to-br h-40 overflow-hidden ${
+        previousResults?.gp1 &&
+        driverToTeam[previousResults.gp1] &&
+        teamColors[driverToTeam[previousResults.gp1]]
+          ? `${teamColors[driverToTeam[previousResults.gp1]].gradientFrom} ${teamColors[driverToTeam[previousResults.gp1]].gradientTo}`
+          : 'from-gray-700 to-gray-600'
+      }`}
+    >
+      <div className="absolute inset-0 bg-gradient-to-bl from-black/70 via-black/40 to-transparent z-0 pointer-events-none" />
+      <div className="relative z-10 pr-[35%] sm:pr-[40%] flex flex-col justify-center h-full space-y-1">
+        {previousResults?.gp1 ? (
+          <>
+            <div className="flex items-center gap-2">
+              <span className="text-amber-400 text-lg sm:text-xl drop-shadow-md">🏆</span>
+              <p className="text-base sm:text-lg font-semibold text-white font-exo2 leading-tight drop-shadow-md">
+                Ganador: {previousResults.gp1.split(' ')[1]}
+              </p>
+            </div>
+            <p className="text-xs sm:text-sm text-gray-200 font-exo2 leading-tight drop-shadow-md">
+              {previousResults.gp_name}
+            </p>
+            <p className="text-[10px] sm:text-xs text-gray-300 font-exo2 leading-tight drop-shadow-md">
+              {driverToTeam[previousResults.gp1] || 'Equipo Desconocido'}
+            </p>
+          </>
+        ) : (
           <div className="flex items-center gap-2">
-            <span className="text-blue-400 text-lg sm:text-xl drop-shadow-md">🏁</span>
-            <p className="text-base sm:text-lg font-semibold text-white font-exo2 leading-tight drop-shadow-md">
-              Pole: {previousResults.pole1.split(' ')[1]}
+            <span className="text-gray-400 text-lg sm:text-xl">🏁</span>
+            <p className="text-gray-300 font-exo2 text-xs sm:text-sm">
+              No hay resultados previos disponibles.
             </p>
           </div>
-          <p className="text-xs sm:text-sm text-gray-200 font-exo2 leading-tight drop-shadow-md">
-            {previousResults.gp_name}
-          </p>
-          <p className="text-[10px] sm:text-xs text-gray-300 font-exo2 leading-tight drop-shadow-md">
-            {driverToTeam[previousResults.pole1] || 'Equipo Desconocido'}
-          </p>
-        </>
-      ) : (
-        <div className="flex items-center gap-2">
-          <span className="text-gray-400 text-lg sm:text-xl">🏁</span>
-          <p className="text-gray-300 font-exo2 text-xs sm:text-sm">
-            No hay datos de pole.
-          </p>
-        </div>
+        )}
+      </div>
+      {previousResults?.gp1 && (
+        <motion.div
+          initial={{ x: 50, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+          className="absolute bottom-0 right-[-5px] w-[70%] sm:w-[75%] max-w-[200px] h-full"
+        >
+          <Image
+            src={getDriverImage(previousResults.gp1)}
+            alt={previousResults.gp1}
+            fill
+            sizes="(max-width: 640px) 70vw, (max-width: 840px) 75vw, 200px"
+            className="object-contain object-bottom drop-shadow-xl"
+          />
+        </motion.div>
       )}
-    </div>
-    {previousResults?.pole1 && (
-      <motion.div
-        initial={{ x: 50, opacity: 0 }}
-        animate={{ x: 0, opacity: 1 }}
-        transition={{ duration: 0.5, delay: 0.3 }}
-        className="absolute bottom-0 right-[-5px] w-[70%] sm:w-[75%] max-w-[200px] h-full"
-      >
-        <Image
-          src={getDriverImage(previousResults.pole1)}
-          alt={previousResults.pole1}
-          fill
-          sizes="(max-width: 640px) 70vw, (max-width: 840px) 75vw, 200px"
-          className="object-contain object-bottom drop-shadow-xl"
-        />
-      </motion.div>
-    )}
-  </motion.div>
+    </motion.div>
+  </div>
+
+  {/* ───────── Tarjeta Pole ───────── */}
+  <div
+    className="animate-rotate-border rounded-xl p-px"
+    style={{
+      //@ts-ignore
+      '--border-angle': '45deg',
+      background:
+        'conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #1d4ed8 20deg, #3b82f6 30deg, #1d4ed8 40deg, transparent 50deg, transparent 360deg)',
+      animation: 'rotate-border 3.5s linear infinite',
+    }}
+  >
+    <motion.div
+      className={`relative p-3 sm:p-4 pb-0 rounded-xl shadow-lg z-10 bg-gradient-to-br h-40 overflow-hidden ${
+        previousResults?.pole1 &&
+        driverToTeam[previousResults.pole1] &&
+        teamColors[driverToTeam[previousResults.pole1]]
+          ? `${teamColors[driverToTeam[previousResults.pole1]].gradientFrom} ${teamColors[driverToTeam[previousResults.pole1]].gradientTo}`
+          : 'from-gray-700 to-gray-600'
+      }`}
+    >
+      <div className="absolute inset-0 bg-gradient-to-bl from-black/70 via-black/40 to-transparent z-0 pointer-events-none" />
+      <div className="relative z-10 pr-[35%] sm:pr-[40%] flex flex-col justify-center h-full space-y-1">
+        {previousResults?.pole1 ? (
+          <>
+            <div className="flex items-center gap-2">
+              <span className="text-blue-400 text-lg sm:text-xl drop-shadow-md">🏁</span>
+              <p className="text-base sm:text-lg font-semibold text-white font-exo2 leading-tight drop-shadow-md">
+                Pole: {previousResults.pole1.split(' ')[1]}
+              </p>
+            </div>
+            <p className="text-xs sm:text-sm text-gray-200 font-exo2 leading-tight drop-shadow-md">
+              {previousResults.gp_name}
+            </p>
+            <p className="text-[10px] sm:text-xs text-gray-300 font-exo2 leading-tight drop-shadow-md">
+              {driverToTeam[previousResults.pole1] || 'Equipo Desconocido'}
+            </p>
+          </>
+        ) : (
+          <div className="flex items-center gap-2">
+            <span className="text-gray-400 text-lg sm:text-xl">🏁</span>
+            <p className="text-gray-300 font-exo2 text-xs sm:text-sm">
+              No hay datos de pole.
+            </p>
+          </div>
+        )}
+      </div>
+      {previousResults?.pole1 && (
+        <motion.div
+          initial={{ x: 50, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          transition={{ duration: 0.5, delay: 0.3 }}
+          className="absolute bottom-0 right-[-5px] w-[70%] sm:w-[75%] max-w-[200px] h-full"
+        >
+          <Image
+            src={getDriverImage(previousResults.pole1)}
+            alt={previousResults.pole1}
+            fill
+            sizes="(max-width: 640px) 70vw, (max-width: 840px) 75vw, 200px"
+            className="object-contain object-bottom drop-shadow-xl"
+          />
+        </motion.div>
+      )}
+    </motion.div>
+  </div>
+
+  {/* ───────── Tarjeta Vuelta Rápida ───────── */}
+  <div
+    className="animate-rotate-border rounded-xl p-px"
+    style={{
+      //@ts-ignore
+      '--border-angle': '180deg',
+      background:
+        'conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #16a34a 20deg, #86efac 30deg, #16a34a 40deg, transparent 50deg, transparent 360deg)',
+      animation: 'rotate-border 4s linear infinite',
+    }}
+  >
+    <motion.div
+      className={`relative p-3 sm:p-4 pb-0 rounded-xl shadow-lg z-10 bg-gradient-to-br h-40 overflow-hidden ${
+        previousResults?.fastest_lap_driver &&
+        driverToTeam[previousResults.fastest_lap_driver] &&
+        teamColors[driverToTeam[previousResults.fastest_lap_driver]]
+          ? `${teamColors[driverToTeam[previousResults.fastest_lap_driver]].gradientFrom} ${teamColors[driverToTeam[previousResults.fastest_lap_driver]].gradientTo}`
+          : 'from-gray-700 to-gray-600'
+      }`}
+    >
+      <div className="absolute inset-0 bg-gradient-to-bl from-black/70 via-black/40 to-transparent z-0 pointer-events-none" />
+      <div className="relative z-10 pr-[35%] sm:pr-[40%] flex flex-col justify-center h-full space-y-1">
+        {previousResults?.fastest_lap_driver ? (
+          <>
+            <div className="flex items-center gap-2">
+              <span className="text-green-400 text-lg sm:text-xl drop-shadow-md">⏱️</span>
+              <p className="text-base sm:text-lg font-semibold text-white font-exo2 leading-tight drop-shadow-md">
+                Vuelta Rápida: {previousResults.fastest_lap_driver.split(' ')[1]}
+              </p>
+            </div>
+            <p className="text-xs sm:text-sm text-gray-200 font-exo2 leading-tight drop-shadow-md">
+              {previousResults.gp_name}
+            </p>
+            <p className="text-[10px] sm:text-xs text-gray-300 font-exo2 leading-tight drop-shadow-md">
+              {driverToTeam[previousResults.fastest_lap_driver] || 'Equipo Desconocido'}
+            </p>
+          </>
+        ) : (
+          <div className="flex items-center gap-2">
+            <span className="text-gray-400 text-lg sm:text-xl">⏱️</span>
+            <p className="text-gray-300 font-exo2 text-xs sm:text-sm">
+              No hay datos de vuelta rápida.
+            </p>
+          </div>
+        )}
+      </div>
+      {previousResults?.fastest_lap_driver && (
+        <motion.div
+          initial={{ x: 50, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          transition={{ duration: 0.5, delay: 0.4 }}
+          className="absolute bottom-0 right-[-5px] w-[70%] sm:w-[75%] max-w-[200px] h-full"
+        >
+          <Image
+            src={getDriverImage(previousResults.fastest_lap_driver)}
+            alt={previousResults.fastest_lap_driver}
+            fill
+            sizes="(max-width: 640px) 70vw, (max-width: 840px) 75vw, 200px"
+            className="object-contain object-bottom drop-shadow-xl"
+          />
+        </motion.div>
+      )}
+    </motion.div>
+  </div>
 </div>
 
 {/* Row 2: Additional Results */}
-<div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-  {/* Vuelta Rápida Card */}
+<div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">  {/* Vuelta Rápida Card */}
   <div
     className="animate-rotate-border rounded-xl p-px"
     style={{
@@ -915,15 +1009,6 @@ return (
   </div>
 </div>
 
-        <LeaderboardsSection />
-
-        {/* ─── Mostrar desglose (top10 + “tu fila”) ─── */}
-        <div className="mt-8">
-          <LastGpBreakdown lastGpName={lastGpName} />
-        </div>
-
-        {/* Separador horizontal con algo de margen */}
-        <hr className="border-gray-700 my-6" />
 
         {/* Row 3: Past Predictions */}
         <div className="grid grid-cols-1 gap-4 mb-6">
