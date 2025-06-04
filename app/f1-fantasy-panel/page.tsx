@@ -825,67 +825,7 @@ return (
 </div>
 
 {/* Row 2: Additional Results */}
-<div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">  {/* Vuelta Rápida Card */}
-  <div
-    className="animate-rotate-border rounded-xl p-px"
-    style={{
-      //@ts-ignore
-      '--border-angle': '180deg',
-      background: `conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #16a34a 20deg, #86efac 30deg, #16a34a 40deg, transparent 50deg, transparent 360deg)`,
-      animation: `rotate-border 4s linear infinite`,
-    }}
-  >
-    <motion.div
-      className={`relative p-3 sm:p-4 pb-0 rounded-xl shadow-lg z-10 bg-gradient-to-br h-40 overflow-hidden ${
-        previousResults?.fastest_lap_driver && driverToTeam[previousResults.fastest_lap_driver] && teamColors[driverToTeam[previousResults.fastest_lap_driver]]
-          ? `${teamColors[driverToTeam[previousResults.fastest_lap_driver]].gradientFrom} ${teamColors[driverToTeam[previousResults.fastest_lap_driver]].gradientTo}`
-          : 'from-gray-700 to-gray-600'
-      }`}
-    >
-      <div className="absolute inset-0 bg-gradient-to-bl from-black/70 via-black/40 to-transparent z-0 pointer-events-none" />
-      <div className="relative z-10 pr-[35%] sm:pr-[40%] flex flex-col justify-center h-full space-y-1">
-        {previousResults?.fastest_lap_driver ? (
-          <>
-            <div className="flex items-center gap-2">
-              <span className="text-green-400 text-lg sm:text-xl drop-shadow-md">⏱️</span>
-              <p className="text-base sm:text-lg font-semibold text-white font-exo2 leading-tight drop-shadow-md">
-                Vuelta Rápida: {previousResults.fastest_lap_driver.split(' ')[1]}
-              </p>
-            </div>
-            <p className="text-xs sm:text-sm text-gray-200 font-exo2 leading-tight drop-shadow-md">
-              {previousResults.gp_name}
-            </p>
-            <p className="text-[10px] sm:text-xs text-gray-300 font-exo2 leading-tight drop-shadow-md">
-              {driverToTeam[previousResults.fastest_lap_driver] || 'Equipo Desconocido'}
-            </p>
-          </>
-        ) : (
-          <div className="flex items-center gap-2">
-            <span className="text-gray-400 text-lg sm:text-xl">⏱️</span>
-            <p className="text-gray-300 font-exo2 text-xs sm:text-sm">
-              No hay datos de vuelta rápida.
-            </p>
-          </div>
-        )}
-      </div>
-      {previousResults?.fastest_lap_driver && (
-        <motion.div
-          initial={{ x: 50, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          transition={{ duration: 0.5, delay: 0.4 }}
-          className="absolute bottom-0 right-[-5px] w-[70%] sm:w-[75%] max-w-[200px] h-full"
-        >
-          <Image
-            src={getDriverImage(previousResults.fastest_lap_driver)}
-            alt={previousResults.fastest_lap_driver}
-            fill
-            sizes="(max-width: 640px) 70vw, (max-width: 840px) 75vw, 200px"
-            className="object-contain object-bottom drop-shadow-xl"
-          />
-        </motion.div>
-      )}
-    </motion.div>
-  </div>
+<div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
 
   {/* Piloto del Día Card */}
   <div
@@ -948,6 +888,68 @@ return (
       )}
     </motion.div>
   </div>
+
+  {/* Column 3 - Fastest Pit Stop - OPTIMIZED Edge-to-Edge Image */}
+              <div
+                className="animate-rotate-border rounded-xl p-px"
+                style={{
+                  //@ts-ignore
+                  '--border-angle': '180deg',
+                  background: `conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #22d3ee 20deg, #0d9488 30deg, #22d3ee 40deg, transparent 50deg, transparent 360deg)`,
+                  animation: `rotate-border 5s linear infinite`,
+                }}
+              >
+                {/* Card Container: REMOVED padding (p-*, pb-0), ADDED overflow-hidden */}
+                <motion.div
+                  className={`rounded-xl shadow-lg relative z-10 flex flex-col items-center bg-gradient-to-br h-40 overflow-hidden ${
+                    previousResults?.fastest_pit_stop_team && teamColors[previousResults.fastest_pit_stop_team]
+                      ? `${teamColors[previousResults.fastest_pit_stop_team].gradientFrom} ${teamColors[previousResults.fastest_pit_stop_team].gradientTo}`
+                      : 'from-gray-700 to-gray-600'
+                  }`}
+                >
+                   {/* Overlay - covers everything including padding area now */}
+                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent z-10 pointer-events-none rounded-xl" />
+                  {/* Text content container: ADDED padding (px-*, pt-*), sits above image */}
+                  <div className="relative z-20 w-full text-center flex-shrink-0 px-3 sm:px-4 pt-3 sm:pt-4 pb-1">
+                    <h2 className="text-base sm:text-lg font-bold text-white font-exo2 drop-shadow-md flex items-center justify-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-cyan-300" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.414-1.414L11 10.586V6z" clipRule="evenodd" />
+                        </svg>
+                        Pit Stop Más Rápido
+                    </h2>
+                    {previousResults?.fastest_pit_stop_team ? (
+                      <p className="text-[10px] sm:text-xs text-white/90 font-exo2 drop-shadow-md truncate">
+                        {previousResults.fastest_pit_stop_team} - {previousResults.gp_name}
+                      </p>
+                    ) : (
+                      <p className="text-gray-300 font-exo2 text-xs sm:text-sm mt-2">
+                        Esperando resultados...
+                      </p>
+                    )}
+                  </div>
+                  {/* Image container: Takes remaining space, positioned below text implicitly */}
+                  {previousResults?.fastest_pit_stop_team && (
+                     <motion.div
+                         initial={{ y: 30, opacity: 0 }}
+                         animate={{ y: 0, opacity: 1 }}
+                         transition={{ duration: 0.5, delay: 0.3 }}
+                         // Use absolute positioning to place it correctly behind overlay/text but filling card area
+                         className="absolute inset-0 w-full h-full z-0" // Positioned behind text (z-0), covers card area
+                     >
+                      <Image
+                         src={getTeamCarImage(previousResults.fastest_pit_stop_team)}
+                         alt={`${previousResults.fastest_pit_stop_team} car`}
+                         fill // Use fill to cover the container
+                         // --- OPTIMIZATION ---
+                         // object-cover fills container, object-center aligns
+                         className="object-cover object-center" // Removed drop-shadow as it might look odd at edges
+                         // --- END OPTIMIZATION ---
+                         // Removed width/height/sizes as 'fill' handles it
+                       />
+                    </motion.div>
+                  )}
+                </motion.div>
+              </div>
 
   {/* Primer Equipo en Pits Card */}
   <div
