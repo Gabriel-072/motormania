@@ -1,4 +1,4 @@
-// GET /api/giveaway/imola/select-winner
+// GET /api/giveaway/spain/select-winner
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
@@ -8,11 +8,11 @@ const supabase = createClient(
 );
 
 export async function GET() {
-  // 1 ▸ Traer predicciones de Imola
+  // 1 ▸ Traer predicciones de Spain GP
   const { data: preds, error } = await supabase
     .from('predictions')
     .select('user_id')
-    .eq('gp_name', 'Emilia Romagna Grand Prix');
+    .eq('gp_name', 'Spanish Grand Prix');
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!preds?.length) return NextResponse.json({ error: 'Sin participantes' }, { status: 404 });

@@ -30,6 +30,11 @@ export default function Header() {
     return null;
   }
 
+    
+  if (pathname === '/giveaway/spain' || pathname === '/fantasy') {
+    return null;
+  }
+
   // 3) Resto del componente
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);

@@ -10,6 +10,7 @@ export default function MovingBar() {
 
   const pathname = usePathname();
   if (pathname === '/mmc-go') return null;
+  if (pathname === '/giveaway/spain') return null;
 
 
   // repeat enough times to guarantee coverage; you can bump this up if your message is very short
