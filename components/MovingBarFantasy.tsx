@@ -1,33 +1,37 @@
-// components/MovingBar.tsx
+// components/MovingBarFantasy.tsx
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { usePathname } from 'next/navigation';
 
-export default function MovingBar() {
-  const message = "Envía tus predicciones GRATIS y participa por un Lego McLaren P1";
-  const separator = " • ";
-
+export default function MovingBarFantasy() {
+  /* ─── visible únicamente en /fantasy-vip ─── */
   const pathname = usePathname();
-  if (pathname === '/mmc-go') return null;
-  if (pathname === '/giveaway/spain') return null;
-  if (pathname === '/fantasy-vip') return null;
+  if (pathname !== '/fantasy-vip') return null;
 
+  /* ─── mensaje + separador ─── */
+  const message =
+    '¡Activa tu Pase VIP 2025 y compite por un viaje Hospitality a la Fórmula 1!';
+  const separator = ' • ';
 
-  // repeat enough times to guarantee coverage; you can bump this up if your message is very short
-  const repeats = Array.from({ length: 12 });
+  /* ─── duplicamos texto para el loop ─── */
+  const repeats = useMemo(() => Array.from({ length: 12 }), []);
 
   return (
     <>
       <style jsx>{`
         @keyframes scroll {
-          from { transform: translateX(0); }
-          to   { transform: translateX(-50%); }
+          from {
+            transform: translateX(0);
+          }
+          to {
+            transform: translateX(-50%);
+          }
         }
         .moving-bar {
           display: inline-flex;
           white-space: nowrap;
-          animation: scroll 60s linear infinite;
+          animation: scroll 55s linear infinite;
         }
         .moving-bar:hover {
           animation-play-state: paused;
@@ -47,16 +51,18 @@ export default function MovingBar() {
               key={i}
               className="flex-shrink-0 flex items-center h-full px-4 text-sm font-semibold text-black"
             >
-              {message}{separator}
+              {message}
+              {separator}
             </span>
           ))}
-          {/* second copy for the seamless loop */}
+          {/* segunda copia para el loop continuo */}
           {repeats.map((_, i) => (
             <span
               key={`dup-${i}`}
               className="flex-shrink-0 flex items-center h-full px-4 text-sm font-semibold text-black"
             >
-              {message}{separator}
+              {message}
+              {separator}
             </span>
           ))}
         </div>

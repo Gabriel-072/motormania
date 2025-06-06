@@ -29,9 +29,12 @@ export default function Header() {
   if (pathname === '/mmc-go' || pathname === '/fantasy') {
     return null;
   }
-
     
   if (pathname === '/giveaway/spain' || pathname === '/fantasy') {
+    return null;
+  }
+
+  if (pathname === '/fantasy-vip' || pathname === '/fantasy') {
     return null;
   }
 
