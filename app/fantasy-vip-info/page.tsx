@@ -856,24 +856,26 @@ useEffect(() => {
         fullName: user.fullName ?? '',
       });
 
+
       // 7️⃣ Abrir Bold Checkout embebido
-      openBoldCheckout({
-        ...config,
-        onSuccess: () => {
-          toast.success('✅ Pago confirmado. ¡Bienvenido a VIP!');
-          setProcessingPlan(null);
-          router.push('/fantasy-vip');
-        },
-        onFailed: ({ message }: { message?: string }) => {
-          toast.error(`Pago rechazado: ${message ?? ''}`);
-          setProcessingPlan(null);
-        },
-        onPending: () => {
-          toast.info('Pago pendiente de confirmación.');
-          setProcessingPlan(null);
-        },
-        onClose: () => setProcessingPlan(null),
-      });
+openBoldCheckout({
+  ...config,
+  onSuccess: () => {
+    toast.success('✅ Pago confirmado. ¡Bienvenido a VIP!');
+    setProcessingPlan(null);
+    router.push('/fantasy-vip');
+  },
+  onFailed: ({ message }: { message?: string }) => {
+    toast.error(`Pago rechazado: ${message ?? ''}`);
+    setProcessingPlan(null);
+  },
+  onPending: () => {
+    toast.info('Pago pendiente de confirmación.');
+    setProcessingPlan(null);
+  },
+  onClose: () => setProcessingPlan(null),
+});
+
     } catch (err: any) {
       toast.error(err.message ?? 'Error iniciando pago');
       setProcessingPlan(null);
