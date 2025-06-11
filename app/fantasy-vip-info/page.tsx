@@ -806,17 +806,28 @@ useEffect(() => {
       setProcessingPlan(planId);
 
       // 3️⃣ Crear orden en el backend
-      const res = await fetch('/api/vip/register-order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          planId: plan.id,
-          planName: plan.nombre,
-          amount: plan.precio,
-          fullName: user.fullName,
-          email: user.primaryEmailAddress?.emailAddress,
-        }),
-      });
+console.log('🔍 Enviando POST a /api/vip/register-order con:', {
+  planId: plan.id,
+  planName: plan.nombre,
+  amount: plan.precio,
+  fullName: user.fullName,
+  email: user.primaryEmailAddress?.emailAddress,
+});
+
+const res = await fetch('/api/vip/register-order', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    planId: plan.id,
+    planName: plan.nombre,
+    amount: plan.precio,
+    fullName: user.fullName,
+    email: user.primaryEmailAddress?.emailAddress,
+  }),
+});
+
+console.log('📬 register-order status:', res.status);
+console.log('📬 register-order body:', await res.text());
 
       if (!res.ok) {
         const { error } = await res.json().catch(() => ({}));
