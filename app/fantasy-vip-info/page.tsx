@@ -908,8 +908,12 @@ useEffect(() => {
 
 return (
   <>
-  {/* Contenedor para el embed de Bold */}
-  <div id="bold-embed-vip" data-bold-embed className="fixed inset-0 z-[100] pointer-events-auto" />
+{/* Contenedor para el embed de Bold */}
+ <div
+   id="bold-embed-vip"
+   data-bold-embed
+   className="fixed inset-0 z-[100] pointer-events-auto"
+ />
 
     <MovingBarFantasy />
 
