@@ -796,6 +796,7 @@ useEffect(() => {
     }
 
     // 2️⃣ Verificar apiKey de Bold
+    console.log('❗NEXT_PUBLIC_BOLD_BUTTON_KEY:', process.env.NEXT_PUBLIC_BOLD_BUTTON_KEY);
     const apiKey = process.env.NEXT_PUBLIC_BOLD_BUTTON_KEY;
     if (!apiKey) {
       toast.error('Pago deshabilitado: falta la apiKey de Bold.');
