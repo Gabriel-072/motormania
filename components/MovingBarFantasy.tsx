@@ -5,13 +5,12 @@ import React, { useMemo } from 'react';
 import { usePathname } from 'next/navigation';
 
 export default function MovingBarFantasy() {
-  /* ─── visible únicamente en /fantasy-vip ─── */
   const pathname = usePathname();
-  if (pathname !== '/fantasy-vip') return null;
+  if (pathname !== '/fantasy-vip' && pathname !== '/fantasy-vip-info') return null;
 
   /* ─── mensaje + separador ─── */
   const message =
-    '¡Activa tu Pase VIP 2025 y compite por un viaje Hospitality a la Fórmula 1!';
+    '¡Activa tu Pase VIP, compite por premios en efectivo y un viaje a un GP de la F1 en 2026!';
   const separator = ' • ';
 
   /* ─── duplicamos texto para el loop ─── */

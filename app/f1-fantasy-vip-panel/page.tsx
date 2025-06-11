@@ -1,0 +1,1271 @@
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
+import { useUser, useAuth } from '@clerk/nextjs';
+import { toast, Toaster } from 'sonner';
+import { useRouter } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
+import { createAuthClient } from '@/lib/supabase';
+import Image from 'next/image';
+import Link from 'next/link';
+import LoadingAnimation from '@/components/LoadingAnimation';
+import LeaderboardsSectionVip from '../../components/LeaderboardsSectionVip';;
+import useFantasyLeaderboardsVip from '../../hooks/useFantasyLeaderboardsVip';
+import LastGpBreakdownVip from '../../components/LastGpBreakdownVip';
+import { Dialog, Transition } from '@headlessui/react';
+import { Fragment } from 'react';  // si no lo tienes ya
+import { Howl } from 'howler';
+
+
+type Prediction = {
+  gp_name: string;
+  pole1: string;
+  pole2: string;
+  pole3: string;
+  gp1: string;
+  gp2: string;
+  gp3: string;
+  fastest_pit_stop_team: string;
+  fastest_lap_driver: string;
+  driver_of_the_day: string;
+  first_team_to_pit: string;
+  first_retirement: string;
+  submitted_at: string;
+};
+
+type PredictionScore = {
+  gp_name: string;
+  race_date: string;
+  score: number;
+};
+
+type RaceResult = {
+  gp_name: string;
+  race_date: string;
+  pole1: string;
+  pole2: string;
+  pole3: string;
+  gp1: string;
+  gp2: string;
+  gp3: string;
+  fastest_pit_stop_team: string;
+  fastest_lap_driver: string;
+  driver_of_the_day: string;
+  first_team_to_pit: string;
+};
+
+type GpSchedule = {
+  gp_name: string;
+  qualy_time: string;
+  race_time: string;
+};
+
+type LeaderboardEntry = {
+  user_id: string;
+  name: string;
+  score: number;
+  updated_at: string;
+  quiz_completed: boolean;
+  signup_bonus_claimed: boolean;
+};
+
+// Team Colors for Gradients
+const teamColors: Record<string, { gradientFrom: string; gradientTo: string; border: string }> = {
+  'Red Bull Racing': { gradientFrom: 'from-blue-950', gradientTo: 'to-blue-600', border: 'border-blue-400/60' },
+  McLaren: { gradientFrom: 'from-orange-800', gradientTo: 'to-orange-500', border: 'border-orange-400/60' },
+  Mercedes: { gradientFrom: 'from-teal-800', gradientTo: 'to-cyan-400', border: 'border-cyan-300/60' },
+  Ferrari: { gradientFrom: 'from-red-900', gradientTo: 'to-red-500', border: 'border-red-400/60' },
+  'Aston Martin': { gradientFrom: 'from-emerald-900', gradientTo: 'to-emerald-500', border: 'border-emerald-400/60' },
+  RB: { gradientFrom: 'from-indigo-900', gradientTo: 'to-indigo-500', border: 'border-indigo-400/60' },
+  'Haas F1 Team': { gradientFrom: 'from-gray-800', gradientTo: 'to-red-600', border: 'border-red-500/60' },
+  Alpine: { gradientFrom: 'from-blue-900', gradientTo: 'to-blue-400', border: 'border-blue-300/60' },
+  Williams: { gradientFrom: 'from-blue-800', gradientTo: 'to-sky-400', border: 'border-sky-300/60' },
+  Sauber: { gradientFrom: 'from-green-900', gradientTo: 'to-lime-500', border: 'border-lime-400/60' },
+  Default: { gradientFrom: 'from-gray-800', gradientTo: 'to-gray-400', border: 'border-gray-300/60' },
+};
+
+// Driver to Team Mapping
+const driverToTeam: Record<string, string> = {
+  'Max Verstappen': 'Red Bull Racing',
+  'Liam Lawson': 'RB',
+  'Lando Norris': 'McLaren',
+  'Oscar Piastri': 'McLaren',
+  'Lewis Hamilton': 'Ferrari',
+  'Charles Leclerc': 'Ferrari',
+  'George Russell': 'Mercedes',
+  'Kimi Antonelli': 'Mercedes',
+  'Fernando Alonso': 'Aston Martin',
+  'Lance Stroll': 'Aston Martin',
+  'Yuki Tsunoda': 'Red Bull Racing',
+  'Isack Hadjar': 'RB',
+  'Nico Hulkenberg': 'Sauber',
+  'Gabriel Bortoleto': 'Sauber',
+  'Pierre Gasly': 'Alpine',
+  'Franco Colapinto': 'Alpine',
+  'Alex Albon': 'Williams',
+  'Carlos Sainz': 'Williams',
+  'Oliver Bearman': 'Haas F1 Team',
+  'Esteban Ocon': 'Haas F1 Team',
+};
+
+// Image Functions
+const getDriverImage = (driverName: string): string => {
+  const normalizedName = driverName.trim().replace(' ', '-').toLowerCase();
+  return `/images/pilots/${normalizedName}.png`;
+};
+
+// Get team car image by team name
+const getTeamCarImage = (teamName: string): string => {
+  if (!teamName) return '/images/cars/default-car.png';
+  // Generate a slug from the team name (lowercase, replace spaces with hyphens)
+  const slug = teamName.toLowerCase().replace(/\s+/g, '-');
+  // Check if an image exists for that slug, otherwise use default
+  // Note: This requires pre-naming car images 
+  // consistently (e.g., red-bull-racing.png)
+  // A direct lookup via team.car_image_url if available in DB would be more robust.
+  // Basic check (won't work reliably server-side, better for client-side display):
+  // For robustness, you might need a known list of available car images.
+  // const knownCarImages = ['red-bull-racing', 'mclaren', ...];
+  // if (knownCarImages.includes(slug)) { return `/images/cars/${slug}.png`; } else { return '/images/cars/default-car.png'; }
+  return `/images/cars/${slug}.png`; // Assuming path structure works
+};
+
+export default function F1FantasyPanel() {
+  const router = useRouter();
+  const { isLoaded, isSignedIn, user } = useUser();
+  const { getToken } = useAuth();
+  const [seasonScore, setSeasonScore] = useState<number | null>(null);
+  const [gpScore, setgpScore] = useState<number | null>(null);
+  const [myRank, setMyRank] = useState<number | null>(null);
+  const [pastPredictions, setPastPredictions] = useState<Prediction[]>([]);
+  const [pastScores, setPastScores] = useState<PredictionScore[]>([]);
+  const [scoreMap, setScoreMap] = useState<Map<string, number>>(new Map());
+  const [previousResults, setPreviousResults] = useState<RaceResult | null>(null);
+  const [gpSchedule, setGpSchedule] = useState<GpSchedule[]>([]);
+  const [errors, setErrors] = useState<string[]>([]);
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
+  const [loadingDuration, setLoadingDuration] = useState(0);
+  const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
+  const [quizCompleted, setQuizCompleted] = useState(false);
+  const [signupBonusClaimed, setSignupBonusClaimed] = useState(false);
+  const [showQuizModal, setShowQuizModal] = useState(false);
+  const [quizAnswers, setQuizAnswers] = useState<string[]>(Array(5).fill(''));
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [showRedirectModal, setShowRedirectModal] = useState(false);
+  const [demoPick, setDemoPick] = useState<'mejor' | 'peor' | null>(null);
+  const clickSound = new Howl({ src: ['/sounds/f1-click.mp3'], volume: 5, preload: true });
+  const [top10LastGP, setTop10LastGP] = useState<{ name: string; score: number }[]>([]);
+  const { lastGpName } = useFantasyLeaderboardsVip();
+  
+
+
+  // 5-Question F1 Quiz
+  const quizQuestions = [
+    {
+      question: '¿Quién ganó el campeonato de F1 en 2021?',
+      options: ['Lewis Hamilton', 'Max Verstappen', 'Charles Leclerc'],
+      correctAnswer: 'Max Verstappen',
+    },
+    {
+      question: '¿Qué equipo ha ganado más títulos de constructores?',
+      options: ['McLaren', 'Ferrari', 'Mercedes'],
+      correctAnswer: 'Ferrari',
+    },
+    {
+      question: '¿En qué circuito se corre el GP de Mónaco?',
+      options: ['Monza', 'Monte Carlo', 'Silverstone'],
+      correctAnswer: 'Monte Carlo',
+    },
+    {
+      question: '¿Quién tiene el récord de más victorias en F1?',
+      options: ['Michael Schumacher', 'Lewis Hamilton', 'Sebastian Vettel'],
+      correctAnswer: 'Lewis Hamilton',
+    },
+    {
+      question: '¿En qué año comenzó la Fórmula 1 moderna?',
+      options: ['1950', '1960', '1970'],
+      correctAnswer: '1950',
+    },
+  ];
+
+  // Helper to get user's full name
+  const getUserName = (): string => {
+    if (!user) return 'Usuario Desconocido';
+    return user.fullName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Usuario Desconocido';
+  };
+
+  // Handle claiming sign-up bonus
+  const handleClaimSignupBonus = async () => {
+    if (!user || signupBonusClaimed) return;
+
+    const token = await getToken({ template: 'supabase' });
+    if (!token) {
+      setErrors((prev) => [...prev, 'Error de autenticación. Intenta de nuevo más tarde.']);
+      return;
+    }
+
+    const supabase = createAuthClient(token);
+    const userId = user.id;
+    const userName = getUserName();
+
+    const { data, error } = await supabase
+      .from('vip_leaderboard')
+      .select('score, signup_bonus_claimed')
+      .eq('user_id', userId)
+      .single();
+
+    if (error && error.code !== 'PGRST116') {
+      setErrors((prev) => [...prev, `Error al verificar tu cuenta: ${error.message}`]);
+      return;
+    }
+
+    if (!data) {
+      // New user, insert with 10 points
+      const { error: insertError } = await supabase.from('leaderboard').insert({
+        user_id: userId,
+        name: userName,
+        score: 10,
+        quiz_completed: false,
+        signup_bonus_claimed: true,
+      });
+
+      if (insertError) {
+        setErrors((prev) => [...prev, `No pudimos guardar tu bono: ${insertError.message}`]);
+        return;
+      }
+
+      setSeasonScore(10);
+      setSignupBonusClaimed(true);
+    } else if (!data.signup_bonus_claimed) {
+      const currentScore = data.score ?? 0;
+      const newScore = currentScore + 10;
+
+      const { error: updateError } = await supabase
+        .from('leaderboard')
+        .update({ score: newScore, signup_bonus_claimed: true })
+        .eq('user_id', userId);
+
+      if (updateError) {
+        setErrors((prev) => [...prev, `No pudimos actualizar tu bono: ${updateError.message}`]);
+        return;
+      }
+
+      setSeasonScore(newScore);
+      setSignupBonusClaimed(true);
+    }
+
+    setErrors((prev) => [...prev, '¡Bono de registro reclamado! Has ganado 10 puntos.']);
+  };
+
+  // Handle selecting a quiz answer
+  const handleQuizAnswer = (answer: string) => {
+    const newAnswers = [...quizAnswers];
+    newAnswers[currentQuestionIndex] = answer;
+    setQuizAnswers(newAnswers);
+  };
+
+  // Move to the next question
+  const handleNextQuestion = () => {
+    if (currentQuestionIndex < quizQuestions.length - 1) {
+      setCurrentQuestionIndex(currentQuestionIndex + 1);
+    }
+  };
+
+  // Move to the previous question
+  const handlePreviousQuestion = () => {
+    if (currentQuestionIndex > 0) {
+      setCurrentQuestionIndex(currentQuestionIndex - 1);
+    }
+  };
+
+  // Handle quiz submission
+  const handleQuizSubmit = async () => {
+    if (!user) {
+      setErrors((prev) => [...prev, 'Debes estar autenticado para enviar el quiz.']);
+      return;
+    }
+
+    if (quizAnswers.some((answer) => !answer)) {
+      setErrors((prev) => [...prev, 'Por favor, responde todas las preguntas antes de enviar.']);
+      return;
+    }
+
+    const allCorrect = quizAnswers.every((answer, i) => answer === quizQuestions[i].correctAnswer);
+    const token = await getToken({ template: 'supabase' });
+
+    if (!token) {
+      setErrors((prev) => [...prev, 'Error de autenticación. Intenta de nuevo más tarde.']);
+      return;
+    }
+
+    const supabase = createAuthClient(token);
+    const userId = user.id;
+
+    if (allCorrect) {
+      const { data, error } = await supabase
+        .from('leaderboard')
+        .select('score, quiz_completed')
+        .eq('user_id', userId)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        setErrors((prev) => [...prev, `Error al obtener datos: ${error.message}`]);
+        return;
+      }
+
+      if (!data) {
+        const userName = getUserName();
+        const { error: insertError } = await supabase.from('leaderboard').insert({
+          user_id: userId,
+          name: userName,
+          score: 10,
+          quiz_completed: true,
+          signup_bonus_claimed: false,
+        });
+
+        if (insertError) {
+          setErrors((prev) => [...prev, `No pudimos guardar tus puntos: ${insertError.message}`]);
+          return;
+        }
+
+        setSeasonScore(10);
+      } else if (!data.quiz_completed) {
+        const currentScore = data.score ?? 0;
+        const newScore = currentScore + 10;
+
+        const { error: updateError } = await supabase
+          .from('leaderboard')
+          .update({ score: newScore, quiz_completed: true })
+          .eq('user_id', userId);
+
+        if (updateError) {
+          setErrors((prev) => [...prev, `No pudimos guardar tus puntos: ${updateError.message}`]);
+          return;
+        }
+
+        setSeasonScore(newScore);
+      }
+
+      setQuizCompleted(true);
+      setShowQuizModal(false);
+      setQuizAnswers(Array(5).fill(''));
+      setCurrentQuestionIndex(0);
+      setErrors((prev) => [...prev, '¡Felicidades! Has ganado 10 puntos extra.']);
+    } else {
+      setErrors((prev) => [...prev, 'No todas las respuestas son correctas. ¡Intenta de nuevo!']);
+    }
+  };
+
+
+  // Fetch Data Function
+  const fetchData = useCallback(async () => {
+    if (!user || !isSignedIn) return;
+
+    const startTime = performance.now();
+    const fetchErrors: string[] = [];
+    const minDuration = 3000;
+
+    try {
+      const token = await getToken({ template: 'supabase' });
+      if (!token) throw new Error('No se pudo obtener el token de autenticación.');
+
+      const supabase = createAuthClient(token);
+      const userId = user.id;
+      const userName = getUserName();
+
+      const [
+        { data: leaderboardData, error: leaderboardError },
+        { data: predictionsData, error: predictionsError },
+        { data: scoresData, error: scoresError },
+        { data: scheduleData, error: scheduleError },
+      ] = await Promise.all([
+        supabase.from('vip_leaderboard').select('*').eq('user_id', userId).single(),
+        supabase.from('vip_predictions').select('*').eq('user_id', userId).order('submitted_at', { ascending: false }),
+        supabase.from('vip_prediction_scores').select('gp_name, race_date, score').eq('user_id', userId).order('race_date', { ascending: false }),
+        supabase.from('gp_schedule').select('*').order('race_time', { ascending: true }),
+      ]);
+
+      if (leaderboardError && leaderboardError.code === 'PGRST116') {
+        // New user, insert with 0 points initially
+        const { error: insertError } = await supabase.from('leaderboard').insert({
+          user_id: userId,
+          name: userName,
+          score: 0,
+          quiz_completed: false,
+          signup_bonus_claimed: false,
+        });
+
+        if (insertError) {
+          fetchErrors.push(`Error al registrar usuario: ${insertError.message}`);
+        } else {
+          setSeasonScore(0);
+          setQuizCompleted(false);
+          setSignupBonusClaimed(false);
+        }
+      } else if (leaderboardError) {
+        fetchErrors.push(`Error al cargar tu puntaje: ${leaderboardError.message}`);
+      } else if (leaderboardData) {
+        setSeasonScore(leaderboardData.score ?? 0);
+        setQuizCompleted(leaderboardData.quiz_completed ?? false);
+        setSignupBonusClaimed(leaderboardData.signup_bonus_claimed ?? false);
+        if (leaderboardData.score != null) {
+          const { count, error: countError } = await supabase
+            .from('vip_leaderboard')
+            .select('user_id', { head: true, count: 'exact' })
+            .gt('score', leaderboardData.score);
+          if (!countError) {
+            setMyRank((count ?? 0) + 1);
+          } else {
+            console.error('Error al calcular posición:', countError);
+          }
+        }
+      }
+      
+      if (predictionsError) fetchErrors.push(`Error al cargar predicciones: ${predictionsError.message}`);
+      setPastPredictions(predictionsData || []);
+
+      if (scoresError) {
+        console.warn('Error fetching prediction scores:', scoresError);
+        setPastScores([]);
+      } else {
+        setPastScores(scoresData || []);
+        if (scoresData && scoresData.length > 0) {
+          setgpScore(scoresData[0].score ?? null);   // el registro más nuevo va primero
+        } else {
+          setgpScore(null);
+        }
+        const map = new Map<string, number>();
+        scoresData?.forEach((score) => {
+        map.set(score.gp_name, score.score);     
+        });
+        setScoreMap(map);
+      }
+
+      if (scheduleError) fetchErrors.push(`Error al cargar calendario: ${scheduleError.message}`);
+      setGpSchedule(scheduleData || []);
+
+      const now = new Date();
+      let previousGpIndex = -1;
+
+      for (let i = 0; i < (scheduleData?.length ?? 0); i++) {
+        const raceDate = new Date(scheduleData![i].race_time);
+        if (raceDate < now) {
+          previousGpIndex = i;
+        }
+      }
+
+      if (previousGpIndex >= 0 && scheduleData) {
+        const previousGp = scheduleData[previousGpIndex];
+        const raceDateStr = scheduleData[previousGpIndex].race_time.split('T')[0];
+
+        const { data: resultsData, error: resultsError } = await supabase
+          .from('race_results')
+          .select('*')
+          .eq('gp_name', previousGp.gp_name)
+          .eq('race_date', raceDateStr)
+          .maybeSingle();
+
+        if (resultsError) fetchErrors.push(`Error al cargar resultados previos: ${resultsError.message}`);
+        setPreviousResults(resultsData || null);
+      } else {
+        setPreviousResults(null);
+      }
+
+      // ──────────────────────────────────────────────────────
+    // AQUÍ → LLAMA A LA VISTA top10_last_gp
+    // ──────────────────────────────────────────────────────
+    // ← ------------- Pega justo de aquí ↓
+    const { data: top10Data, error: top10Error } = await supabase
+    .from('top10_last_gp')
+    .select('*');
+
+  if (top10Error) {
+    console.error('Error al traer top10_last_gp:', top10Error.message);
+  } else {
+    // Esperamos que top10Data sea un arreglo de { name: string; score: number }
+    setTop10LastGP(top10Data || []);
+  }
+  // ← ------------- Hasta aquí ↑
+
+    } catch (err) {
+      fetchErrors.push('Ocurrió un error al cargar tus datos. Por favor, intenta de nuevo.');
+      console.error('Fetch error:', err);
+    } finally {
+      setErrors(fetchErrors);
+      const elapsed = performance.now() - startTime;
+      const duration = Math.max(elapsed / 1000, 3);
+      setLoadingDuration(duration);
+      if (elapsed < minDuration) {
+        setTimeout(() => setIsDataLoaded(true), minDuration - elapsed);
+      } else {
+        setIsDataLoaded(true);
+      }
+    }
+  }, [getToken, isSignedIn, user]);
+
+  /** Navega a la página de predicciones */
+  function handleGoToPredictions() {
+    router.push('/fantasy-vip'); // ajusta la ruta si es distinta
+  }
+
+  useEffect(() => {
+    const timer = setTimeout(() => setShowRedirectModal(true), 3000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!isSignedIn || !user) return;
+    fetchData();
+  }, [isSignedIn, user, fetchData]);
+
+  if (!isLoaded || !isDataLoaded) {
+    return <LoadingAnimation animationDuration={loadingDuration} />;
+  }
+
+  if (!isSignedIn) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-gray-950 to-gray-900 text-white flex items-center justify-center">
+        <p className="text-xl font-exo2">Por favor, inicia sesión para ver tu panel de F1 Fantasy.</p>
+      </div>
+    );
+  }
+  //*JSX*//
+return (
+  <div className="min-h-screen bg-gradient-to-b from-gray-950 to-gray-900 text-white overflow-hidden relative">
+    <main className="container mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16">
+      {/* Row 1: Key Highlights */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      </div>
+        {/* ───────── Tarjeta Resumen de Puntaje ───────── */}
+{/* MODIFICADO: Outer container for a more complex border/background */}
+<div className="relative rounded-xl shadow-2xl  
+                bg-gradient-to-br from-gray-800 to-black 
+                border border-gray-700/80 
+                hover:border-amber-400/80 transition-colors duration-300"> {/* <-- NEW: Base dark theme, subtle border */}
+
+  {/* Optional: Inner "carbon fiber" like pattern or texture. 
+       Could be a subtle background image or a CSS gradient pattern. 
+       For simplicity, we'll stick to gradients here but keep this in mind. */}
+  {/* <div className="absolute inset-0 bg-carbon-pattern opacity-5"></div> */}
+
+  {/* MODIFICADO: Enhanced blur and subtle inner glow/gradient for depth */}
+  <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-black/30 to-black/70 backdrop-blur-md z-0 pointer-events-none rounded-xl opacity-80" />
+  {/* Adding a subtle inner bevel/highlight effect */}
+  <div className="absolute inset-0 rounded-xl ring-1 ring-inset ring-white/10 pointer-events-none z-10" />
+
+
+  {/* Contenido encima del blur */}
+  <div className="relative z-20 flex flex-col justify-between h-40 p-4 sm:p-6"> {/* <-- h-40 maintained */}
+    {/* Cabecera */}
+    <motion.h2
+      className="text-sm sm:text-base font-bold text-neutral-200 font-exo2 uppercase tracking-wider leading-tight mb-2" /* MOD: Color, tracking */
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+    >
+      Resumen de Puntaje
+    </motion.h2>
+
+    {/* Números */}
+    <div className="grid grid-cols-2 place-items-center flex-grow gap-3">
+      {/* TOTAL TEMPORADA */}
+      <div className="text-center">
+        <p className="text-xs sm:text-sm text-gray-400 font-exo2 uppercase tracking-wide">Temporada</p> {/* MOD: Color, tracking */}
+        {/* MOD: Enhanced text styling for the score */}
+        <div className="relative">
+          <span className="text-3xl sm:text-4xl font-bold text-amber-400 font-exo2">
+            {seasonScore ?? <span className="animate-pulse">...</span>}
+          </span>
+          <span className="absolute -top-1 -right-2 text-lg sm:text-xl font-bold text-amber-500/80 font-exo2">pts</span>
+          {/* Subtle glow effect for the score */}
+          <div className="absolute inset-0 text-amber-400 blur-md opacity-30 -z-10">
+            {seasonScore ?? ''}
+          </div>
+        </div>
+        {myRank != null && (
+          <p className="text-xs text-gray-500 font-exo2 mt-1">#{myRank} global</p> /* MOD: Color */
+        )}
+      </div>
+
+      {/* ÚLTIMO GP */}
+      <div className="text-center">
+        <p className="text-xs sm:text-sm text-gray-400 font-exo2 uppercase tracking-wide">Último GP</p> {/* MOD: Color, tracking */}
+        {/* MOD: Enhanced text styling for the score */}
+        <div className="relative">
+          <span className="text-2xl sm:text-3xl font-bold text-emerald-400 font-exo2"> {/* MOD: Color slightly brighter */}
+            {gpScore ?? <span className="animate-pulse">...</span>}
+          </span>
+          <span className="absolute -top-1 -right-2 text-md sm:text-lg font-bold text-emerald-500/80 font-exo2">pts</span>
+          {/* Subtle glow effect for the score */}
+          <div className="absolute inset-0 text-emerald-400 blur-sm opacity-30 -z-10">
+            {gpScore ?? ''}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{/* Separador horizontal con algo de margen */}
+<hr className="border-gray-700 my-6" />
+
+{/* ─── Mostrar desglose (top10 + “tu fila”) ─── */}
+<div className="mt-8">
+          <LastGpBreakdownVip lastGpName={lastGpName} />
+        </div>
+
+{/* Separador horizontal con algo de margen */}
+<hr className="border-gray-700 my-6" />
+
+<LeaderboardsSectionVip />
+
+        {/* Separador horizontal con algo de margen */}
+        <hr className="border-gray-700 my-6" />
+
+{/* ──────────────────────────────────────────────
+   BLOQUE PRINCIPAL DE RESULTADOS (3 tarjetas) ─
+   Copia / pega este bloque completo en lugar de
+   la sección anterior de Ganador-Pole-Vuelta   ─
+────────────────────────────────────────────── */}
+<div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+  {/* ───────── Tarjeta Ganador último GP ───────── */}
+  <div
+    className="animate-rotate-border rounded-xl p-px"
+    style={{
+      //@ts-ignore
+      '--border-angle': '0deg',
+      background:
+        'conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #f59e0b 20deg, #d4af37 30deg, #f59e0b 40deg, transparent 50deg, transparent 360deg)',
+      animation: 'rotate-border 3s linear infinite reverse',
+    }}
+  >
+    <motion.div
+      className={`relative p-3 sm:p-4 pb-0 rounded-xl shadow-lg z-10 bg-gradient-to-br h-40 overflow-hidden ${
+        previousResults?.gp1 &&
+        driverToTeam[previousResults.gp1] &&
+        teamColors[driverToTeam[previousResults.gp1]]
+          ? `${teamColors[driverToTeam[previousResults.gp1]].gradientFrom} ${teamColors[driverToTeam[previousResults.gp1]].gradientTo}`
+          : 'from-gray-700 to-gray-600'
+      }`}
+    >
+      <div className="absolute inset-0 bg-gradient-to-bl from-black/70 via-black/40 to-transparent z-0 pointer-events-none" />
+      <div className="relative z-10 pr-[35%] sm:pr-[40%] flex flex-col justify-center h-full space-y-1">
+        {previousResults?.gp1 ? (
+          <>
+            <div className="flex items-center gap-2">
+              <span className="text-amber-400 text-lg sm:text-xl drop-shadow-md">🏆</span>
+              <p className="text-base sm:text-lg font-semibold text-white font-exo2 leading-tight drop-shadow-md">
+                Ganador: {previousResults.gp1.split(' ')[1]}
+              </p>
+            </div>
+            <p className="text-xs sm:text-sm text-gray-200 font-exo2 leading-tight drop-shadow-md">
+              {previousResults.gp_name}
+            </p>
+            <p className="text-[10px] sm:text-xs text-gray-300 font-exo2 leading-tight drop-shadow-md">
+              {driverToTeam[previousResults.gp1] || 'Equipo Desconocido'}
+            </p>
+          </>
+        ) : (
+          <div className="flex items-center gap-2">
+            <span className="text-gray-400 text-lg sm:text-xl">🏁</span>
+            <p className="text-gray-300 font-exo2 text-xs sm:text-sm">
+              No hay resultados previos disponibles.
+            </p>
+          </div>
+        )}
+      </div>
+      {previousResults?.gp1 && (
+        <motion.div
+          initial={{ x: 50, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+          className="absolute bottom-0 right-[-5px] w-[70%] sm:w-[75%] max-w-[200px] h-full"
+        >
+          <Image
+            src={getDriverImage(previousResults.gp1)}
+            alt={previousResults.gp1}
+            fill
+            sizes="(max-width: 640px) 70vw, (max-width: 840px) 75vw, 200px"
+            className="object-contain object-bottom drop-shadow-xl"
+          />
+        </motion.div>
+      )}
+    </motion.div>
+  </div>
+
+  {/* ───────── Tarjeta Pole ───────── */}
+  <div
+    className="animate-rotate-border rounded-xl p-px"
+    style={{
+      //@ts-ignore
+      '--border-angle': '45deg',
+      background:
+        'conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #1d4ed8 20deg, #3b82f6 30deg, #1d4ed8 40deg, transparent 50deg, transparent 360deg)',
+      animation: 'rotate-border 3.5s linear infinite',
+    }}
+  >
+    <motion.div
+      className={`relative p-3 sm:p-4 pb-0 rounded-xl shadow-lg z-10 bg-gradient-to-br h-40 overflow-hidden ${
+        previousResults?.pole1 &&
+        driverToTeam[previousResults.pole1] &&
+        teamColors[driverToTeam[previousResults.pole1]]
+          ? `${teamColors[driverToTeam[previousResults.pole1]].gradientFrom} ${teamColors[driverToTeam[previousResults.pole1]].gradientTo}`
+          : 'from-gray-700 to-gray-600'
+      }`}
+    >
+      <div className="absolute inset-0 bg-gradient-to-bl from-black/70 via-black/40 to-transparent z-0 pointer-events-none" />
+      <div className="relative z-10 pr-[35%] sm:pr-[40%] flex flex-col justify-center h-full space-y-1">
+        {previousResults?.pole1 ? (
+          <>
+            <div className="flex items-center gap-2">
+              <span className="text-blue-400 text-lg sm:text-xl drop-shadow-md">🏁</span>
+              <p className="text-base sm:text-lg font-semibold text-white font-exo2 leading-tight drop-shadow-md">
+                Pole: {previousResults.pole1.split(' ')[1]}
+              </p>
+            </div>
+            <p className="text-xs sm:text-sm text-gray-200 font-exo2 leading-tight drop-shadow-md">
+              {previousResults.gp_name}
+            </p>
+            <p className="text-[10px] sm:text-xs text-gray-300 font-exo2 leading-tight drop-shadow-md">
+              {driverToTeam[previousResults.pole1] || 'Equipo Desconocido'}
+            </p>
+          </>
+        ) : (
+          <div className="flex items-center gap-2">
+            <span className="text-gray-400 text-lg sm:text-xl">🏁</span>
+            <p className="text-gray-300 font-exo2 text-xs sm:text-sm">
+              No hay datos de pole.
+            </p>
+          </div>
+        )}
+      </div>
+      {previousResults?.pole1 && (
+        <motion.div
+          initial={{ x: 50, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          transition={{ duration: 0.5, delay: 0.3 }}
+          className="absolute bottom-0 right-[-5px] w-[70%] sm:w-[75%] max-w-[200px] h-full"
+        >
+          <Image
+            src={getDriverImage(previousResults.pole1)}
+            alt={previousResults.pole1}
+            fill
+            sizes="(max-width: 640px) 70vw, (max-width: 840px) 75vw, 200px"
+            className="object-contain object-bottom drop-shadow-xl"
+          />
+        </motion.div>
+      )}
+    </motion.div>
+  </div>
+
+  {/* ───────── Tarjeta Vuelta Rápida ───────── */}
+  <div
+    className="animate-rotate-border rounded-xl p-px"
+    style={{
+      //@ts-ignore
+      '--border-angle': '180deg',
+      background:
+        'conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #16a34a 20deg, #86efac 30deg, #16a34a 40deg, transparent 50deg, transparent 360deg)',
+      animation: 'rotate-border 4s linear infinite',
+    }}
+  >
+    <motion.div
+      className={`relative p-3 sm:p-4 pb-0 rounded-xl shadow-lg z-10 bg-gradient-to-br h-40 overflow-hidden ${
+        previousResults?.fastest_lap_driver &&
+        driverToTeam[previousResults.fastest_lap_driver] &&
+        teamColors[driverToTeam[previousResults.fastest_lap_driver]]
+          ? `${teamColors[driverToTeam[previousResults.fastest_lap_driver]].gradientFrom} ${teamColors[driverToTeam[previousResults.fastest_lap_driver]].gradientTo}`
+          : 'from-gray-700 to-gray-600'
+      }`}
+    >
+      <div className="absolute inset-0 bg-gradient-to-bl from-black/70 via-black/40 to-transparent z-0 pointer-events-none" />
+      <div className="relative z-10 pr-[35%] sm:pr-[40%] flex flex-col justify-center h-full space-y-1">
+        {previousResults?.fastest_lap_driver ? (
+          <>
+            <div className="flex items-center gap-2">
+              <span className="text-green-400 text-lg sm:text-xl drop-shadow-md">⏱️</span>
+              <p className="text-base sm:text-lg font-semibold text-white font-exo2 leading-tight drop-shadow-md">
+                Vuelta Rápida: {previousResults.fastest_lap_driver.split(' ')[1]}
+              </p>
+            </div>
+            <p className="text-xs sm:text-sm text-gray-200 font-exo2 leading-tight drop-shadow-md">
+              {previousResults.gp_name}
+            </p>
+            <p className="text-[10px] sm:text-xs text-gray-300 font-exo2 leading-tight drop-shadow-md">
+              {driverToTeam[previousResults.fastest_lap_driver] || 'Equipo Desconocido'}
+            </p>
+          </>
+        ) : (
+          <div className="flex items-center gap-2">
+            <span className="text-gray-400 text-lg sm:text-xl">⏱️</span>
+            <p className="text-gray-300 font-exo2 text-xs sm:text-sm">
+              No hay datos de vuelta rápida.
+            </p>
+          </div>
+        )}
+      </div>
+      {previousResults?.fastest_lap_driver && (
+        <motion.div
+          initial={{ x: 50, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          transition={{ duration: 0.5, delay: 0.4 }}
+          className="absolute bottom-0 right-[-5px] w-[70%] sm:w-[75%] max-w-[200px] h-full"
+        >
+          <Image
+            src={getDriverImage(previousResults.fastest_lap_driver)}
+            alt={previousResults.fastest_lap_driver}
+            fill
+            sizes="(max-width: 640px) 70vw, (max-width: 840px) 75vw, 200px"
+            className="object-contain object-bottom drop-shadow-xl"
+          />
+        </motion.div>
+      )}
+    </motion.div>
+  </div>
+</div>
+
+{/* Row 2: Additional Results */}
+<div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+
+  {/* Piloto del Día Card */}
+  <div
+    className="animate-rotate-border rounded-xl p-px"
+    style={{
+      //@ts-ignore
+      '--border-angle': '270deg',
+      background: `conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #9333ea 20deg, #c084fc 30deg, #9333ea 40deg, transparent 50deg, transparent 360deg)`,
+      animation: `rotate-border 6s linear infinite reverse`,
+    }}
+  >
+    <motion.div
+      className={`relative p-3 sm:p-4 pb-0 rounded-xl shadow-lg z-10 bg-gradient-to-br h-40 overflow-hidden ${
+        previousResults?.driver_of_the_day && driverToTeam[previousResults.driver_of_the_day] && teamColors[driverToTeam[previousResults.driver_of_the_day]]
+          ? `${teamColors[driverToTeam[previousResults.driver_of_the_day]].gradientFrom} ${teamColors[driverToTeam[previousResults.driver_of_the_day]].gradientTo}`
+          : 'from-gray-700 to-gray-600'
+      }`}
+    >
+      <div className="absolute inset-0 bg-gradient-to-bl from-black/70 via-black/40 to-transparent z-0 pointer-events-none" />
+      <div className="relative z-10 pr-[35%] sm:pr-[40%] flex flex-col justify-center h-full space-y-1">
+        {previousResults?.driver_of_the_day ? (
+          <>
+            <div className="flex items-center gap-2">
+              <span className="text-purple-400 text-lg sm:text-xl drop-shadow-md">⭐</span>
+              <p className="text-base sm:text-lg font-semibold text-white font-exo2 leading-tight drop-shadow-md">
+                Piloto del Día: {previousResults.driver_of_the_day.split(' ')[1]}
+              </p>
+            </div>
+            <p className="text-xs sm:text-sm text-gray-200 font-exo2 leading-tight drop-shadow-md">
+              {previousResults.gp_name}
+            </p>
+            <p className="text-[10px] sm:text-xs text-gray-300 font-exo2 leading-tight drop-shadow-md">
+              {driverToTeam[previousResults.driver_of_the_day] || 'Equipo Desconocido'}
+            </p>
+          </>
+        ) : (
+          <div className="flex items-center gap-2">
+            <span className="text-gray-400 text-lg sm:text-xl">⭐</span>
+            <p className="text-gray-300 font-exo2 text-xs sm:text-sm">
+              No hay datos de piloto del día.
+            </p>
+          </div>
+        )}
+      </div>
+      {previousResults?.driver_of_the_day && (
+        <motion.div
+          initial={{ x: 50, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          transition={{ duration: 0.5, delay: 0.5 }}
+          className="absolute bottom-0 right-[-5px] w-[70%] sm:w-[75%] max-w-[200px] h-full"
+        >
+          <Image
+            src={getDriverImage(previousResults.driver_of_the_day)}
+            alt={previousResults.driver_of_the_day}
+            fill
+            sizes="(max-width: 640px) 70vw, (max-width: 840px) 75vw, 200px"
+            className="object-contain object-bottom drop-shadow-xl"
+          />
+        </motion.div>
+      )}
+    </motion.div>
+  </div>
+
+  {/* Column 3 - Fastest Pit Stop - OPTIMIZED Edge-to-Edge Image */}
+              <div
+                className="animate-rotate-border rounded-xl p-px"
+                style={{
+                  //@ts-ignore
+                  '--border-angle': '180deg',
+                  background: `conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #22d3ee 20deg, #0d9488 30deg, #22d3ee 40deg, transparent 50deg, transparent 360deg)`,
+                  animation: `rotate-border 5s linear infinite`,
+                }}
+              >
+                {/* Card Container: REMOVED padding (p-*, pb-0), ADDED overflow-hidden */}
+                <motion.div
+                  className={`rounded-xl shadow-lg relative z-10 flex flex-col items-center bg-gradient-to-br h-40 overflow-hidden ${
+                    previousResults?.fastest_pit_stop_team && teamColors[previousResults.fastest_pit_stop_team]
+                      ? `${teamColors[previousResults.fastest_pit_stop_team].gradientFrom} ${teamColors[previousResults.fastest_pit_stop_team].gradientTo}`
+                      : 'from-gray-700 to-gray-600'
+                  }`}
+                >
+                   {/* Overlay - covers everything including padding area now */}
+                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent z-10 pointer-events-none rounded-xl" />
+                  {/* Text content container: ADDED padding (px-*, pt-*), sits above image */}
+                  <div className="relative z-20 w-full text-center flex-shrink-0 px-3 sm:px-4 pt-3 sm:pt-4 pb-1">
+                    <h2 className="text-base sm:text-lg font-bold text-white font-exo2 drop-shadow-md flex items-center justify-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-cyan-300" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.414-1.414L11 10.586V6z" clipRule="evenodd" />
+                        </svg>
+                        Pit Stop Más Rápido
+                    </h2>
+                    {previousResults?.fastest_pit_stop_team ? (
+                      <p className="text-[10px] sm:text-xs text-white/90 font-exo2 drop-shadow-md truncate">
+                        {previousResults.fastest_pit_stop_team} - {previousResults.gp_name}
+                      </p>
+                    ) : (
+                      <p className="text-gray-300 font-exo2 text-xs sm:text-sm mt-2">
+                        Esperando resultados...
+                      </p>
+                    )}
+                  </div>
+                  {/* Image container: Takes remaining space, positioned below text implicitly */}
+                  {previousResults?.fastest_pit_stop_team && (
+                     <motion.div
+                         initial={{ y: 30, opacity: 0 }}
+                         animate={{ y: 0, opacity: 1 }}
+                         transition={{ duration: 0.5, delay: 0.3 }}
+                         // Use absolute positioning to place it correctly behind overlay/text but filling card area
+                         className="absolute inset-0 w-full h-full z-0" // Positioned behind text (z-0), covers card area
+                     >
+                      <Image
+                         src={getTeamCarImage(previousResults.fastest_pit_stop_team)}
+                         alt={`${previousResults.fastest_pit_stop_team} car`}
+                         fill // Use fill to cover the container
+                         // --- OPTIMIZATION ---
+                         // object-cover fills container, object-center aligns
+                         className="object-cover object-center" // Removed drop-shadow as it might look odd at edges
+                         // --- END OPTIMIZATION ---
+                         // Removed width/height/sizes as 'fill' handles it
+                       />
+                    </motion.div>
+                  )}
+                </motion.div>
+              </div>
+
+  {/* Primer Equipo en Pits Card */}
+  <div
+    className="animate-rotate-border rounded-xl p-px"
+    style={{
+      //@ts-ignore
+      '--border-angle': '135deg',
+      background: `conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #22d3ee 20deg, #0d9488 30deg, #22d3ee 40deg, transparent 50deg, transparent 360deg)`,
+      animation: `rotate-border 5s linear infinite`,
+    }}
+  >
+    <motion.div
+      className={`rounded-xl shadow-lg relative z-10 flex flex-col items-center bg-gradient-to-br h-40 overflow-hidden ${
+        previousResults?.first_team_to_pit && teamColors[previousResults.first_team_to_pit]
+          ? `${teamColors[previousResults.first_team_to_pit].gradientFrom} ${teamColors[previousResults.first_team_to_pit].gradientTo}`
+          : 'from-gray-700 to-gray-600'
+      }`}
+    >
+      {/* Overlay - covers everything including padding area now */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent z-10 pointer-events-none rounded-xl" />
+      {/* Text content container: ADDED padding (px-*, pt-*), sits above image */}
+      <div className="relative z-20 w-full text-center flex-shrink-0 px-3 sm:px-4 pt-3 sm:pt-4 pb-1">
+        <h2 className="text-base sm:text-lg font-bold text-white font-exo2 drop-shadow-md flex items-center justify-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-cyan-300" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.414-1.414L11 10.586V6z" clipRule="evenodd" />
+          </svg>
+          Primer Equipo en Pits
+        </h2>
+        {previousResults?.first_team_to_pit ? (
+          <p className="text-[10px] sm:text-xs text-white/90 font-exo2 drop-shadow-md truncate">
+            {previousResults.first_team_to_pit} - {previousResults.gp_name}
+          </p>
+        ) : (
+          <p className="text-gray-300 font-exo2 text-xs sm:text-sm mt-2">
+            Esperando resultados...
+          </p>
+        )}
+      </div>
+      {/* Image container: Takes remaining space, positioned below text implicitly */}
+      {previousResults?.first_team_to_pit && (
+        <motion.div
+          initial={{ y: 30, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.5, delay: 0.3 }}
+          // Use absolute positioning to place it correctly behind overlay/text but filling card area
+          className="absolute inset-0 w-full h-full z-0" // Positioned behind text (z-0), covers card area
+        >
+          <Image
+            src={getTeamCarImage(previousResults.first_team_to_pit)}
+            alt={`${previousResults.first_team_to_pit} car`}
+            fill // Use fill to cover the container
+            // object-cover fills container, object-center aligns
+            className="object-cover object-center" // Removed drop-shadow as it might look odd at edges
+            // Removed width/height/sizes as 'fill' handles it
+          />
+        </motion.div>
+      )}
+    </motion.div>
+  </div>
+</div>
+
+
+        {/* Row 3: Past Predictions */}
+        <div className="grid grid-cols-1 gap-4 mb-6">
+          <motion.div
+            className="animate-rotate-border rounded-xl p-0.5"
+            style={{
+              background: `conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #9333ea 20deg, #c084fc 30deg, #9333ea 40deg, transparent 50deg, transparent 360deg)`,
+              animationDuration: '6s',
+              animationDirection: 'reverse',
+            }}
+          >
+            <div className="bg-gradient-to-br from-gray-950 to-black p-4 sm:p-6 rounded-xl shadow-lg relative z-10">
+              <h2 className="text-lg sm:text-xl font-bold text-white mb-4 font-exo2 text-center">
+                Tus Predicciones Pasadas
+              </h2>
+              <div className="grid grid-cols-1 gap-4">
+                {pastPredictions.length > 0 ? (
+                  pastPredictions.map((pred, index) => {
+                  const score = scoreMap.get(pred.gp_name);  
+                    return (
+                      <div
+                        key={index}
+                        className="bg-gray-900/80 p-4 sm:p-6 rounded-xl border border-purple-500/30 backdrop-blur-sm"
+                      >
+                        <div
+                          className="flex justify-between items-center cursor-pointer"
+                          onClick={() => setExpandedIndex(expandedIndex === index ? null : index)}
+                        >
+                          <p className="text-lg sm:text-xl font-semibold text-purple-400 font-exo2">
+                            {pred.gp_name} -{' '}
+                            {new Date(pred.submitted_at).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}
+                          </p>
+                          <span className="text-white font-exo2 text-lg">{expandedIndex === index ? '▲' : '▼'}</span>
+                        </div>
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: expandedIndex === index ? 'auto' : 0, opacity: expandedIndex === index ? 1 : 0 }}
+                          transition={{ duration: 0.3 }}
+                          className="overflow-hidden"
+                        >
+                          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 text-gray-300 font-exo2 text-sm sm:text-base">
+                            <div>
+                              <p>
+                                <strong>Pole:</strong> {pred.pole1 || '-'}, {pred.pole2 || '-'}, {pred.pole3 || '-'}
+                              </p>
+                              <p>
+                                <strong>GP:</strong> {pred.gp1 || '-'}, {pred.gp2 || '-'}, {pred.gp3 || '-'}
+                              </p>
+                              <p>
+                                <strong>Primer Equipo en Pits:</strong> {pred.first_team_to_pit || '-'}
+                              </p>
+                            </div>
+                            <div>
+                              <p>
+                                <strong>Pit Stop:</strong> {pred.fastest_pit_stop_team || '-'}
+                              </p>
+                              <p>
+                                <strong>Vuelta Rápida:</strong> {pred.fastest_lap_driver || '-'}
+                              </p>
+                              <p>
+                                <strong>Piloto del Día:</strong> {pred.driver_of_the_day || '-'}
+                              </p>
+
+                            </div>
+                          </div>
+                          {/* — Footer con puntaje del GP —*/}
+{score !== undefined && (
+  <p className="mt-4 text-center text-green-400 font-exo2 text-sm sm:text-base">
+    HICISTE&nbsp;
+    <span className="font-bold">{score}</span>&nbsp;
+    PUNTOS EN&nbsp;
+    <span className="uppercase">{pred.gp_name}</span>
+  </p>
+)}
+                        </motion.div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p className="text-gray-400 text-center font-exo2 text-lg">No tienes predicciones pasadas aún.</p>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        </div>
+
+        {/* --- STICKY BUTTON (solo móvil) --- */}
+      <AnimatePresence>
+        <motion.div
+          key="sticky-fantasy-btn"
+          initial={{ opacity: 0, scale: 0.5, y: 50 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.5, y: 50 }}
+          transition={{ type: 'spring', stiffness: 200, damping: 25 }}
+          className="fixed bottom-6 right-6 z-40 md:hidden"
+        >
+          <button
+            onClick={handleGoToPredictions}
+            className="flex items-center gap-2 pl-3 pr-4 py-3 bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 text-white font-exo2 font-bold text-sm rounded-full shadow-xl hover:from-amber-600 hover:to-red-600 focus:outline-none focus:ring-4 focus:ring-amber-300 focus:ring-offset-2 focus:ring-offset-gray-900 transition-all duration-200 transform hover:scale-105 active:scale-100"
+            aria-label="Ir a predecir"
+          >
+            {/* Icono rayo */}
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-5 w-5"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fillRule="evenodd"
+                d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z"
+                clipRule="evenodd"
+              />
+            </svg>
+            <span>¡Predecir!</span>
+          </button>
+        </motion.div>
+      </AnimatePresence>
+
+      {/* Toaster global */}
+      <Toaster richColors position="top-center" />
+
+        {/* Quiz Modal */}
+        {showQuizModal && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            transition={{ duration: 0.3 }}
+            className="fixed inset-0 bg-black/70 flex items-center justify-center z-50"
+            onClick={() => setShowQuizModal(false)}
+          >
+            <motion.div
+              className="bg-gradient-to-br from-gray-900 to-black p-6 rounded-xl border border-amber-500/50 max-w-lg w-full shadow-lg"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <motion.h3
+                initial={{ y: -20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.1, duration: 0.4 }}
+                className="text-2xl font-bold text-amber-400 mb-4 font-exo2 text-center"
+              >
+                F1 Trivia Quiz - ¡Gana 10 Puntos Extra!
+              </motion.h3>
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.2, duration: 0.4 }}
+                className="text-gray-300 mb-6 font-exo2 text-center"
+              >
+                Responde correctamente las 5 preguntas para sumar 10 puntos a tu cuenta.
+              </motion.p>
+
+              {/* Current Question Card */}
+              <motion.div
+                key={currentQuestionIndex}
+                initial={{ opacity: 0, x: 50 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -50 }}
+                transition={{ duration: 0.3 }}
+                className="bg-gray-800/80 p-4 rounded-xl border border-amber-500/30 shadow-md"
+              >
+                <p className="text-gray-200 mb-3 font-exo2 text-lg">
+                  {currentQuestionIndex + 1}. {quizQuestions[currentQuestionIndex].question}
+                </p>
+                <div className="grid grid-cols-1 gap-2">
+                  {quizQuestions[currentQuestionIndex].options.map((option) => (
+                    <motion.button
+                      key={option}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => handleQuizAnswer(option)}
+                      className={`px-4 py-2 rounded-full font-exo2 text-sm transition-all ${
+                        quizAnswers[currentQuestionIndex] === option
+                          ? 'bg-amber-500 text-white shadow-md'
+                          : 'bg-gray-700 text-amber-400 hover:bg-gray-600'
+                      }`}
+                    >
+                      {option}
+                    </motion.button>
+                  ))}
+                </div>
+              </motion.div>
+
+              {/* Navigation and Submission */}
+              <div className="flex justify-between mt-6">
+                {currentQuestionIndex > 0 && (
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={handlePreviousQuestion}
+                    className="px-6 py-3 bg-gray-700 text-gray-300 rounded-full font-exo2 font-semibold transition-all hover:bg-gray-600"
+                  >
+                    Anterior
+                  </motion.button>
+                )}
+                {currentQuestionIndex === quizQuestions.length - 1 ? (
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={handleQuizSubmit}
+                    disabled={quizAnswers.some((answer) => !answer)}
+                    className={`px-6 py-3 rounded-full font-exo2 font-semibold transition-all ${
+                      quizAnswers.some((answer) => !answer)
+                        ? 'bg-gray-500 text-gray-300 cursor-not-allowed'
+                        : 'bg-amber-500 text-white'
+                    }`}
+                  >
+                    Enviar Respuestas
+                  </motion.button>
+                ) : (
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={handleNextQuestion}
+                    disabled={!quizAnswers[currentQuestionIndex]}
+                    className={`px-6 py-3 rounded-full font-exo2 font-semibold transition-all ${
+                      quizAnswers[currentQuestionIndex]
+                        ? 'bg-amber-500 text-white'
+                        : 'bg-gray-500 text-gray-300 cursor-not-allowed'
+                    }`}
+                  >
+                    Siguiente
+                  </motion.button>
+                )}
+              </div>
+
+              {/* Progress Indicator */}
+              <div className="mt-4 flex justify-center gap-2">
+                {quizQuestions.map((_, index) => (
+                  <div
+                    key={index}
+                    className={`w-2 h-2 rounded-full ${
+                      index === currentQuestionIndex ? 'bg-amber-500' : 'bg-gray-500'
+                    }`}
+                  />
+                ))}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {/* Error Messages */}
+      {errors.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="text-center text-red-400 font-exo2 bg-red-900/30 p-4 rounded-xl border border-red-500/50"
+        >
+          {errors.map((error, index) => (
+            <p key={index}>{error}</p>
+          ))}
+        </motion.div>
+      )}
+    </main>
+  </div>
+);
+}

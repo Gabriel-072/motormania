@@ -38,6 +38,10 @@ export default function Header() {
     return null;
   }
 
+  if (pathname === '/fantasy-vip-info' || pathname === '/fantasy') {
+    return null;
+  }
+
   // 3) Resto del componente
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
