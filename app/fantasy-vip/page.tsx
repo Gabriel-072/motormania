@@ -28,6 +28,35 @@ export default function FantasyVipPage() {
   /* ───────────────────────── UI ──────────────────────────── */
   const [showSignInModal, setShowSignInModal] = useState(false);
 
+  // ── NUEVO: confirmar orden si viene en la URL ──
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) return;
+    const params = new URL(window.location.href).searchParams;
+    const orderId = params.get('orderId');
+    if (!orderId) return;
+
+    (async () => {
+      try {
+        await fetch('/api/vip/confirm-order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId }),
+        });
+      } catch (e) {
+        console.error('Error confirmando orden:', e);
+      }
+      // Después de confirmar, recargamos el estado VIP:
+      const { data, error } = await supabase
+        .from('vip_transactions')
+        .select('id')
+        .eq('user_id', user!.id)
+        .eq('payment_status', 'paid')
+        .limit(1)
+        .maybeSingle();
+      setVipStatus(error ? 'invalid' : data ? 'valid' : 'invalid');
+    })();
+  }, [isLoaded, isSignedIn, user]);
+
   // 1️⃣ Si Clerk ya cargó y no está autenticado, abrimos modal
   useEffect(() => {
     if (isLoaded && !isSignedIn) {

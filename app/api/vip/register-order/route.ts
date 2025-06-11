@@ -47,7 +47,7 @@ const integritySignature = crypto
   .update(`${orderId}${amount}${CURRENCY}${BOLD_SECRET}`)
   .digest('hex');
 
-const redirectionUrl = `${SITE_URL}/fantasy-vip`;
+  const redirectionUrl = `${SITE_URL}/fantasy-vip?orderId=${orderId}`;
 
   // 4️⃣ Guardar en Supabase
   const { error } = await sb.from('vip_transactions').insert({
