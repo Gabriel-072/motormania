@@ -911,7 +911,22 @@ openBoldCheckout({
 return (
   <>
 {/* Contenedor para el embed de Bold */}
-<div id="bold-embed-vip" data-bold-embed className="fixed inset-0 z-[100] pointer-events-none" />
+<div
+  id="bold-embed-vip"
+  data-bold-embed
+  className="
+    fixed inset-0 z-[100]
+    pointer-events-none
+  "
+>
+  {/* Estilo inline para que cualquier elemento que Bold inyecte dentro
+      pueda recibir clicks */}
+  <style>{`
+    #bold-embed-vip > * {
+      pointer-events: auto !important;
+    }
+  `}</style>
+</div>
 
     <MovingBarFantasy />
 
