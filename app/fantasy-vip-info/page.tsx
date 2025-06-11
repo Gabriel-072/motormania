@@ -785,6 +785,7 @@ useEffect(() => {
      handlePurchase → crea la orden + abre Bold embed
      ═════════════════════════════════════════════════ */
   const handlePurchase = async (planId: Plan['id']) => {
+    console.log('🛒 handlePurchase invocado para:', planId);
     const plan = planes.find(p => p.id === planId);
     if (!plan) return;
 
