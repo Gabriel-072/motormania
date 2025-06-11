@@ -806,7 +806,7 @@ useEffect(() => {
     try {
       setProcessingPlan(planId);
 
-      // 3️⃣ Crear orden en el backend
+// 3️⃣ Crear orden en el backend
 console.log('🔍 Enviando POST a /api/vip/register-order con:', {
   planId: plan.id,
   planName: plan.nombre,
@@ -814,7 +814,6 @@ console.log('🔍 Enviando POST a /api/vip/register-order con:', {
   fullName: user.fullName,
   email: user.primaryEmailAddress?.emailAddress,
 });
-
 const res = await fetch('/api/vip/register-order', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
@@ -826,50 +825,43 @@ const res = await fetch('/api/vip/register-order', {
     email: user.primaryEmailAddress?.emailAddress,
   }),
 });
-
 console.log('📬 register-order status:', res.status);
-console.log('📬 register-order body:', await res.text());
-
-      if (!res.ok) {
-        const { error } = await res.json().catch(() => ({}));
-        throw new Error(error ?? 'Error creando orden');
-      }
-
-      // 4️⃣ Definir interface y desestructurar la respuesta
-      interface ApiResp {
-        orderId: string;
-        amount: string;
-        redirectionUrl: string;
-        integritySignature: string;
-      }
-      const {
-        orderId,
-        amount,
-        redirectionUrl,
-        integritySignature,
-      } = (await res.json()) as ApiResp;
-
-      // 5️⃣ Montar la configuración para openBoldCheckout
-      const config: Record<string, any> = {
-        apiKey,
-        orderId,
-        amount,
-        currency: 'COP',
-        description: `Acceso VIP · ${plan.nombre}`,
-        redirectionUrl,
-        integritySignature,
-        renderMode: 'embedded',
-        containerId: 'bold-embed-vip',
-      };
-
-      // 6️⃣ Asegurar customerData siempre válido (nunca undefined)
-      config.customerData = JSON.stringify({
-        email: user.primaryEmailAddress?.emailAddress ?? '',
-        fullName: user.fullName ?? '',
-      });
-
-
-      // 7️⃣ Abrir Bold Checkout embebido
+const text = await res.text();
+console.log('📬 register-order body:', text);
+if (!res.ok) {
+  let errorMsg = 'Error creando orden';
+  try {
+    const errJson = JSON.parse(text);
+    errorMsg = errJson.error || errorMsg;
+  } catch {}
+  throw new Error(errorMsg);
+}
+// parse the actual JSON only once
+const { orderId, amount, redirectionUrl, integritySignature } = JSON.parse(text) as {
+  orderId: string;
+  amount: string;
+  redirectionUrl: string;
+  integritySignature: string;
+};
+// 5️⃣ Montar la configuración para openBoldCheckout
+const config: Record<string, any> = {
+  apiKey,
+  orderId,
+  amount,
+  currency: 'COP',
+  description: `Acceso VIP · ${plan.nombre}`,
+  redirectionUrl,
+  integritySignature,
+  renderMode: 'embedded',
+  containerId: 'bold-embed-vip',
+};
+// 6️⃣ customerData
+config.customerData = JSON.stringify({
+  email: user.primaryEmailAddress?.emailAddress ?? '',
+  fullName: user.fullName ?? '',
+});
+// 7️⃣ Abrir Bold Checkout embebido
+console.log('🔑 window.BoldCheckout available?', (window as any).BoldCheckout);
 openBoldCheckout({
   ...config,
   onSuccess: () => {
@@ -887,6 +879,7 @@ openBoldCheckout({
   },
   onClose: () => setProcessingPlan(null),
 });
+console.log('✅ openBoldCheckout() ejecutado');
 
     } catch (err: any) {
       toast.error(err.message ?? 'Error iniciando pago');
@@ -922,19 +915,21 @@ openBoldCheckout({
 
 return (
   <>
-{/* Contenedor para el embed de Bold */}
-<div
-  id="bold-embed-vip"
-  data-bold-embed
-  className="fixed inset-0 z-[100] pointer-events-none"
->
-  {/* Habilita los clicks en todo lo que inyecte Bold dentro */}
-  <style>{`
-    #bold-embed-vip > * {
-      pointer-events: auto !important;
-    }
-  `}</style>
-</div>
+{/* Contenedor para el embed de Bold: sólo mientras processPlan esté activo */}
+{processingPlan && (
+  <div
+    id="bold-embed-vip"
+    data-bold-embed
+    className="fixed inset-0 z-[100] pointer-events-none"
+  >
+    <style>{`
+      /* Sólo los hijos directos (el iframe de Bold) recibirán clicks */
+      #bold-embed-vip > * {
+        pointer-events: auto !important;
+      }
+    `}</style>
+  </div>
+)}
 
     <MovingBarFantasy />
 
@@ -1612,7 +1607,7 @@ return (
               >
                 <path
                   fillRule="evenodd"
-                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586l-2.293-2.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l4-4z"
                   clipRule="evenodd"
                 />
               </svg>
@@ -1675,7 +1670,7 @@ return (
               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                 <path
                   fillRule="evenodd"
-                  d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4-293a1 1 0 010-1.414z"
+                  d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z"
                   clipRule="evenodd"
                 />
               </svg>
