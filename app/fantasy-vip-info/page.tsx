@@ -131,7 +131,7 @@ function VideoPlayer() {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(true);
+  const [isMuted, setIsMuted] = useState(false);
   const [volume, setVolume] = useState(0.8);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [progress, setProgress] = useState(0);
@@ -270,7 +270,7 @@ function VideoPlayer() {
     document.addEventListener('fullscreenchange', handleFullscreenChange);
 
     // Initialize video settings
-    video.muted = true;
+    video.muted = false;
     video.volume = volume;
     video.preload = 'metadata';
 
@@ -382,7 +382,7 @@ function VideoPlayer() {
     }
   };
 
-  // Handle keyboard shortcuts
+  // Handle keyboard shortcuts - Limited for VSL
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!videoRef.current) return;
@@ -400,14 +400,7 @@ function VideoPlayer() {
           e.preventDefault();
           toggleFullscreen();
           break;
-        case 'ArrowLeft':
-          e.preventDefault();
-          videoRef.current.currentTime = Math.max(0, videoRef.current.currentTime - 10);
-          break;
-        case 'ArrowRight':
-          e.preventDefault();
-          videoRef.current.currentTime = Math.min(duration, videoRef.current.currentTime + 10);
-          break;
+        // Removed arrow key seeking for VSL
       }
     };
 
@@ -418,7 +411,7 @@ function VideoPlayer() {
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [showControls, isPlaying, duration]);
+  }, [showControls, isPlaying]);
 
   if (!isMounted) {
     return (
@@ -535,21 +528,14 @@ function VideoPlayer() {
             transition={{ duration: 0.2 }}
           >
             <div className="px-4 pb-4">
-              {/* Progress Bar */}
+              {/* Progress Bar - Visual Only for VSL */}
               <div className="mb-4">
-                <div
-                  ref={progressBarRef}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleProgressSeek(e);
-                  }}
-                  className="w-full h-2 bg-white/20 rounded-full cursor-pointer group/progress"
-                >
+                <div className="w-full h-2 bg-white/20 rounded-full">
                   <div
                     className="h-full bg-gradient-to-r from-amber-400 to-orange-500 rounded-full relative transition-all duration-150"
                     style={{ width: `${progress}%` }}
                   >
-                    <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 w-4 h-4 bg-amber-500 rounded-full opacity-0 group-hover/progress:opacity-100 transition-opacity shadow-lg"></div>
+                    <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 w-4 h-4 bg-amber-500 rounded-full shadow-lg"></div>
                   </div>
                 </div>
                 
@@ -626,12 +612,12 @@ function VideoPlayer() {
                   </div>
                 </div>
 
-                {/* Right Controls */}
+                {/* Right Controls - Minimal for VSL */}
                 <div className="flex items-center gap-2">
-                  {/* Playback Speed */}
+                  {/* Playback Speed - Limited options */}
                   <div className="flex items-center gap-1 bg-black/30 backdrop-blur-sm rounded-lg p-1">
                     <ForwardIcon className="h-4 w-4 text-gray-300 mx-1" />
-                    {[1, 1.25, 1.5, 2].map((rate) => (
+                    {[1, 1.25].map((rate) => (
                       <button
                         key={rate}
                         onClick={(e) => {
@@ -674,9 +660,9 @@ function VideoPlayer() {
         )}
       </AnimatePresence>
 
-      {/* Keyboard Shortcuts Help (hidden, for screen readers) */}
+      {/* Keyboard Shortcuts Help - Limited for VSL */}
       <div className="sr-only">
-        <p>Atajos de teclado: Espacio (reproducir/pausar), M (silenciar), F (pantalla completa), ← (retroceder 10s), → (avanzar 10s)</p>
+        <p>Atajos de teclado: Espacio (reproducir/pausar), M (silenciar), F (pantalla completa)</p>
       </div>
     </div>
   );
