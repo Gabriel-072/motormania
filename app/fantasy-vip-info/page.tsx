@@ -145,9 +145,11 @@ function VideoPlayer() {
   const [hasStarted, setHasStarted] = useState(false);
   const [isBuffering, setIsBuffering] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [loadingTimeout, setLoadingTimeout] = useState(false);
 
   // Auto-hide controls timer
   const controlsTimeoutRef = useRef<number | null>(null);
+  const loadingTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     setIsMounted(true);
@@ -193,6 +195,16 @@ function VideoPlayer() {
     const handleLoadStart = () => {
       setIsLoading(true);
       setHasError(false);
+      setLoadingTimeout(false);
+      
+      // Set a timeout for loading
+      if (loadingTimeoutRef.current) {
+        window.clearTimeout(loadingTimeoutRef.current);
+      }
+      
+      loadingTimeoutRef.current = window.setTimeout(() => {
+        setLoadingTimeout(true);
+      }, 15000); // 15 seconds timeout
     };
 
     const handleLoadedMetadata = () => {
@@ -207,11 +219,25 @@ function VideoPlayer() {
       setIsLoading(false);
       setIsBuffering(false);
       setHasError(false);
+      setLoadingTimeout(false);
+      
+      // Clear loading timeout
+      if (loadingTimeoutRef.current) {
+        window.clearTimeout(loadingTimeoutRef.current);
+        loadingTimeoutRef.current = null;
+      }
     };
 
     const handleCanPlayThrough = () => {
       setIsLoading(false);
       setIsBuffering(false);
+      setLoadingTimeout(false);
+      
+      // Clear loading timeout
+      if (loadingTimeoutRef.current) {
+        window.clearTimeout(loadingTimeoutRef.current);
+        loadingTimeoutRef.current = null;
+      }
     };
 
     const handlePlay = () => {
@@ -243,6 +269,13 @@ function VideoPlayer() {
       setIsLoading(false);
       setIsBuffering(false);
       setHasError(true);
+      setLoadingTimeout(false);
+      
+      // Clear loading timeout
+      if (loadingTimeoutRef.current) {
+        window.clearTimeout(loadingTimeoutRef.current);
+        loadingTimeoutRef.current = null;
+      }
     };
 
     const handleEnded = () => {
@@ -272,7 +305,10 @@ function VideoPlayer() {
     // Initialize video settings
     video.muted = false;
     video.volume = volume;
-    video.preload = 'metadata';
+    video.preload = 'auto'; // Changed to 'auto' for better loading
+    
+    // Force load attempt
+    video.load();
 
     return () => {
       video.removeEventListener('loadstart', handleLoadStart);
@@ -290,6 +326,10 @@ function VideoPlayer() {
       
       if (controlsTimeoutRef.current) {
         window.clearTimeout(controlsTimeoutRef.current);
+      }
+      
+      if (loadingTimeoutRef.current) {
+        window.clearTimeout(loadingTimeoutRef.current);
       }
     };
   }, [isMounted, volume]);
@@ -376,9 +416,24 @@ function VideoPlayer() {
     setHasError(false);
     setIsLoading(true);
     setHasStarted(false);
+    setLoadingTimeout(false);
+    
+    if (loadingTimeoutRef.current) {
+      window.clearTimeout(loadingTimeoutRef.current);
+    }
+    
     const video = videoRef.current;
     if (video) {
+      // Try different loading strategies
+      video.preload = 'auto';
       video.load();
+      
+      // Fallback: try to play after a short delay
+      setTimeout(() => {
+        if (video.readyState >= 2) { // HAVE_CURRENT_DATA
+          setIsLoading(false);
+        }
+      }, 2000);
     }
   };
 
@@ -458,35 +513,54 @@ function VideoPlayer() {
 
       {/* Loading/Error States */}
       <AnimatePresence>
-        {((isLoading && !hasStarted) || hasError || isBuffering) && (
+        {((isLoading && !hasStarted) || hasError || isBuffering || loadingTimeout) && (
           <motion.div
             className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-md z-30"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
-            {hasError ? (
+            {hasError || loadingTimeout ? (
               <div className="text-center p-6">
                 <ExclamationTriangleIcon className="h-16 w-16 text-amber-500 mx-auto mb-4" />
-                <p className="text-white font-medium mb-2">Error de Video</p>
-                <p className="text-gray-300 text-sm mb-4">
-                  No se pudo cargar el video. Verifica tu conexión e inténtalo de nuevo.
+                <p className="text-white font-medium mb-2">
+                  {loadingTimeout ? 'Tiempo de Carga Agotado' : 'Error de Video'}
                 </p>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    retryVideo();
-                  }}
-                  className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black rounded-lg font-bold transition-colors active:scale-95"
-                >
-                  Reintentar
-                </button>
+                <p className="text-gray-300 text-sm mb-4">
+                  {loadingTimeout 
+                    ? 'El video está tardando mucho en cargar. Verifica tu conexión e inténtalo de nuevo.'
+                    : 'No se pudo cargar el video. Verifica tu conexión e inténtalo de nuevo.'
+                  }
+                </p>
+                <div className="space-y-2">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      retryVideo();
+                    }}
+                    className="block w-full px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black rounded-lg font-bold transition-colors active:scale-95"
+                  >
+                    Reintentar
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      window.location.reload();
+                    }}
+                    className="block w-full px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg font-medium transition-colors active:scale-95"
+                  >
+                    Recargar Página
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="text-center p-6">
                 <div className="animate-spin rounded-full h-12 w-12 border-4 border-amber-500 border-t-transparent mx-auto mb-4"></div>
                 <p className="text-white font-medium">
                   {isBuffering ? 'Cargando...' : 'Preparando Video...'}
+                </p>
+                <p className="text-gray-400 text-sm mt-2">
+                  Por favor espera un momento
                 </p>
               </div>
             )}
@@ -496,7 +570,7 @@ function VideoPlayer() {
 
       {/* Play Button Overlay */}
       <AnimatePresence>
-        {!isPlaying && !isLoading && !hasError && (
+        {!isPlaying && !isLoading && !hasError && !loadingTimeout && (
           <motion.div
             className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-[2px] z-25"
             initial={{ opacity: 0 }}
@@ -519,7 +593,7 @@ function VideoPlayer() {
 
       {/* Video Controls */}
       <AnimatePresence>
-        {(showControls || !isPlaying) && !isLoading && !hasError && (
+        {(showControls || !isPlaying) && !isLoading && !hasError && !loadingTimeout && (
           <motion.div
             className="absolute inset-x-0 bottom-0 z-30 bg-gradient-to-t from-black/90 via-black/60 to-transparent pt-16"
             initial={{ opacity: 0, y: 20 }}
