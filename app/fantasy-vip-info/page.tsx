@@ -461,7 +461,7 @@ function VideoPlayer() {
       setTimeout(() => {
         const source = video.querySelector('source');
         if (source) {
-          source.src = '/videos/fantasyvip-vsl.mp4';
+          source.src = '/videos/fantasyvipvsl.mp4';
         }
         video.load();
         
@@ -553,9 +553,9 @@ function VideoPlayer() {
         poster="/videos/vsl-cover.gif"
         crossOrigin="anonymous"
       >
-        <source src="/videos/fantasyvip-vsl.mp4" type="video/mp4" />
+        <source src="/videos/fantasyvipvsl.mp4" type="video/mp4" />
         <source src="/videos/fantasyvip-vsl.webm" type="video/webm" />
-        <p>Su navegador no soporta videos HTML5. <a href="/videos/fantasyvip-vsl.mp4">Descargar video</a>.</p>
+        <p>Su navegador no soporta videos HTML5. <a href="/videos/fantasyvipvsl.mp4">Descargar video</a>.</p>
       </video>
 
       {/* Loading/Error States */}
