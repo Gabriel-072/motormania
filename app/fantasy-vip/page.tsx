@@ -1,4 +1,4 @@
-// app/fantasy-vip/page.tsx
+// app/fantasy-vip/page.tsx - Improved useEffect section
 'use client';
 
 import { useUser } from '@clerk/nextjs';
@@ -16,112 +16,135 @@ const supabase = createClient(
 );
 
 export default function FantasyVipPage() {
-  /* ───────────────────────── Clerk ───────────────────────── */
   const { isLoaded, isSignedIn, user } = useUser();
-
-  /* ───────────────────────── Routing ──────────────────────── */
   const router = useRouter();
-
-  /* ────────────────────── VIP Access State ───────────────── */
+  
   const [vipStatus, setVipStatus] = useState<'loading' | 'valid' | 'invalid'>('loading');
-
-  /* ───────────────────────── UI ──────────────────────────── */
   const [showSignInModal, setShowSignInModal] = useState(false);
+  const [confirmingOrder, setConfirmingOrder] = useState(false);
 
-  // ── NUEVO: confirmar orden si viene en la URL ──
+  // Check VIP status function (extracted for reuse)
+  const checkVipStatus = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('vip_transactions')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('payment_status', 'paid')
+        .limit(1)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data ? 'valid' : 'invalid';
+    } catch (err) {
+      console.error('Error checking VIP status:', err);
+      return 'invalid';
+    }
+  };
+
+  // Handle order confirmation from URL
   useEffect(() => {
-    if (!isLoaded || !isSignedIn) return;
+    if (!isLoaded || !isSignedIn || !user) return;
+
     const params = new URL(window.location.href).searchParams;
     const orderId = params.get('orderId');
+    
     if (!orderId) return;
 
-    (async () => {
+    const confirmOrder = async () => {
+      setConfirmingOrder(true);
       try {
-        await fetch('/api/vip/confirm-order', {
+        // Confirm the order
+        const response = await fetch('/api/vip/confirm-order', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ orderId }),
         });
+
+        if (!response.ok) {
+          const error = await response.json();
+          console.error('Error confirming order:', error);
+          // You might want to show a toast here
+        }
+
+        // Wait a bit to ensure DB is updated
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // Check VIP status after confirmation
+        const status = await checkVipStatus(user.id);
+        setVipStatus(status as 'valid' | 'invalid');
+
+        // Clean up URL
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, newUrl);
+
       } catch (e) {
-        console.error('Error confirmando orden:', e);
+        console.error('Error in order confirmation:', e);
+        // Still check VIP status in case the order was already confirmed
+        const status = await checkVipStatus(user.id);
+        setVipStatus(status as 'valid' | 'invalid');
+      } finally {
+        setConfirmingOrder(false);
       }
-      // Después de confirmar, recargamos el estado VIP:
-      const { data, error } = await supabase
-        .from('vip_transactions')
-        .select('id')
-        .eq('user_id', user!.id)
-        .eq('payment_status', 'paid')
-        .limit(1)
-        .maybeSingle();
-      setVipStatus(error ? 'invalid' : data ? 'valid' : 'invalid');
-    })();
+    };
+
+    confirmOrder();
   }, [isLoaded, isSignedIn, user]);
 
-  // 1️⃣ Si Clerk ya cargó y no está autenticado, abrimos modal
+  // Check authentication status
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
       setShowSignInModal(true);
     }
   }, [isLoaded, isSignedIn]);
 
-  // 2️⃣ Si está autenticado, comprobamos en Supabase si tiene pase VIP pagado
+  // Check VIP status (only if not confirming an order)
   useEffect(() => {
-    if (!isLoaded || !isSignedIn) return;
+    if (!isLoaded || !isSignedIn || !user || confirmingOrder) return;
 
-    (async () => {
+    // Don't check if we're already processing an order from URL
+    const params = new URL(window.location.href).searchParams;
+    const orderId = params.get('orderId');
+    if (orderId) return;
+
+    const checkStatus = async () => {
       setVipStatus('loading');
-      try {
-        const { data, error } = await supabase
-          .from('vip_transactions')
-          .select('id')
-          .eq('user_id', user!.id)
-          .eq('payment_status', 'paid')
-          .limit(1)
-          .maybeSingle();
+      const status = await checkVipStatus(user.id);
+      setVipStatus(status as 'valid' | 'invalid');
+    };
 
-        if (error) throw error;
-        setVipStatus(data ? 'valid' : 'invalid');
-      } catch (err) {
-        console.error('Error comprobando VIP:', err);
-        setVipStatus('invalid');
-      }
-    })();
-  }, [isLoaded, isSignedIn, user]);
+    checkStatus();
+  }, [isLoaded, isSignedIn, user, confirmingOrder]);
 
-  /* ───────────────────────── Helpers ─────────────────────── */
+  // Helper functions
   const handleSignIn = () => {
     router.push(`/sign-in?redirect_url=${encodeURIComponent('/fantasy-vip')}`);
   };
-  const handleCloseModal   = () => setShowSignInModal(false);
+  
+  const handleCloseModal = () => setShowSignInModal(false);
   const triggerSignInModal = () => setShowSignInModal(true);
+  const goToPurchase = () => router.push('/fantasy-vip-info');
 
-  const goToPurchase = () => {
-    router.push('/fantasy-vip-info');
-  };
-
-  /* ───────────────────────── Render ───────────────────────── */
-  // Mientras Clerk carga
+  // Render logic
   if (!isLoaded) {
     return <LoadingAnimation animationDuration={2} text="Cargando cuenta..." />;
   }
 
-  //  No autenticado → modal de signin
-  // (el modal se abre automáticamente en useEffect)
-  // pero mientras tanto no mostramos nada
   if (!isSignedIn) {
     return null;
   }
 
-  // Usuario autenticado pero estamos comprobando VIP
-  if (vipStatus === 'loading') {
+  if (vipStatus === 'loading' || confirmingOrder) {
     return (
       <div className="flex justify-center py-20">
-        <LoadingAnimation animationDuration={1} text="Verificando acceso VIP…" />
+        <LoadingAnimation 
+          animationDuration={1} 
+          text={confirmingOrder ? "Confirmando tu compra..." : "Verificando acceso VIP…"} 
+        />
       </div>
     );
   }
 
-  // Usuario autenticado pero NO VIP → CTA de compra
   if (vipStatus === 'invalid') {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-neutral-950 text-gray-200 p-4">
@@ -139,7 +162,6 @@ export default function FantasyVipPage() {
     );
   }
 
-  // Usuario autenticado y tiene VIP → mostramos el contenido
   return (
     <>
       <Suspense fallback={<LoadingAnimation animationDuration={2} text="Cargando contenido..." />}>
