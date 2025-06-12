@@ -655,199 +655,188 @@ if (resultsData && user) {
   };
 
  // SECTION: handleSubmit
+// Update the handleSubmit function in FantasyVipPageContent.tsx
+
 const handleSubmit = async () => {
-    // 1. Check if signed in
-    if (!isSignedIn) {
-      console.log('Triggering sign-in modal because user is not signed in.');
-      localStorage.setItem('pendingPredictions', JSON.stringify(predictions));
-      if (triggerSignInModal) {
-        console.log('Using triggerSignInModal function.');
-        triggerSignInModal(); // Show modal passed via props
-      } else {
-        // Fallback to redirect if modal trigger is unavailable
-        console.warn('triggerSignInModal not provided, falling back to redirect.');
-        const redirectUrl = `/fantasy-vip?modal=review`; // Try to reopen review modal after login
-        router.push(`/sign-in?redirect_url=${encodeURIComponent(redirectUrl)}`);
-      }
-      return;
+  // 1. Check if signed in
+  if (!isSignedIn) {
+    console.log('Triggering sign-in modal because user is not signed in.');
+    localStorage.setItem('pendingPredictions', JSON.stringify(predictions));
+    if (triggerSignInModal) {
+      console.log('Using triggerSignInModal function.');
+      triggerSignInModal();
+    } else {
+      console.warn('triggerSignInModal not provided, falling back to redirect.');
+      const redirectUrl = `/fantasy-vip?modal=review`;
+      router.push(`/sign-in?redirect_url=${encodeURIComponent(redirectUrl)}`);
     }
+    return;
+  }
 
-    // 2. Check if there's an active GP
-    if (!currentGp) {
-      setErrors(['No hay un Gran Premio activo para hacer predicciones en este momento.']);
-      setActiveModal('review'); // Stay on review modal to show error
-      return;
+  // 2. Check if there's an active GP
+  if (!currentGp) {
+    setErrors(['No hay un Gran Premio activo para hacer predicciones en este momento.']);
+    setActiveModal('review');
+    return;
+  }
+
+  // 3. Check if prediction deadlines have passed
+  const now = new Date().getTime();
+  const qualyDeadline = new Date(currentGp.qualy_time).getTime() - 5 * 60 * 1000;
+  const raceDeadline = new Date(currentGp.race_time).getTime() - 5 * 60 * 1000;
+  const canPredictQualy = now < qualyDeadline;
+  const canPredictRace = now < raceDeadline;
+
+  if (!canPredictQualy && !canPredictRace) {
+    setErrors(['El período de predicciones (Qualy y Carrera) ha cerrado para este GP.']);
+    setActiveModal('review');
+    return;
+  }
+
+  // 4. Build the submission payload based on allowed predictions
+  const submissionPayload: Partial<Prediction> = {};
+  let hasMadePrediction = false;
+
+  if (canPredictQualy) {
+    if (predictions.pole1) { submissionPayload.pole1 = predictions.pole1; hasMadePrediction = true; }
+    if (predictions.pole2) { submissionPayload.pole2 = predictions.pole2; hasMadePrediction = true; }
+    if (predictions.pole3) { submissionPayload.pole3 = predictions.pole3; hasMadePrediction = true; }
+  }
+
+  if (canPredictRace) {
+    if (predictions.gp1) { submissionPayload.gp1 = predictions.gp1; hasMadePrediction = true; }
+    if (predictions.gp2) { submissionPayload.gp2 = predictions.gp2; hasMadePrediction = true; }
+    if (predictions.gp3) { submissionPayload.gp3 = predictions.gp3; hasMadePrediction = true; }
+    if (predictions.fastest_pit_stop_team) { submissionPayload.fastest_pit_stop_team = predictions.fastest_pit_stop_team; hasMadePrediction = true; }
+    if (predictions.fastest_lap_driver) { submissionPayload.fastest_lap_driver = predictions.fastest_lap_driver; hasMadePrediction = true; }
+    if (predictions.driver_of_the_day) { submissionPayload.driver_of_the_day = predictions.driver_of_the_day; hasMadePrediction = true; }
+    if (predictions.first_team_to_pit) { submissionPayload.first_team_to_pit = predictions.first_team_to_pit; hasMadePrediction = true; }
+    if (predictions.first_retirement) { submissionPayload.first_retirement = predictions.first_retirement; hasMadePrediction = true; }
+  }
+
+  // 5. Check if at least one valid prediction was made
+  if (!hasMadePrediction) {
+    let errorMessage = 'Por favor, completa al menos una predicción ';
+    if (!canPredictQualy && canPredictRace) errorMessage += 'de Carrera ';
+    else if (canPredictQualy && !canPredictRace) errorMessage += 'de Qualy ';
+    errorMessage += 'antes de enviar.';
+    setErrors([errorMessage]);
+    setActiveModal('review');
+    return;
+  }
+
+  setSubmitting(true);
+  setErrors([]);
+
+  try {
+    const token = await getToken({ template: 'supabase' });
+    if (!token) throw new Error('No se pudo obtener el token de autenticación.');
+
+    const supabase = createAuthClient(token);
+    const userId = user!.id;
+    const userName = user!.fullName || user!.username || 'Usuario Anónimo';
+    const userEmail = user!.primaryEmailAddress?.emailAddress || 'no-email@example.com';
+
+    if (!currentGp) throw new Error('Current GP is unexpectedly null.');
+
+    // 6. Check for existing prediction for THIS GP, THIS USER, and THIS SEASON
+    const currentYear = new Date().getFullYear(); // 2025
+
+    const { data: existingPrediction, error: fetchError } = await supabase
+      .from('vip_predictions')
+      .select('id')
+      .eq('user_id', userId) // Use Clerk ID directly
+      .eq('gp_name', currentGp.gp_name)
+      .eq('season', currentYear)
+      .maybeSingle();
+
+    if (fetchError) {
+      console.error("Supabase fetch error:", fetchError);
+      throw new Error(`Error al verificar predicción previa: ${fetchError.message}`);
     }
-
-    // 3. Check if prediction deadlines have passed
-    const now = new Date().getTime();
-    const qualyDeadline = new Date(currentGp.qualy_time).getTime() - 5 * 60 * 1000;
-    const raceDeadline = new Date(currentGp.race_time).getTime() - 5 * 60 * 1000;
-    const canPredictQualy = now < qualyDeadline;
-    const canPredictRace = now < raceDeadline;
-
-    if (!canPredictQualy && !canPredictRace) {
-      setErrors(['El período de predicciones (Qualy y Carrera) ha cerrado para este GP.']);
+    
+    if (existingPrediction) {
+      setErrors([`Ya has enviado una predicción para el ${currentGp.gp_name} esta temporada (${currentYear}).`]);
       setActiveModal('review');
+      setSubmitting(false);
       return;
     }
 
-    // 4. Build the submission payload based on allowed predictions
-    const submissionPayload: Partial<Prediction> = {};
-    let hasMadePrediction = false;
+    // 7. Insert the new prediction
+    const submissionTime = new Date();
+    const currentSeason = submissionTime.getFullYear(); // 2025
 
-    if (canPredictQualy) {
-      if (predictions.pole1) { submissionPayload.pole1 = predictions.pole1; hasMadePrediction = true; }
-      if (predictions.pole2) { submissionPayload.pole2 = predictions.pole2; hasMadePrediction = true; }
-      if (predictions.pole3) { submissionPayload.pole3 = predictions.pole3; hasMadePrediction = true; }
+    const { error: predError } = await supabase.from('vip_predictions').insert({
+      user_id: userId, // Use Clerk ID directly since column is text
+      gp_name: currentGp.gp_name,
+      season: currentSeason,
+      ...submissionPayload,
+      submitted_at: submissionTime.toISOString(),
+    });
+
+    if (predError) {
+      console.error("Supabase insert error:", predError);
+      throw new Error(`Error al guardar la predicción: ${predError.message}`);
     }
 
-    if (canPredictRace) {
-      if (predictions.gp1) { submissionPayload.gp1 = predictions.gp1; hasMadePrediction = true; }
-      if (predictions.gp2) { submissionPayload.gp2 = predictions.gp2; hasMadePrediction = true; }
-      if (predictions.gp3) { submissionPayload.gp3 = predictions.gp3; hasMadePrediction = true; }
-      if (predictions.fastest_pit_stop_team) { submissionPayload.fastest_pit_stop_team = predictions.fastest_pit_stop_team; hasMadePrediction = true; }
-      if (predictions.fastest_lap_driver) { submissionPayload.fastest_lap_driver = predictions.fastest_lap_driver; hasMadePrediction = true; }
-      if (predictions.driver_of_the_day) { submissionPayload.driver_of_the_day = predictions.driver_of_the_day; hasMadePrediction = true; }
-      if (predictions.first_team_to_pit) { submissionPayload.first_team_to_pit = predictions.first_team_to_pit; hasMadePrediction = true; }
-      if (predictions.first_retirement) { submissionPayload.first_retirement = predictions.first_retirement; hasMadePrediction = true; }
+    // 8. Send confirmation email
+    try {
+      await fetch('/api/send-prediction-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userEmail, userName, predictions: submissionPayload, gpName: currentGp.gp_name }),
+      });
+    } catch (emailErr) {
+      console.error('Error sending confirmation email (non-critical):', emailErr);
     }
 
-     // 5. Check if at least one valid prediction was made
-     if (!hasMadePrediction) {
-         let errorMessage = 'Por favor, completa al menos una predicción ';
-         if (!canPredictQualy && canPredictRace) errorMessage += 'de Carrera ';
-         else if (canPredictQualy && !canPredictRace) errorMessage += 'de Qualy ';
-         errorMessage += 'antes de enviar.';
-         setErrors([errorMessage]);
-         setActiveModal('review');
-         return;
-     }
-
-    setSubmitting(true);
-    setErrors([]); // Clear previous errors before trying to submit
+    // 9. Track Events
+    const eventId = generateEventId();
+    trackFBEvent('PrediccionEnviada', {
+      params: { page: 'fantasy-vip', gp_name: currentGp.gp_name },
+      email: userEmail,
+      event_id: eventId,
+    });
 
     try {
-      const token = await getToken({ template: 'supabase' });
-      if (!token) throw new Error('No se pudo obtener el token de autenticación.');
-
-      const supabase = createAuthClient(token);
-      const userId = user!.id;
-      const userName = user!.fullName || user!.username || 'Usuario Anónimo'; // Added fallback for username
-      const userEmail = user!.primaryEmailAddress?.emailAddress || 'no-email@example.com'; // Use primary email
-
-      // Ensure currentGp is not null before proceeding (already checked, but safer)
-      if (!currentGp) throw new Error('Current GP is unexpectedly null.');
-
-      // 6. Check for existing prediction for THIS GP and THIS USER in the CURRENT SEASON
-      const currentYear = new Date().getFullYear();
-      const startOfYear = new Date(currentYear, 0, 1).toISOString();
-      const endOfYear = new Date(currentYear, 11, 31, 23, 59, 59).toISOString();
-
-      const { data: existingPrediction, error: fetchError } = await supabase
-        .from('vip_predictions')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('gp_name', currentGp.gp_name)
-        .gte('submitted_at', startOfYear) // Check within the current year
-        .lte('submitted_at', endOfYear)
-        .maybeSingle();
-
-      if (fetchError) {
-        console.error("Supabase fetch error:", fetchError);
-        throw new Error(`Error al verificar predicción previa: ${fetchError.message}`);
-      }
-      if (existingPrediction) {
-        setErrors([`Ya has enviado una predicción para el ${currentGp.gp_name} esta temporada (${currentYear}).`]);
-        setActiveModal('review');
-        setSubmitting(false); // Ensure submitting state is reset
-        return;
-      }
-
-      // 7. Insert the new prediction
-      const submissionTime = new Date();
-      const week = Math.ceil(
-        (submissionTime.getTime() - new Date(submissionTime.getFullYear(), 0, 1).getTime()) / (7 * 24 * 60 * 60 * 1000)
-      );
-
-      const { error: predError } = await supabase.from('vip_predictions').insert({
-        user_id: userId,
-        gp_name: currentGp.gp_name,
-        ...submissionPayload, // Only insert allowed predictions
-        submitted_at: submissionTime.toISOString(),
-        submission_week: week,
-        submission_year: submissionTime.getFullYear(),
+      const capiResponse = await fetch('/api/fb-track', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event_name: 'PrediccionEnviada',
+          event_id: eventId,
+          event_source_url: window.location.href,
+          params: { page: 'fantasy-vip', gp_name: currentGp.gp_name },
+          email: userEmail,
+        }),
       });
-
-      if (predError) {
-         console.error("Supabase insert error:", predError);
-         throw new Error(`Error al guardar la predicción: ${predError.message}`);
+      if (!capiResponse.ok) {
+        console.error('❌ Failed to send CAPI event:', await capiResponse.text());
       }
-
-      // 8. Send confirmation email (Optional but good UX)
-      try {
-          await fetch('/api/send-prediction-email', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userEmail, userName, predictions: submissionPayload, gpName: currentGp.gp_name }),
-          });
-      } catch (emailErr) {
-          console.error('Error sending confirmation email (non-critical):', emailErr);
-          // Don't block submission flow for email error
-      }
-
-
-      // 9. Track Events (Meta Pixel + CAPI)
-      const eventId = generateEventId();
-      trackFBEvent('PrediccionEnviada', {
-        params: { page: 'fantasy-vip', gp_name: currentGp.gp_name },
-        email: userEmail,
-        event_id: eventId,
-      });
-
-      try {
-        const capiResponse = await fetch('/api/fb-track', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            event_name: 'PrediccionEnviada',
-            event_id: eventId,
-            event_source_url: window.location.href,
-            params: { page: 'fantasy-vip', gp_name: currentGp.gp_name },
-            email: userEmail,
-          }),
-        });
-        if (!capiResponse.ok) {
-          console.error('❌ Failed to send CAPI event:', await capiResponse.text());
-        } else {
-          console.log('✅ CAPI event PrediccionEnviada sent successfully.');
-        }
-      } catch (err) {
-        console.error('❌ Error sending CAPI event:', err);
-      }
-
-      // 10. Update UI State on Success
-      setSubmitted(true); // Mark as submitted for this session/GP
-      setSubmittedPredictions(submissionPayload as Prediction); // Store what was actually submitted
-      // Reset the form fields
-      setPredictions({
-        pole1: '', pole2: '', pole3: '',
-        gp1: '', gp2: '', gp3: '',
-        fastest_pit_stop_team: '', fastest_lap_driver: '', driver_of_the_day: '',
-        first_team_to_pit: '', first_retirement: '',
-      });
-      setActiveModal('share'); // Show success/share modal
-      soundManager.submit.play();
-      localStorage.removeItem('pendingPredictions'); // Clear any pending state
-
     } catch (err) {
-      console.error('Submission error:', err);
-      // Ensure user sees the error on the review modal
-      setErrors([err instanceof Error ? err.message : 'Ocurrió un error inesperado al enviar las predicciones. Por favor, intenta de nuevo.']);
-      setActiveModal('review');
-    } finally {
-      setSubmitting(false); // Always reset submitting state
+      console.error('❌ Error sending CAPI event:', err);
     }
+
+    // 10. Update UI State
+    setSubmitted(true);
+    setSubmittedPredictions(submissionPayload as Prediction);
+    setPredictions({
+      pole1: '', pole2: '', pole3: '',
+      gp1: '', gp2: '', gp3: '',
+      fastest_pit_stop_team: '', fastest_lap_driver: '', driver_of_the_day: '',
+      first_team_to_pit: '', first_retirement: '',
+    });
+    setActiveModal('share');
+    soundManager.submit.play();
+    localStorage.removeItem('pendingPredictions');
+
+  } catch (err) {
+    console.error('Submission error:', err);
+    setErrors([err instanceof Error ? err.message : 'Ocurrió un error inesperado al enviar las predicciones. Por favor, intenta de nuevo.']);
+    setActiveModal('review');
+  } finally {
+    setSubmitting(false);
+  }
 };
 
 
