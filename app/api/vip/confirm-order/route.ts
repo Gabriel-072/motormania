@@ -3,15 +3,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { createClient } from '@supabase/supabase-js';
 
-const sb = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
 export async function POST(req: NextRequest) {
+  console.log('🔍 confirm-order POST called');
+  
   try {
     // 1️⃣ Auth
     const { userId } = await auth();
+    console.log('🔍 Clerk User ID:', userId);
+    
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -19,80 +18,122 @@ export async function POST(req: NextRequest) {
     // 2️⃣ Get orderId from body
     const body = await req.json();
     const { orderId } = body;
+    console.log('🔍 Order ID from request:', orderId);
     
     if (!orderId) {
       return NextResponse.json({ error: 'Missing orderId' }, { status: 400 });
     }
 
-    // 3️⃣ First check if the order exists and belongs to this user
+    // 3️⃣ Create Supabase client with service role
+    const sb = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    // 4️⃣ First check if the order exists
+    console.log('🔍 Fetching order from database...');
     const { data: existingOrder, error: fetchError } = await sb
       .from('vip_transactions')
-      .select('user_id, payment_status')
+      .select('*') // Select all columns for debugging
       .eq('order_id', orderId)
       .single();
 
-    if (fetchError || !existingOrder) {
-      console.error('Order not found:', orderId);
-      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+    if (fetchError) {
+      console.error('❌ Error fetching order:', fetchError);
+      
+      // Let's also try to see all orders for this user
+      const { data: userOrders, error: userOrdersError } = await sb
+        .from('vip_transactions')
+        .select('order_id, payment_status')
+        .eq('user_id', userId);
+      
+      console.log('🔍 All orders for user:', userOrders);
+      
+      return NextResponse.json({ 
+        error: 'Order not found', 
+        details: fetchError.message,
+        orderId,
+        userId,
+        userOrders
+      }, { status: 404 });
     }
+
+    console.log('🔍 Found order:', existingOrder);
 
     // Verify the order belongs to the current user
     if (existingOrder.user_id !== userId) {
-      console.error('Order does not belong to user:', { orderId, userId });
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+      console.error('❌ User mismatch:', { 
+        orderId, 
+        orderUserId: existingOrder.user_id, 
+        clerkUserId: userId 
+      });
+      return NextResponse.json({ 
+        error: 'Order does not belong to user',
+        orderUserId: existingOrder.user_id,
+        clerkUserId: userId
+      }, { status: 403 });
     }
 
     // If already paid, just return success
     if (existingOrder.payment_status === 'paid') {
+      console.log('✅ Order already paid');
       return NextResponse.json({ success: true, message: 'Order already confirmed' });
     }
 
-    // 4️⃣ Update payment status to paid
-    const { error: updateError } = await sb
+    // 5️⃣ Update payment status to paid
+    console.log('🔍 Updating payment status to paid...');
+    const { data: updateData, error: updateError } = await sb
       .from('vip_transactions')
       .update({ 
         payment_status: 'paid',
-        updated_at: new Date().toISOString()
+        paid_at: new Date().toISOString()
       })
       .eq('order_id', orderId)
-      .eq('user_id', userId); // Extra safety check
+      .select() // Return the updated row
+      .single();
 
     if (updateError) {
-      console.error('Error updating VIP order:', updateError);
-      return NextResponse.json({ error: 'Database update failed' }, { status: 500 });
+      console.error('❌ Error updating order:', updateError);
+      return NextResponse.json({ 
+        error: 'Database update failed', 
+        details: updateError.message,
+        updateError
+      }, { status: 500 });
     }
 
-    console.log(`✅ VIP order confirmed: ${orderId} for user ${userId}`);
-    return NextResponse.json({ success: true });
+    console.log('✅ Order updated successfully:', updateData);
+    
+    return NextResponse.json({ 
+      success: true,
+      updatedOrder: updateData
+    });
 
   } catch (error) {
-    console.error('Error in confirm-order:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('❌ Unexpected error:', error);
+    return NextResponse.json({ 
+      error: 'Internal server error',
+      details: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    }, { status: 500 });
   }
 }
 
-// Keep the GET method as well if needed for other purposes
+// Also handle GET requests in case Bold uses GET
 export async function GET(req: NextRequest) {
-  // Your existing GET handler code...
-  const { userId } = await auth();
-  if (!userId) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const orderId = req.nextUrl.searchParams.get('orderId');
+  console.log('🔍 confirm-order GET called');
+  
+  const { searchParams } = new URL(req.url);
+  const orderId = searchParams.get('orderId');
+  
   if (!orderId) {
     return NextResponse.json({ error: 'Missing orderId' }, { status: 400 });
   }
 
-  const { error } = await sb
-    .from('vip_transactions')
-    .update({ payment_status: 'paid' })
-    .eq('order_id', orderId);
-
-  if (error) {
-    console.error('Error confirming VIP order:', error);
-    return NextResponse.json({ error: 'Database update failed' }, { status: 500 });
-  }
-
-  return NextResponse.json({ success: true });
+  // Reuse the POST logic
+  const mockReq = new NextRequest(req.url, {
+    method: 'POST',
+    body: JSON.stringify({ orderId })
+  });
+  
+  return POST(mockReq);
 }

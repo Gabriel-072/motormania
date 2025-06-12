@@ -61,10 +61,17 @@ export default function FantasyVipPage() {
           body: JSON.stringify({ orderId }),
         });
 
+        const data = await response.json();
+        
         if (!response.ok) {
-          const error = await response.json();
-          console.error('Error confirming order:', error);
-          // You might want to show a toast here
+          console.error('Error confirming order:', data);
+          // Show specific error message
+          if (data.details) {
+            console.error('Error details:', data.details);
+          }
+          // You might want to show a toast with data.error
+        } else {
+          console.log('Order confirmed successfully:', data);
         }
 
         // Wait a bit to ensure DB is updated
