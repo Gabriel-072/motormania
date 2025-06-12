@@ -2,11 +2,11 @@
 'use client';
 
 import React, { useState, useEffect, useRef, Suspense } from 'react';
+import { useUser, useClerk }         from '@clerk/nextjs';
+import { useRouter }                 from 'next/navigation';
 import { motion, AnimatePresence }   from 'framer-motion';
 import { Disclosure }                from '@headlessui/react';
 import Image                         from 'next/image';
-import { useUser, useAuth }          from '@clerk/nextjs';
-import { useRouter }                 from 'next/navigation';
 import { toast }                     from 'sonner';
 
 import {
@@ -122,90 +122,204 @@ const getTeamCarImage = (team: string) =>
   `/images/cars/${team.trim().replace(/\s+/g, '-').toLowerCase()}.png`;
 
 /* ╔════════════════════════════════╗
-   ║ 1. VIDEO PLAYER COMPONENT      ║
+   ║ 1. ENHANCED VIDEO PLAYER       ║
    ╚════════════════════════════════╝ */
 function VideoPlayer() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const progressBarRef = useRef<HTMLDivElement>(null);
   const volumeControlRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
   const [volume, setVolume] = useState(0.8);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [progress, setProgress] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [showVolumeControl, setShowVolumeControl] = useState(false);
+  const [showControls, setShowControls] = useState(false);
+  const [hasStarted, setHasStarted] = useState(false);
+  const [isBuffering, setIsBuffering] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Auto-hide controls timer
+  const controlsTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  // Format time for display
+  const formatTime = (time: number) => {
+    const minutes = Math.floor(time / 60);
+    const seconds = Math.floor(time % 60);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  // Handle mouse movement to show/hide controls
+  const handleMouseMove = () => {
+    setShowControls(true);
+    if (controlsTimeoutRef.current) {
+      window.clearTimeout(controlsTimeoutRef.current);
+    }
+    controlsTimeoutRef.current = window.setTimeout(() => {
+      if (isPlaying) {
+        setShowControls(false);
+      }
+    }, 3000);
+  };
+
+  // Handle mouse leave
+  const handleMouseLeave = () => {
+    if (controlsTimeoutRef.current) {
+      window.clearTimeout(controlsTimeoutRef.current);
+    }
+    controlsTimeoutRef.current = window.setTimeout(() => {
+      if (isPlaying) {
+        setShowControls(false);
+      }
+    }, 1000);
+  };
 
   useEffect(() => {
     if (!isMounted) return;
     const video = videoRef.current;
     if (!video) return;
 
-    const handleWaiting = () => setIsLoading(true);
-    const handleCanPlay = () => {
-      setIsLoading(false);
+    const handleLoadStart = () => {
+      setIsLoading(true);
       setHasError(false);
     };
-    const handlePlay = () => setIsPlaying(true);
-    const handlePause = () => setIsPlaying(false);
+
+    const handleLoadedMetadata = () => {
+      setDuration(video.duration);
+    };
+
+    const handleWaiting = () => {
+      setIsBuffering(true);
+    };
+
+    const handleCanPlay = () => {
+      setIsLoading(false);
+      setIsBuffering(false);
+      setHasError(false);
+    };
+
+    const handleCanPlayThrough = () => {
+      setIsLoading(false);
+      setIsBuffering(false);
+    };
+
+    const handlePlay = () => {
+      setIsPlaying(true);
+      setHasStarted(true);
+    };
+
+    const handlePause = () => {
+      setIsPlaying(false);
+      setShowControls(true);
+    };
+
     const handleTimeUpdate = () => {
       if (video.duration) {
-        setProgress((video.currentTime / video.duration) * 100);
+        const currentTime = video.currentTime;
+        const progress = (currentTime / video.duration) * 100;
+        setCurrentTime(currentTime);
+        setProgress(progress);
       }
     };
+
     const handleVolumeChangeEvent = () => {
       setIsMuted(video.muted || video.volume === 0);
       setVolume(video.volume);
     };
-    const handleError = () => {
+
+    const handleError = (e: Event) => {
+      console.error('Video error:', e);
       setIsLoading(false);
+      setIsBuffering(false);
       setHasError(true);
     };
 
+    const handleEnded = () => {
+      setIsPlaying(false);
+      setShowControls(true);
+    };
+
+    // Fullscreen change handler
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    // Add event listeners
+    video.addEventListener('loadstart', handleLoadStart);
+    video.addEventListener('loadedmetadata', handleLoadedMetadata);
     video.addEventListener('waiting', handleWaiting);
     video.addEventListener('canplay', handleCanPlay);
+    video.addEventListener('canplaythrough', handleCanPlayThrough);
     video.addEventListener('play', handlePlay);
     video.addEventListener('pause', handlePause);
     video.addEventListener('timeupdate', handleTimeUpdate);
     video.addEventListener('volumechange', handleVolumeChangeEvent);
     video.addEventListener('error', handleError);
+    video.addEventListener('ended', handleEnded);
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
 
+    // Initialize video settings
     video.muted = true;
     video.volume = volume;
-    video.load();
+    video.preload = 'metadata';
 
     return () => {
+      video.removeEventListener('loadstart', handleLoadStart);
+      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
       video.removeEventListener('waiting', handleWaiting);
       video.removeEventListener('canplay', handleCanPlay);
+      video.removeEventListener('canplaythrough', handleCanPlayThrough);
       video.removeEventListener('play', handlePlay);
       video.removeEventListener('pause', handlePause);
       video.removeEventListener('timeupdate', handleTimeUpdate);
       video.removeEventListener('volumechange', handleVolumeChangeEvent);
       video.removeEventListener('error', handleError);
+      video.removeEventListener('ended', handleEnded);
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      
+      if (controlsTimeoutRef.current) {
+        window.clearTimeout(controlsTimeoutRef.current);
+      }
     };
   }, [isMounted, volume]);
 
-  const togglePlay = () => {
+  const togglePlay = async () => {
     if (hasError) return;
     const video = videoRef.current;
-    if (video) {
-      video.paused ? video.play() : video.pause();
+    if (!video) return;
+
+    try {
+      if (video.paused) {
+        await video.play();
+      } else {
+        video.pause();
+      }
+    } catch (error) {
+      console.error('Error toggling play:', error);
+      setHasError(true);
     }
   };
 
   const toggleMute = () => {
     const video = videoRef.current;
     if (video) {
-      video.muted = !video.muted;
-      if (!video.muted && video.volume === 0) {
+      const newMutedState = !video.muted;
+      video.muted = newMutedState;
+      
+      if (!newMutedState && video.volume === 0) {
         video.volume = 0.8;
+        setVolume(0.8);
       }
     }
   };
@@ -216,6 +330,7 @@ function VideoPlayer() {
     if (video) {
       video.volume = newVolume;
       video.muted = newVolume === 0;
+      setVolume(newVolume);
     }
   };
 
@@ -229,189 +344,341 @@ function VideoPlayer() {
   };
 
   const handleProgressSeek = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (hasError) return;
+    if (hasError || !duration) return;
     const video = videoRef.current;
     const bar = progressBarRef.current;
     if (video && bar) {
       const rect = bar.getBoundingClientRect();
-      const pos = (e.clientX - rect.left) / rect.width;
-      video.currentTime = pos * video.duration;
+      const pos = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      const newTime = pos * duration;
+      video.currentTime = newTime;
+      setCurrentTime(newTime);
+      setProgress(pos * 100);
+    }
+  };
+
+  const toggleFullscreen = async () => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    try {
+      if (!document.fullscreenElement) {
+        await container.requestFullscreen();
+      } else {
+        await document.exitFullscreen();
+      }
+    } catch (error) {
+      console.error('Fullscreen error:', error);
     }
   };
 
   const retryVideo = () => {
     setHasError(false);
     setIsLoading(true);
-    videoRef.current?.load();
+    setHasStarted(false);
+    const video = videoRef.current;
+    if (video) {
+      video.load();
+    }
   };
 
-  // Antes de montar el video, muestra un loader con el mismo ancho
+  // Handle keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!videoRef.current) return;
+      
+      switch (e.code) {
+        case 'Space':
+          e.preventDefault();
+          togglePlay();
+          break;
+        case 'KeyM':
+          e.preventDefault();
+          toggleMute();
+          break;
+        case 'KeyF':
+          e.preventDefault();
+          toggleFullscreen();
+          break;
+        case 'ArrowLeft':
+          e.preventDefault();
+          videoRef.current.currentTime = Math.max(0, videoRef.current.currentTime - 10);
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          videoRef.current.currentTime = Math.min(duration, videoRef.current.currentTime + 10);
+          break;
+      }
+    };
+
+    if (showControls || !isPlaying) {
+      document.addEventListener('keydown', handleKeyDown);
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showControls, isPlaying, duration]);
+
   if (!isMounted) {
     return (
-      <div className="w-full max-w-md aspect-[9/16] bg-black/30 rounded-2xl flex items-center justify-center mx-auto">
+      <div className="w-full max-w-md aspect-video bg-black/30 rounded-2xl flex items-center justify-center mx-auto">
         <div className="animate-spin rounded-full h-12 w-12 border-4 border-amber-500 border-t-transparent"></div>
       </div>
     );
   }
 
   return (
-    <>
-      <div className="relative w-full max-w-md aspect-video rounded-xl overflow-hidden shadow-2xl bg-black group mx-auto">
-        {/* GIF cover de fondo: solo mientras isLoading sea true */}
-        <div
-          className={`
-            absolute inset-0 bg-center bg-cover z-10 pointer-events-none
-            transition-opacity duration-500
-            ${isLoading ? 'opacity-100' : 'opacity-0'}
-          `}
-          style={{ backgroundImage: "url('/videos/vsl-cover.gif')" }}
-        />
+    <div 
+      ref={containerRef}
+      className={`relative w-full max-w-md aspect-video rounded-xl overflow-hidden shadow-2xl bg-black mx-auto cursor-pointer ${
+        isFullscreen ? 'max-w-none aspect-auto' : ''
+      }`}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      onClick={togglePlay}
+    >
+      {/* Poster/Loading Background */}
+      <div
+        className={`
+          absolute inset-0 bg-center bg-cover z-10 pointer-events-none
+          transition-opacity duration-500
+          ${(isLoading && !hasStarted) || hasError ? 'opacity-100' : 'opacity-0'}
+        `}
+        style={{ backgroundImage: "url('/videos/vsl-cover.gif')" }}
+      />
 
-        <video
-          ref={videoRef}
-          className="absolute inset-0 w-full h-full object-cover z-20 transition-opacity duration-300"
-          style={{ opacity: isLoading || hasError ? 0 : 1 }}
-          loop
-          playsInline
-          preload="auto"
-          onClick={togglePlay}
-          onCanPlay={() => setIsLoading(false)}  // marca listo cuando el video puede reproducir
-          poster="/videos/vsl-cover.gif"
-        >
-          <source src="/videos/fantasyvip-vsl.mp4" type="video/mp4" />
-        </video>
+      {/* Video Element */}
+      <video
+        ref={videoRef}
+        className={`absolute inset-0 w-full h-full object-cover z-20 transition-opacity duration-300 ${
+          (isLoading && !hasStarted) || hasError ? 'opacity-0' : 'opacity-100'
+        }`}
+        loop
+        playsInline
+        preload="metadata"
+        poster="/videos/vsl-cover.gif"
+      >
+        <source src="/videos/fantasyvip-vsl.mp4" type="video/mp4" />
+        <p>Su navegador no soporta videos HTML5. <a href="/videos/fantasyvip-vsl.mp4">Descargar video</a>.</p>
+      </video>
 
-        <AnimatePresence>
-          {(isLoading || hasError) && (
-            <motion.div
-              className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-md z-30"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              {hasError ? (
-                <div className="text-center p-6">
-                  <ExclamationTriangleIcon className="h-16 w-16 text-amber-500 mx-auto mb-4" />
-                  <p className="text-white font-medium mb-2">Error de Video</p>
-                  <p className="text-gray-300 text-sm mb-4">Verifica tu conexión y reintenta.</p>
-                  <button
-                    onClick={retryVideo}
-                    className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black rounded-lg font-bold transition-colors active:scale-95"
-                  >
-                    Reintentar
-                  </button>
-                </div>
-              ) : (
-                <div className="text-center p-6">
-                  <div className="animate-spin rounded-full h-12 w-12 border-4 border-amber-500 border-t-transparent mx-auto mb-4"></div>
-                  <p className="text-white font-medium">Cargando Video...</p>
-                </div>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <AnimatePresence>
-          {!isPlaying && !isLoading && !hasError && (
-            <motion.div
-              className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-[2px] z-20"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              <button
-                onClick={togglePlay}
-                className="w-20 h-20 rounded-full bg-amber-500/90 flex items-center justify-center transition-all duration-300 transform hover:scale-110 hover:bg-amber-500 active:scale-100 shadow-2xl"
-                aria-label="Reproducir"
-              >
-                <PlayIcon className="h-8 w-8 text-black ml-1" />
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <div className="absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-black/80 via-black/50 to-transparent pt-14 sm:pt-16 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-          <div className="px-4 pb-3">
-            {/* Barra de progreso */}
-            <div
-              ref={progressBarRef}
-              onClick={handleProgressSeek}
-              className="w-full h-2 bg-white/20 rounded-full cursor-pointer mb-3 group/progress"
-            >
-              <div
-                className="h-full bg-gradient-to-r from-amber-400 to-orange-500 rounded-full relative transition-all duration-150"
-                style={{ width: `${progress}%` }}
-              >
-                <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 w-4 h-4 bg-amber-500 rounded-full opacity-0 group-hover/progress:opacity-100 transition-opacity"></div>
-              </div>
-            </div>
-
-            {/* Controles */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <button onClick={togglePlay} className="p-2" aria-label={isPlaying ? 'Pausar' : 'Reproducir'}>
-                  {isPlaying ? (
-                    <PauseIcon className="h-6 w-6 text-white" />
-                  ) : (
-                    <PlayIcon className="h-6 w-6 text-white" />
-                  )}
-                </button>
-
-                <div
-                  className="relative flex items-center"
-                  onMouseEnter={() => setShowVolumeControl(true)}
-                  onMouseLeave={() => setShowVolumeControl(false)}
+      {/* Loading/Error States */}
+      <AnimatePresence>
+        {((isLoading && !hasStarted) || hasError || isBuffering) && (
+          <motion.div
+            className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-md z-30"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            {hasError ? (
+              <div className="text-center p-6">
+                <ExclamationTriangleIcon className="h-16 w-16 text-amber-500 mx-auto mb-4" />
+                <p className="text-white font-medium mb-2">Error de Video</p>
+                <p className="text-gray-300 text-sm mb-4">
+                  No se pudo cargar el video. Verifica tu conexión e inténtalo de nuevo.
+                </p>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    retryVideo();
+                  }}
+                  className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black rounded-lg font-bold transition-colors active:scale-95"
                 >
-                  <button onClick={toggleMute} className="p-2" aria-label={isMuted ? 'Activar Sonido' : 'Silenciar'}>
-                    {isMuted ? (
-                      <SpeakerXMarkIcon className="h-6 w-6 text-white" />
-                    ) : (
-                      <SpeakerWaveIcon className="h-6 w-6 text-white" />
-                    )}
-                  </button>
-                  <AnimatePresence>
-                    {showVolumeControl && (
-                      <motion.div
-                        ref={volumeControlRef}
-                        initial={{ opacity: 0, width: 0 }}
-                        animate={{ opacity: 1, width: 80 }}
-                        exit={{ opacity: 0, width: 0 }}
-                        className="overflow-hidden ml-1"
-                      >
-                        <input
-                          type="range"
-                          min="0"
-                          max="1"
-                          step="0.05"
-                          value={isMuted ? 0 : volume}
-                          onChange={handleVolumeChangeInput}
-                          className="w-full h-1 bg-white/30 rounded-lg appearance-none cursor-pointer accent-amber-500"
-                        />
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                  Reintentar
+                </button>
+              </div>
+            ) : (
+              <div className="text-center p-6">
+                <div className="animate-spin rounded-full h-12 w-12 border-4 border-amber-500 border-t-transparent mx-auto mb-4"></div>
+                <p className="text-white font-medium">
+                  {isBuffering ? 'Cargando...' : 'Preparando Video...'}
+                </p>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Play Button Overlay */}
+      <AnimatePresence>
+        {!isPlaying && !isLoading && !hasError && (
+          <motion.div
+            className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-[2px] z-25"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                togglePlay();
+              }}
+              className="w-20 h-20 rounded-full bg-amber-500/90 flex items-center justify-center transition-all duration-300 transform hover:scale-110 hover:bg-amber-500 active:scale-100 shadow-2xl"
+              aria-label="Reproducir video"
+            >
+              <PlayIcon className="h-8 w-8 text-black ml-1" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Video Controls */}
+      <AnimatePresence>
+        {(showControls || !isPlaying) && !isLoading && !hasError && (
+          <motion.div
+            className="absolute inset-x-0 bottom-0 z-30 bg-gradient-to-t from-black/90 via-black/60 to-transparent pt-16"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            transition={{ duration: 0.2 }}
+          >
+            <div className="px-4 pb-4">
+              {/* Progress Bar */}
+              <div className="mb-4">
+                <div
+                  ref={progressBarRef}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleProgressSeek(e);
+                  }}
+                  className="w-full h-2 bg-white/20 rounded-full cursor-pointer group/progress"
+                >
+                  <div
+                    className="h-full bg-gradient-to-r from-amber-400 to-orange-500 rounded-full relative transition-all duration-150"
+                    style={{ width: `${progress}%` }}
+                  >
+                    <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 w-4 h-4 bg-amber-500 rounded-full opacity-0 group-hover/progress:opacity-100 transition-opacity shadow-lg"></div>
+                  </div>
+                </div>
+                
+                {/* Time Display */}
+                <div className="flex justify-between mt-1 text-xs text-gray-300">
+                  <span>{formatTime(currentTime)}</span>
+                  <span>{formatTime(duration)}</span>
                 </div>
               </div>
 
-              <div className="flex items-center gap-1 bg-black/30 backdrop-blur-sm rounded-lg p-1">
-                <ForwardIcon className="h-4 w-4 text-gray-300 mx-1" />
-                {[1, 1.5, 2].map((rate) => (
-                  <button
-                    key={rate}
-                    onClick={() => changePlaybackRate(rate)}
-                    className={`px-2 py-1 rounded-md text-xs font-bold transition-colors ${
-                      playbackRate === rate ? 'bg-amber-500 text-black' : 'text-white hover:bg-white/20'
-                    }`}
+              {/* Controls Row */}
+              <div className="flex items-center justify-between">
+                {/* Left Controls */}
+                <div className="flex items-center gap-3">
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      togglePlay();
+                    }}
+                    className="p-2 hover:bg-white/10 rounded-lg transition-colors" 
+                    aria-label={isPlaying ? 'Pausar' : 'Reproducir'}
                   >
-                    {rate}x
+                    {isPlaying ? (
+                      <PauseIcon className="h-6 w-6 text-white" />
+                    ) : (
+                      <PlayIcon className="h-6 w-6 text-white" />
+                    )}
                   </button>
-                ))}
+
+                  {/* Volume Control */}
+                  <div
+                    className="relative flex items-center"
+                    onMouseEnter={() => setShowVolumeControl(true)}
+                    onMouseLeave={() => setShowVolumeControl(false)}
+                  >
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleMute();
+                      }}
+                      className="p-2 hover:bg-white/10 rounded-lg transition-colors" 
+                      aria-label={isMuted ? 'Activar Sonido' : 'Silenciar'}
+                    >
+                      {isMuted ? (
+                        <SpeakerXMarkIcon className="h-6 w-6 text-white" />
+                      ) : (
+                        <SpeakerWaveIcon className="h-6 w-6 text-white" />
+                      )}
+                    </button>
+                    
+                    <AnimatePresence>
+                      {showVolumeControl && (
+                        <motion.div
+                          ref={volumeControlRef}
+                          initial={{ opacity: 0, width: 0 }}
+                          animate={{ opacity: 1, width: 80 }}
+                          exit={{ opacity: 0, width: 0 }}
+                          className="overflow-hidden ml-2"
+                        >
+                          <input
+                            type="range"
+                            min="0"
+                            max="1"
+                            step="0.05"
+                            value={isMuted ? 0 : volume}
+                            onChange={handleVolumeChangeInput}
+                            onClick={(e) => e.stopPropagation()}
+                            className="w-full h-1 bg-white/30 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                            aria-label="Control de volumen"
+                          />
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </div>
+
+                {/* Right Controls */}
+                <div className="flex items-center gap-2">
+                  {/* Playback Speed */}
+                  <div className="flex items-center gap-1 bg-black/30 backdrop-blur-sm rounded-lg p-1">
+                    <ForwardIcon className="h-4 w-4 text-gray-300 mx-1" />
+                    {[1, 1.25, 1.5, 2].map((rate) => (
+                      <button
+                        key={rate}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          changePlaybackRate(rate);
+                        }}
+                        className={`px-2 py-1 rounded-md text-xs font-bold transition-colors ${
+                          playbackRate === rate 
+                            ? 'bg-amber-500 text-black' 
+                            : 'text-white hover:bg-white/20'
+                        }`}
+                        aria-label={`Velocidad ${rate}x`}
+                      >
+                        {rate}x
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Fullscreen Button */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleFullscreen();
+                    }}
+                    className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                    aria-label={isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'}
+                  >
+                    <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      {isFullscreen ? (
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 9V4.5M9 9H4.5M9 9L3.5 3.5M15 9h4.5M15 9V4.5M15 9l5.5-5.5M9 15v4.5M9 15H4.5M9 15l-5.5 5.5M15 15h4.5M15 15v4.5m0-4.5l5.5 5.5" />
+                      ) : (
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l6 6m10-6v4m0-4h-4m4 0l-6 6M4 16v4m0 0h4m-4 0l6-6m10 6l-6-6m6 6v-4m0 4h-4" />
+                      )}
+                    </svg>
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Keyboard Shortcuts Help (hidden, for screen readers) */}
+      <div className="sr-only">
+        <p>Atajos de teclado: Espacio (reproducir/pausar), M (silenciar), F (pantalla completa), ← (retroceder 10s), → (avanzar 10s)</p>
       </div>
-    </>
+    </div>
   );
 }
 
@@ -642,12 +909,16 @@ interface FAQ { q: string; a: string; }
 
 export default function FantasyVipLanding() {
   /* ───────── Clerk & Router ───────── */
+  const clerk               = useClerk();
+  const router              = useRouter();
   const { isSignedIn, user } = useUser();
-  const { getToken }         = useAuth();
-  const router               = useRouter();
 
-  // 1️⃣ Estado para mostrar/ocultar el sticky button
-const [showSticky, setShowSticky] = useState(true);
+   
+   // Ref para recordar el plan que queremos comprar tras login
+   const pendingPlanRef = useRef<string | null>(null);
+     
+   // 1️⃣ Estado para mostrar/ocultar el sticky button
+   const [showSticky, setShowSticky] = useState(true);
 
 // 2️⃣ Observer para la sección de paquetes
 useEffect(() => {
@@ -782,110 +1053,111 @@ useEffect(() => {
   }, [gpSchedule, currentGp]);
 
   /* ═════════════════════════════════════════════════
-     handlePurchase → crea la orden + abre Bold embed
-     ═════════════════════════════════════════════════ */
-  const handlePurchase = async (planId: Plan['id']) => {
-    console.log('🛒 handlePurchase invocado para:', planId);
-    const plan = planes.find(p => p.id === planId);
-    if (!plan) return;
+   handlePurchase → crea la orden + abre Bold embed
+   ═════════════════════════════════════════════════ */
+const handlePurchase = async (planId: Plan['id']) => {
+  console.log('🛒 handlePurchase invocado para:', planId);
+  const plan = planes.find(p => p.id === planId);
+  if (!plan) return;
 
-    // 1️⃣ Requiere sesión
-    if (!isSignedIn || !user) {
-      setShowSignModal(true);
-      return;
-    }
+  // 1️⃣ Requiere sesión
+  if (!isSignedIn || !user) {
+    clerk.openSignIn({ redirectUrl: '/fantasy-vip-info' });
+    return;
+  }
 
-    // 2️⃣ Verificar apiKey de Bold
-    console.log('❗NEXT_PUBLIC_BOLD_BUTTON_KEY:', process.env.NEXT_PUBLIC_BOLD_BUTTON_KEY);
-    const apiKey = process.env.NEXT_PUBLIC_BOLD_BUTTON_KEY;
-    if (!apiKey) {
-      toast.error('Pago deshabilitado: falta la apiKey de Bold.');
-      return;
-    }
+  // 2️⃣ Verificar apiKey de Bold
+  console.log('❗NEXT_PUBLIC_BOLD_BUTTON_KEY:', process.env.NEXT_PUBLIC_BOLD_BUTTON_KEY);
+  const apiKey = process.env.NEXT_PUBLIC_BOLD_BUTTON_KEY;
+  if (!apiKey) {
+    toast.error('Pago deshabilitado: falta la apiKey de Bold.');
+    return;
+  }
 
-    try {
-      setProcessingPlan(planId);
-
-// 3️⃣ Crear orden en el backend
-console.log('🔍 Enviando POST a /api/vip/register-order con:', {
-  planId: plan.id,
-  planName: plan.nombre,
-  amount: plan.precio,
-  fullName: user.fullName,
-  email: user.primaryEmailAddress?.emailAddress,
-});
-const res = await fetch('/api/vip/register-order', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    planId: plan.id,
-    planName: plan.nombre,
-    amount: plan.precio,
-    fullName: user.fullName,
-    email: user.primaryEmailAddress?.emailAddress,
-  }),
-});
-console.log('📬 register-order status:', res.status);
-const text = await res.text();
-console.log('📬 register-order body:', text);
-if (!res.ok) {
-  let errorMsg = 'Error creando orden';
   try {
-    const errJson = JSON.parse(text);
-    errorMsg = errJson.error || errorMsg;
-  } catch {}
-  throw new Error(errorMsg);
-}
-// parse the actual JSON only once
-const { orderId, amount, redirectionUrl, integritySignature } = JSON.parse(text) as {
-  orderId: string;
-  amount: string;
-  redirectionUrl: string;
-  integritySignature: string;
-};
-// 5️⃣ Montar la configuración para openBoldCheckout
-const config: Record<string, any> = {
-  apiKey,
-  orderId,
-  amount,
-  currency: 'COP',
-  description: `Acceso VIP · ${plan.nombre}`,
-  redirectionUrl,
-  integritySignature,
-  renderMode: 'embedded',
-  containerId: 'bold-embed-vip',
-};
-// 6️⃣ customerData
-config.customerData = JSON.stringify({
-  email: user.primaryEmailAddress?.emailAddress ?? '',
-  fullName: user.fullName ?? '',
-});
-// 7️⃣ Abrir Bold Checkout embebido
-console.log('🔑 window.BoldCheckout available?', (window as any).BoldCheckout);
-openBoldCheckout({
-  ...config,
-  onSuccess: () => {
-    toast.success('✅ Pago confirmado. ¡Bienvenido a VIP!');
-    setProcessingPlan(null);
-    router.push('/fantasy-vip');
-  },
-  onFailed: ({ message }: { message?: string }) => {
-    toast.error(`Pago rechazado: ${message ?? ''}`);
-    setProcessingPlan(null);
-  },
-  onPending: () => {
-    toast.info('Pago pendiente de confirmación.');
-    setProcessingPlan(null);
-  },
-  onClose: () => setProcessingPlan(null),
-});
-console.log('✅ openBoldCheckout() ejecutado');
+    setProcessingPlan(planId);
 
-    } catch (err: any) {
-      toast.error(err.message ?? 'Error iniciando pago');
-      setProcessingPlan(null);
+    // 3️⃣ Crear orden en el backend
+    console.log('🔍 Enviando POST a /api/vip/register-order con:', {
+      planId: plan.id,
+      planName: plan.nombre,
+      amount: plan.precio,
+      fullName: user.fullName,
+      email: user.primaryEmailAddress?.emailAddress,
+    });
+    const res = await fetch('/api/vip/register-order', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        planId: plan.id,
+        planName: plan.nombre,
+        amount: plan.precio,
+        fullName: user.fullName,
+        email: user.primaryEmailAddress?.emailAddress,
+      }),
+    });
+    console.log('📬 register-order status:', res.status);
+    const text = await res.text();
+    console.log('📬 register-order body:', text);
+    if (!res.ok) {
+      let errorMsg = 'Error creando orden';
+      try {
+        const errJson = JSON.parse(text);
+        errorMsg = errJson.error || errorMsg;
+      } catch {}
+      throw new Error(errorMsg);
     }
-  };
+    // parse the actual JSON only once
+    const { orderId, amount, redirectionUrl, integritySignature } = JSON.parse(text) as {
+      orderId: string;
+      amount: string;
+      redirectionUrl: string;
+      integritySignature: string;
+    };
+
+    // 5️⃣ Montar la configuración para openBoldCheckout
+    const config: Record<string, any> = {
+      apiKey,
+      orderId,
+      amount,
+      currency: 'COP',
+      description: `Acceso VIP · ${plan.nombre}`,
+      redirectionUrl,
+      integritySignature,
+      renderMode: 'embedded',
+      containerId: 'bold-embed-vip',
+    };
+    // 6️⃣ customerData
+    config.customerData = JSON.stringify({
+      email: user.primaryEmailAddress?.emailAddress ?? '',
+      fullName: user.fullName ?? '',
+    });
+    // 7️⃣ Abrir Bold Checkout embebido
+    console.log('🔑 window.BoldCheckout available?', (window as any).BoldCheckout);
+    openBoldCheckout({
+      ...config,
+      onSuccess: () => {
+        toast.success('✅ Pago confirmado. ¡Bienvenido a VIP!');
+        setProcessingPlan(null);
+        router.push('/fantasy-vip');
+      },
+      onFailed: ({ message }: { message?: string }) => {
+        toast.error(`Pago rechazado: ${message ?? ''}`);
+        setProcessingPlan(null);
+      },
+      onPending: () => {
+        toast.info('Pago pendiente de confirmación.');
+        setProcessingPlan(null);
+      },
+      onClose: () => setProcessingPlan(null),
+    });
+    console.log('✅ openBoldCheckout() ejecutado');
+
+  } catch (err: any) {
+    toast.error(err.message ?? 'Error iniciando pago');
+    setProcessingPlan(null);
+  }
+};
 
   /* ───────── Glow util ───────── */
   const Glow = () => (
