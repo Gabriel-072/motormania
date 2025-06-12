@@ -146,6 +146,8 @@ function VideoPlayer() {
   const [isBuffering, setIsBuffering] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [loadingTimeout, setLoadingTimeout] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+  const [loadingStrategy, setLoadingStrategy] = useState(0);
 
   // Auto-hide controls timer
   const controlsTimeoutRef = useRef<number | null>(null);
@@ -203,8 +205,9 @@ function VideoPlayer() {
       }
       
       loadingTimeoutRef.current = window.setTimeout(() => {
+        console.log('Loading timeout reached, video might be stuck');
         setLoadingTimeout(true);
-      }, 15000); // 15 seconds timeout
+      }, 10000); // Reduced to 10 seconds
     };
 
     const handleLoadedMetadata = () => {
@@ -265,7 +268,13 @@ function VideoPlayer() {
     };
 
     const handleError = (e: Event) => {
-      console.error('Video error:', e);
+      const error = e.target as HTMLVideoElement;
+      console.error('Video error details:', {
+        error: error?.error,
+        networkState: error?.networkState,
+        readyState: error?.readyState,
+        currentSrc: error?.currentSrc
+      });
       setIsLoading(false);
       setIsBuffering(false);
       setHasError(true);
@@ -302,10 +311,19 @@ function VideoPlayer() {
     video.addEventListener('ended', handleEnded);
     document.addEventListener('fullscreenchange', handleFullscreenChange);
 
-    // Initialize video settings
+    // Initialize video settings with different strategies
+    const strategies = ['auto', 'metadata', 'none'];
+    video.preload = strategies[loadingStrategy] as 'auto' | 'metadata' | 'none';
     video.muted = false;
     video.volume = volume;
-    video.preload = 'auto'; // Changed to 'auto' for better loading
+    
+    // Add debug logging
+    console.log('Video initialization:', {
+      preload: video.preload,
+      src: video.currentSrc || 'No source',
+      readyState: video.readyState,
+      networkState: video.networkState
+    });
     
     // Force load attempt
     video.load();
@@ -413,10 +431,17 @@ function VideoPlayer() {
   };
 
   const retryVideo = () => {
+    const newRetryCount = retryCount + 1;
+    const newStrategy = newRetryCount % 3; // Cycle through strategies
+    
+    console.log(`Retry attempt ${newRetryCount}, using strategy ${newStrategy}`);
+    
     setHasError(false);
     setIsLoading(true);
     setHasStarted(false);
     setLoadingTimeout(false);
+    setRetryCount(newRetryCount);
+    setLoadingStrategy(newStrategy);
     
     if (loadingTimeoutRef.current) {
       window.clearTimeout(loadingTimeoutRef.current);
@@ -424,16 +449,36 @@ function VideoPlayer() {
     
     const video = videoRef.current;
     if (video) {
-      // Try different loading strategies
-      video.preload = 'auto';
+      // Different strategies based on retry count
+      const strategies = ['auto', 'metadata', 'none'];
+      video.preload = strategies[newStrategy] as 'auto' | 'metadata' | 'none';
+      
+      // Reset video completely
+      video.removeAttribute('src');
       video.load();
       
-      // Fallback: try to play after a short delay
+      // Add source back
       setTimeout(() => {
-        if (video.readyState >= 2) { // HAVE_CURRENT_DATA
-          setIsLoading(false);
+        const source = video.querySelector('source');
+        if (source) {
+          source.src = '/videos/fantasyvip-vsl.mp4';
         }
-      }, 2000);
+        video.load();
+        
+        // Try to trigger canplay event manually
+        setTimeout(() => {
+          console.log('Manual readiness check:', {
+            readyState: video.readyState,
+            networkState: video.networkState,
+            duration: video.duration
+          });
+          
+          if (video.readyState >= 2) { // HAVE_CURRENT_DATA
+            console.log('Video seems ready, forcing canplay');
+            setIsLoading(false);
+          }
+        }, 3000);
+      }, 100);
     }
   };
 
@@ -496,7 +541,7 @@ function VideoPlayer() {
         style={{ backgroundImage: "url('/videos/vsl-cover.gif')" }}
       />
 
-      {/* Video Element */}
+      {/* Video Element with Multiple Sources */}
       <video
         ref={videoRef}
         className={`absolute inset-0 w-full h-full object-cover z-20 transition-opacity duration-300 ${
@@ -504,10 +549,12 @@ function VideoPlayer() {
         }`}
         loop
         playsInline
-        preload="metadata"
+        preload="auto"
         poster="/videos/vsl-cover.gif"
+        crossOrigin="anonymous"
       >
         <source src="/videos/fantasyvip-vsl.mp4" type="video/mp4" />
+        <source src="/videos/fantasyvip-vsl.webm" type="video/webm" />
         <p>Su navegador no soporta videos HTML5. <a href="/videos/fantasyvip-vsl.mp4">Descargar video</a>.</p>
       </video>
 
@@ -528,7 +575,7 @@ function VideoPlayer() {
                 </p>
                 <p className="text-gray-300 text-sm mb-4">
                   {loadingTimeout 
-                    ? 'El video está tardando mucho en cargar. Verifica tu conexión e inténtalo de nuevo.'
+                    ? `Intento ${retryCount + 1}: El video está tardando mucho en cargar. Esto puede deberse a una conexión lenta o problemas con el archivo de video.`
                     : 'No se pudo cargar el video. Verifica tu conexión e inténtalo de nuevo.'
                   }
                 </p>
@@ -540,17 +587,22 @@ function VideoPlayer() {
                     }}
                     className="block w-full px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black rounded-lg font-bold transition-colors active:scale-95"
                   >
-                    Reintentar
+                    Reintentar {retryCount > 0 ? `(${retryCount + 1})` : ''}
                   </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      window.location.reload();
-                    }}
-                    className="block w-full px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg font-medium transition-colors active:scale-95"
-                  >
-                    Recargar Página
-                  </button>
+                  {retryCount > 1 && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        window.location.reload();
+                      }}
+                      className="block w-full px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg font-medium transition-colors active:scale-95"
+                    >
+                      Recargar Página
+                    </button>
+                  )}
+                  <div className="text-xs text-gray-400 mt-2">
+                    Estrategia: {['Carga completa', 'Solo metadatos', 'Carga manual'][loadingStrategy]}
+                  </div>
                 </div>
               </div>
             ) : (
