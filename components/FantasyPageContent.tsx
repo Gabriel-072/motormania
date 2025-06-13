@@ -17,6 +17,7 @@ import { generateEventId, trackFBEvent } from '@/lib/trackFBEvent';
 import { DriverStanding, ConstructorStanding, RookieStanding, DestructorStanding, Team } from '@/app/types/standings';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/solid';
+import ScoringSystemModal from '@/components/ScoringSystemModal';
 
 // SECTION: Type Definitions
 type Prediction = {
@@ -1395,8 +1396,87 @@ const handleSubmit = async () => {
     </div>
   )}
 </div>
-           {/* Countdown - PROPOSAL 2 */}
-            {/* Outer animated border div REMOVED */}
+
+{/* VIP Banner - Compact Premium Design */}
+<div className="col-span-1 md:col-span-3 mt-4">
+  <Link href="/fantasy-vip-info" className="block w-full group">
+    <motion.div
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.3, duration: 0.5 }}
+      className="relative overflow-hidden rounded-xl"
+    >
+      {/* Premium gradient background */}
+      <div className="absolute inset-0 bg-gradient-to-r from-black via-red-950 to-black" />
+      
+      {/* Animated shine effect */}
+      <div 
+        className="absolute inset-0 opacity-40"
+        style={{
+          background: 'linear-gradient(105deg, transparent 40%, rgba(255,215,0,0.4) 50%, transparent 60%)',
+          animation: 'shine 3s ease-in-out infinite'
+        }}
+      />
+      
+      {/* Subtle racing pattern */}
+      <div className="absolute inset-0 opacity-[0.02]" 
+        style={{
+          backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,0.05) 10px, rgba(255,255,255,0.05) 20px)'
+        }}
+      />
+      
+      {/* Content - Single Row Layout */}
+      <div className="relative z-10 px-4 py-2.5 sm:px-6 sm:py-3">
+        <div className="flex items-center justify-between gap-3">
+          {/* Left side - Icon & Text */}
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            {/* Trophy icon with glow */}
+            <div className="relative flex-shrink-0">
+              <div className="absolute inset-0 bg-yellow-400 rounded-full blur-md opacity-60" />
+              <div className="relative bg-gradient-to-br from-yellow-400 to-amber-600 p-1.5 rounded-full">
+                <svg className="w-4 h-4 text-black" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                </svg>
+              </div>
+            </div>
+            
+            {/* Text content */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2 min-w-0">
+              <h3 className="text-sm sm:text-base font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 to-yellow-500 font-exo2 leading-tight">
+                GANA UN VIAJE A LA F1
+              </h3>
+              <span className="text-[10px] sm:text-xs text-white/70 font-medium font-exo2">
+                con Fantasy VIP • Paddock Club
+              </span>
+            </div>
+          </div>
+          
+          {/* Right side - CTA */}
+          <motion.div
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="flex-shrink-0"
+          >
+            <div className="relative group">
+              <div className="absolute inset-0 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-lg blur opacity-50 group-hover:opacity-75 transition-opacity" />
+              <button className="relative bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-300 hover:to-orange-400 text-black font-bold px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg shadow-lg flex items-center gap-1.5 transition-all duration-200">
+                <span className="text-xs sm:text-sm">VER MÁS</span>
+                <svg className="w-3 h-3 sm:w-4 sm:h-4 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+      
+      {/* Bottom accent line */}
+      <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-yellow-400 to-transparent opacity-50" />
+    </motion.div>
+  </Link>
+</div>
+
+           {/* Countdown*/}
             <div className="relative group bg-gradient-to-b from-blue-800 to-sky-600 p-4 rounded-xl shadow-lg z-10 min-h-40 flex flex-col justify-between overflow-hidden shadow-blue-500/20">
                 {/* Background Flag - More subtle */}
                 {currentGp && gpFlags[currentGp.gp_name] && (
@@ -2127,51 +2207,10 @@ const handleSubmit = async () => {
             {/* Modals */}
             <AnimatePresence>
                 {/* Scoring System Modal */}
-              {scoringModalOpen && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.3 }}
-                  className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[60] p-4" // z-index below selection modal
-                  onClick={() => setScoringModalOpen(false)}
-                >
-                  <motion.div
-                    variants={modalVariants}
-                    initial="hidden"
-                    animate="visible"
-                    exit="exit"
-                     transition={{ type: 'spring', damping: 15, stiffness: 200 }}
-                    className="bg-gradient-to-br from-black via-gray-900 to-black p-6 sm:p-8 rounded-xl border border-teal-500/30 shadow-xl w-full max-w-[90vw] sm:max-w-lg max-h-[80vh] overflow-y-auto relative flex flex-col" // flex-col added
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                     <button
-                       onClick={() => setScoringModalOpen(false)}
-                       className="absolute top-3 right-3 text-gray-400 hover:text-amber-400 transition p-1 z-10"
-                       aria-label="Cerrar"
-                      >
-                       ✕
-                     </button>
-                    <h2 className="text-lg sm:text-xl font-bold text-white mb-5 font-exo2 text-center">Sistema de Puntuación</h2>
-                    <div className="text-gray-300 font-exo2 text-sm sm:text-base space-y-3 flex-grow overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-teal-600 scrollbar-track-gray-800"> {/* List styling */}
-                         <p><strong className='text-amber-400'>Pole / GP (Exacto):</strong> <span className='text-white'>5 pts</span> por acertar la posición exacta (1º, 2º o 3º).</p>
-                         <p><strong className='text-amber-400'>Pole / GP (Top 3):</strong> <span className='text-white'>2 pts</span> si el piloto está en el Top 3 pero no en la posición exacta.</p>
-                         <p><strong className='text-cyan-400'>Pit Stop Más Rápido:</strong> <span className='text-white'>3 pts</span> por acertar el equipo.</p>
-                         <p><strong className='text-purple-400'>Vuelta Más Rápida:</strong> <span className='text-white'>3 pts</span> por acertar el piloto.</p>
-                         <p><strong className='text-purple-400'>Piloto del Día:</strong> <span className='text-white'>3 pts</span> por acertar el piloto.</p>
-                         <p><strong className='text-yellow-400'>Primer Equipo en Pits:</strong> <span className='text-white'>2 pts</span> por acertar el equipo.</p>
-                         <p><strong className='text-yellow-400'>Primer Retiro:</strong> <span className='text-white'>2 pts</span> por acertar el piloto.</p>
-                         <p className='text-xs text-gray-500 italic mt-4'>Nota: Los puntos por 'Top 3' no se suman a los puntos por 'Posición Exacta'. Máximo 5 puntos por piloto/posición.</p>
-                    </div>
-                    <button
-                      onClick={() => setScoringModalOpen(false)}
-                      className="mt-6 w-full px-4 py-2 bg-gray-800 text-white rounded-lg font-exo2 hover:bg-gray-700 hover:text-teal-300 hover:shadow-[0_0_10px_rgba(20,184,166,0.5)] transition-all duration-200 text-sm sm:text-base font-semibold"
-                    >
-                      Entendido
-                    </button>
-                  </motion.div>
-                </motion.div>
-              )}
+  <ScoringSystemModal 
+    isOpen={scoringModalOpen} 
+    onClose={() => setScoringModalOpen(false)} 
+  />
 
 {/* Prediction Step Modals */}
 {steps.map((step, index) => activeModal === step.name && (
@@ -2193,58 +2232,82 @@ const handleSubmit = async () => {
       className="bg-gradient-to-br from-black to-gray-900 p-6 sm:p-8 rounded-xl border border-amber-500/30 shadow-xl w-full max-w-[90vw] sm:max-w-2xl max-h-[90vh] flex flex-col"
       onClick={(e) => e.stopPropagation()}
     >
-      {/* VIP Banner - Shows on all prediction steps */}
-      <Link href="/fantasy-vip-info" className="block w-full mb-4">
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3, duration: 0.5 }}
-          className="relative overflow-hidden rounded-lg cursor-pointer group"
-        >
-          {/* Animated gradient background */}
-          <div 
-            className="absolute inset-0 bg-gradient-to-r from-red-600 via-yellow-500 to-red-600 opacity-90"
-            style={{
-              backgroundSize: '200% 100%',
-              animation: 'gradient-x 3s ease infinite'
-            }}
-          />
-          
-          {/* Shimmer effect */}
-          <div className="absolute inset-0 opacity-30">
-            <div 
-              className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent -skew-x-12"
-              style={{
-                animation: 'shimmer 3s ease-in-out infinite'
-              }}
-            />
-          </div>
-          
-          {/* Content */}
-          <div className="relative z-10 px-4 py-3 sm:px-6 sm:py-4 text-center">
-            <div className="flex items-center justify-center gap-2 mb-1">
-              <span className="text-2xl animate-pulse">✈️</span>
-              <h3 className="text-lg sm:text-xl font-bold text-white drop-shadow-lg font-exo2">
-                ¡Gana un viaje a la F1!
-              </h3>
-              <span className="text-2xl animate-pulse">🏎️</span>
-            </div>
-            <p className="text-sm sm:text-base text-white/90 font-medium mb-2 font-exo2">
-              con Fantasy VIP
-            </p>
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/20 backdrop-blur-sm rounded-full border border-white/30 group-hover:bg-white/30 transition-all duration-300">
-              <span className="text-xs sm:text-sm font-semibold text-white">Ver más</span>
-              <svg className="w-4 h-4 text-white group-hover:translate-x-1 transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+      {/* VIP Banner - Compact Premium Design */}
+<Link href="/fantasy-vip-info" className="block w-full mb-4 group">
+  <motion.div
+    initial={{ opacity: 0, y: -10 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ delay: 0.2, duration: 0.5 }}
+    className="relative overflow-hidden rounded-xl"
+  >
+    {/* Premium gradient background */}
+    <div className="absolute inset-0 bg-gradient-to-r from-black via-red-950 to-black" />
+    
+    {/* Animated shine effect */}
+    <div 
+      className="absolute inset-0 opacity-40"
+      style={{
+        background: 'linear-gradient(105deg, transparent 40%, rgba(255,215,0,0.4) 50%, transparent 60%)',
+        animation: 'shine 3s ease-in-out infinite'
+      }}
+    />
+    
+    {/* Subtle racing pattern */}
+    <div className="absolute inset-0 opacity-[0.02]" 
+      style={{
+        backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,0.05) 10px, rgba(255,255,255,0.05) 20px)'
+      }}
+    />
+    
+    {/* Content - Single Row Layout */}
+    <div className="relative z-10 px-4 py-2.5 sm:px-6 sm:py-3">
+      <div className="flex items-center justify-between gap-3">
+        {/* Left side - Icon & Text */}
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          {/* Trophy icon with glow */}
+          <div className="relative flex-shrink-0">
+            <div className="absolute inset-0 bg-yellow-400 rounded-full blur-md opacity-60" />
+            <div className="relative bg-gradient-to-br from-yellow-400 to-amber-600 p-1.5 rounded-full">
+              <svg className="w-4 h-4 text-black" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
               </svg>
             </div>
           </div>
           
-          {/* Corner accents */}
-          <div className="absolute top-0 left-0 w-16 h-16 border-t-2 border-l-2 border-white/30 rounded-tl-lg" />
-          <div className="absolute bottom-0 right-0 w-16 h-16 border-b-2 border-r-2 border-white/30 rounded-br-lg" />
+          {/* Text content */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2 min-w-0">
+            <h3 className="text-sm sm:text-base font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 to-yellow-500 font-exo2 leading-tight">
+              GANA UN VIAJE A LA F1
+            </h3>
+            <span className="text-[10px] sm:text-xs text-white/70 font-medium font-exo2">
+              con Fantasy VIP • Paddock Club
+            </span>
+          </div>
+        </div>
+        
+        {/* Right side - CTA */}
+        <motion.div
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          className="flex-shrink-0"
+        >
+          <div className="relative group">
+            <div className="absolute inset-0 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-lg blur opacity-50 group-hover:opacity-75 transition-opacity" />
+            <button className="relative bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-300 hover:to-orange-400 text-black font-bold px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg shadow-lg flex items-center gap-1.5 transition-all duration-200">
+              <span className="text-xs sm:text-sm">VER MÁS</span>
+              <svg className="w-3 h-3 sm:w-4 sm:h-4 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
         </motion.div>
-      </Link>
+      </div>
+    </div>
+    
+    {/* Bottom accent line */}
+    <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-yellow-400 to-transparent opacity-50" />
+  </motion.div>
+</Link>
 
       {/* Header */}
       <div className='mb-4'>
