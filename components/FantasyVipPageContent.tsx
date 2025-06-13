@@ -19,6 +19,8 @@ import { generateEventId, trackFBEvent } from '@/lib/trackFBEvent';
 import { DriverStanding, ConstructorStanding, RookieStanding, DestructorStanding, Team } from '@/app/types/standings';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/solid';
+import ScoringSystemModal from '@/components/ScoringSystemModal';
+
 
 // SECTION: Type Definitions
 type Prediction = {
@@ -1673,14 +1675,14 @@ const handleSubmit = async () => {
                         Revisar y Enviar {progress === 100 && !submitted ? '🚀' : ''}
                       </motion.button>
                     {/* Scoring System Button */}
-                    <motion.button
-                        whileHover={{ scale: 1.03, y: -1 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={() => setScoringModalOpen(true)}
-                        className="w-full py-2.5 px-4 rounded-lg bg-gray-800/70 border border-teal-400/50 text-teal-400 font-exo2 text-xs sm:text-sm font-semibold transition-all duration-200 hover:bg-teal-900/40 hover:text-teal-300 hover:border-teal-300 hover:shadow-[0_0_10px_rgba(20,184,166,0.5)]"
-                     >
-                        Sistema de Puntuación
-                    </motion.button>
+<motion.button
+    whileHover={{ scale: 1.03, y: -1 }}
+    whileTap={{ scale: 0.98 }}
+    onClick={() => setScoringModalOpen(true)}
+    className="w-full py-2.5 px-4 rounded-lg bg-gray-800/70 border border-teal-400/50 text-teal-400 font-exo2 text-xs sm:text-sm font-semibold transition-all duration-200 hover:bg-teal-900/40 hover:text-teal-300 hover:border-teal-300 hover:shadow-[0_0_10px_rgba(20,184,166,0.5)]"
+>
+    Sistema de Puntuación
+</motion.button>
                 </div>
               </motion.div>
             </div>
