@@ -2173,180 +2173,232 @@ const handleSubmit = async () => {
                 </motion.div>
               )}
 
-              {/* Prediction Step Modals */}
-              {steps.map((step, index) => activeModal === step.name && (
-                   <motion.div
-                       key={step.name}
-                       initial={{ opacity: 0 }}
-                       animate={{ opacity: 1 }}
-                       exit={{ opacity: 0 }}
-                       transition={{ duration: 0.3 }}
-                       className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-                       onClick={closeModal} // Assumes closeModal is defined
-                   >
-                       <motion.div
-                           variants={modalVariants}
-                           initial="hidden"
-                           animate="visible"
-                           exit="exit"
-                           transition={{ type: 'spring', damping: 18, stiffness: 250 }}
-                           className="bg-gradient-to-br from-black to-gray-900 p-6 sm:p-8 rounded-xl border border-amber-500/30 shadow-xl w-full max-w-[90vw] sm:max-w-2xl max-h-[90vh] flex flex-col" // Increased max-height, flex-col
-                           onClick={(e) => e.stopPropagation()}
-                       >
-                           {/* Header */}
-                           <div className='mb-4'>
-                               {/* Progress Bar */}
-                               <div className="w-full bg-gray-800 rounded-full h-1.5 mb-2 relative overflow-hidden">
-                                   <motion.div
-                                       className="bg-gradient-to-r from-amber-500 to-cyan-500 h-full rounded-full"
-                                       initial={{ width: 0 }}
-                                       animate={{ width: `${progress}%` }} // Assumes progress state is available
-                                       transition={{ duration: 0.5, ease: "easeOut" }}
-                                   />
-                               </div>
-                                {/* Step Indicator */}
-                                <p className="text-center text-xs font-medium text-gray-500 font-exo2 mb-2 uppercase tracking-wider">
-                                   Paso {index + 1} / {steps.length}
-                                </p>
-                                {/* Title */}
-                               <h2 className={`text-lg sm:text-xl font-bold mb-2 font-exo2 text-center ${
-                                   step.name === 'pole' ? 'text-amber-400' :
-                                   step.name === 'gp' ? 'text-cyan-400' :
-                                   step.name === 'extras' ? 'text-purple-400' :
-                                   step.name === 'micro' ? 'text-yellow-400' :
-                                   'text-white' // Review title color
-                               }`}>
-                                   {step.label}
-                                </h2>
-                                {/* Instructions */}
-                               <p className="text-gray-400 text-center mb-5 font-exo2 text-sm">{instructions[step.name as keyof typeof instructions]}</p>
-                           </div>
+{/* Prediction Step Modals */}
+{steps.map((step, index) => activeModal === step.name && (
+  <motion.div
+    key={step.name}
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    exit={{ opacity: 0 }}
+    transition={{ duration: 0.3 }}
+    className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+    onClick={closeModal}
+  >
+    <motion.div
+      variants={modalVariants}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
+      transition={{ type: 'spring', damping: 18, stiffness: 250 }}
+      className="bg-gradient-to-br from-black to-gray-900 p-6 sm:p-8 rounded-xl border border-amber-500/30 shadow-xl w-full max-w-[90vw] sm:max-w-2xl max-h-[90vh] flex flex-col"
+      onClick={(e) => e.stopPropagation()}
+    >
+      {/* VIP Banner - Shows on all prediction steps */}
+      <Link href="/fantasy-vip-info" className="block w-full mb-4">
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3, duration: 0.5 }}
+          className="relative overflow-hidden rounded-lg cursor-pointer group"
+        >
+          {/* Animated gradient background */}
+          <div 
+            className="absolute inset-0 bg-gradient-to-r from-red-600 via-yellow-500 to-red-600 opacity-90"
+            style={{
+              backgroundSize: '200% 100%',
+              animation: 'gradient-x 3s ease infinite'
+            }}
+          />
+          
+          {/* Shimmer effect */}
+          <div className="absolute inset-0 opacity-30">
+            <div 
+              className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent -skew-x-12"
+              style={{
+                animation: 'shimmer 3s ease-in-out infinite'
+              }}
+            />
+          </div>
+          
+          {/* Content */}
+          <div className="relative z-10 px-4 py-3 sm:px-6 sm:py-4 text-center">
+            <div className="flex items-center justify-center gap-2 mb-1">
+              <span className="text-2xl animate-pulse">✈️</span>
+              <h3 className="text-lg sm:text-xl font-bold text-white drop-shadow-lg font-exo2">
+                ¡Gana un viaje a la F1!
+              </h3>
+              <span className="text-2xl animate-pulse">🏎️</span>
+            </div>
+            <p className="text-sm sm:text-base text-white/90 font-medium mb-2 font-exo2">
+              con Fantasy VIP
+            </p>
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/20 backdrop-blur-sm rounded-full border border-white/30 group-hover:bg-white/30 transition-all duration-300">
+              <span className="text-xs sm:text-sm font-semibold text-white">Ver más</span>
+              <svg className="w-4 h-4 text-white group-hover:translate-x-1 transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+          </div>
+          
+          {/* Corner accents */}
+          <div className="absolute top-0 left-0 w-16 h-16 border-t-2 border-l-2 border-white/30 rounded-tl-lg" />
+          <div className="absolute bottom-0 right-0 w-16 h-16 border-b-2 border-r-2 border-white/30 rounded-br-lg" />
+        </motion.div>
+      </Link>
 
-                           {/* Content Area */}
-                           <div className="flex-grow overflow-y-auto pr-3 space-y-4 scrollbar-thin scrollbar-thumb-amber-600/70 scrollbar-track-gray-800">
-                              {step.name === 'pole' && (
-                                  <>
-                                      {renderPredictionField('pole1', 'Pole Pos. 1')}
-                                      {renderPredictionField('pole2', 'Pole Pos. 2')}
-                                      {renderPredictionField('pole3', 'Pole Pos. 3')}
-                                  </>
-                              )}
-                               {step.name === 'gp' && (
-                                  <>
-                                      {renderPredictionField('gp1', 'GP Pos. 1')}
-                                      {renderPredictionField('gp2', 'GP Pos. 2')}
-                                      {renderPredictionField('gp3', 'GP Pos. 3')}
-                                  </>
-                               )}
-                              {step.name === 'extras' && (
-                                  <>
-                                      {renderPredictionField('fastest_pit_stop_team', 'Equipo - Pit Stop Más Rápido')}
-                                      {renderPredictionField('fastest_lap_driver', 'Piloto - Vuelta Más Rápida')}
-                                      {renderPredictionField('driver_of_the_day', 'Piloto del Día')}
-                                  </>
-                              )}
-                              {step.name === 'micro' && (
-                                  <>
-                                      {renderPredictionField('first_team_to_pit', 'Primer Equipo en Pits')}
-                                      {renderPredictionField('first_retirement', 'Primer Retiro (Piloto)')}
-                                  </>
-                              )}
-                              {step.name === 'review' && (
-                                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                       {/* Pole Section */}
-                                       <motion.div onClick={() => setActiveModal('pole')} className="cursor-pointer bg-gray-800/50 p-4 rounded-lg hover:bg-gray-700/60 transition duration-200 space-y-1 border border-transparent hover:border-amber-500/50" whileHover={{ y: -2 }}>
-                                           <h3 className="text-base sm:text-lg font-semibold text-amber-400 font-exo2 mb-2">Posiciones de Pole</h3>
-                                           <p className="text-gray-300 font-exo2 text-sm"><span className="font-medium text-gray-100 w-6 inline-block">1:</span> {predictions.pole1 || <span className="text-gray-500 italic">Vacío</span>}</p>
-                                           <p className="text-gray-300 font-exo2 text-sm"><span className="font-medium text-gray-100 w-6 inline-block">2:</span> {predictions.pole2 || <span className="text-gray-500 italic">Vacío</span>}</p>
-                                           <p className="text-gray-300 font-exo2 text-sm"><span className="font-medium text-gray-100 w-6 inline-block">3:</span> {predictions.pole3 || <span className="text-gray-500 italic">Vacío</span>}</p>
-                                       </motion.div>
-                                        {/* GP Section */}
-                                       <motion.div onClick={() => setActiveModal('gp')} className="cursor-pointer bg-gray-800/50 p-4 rounded-lg hover:bg-gray-700/60 transition duration-200 space-y-1 border border-transparent hover:border-cyan-500/50" whileHover={{ y: -2 }}>
-                                           <h3 className="text-base sm:text-lg font-semibold text-cyan-400 font-exo2 mb-2">Posiciones de GP</h3>
-                                           <p className="text-gray-300 font-exo2 text-sm"><span className="font-medium text-gray-100 w-6 inline-block">1:</span> {predictions.gp1 || <span className="text-gray-500 italic">Vacío</span>}</p>
-                                           <p className="text-gray-300 font-exo2 text-sm"><span className="font-medium text-gray-100 w-6 inline-block">2:</span> {predictions.gp2 || <span className="text-gray-500 italic">Vacío</span>}</p>
-                                           <p className="text-gray-300 font-exo2 text-sm"><span className="font-medium text-gray-100 w-6 inline-block">3:</span> {predictions.gp3 || <span className="text-gray-500 italic">Vacío</span>}</p>
-                                       </motion.div>
-                                        {/* Extras Section */}
-                                       <motion.div onClick={() => setActiveModal('extras')} className="cursor-pointer bg-gray-800/50 p-4 rounded-lg hover:bg-gray-700/60 transition duration-200 space-y-2 border border-transparent hover:border-purple-500/50" whileHover={{ y: -2 }}>
-                                           <h3 className="text-base sm:text-lg font-semibold text-purple-400 font-exo2 mb-2">Predicciones Adicionales</h3>
-                                           <p className="text-gray-300 font-exo2 text-sm"><strong className="text-gray-100 font-medium">Pit Stop + Rápido:</strong> {predictions.fastest_pit_stop_team || <span className="text-gray-500 italic">Vacío</span>}</p>
-                                           <p className="text-gray-300 font-exo2 text-sm"><strong className="text-gray-100 font-medium">Vuelta + Rápida:</strong> {predictions.fastest_lap_driver || <span className="text-gray-500 italic">Vacío</span>}</p>
-                                           <p className="text-gray-300 font-exo2 text-sm"><strong className="text-gray-100 font-medium">Piloto del Día:</strong> {predictions.driver_of_the_day || <span className="text-gray-500 italic">Vacío</span>}</p>
-                                       </motion.div>
-                                        {/* Micro Section */}
-                                        <motion.div onClick={() => setActiveModal('micro')} className="cursor-pointer bg-gray-800/50 p-4 rounded-lg hover:bg-gray-700/60 transition duration-200 space-y-2 border border-transparent hover:border-yellow-500/50" whileHover={{ y: -2 }}>
-                                           <h3 className="text-base sm:text-lg font-semibold text-yellow-400 font-exo2 mb-2">Micro-Predicciones</h3>
-                                           <p className="text-gray-300 font-exo2 text-sm"><strong className="text-gray-100 font-medium">1er Equipo en Pits:</strong> {predictions.first_team_to_pit || <span className="text-gray-500 italic">Vacío</span>}</p>
-                                           <p className="text-gray-300 font-exo2 text-sm"><strong className="text-gray-100 font-medium">1er Retiro:</strong> {predictions.first_retirement || <span className="text-gray-500 italic">Vacío</span>}</p>
-                                       </motion.div>
-                                   </div>
-                              )}
-                           </div>
+      {/* Header */}
+      <div className='mb-4'>
+        {/* Progress Bar */}
+        <div className="w-full bg-gray-800 rounded-full h-1.5 mb-2 relative overflow-hidden">
+          <motion.div
+            className="bg-gradient-to-r from-amber-500 to-cyan-500 h-full rounded-full"
+            initial={{ width: 0 }}
+            animate={{ width: `${progress}%` }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+          />
+        </div>
+        {/* Step Indicator */}
+        <p className="text-center text-xs font-medium text-gray-500 font-exo2 mb-2 uppercase tracking-wider">
+          Paso {index + 1} / {steps.length}
+        </p>
+        {/* Title */}
+        <h2 className={`text-lg sm:text-xl font-bold mb-2 font-exo2 text-center ${
+          step.name === 'pole' ? 'text-amber-400' :
+          step.name === 'gp' ? 'text-cyan-400' :
+          step.name === 'extras' ? 'text-purple-400' :
+          step.name === 'micro' ? 'text-yellow-400' :
+          'text-white' // Review title color
+        }`}>
+          {step.label}
+        </h2>
+        {/* Instructions */}
+        <p className="text-gray-400 text-center mb-5 font-exo2 text-sm">{instructions[step.name as keyof typeof instructions]}</p>
+      </div>
 
-                           {/* Footer Buttons & Errors */}
-                           <div className="mt-auto pt-4"> {/* Pushes footer down, adds padding top */}
-                               {/* Error Display */}
-                               {errors.length > 0 && ( // Assumes errors state is available
-                                   <div className="my-4 bg-red-900/30 border border-red-500/50 text-red-300 p-3 rounded-md text-center font-exo2 text-sm space-y-1">
-                                       {errors.map((error, idx) => (
-                                           <p key={idx}><span className="font-semibold mr-1">[!]:</span>{error}</p>
-                                       ))}
-                                   </div>
-                               )}
+      {/* Content Area */}
+      <div className="flex-grow overflow-y-auto pr-3 space-y-4 scrollbar-thin scrollbar-thumb-amber-600/70 scrollbar-track-gray-800">
+        {step.name === 'pole' && (
+          <>
+            {renderPredictionField('pole1', 'Pole Pos. 1')}
+            {renderPredictionField('pole2', 'Pole Pos. 2')}
+            {renderPredictionField('pole3', 'Pole Pos. 3')}
+          </>
+        )}
+        {step.name === 'gp' && (
+          <>
+            {renderPredictionField('gp1', 'GP Pos. 1')}
+            {renderPredictionField('gp2', 'GP Pos. 2')}
+            {renderPredictionField('gp3', 'GP Pos. 3')}
+          </>
+        )}
+        {step.name === 'extras' && (
+          <>
+            {renderPredictionField('fastest_pit_stop_team', 'Equipo - Pit Stop Más Rápido')}
+            {renderPredictionField('fastest_lap_driver', 'Piloto - Vuelta Más Rápida')}
+            {renderPredictionField('driver_of_the_day', 'Piloto del Día')}
+          </>
+        )}
+        {step.name === 'micro' && (
+          <>
+            {renderPredictionField('first_team_to_pit', 'Primer Equipo en Pits')}
+            {renderPredictionField('first_retirement', 'Primer Retiro (Piloto)')}
+          </>
+        )}
+        {step.name === 'review' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {/* Pole Section */}
+            <motion.div onClick={() => setActiveModal('pole')} className="cursor-pointer bg-gray-800/50 p-4 rounded-lg hover:bg-gray-700/60 transition duration-200 space-y-1 border border-transparent hover:border-amber-500/50" whileHover={{ y: -2 }}>
+              <h3 className="text-base sm:text-lg font-semibold text-amber-400 font-exo2 mb-2">Posiciones de Pole</h3>
+              <p className="text-gray-300 font-exo2 text-sm"><span className="font-medium text-gray-100 w-6 inline-block">1:</span> {predictions.pole1 || <span className="text-gray-500 italic">Vacío</span>}</p>
+              <p className="text-gray-300 font-exo2 text-sm"><span className="font-medium text-gray-100 w-6 inline-block">2:</span> {predictions.pole2 || <span className="text-gray-500 italic">Vacío</span>}</p>
+              <p className="text-gray-300 font-exo2 text-sm"><span className="font-medium text-gray-100 w-6 inline-block">3:</span> {predictions.pole3 || <span className="text-gray-500 italic">Vacío</span>}</p>
+            </motion.div>
+            {/* GP Section */}
+            <motion.div onClick={() => setActiveModal('gp')} className="cursor-pointer bg-gray-800/50 p-4 rounded-lg hover:bg-gray-700/60 transition duration-200 space-y-1 border border-transparent hover:border-cyan-500/50" whileHover={{ y: -2 }}>
+              <h3 className="text-base sm:text-lg font-semibold text-cyan-400 font-exo2 mb-2">Posiciones de GP</h3>
+              <p className="text-gray-300 font-exo2 text-sm"><span className="font-medium text-gray-100 w-6 inline-block">1:</span> {predictions.gp1 || <span className="text-gray-500 italic">Vacío</span>}</p>
+              <p className="text-gray-300 font-exo2 text-sm"><span className="font-medium text-gray-100 w-6 inline-block">2:</span> {predictions.gp2 || <span className="text-gray-500 italic">Vacío</span>}</p>
+              <p className="text-gray-300 font-exo2 text-sm"><span className="font-medium text-gray-100 w-6 inline-block">3:</span> {predictions.gp3 || <span className="text-gray-500 italic">Vacío</span>}</p>
+            </motion.div>
+            {/* Extras Section */}
+            <motion.div onClick={() => setActiveModal('extras')} className="cursor-pointer bg-gray-800/50 p-4 rounded-lg hover:bg-gray-700/60 transition duration-200 space-y-2 border border-transparent hover:border-purple-500/50" whileHover={{ y: -2 }}>
+              <h3 className="text-base sm:text-lg font-semibold text-purple-400 font-exo2 mb-2">Predicciones Adicionales</h3>
+              <p className="text-gray-300 font-exo2 text-sm"><strong className="text-gray-100 font-medium">Pit Stop + Rápido:</strong> {predictions.fastest_pit_stop_team || <span className="text-gray-500 italic">Vacío</span>}</p>
+              <p className="text-gray-300 font-exo2 text-sm"><strong className="text-gray-100 font-medium">Vuelta + Rápida:</strong> {predictions.fastest_lap_driver || <span className="text-gray-500 italic">Vacío</span>}</p>
+              <p className="text-gray-300 font-exo2 text-sm"><strong className="text-gray-100 font-medium">Piloto del Día:</strong> {predictions.driver_of_the_day || <span className="text-gray-500 italic">Vacío</span>}</p>
+            </motion.div>
+            {/* Micro Section */}
+            <motion.div onClick={() => setActiveModal('micro')} className="cursor-pointer bg-gray-800/50 p-4 rounded-lg hover:bg-gray-700/60 transition duration-200 space-y-2 border border-transparent hover:border-yellow-500/50" whileHover={{ y: -2 }}>
+              <h3 className="text-base sm:text-lg font-semibold text-yellow-400 font-exo2 mb-2">Micro-Predicciones</h3>
+              <p className="text-gray-300 font-exo2 text-sm"><strong className="text-gray-100 font-medium">1er Equipo en Pits:</strong> {predictions.first_team_to_pit || <span className="text-gray-500 italic">Vacío</span>}</p>
+              <p className="text-gray-300 font-exo2 text-sm"><strong className="text-gray-100 font-medium">1er Retiro:</strong> {predictions.first_retirement || <span className="text-gray-500 italic">Vacío</span>}</p>
+            </motion.div>
+          </div>
+        )}
+      </div>
 
-                               {/* Navigation Buttons */}
-                               <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
-                                   {/* Back/Close Button */}
-                                   <button
-                                       onClick={index === 0 ? closeModal : prevModal} // Assumes prevModal defined
-                                       className="w-full sm:w-auto px-5 py-2.5 bg-gray-700/80 text-white rounded-lg font-exo2 hover:bg-gray-600/80 hover:text-amber-300 border border-transparent hover:border-amber-500/50 hover:shadow-[0_0_10px_rgba(251,191,36,0.5)] transition-all duration-300 text-sm sm:text-base font-semibold"
-                                   >
-                                       {index === 0 ? 'Cerrar' : 'Anterior'}
-                                   </button>
+      {/* Footer Buttons & Errors */}
+      <div className="mt-auto pt-4">
+        {/* Error Display */}
+        {errors.length > 0 && (
+          <div className="my-4 bg-red-900/30 border border-red-500/50 text-red-300 p-3 rounded-md text-center font-exo2 text-sm space-y-1">
+            {errors.map((error, idx) => (
+              <p key={idx}><span className="font-semibold mr-1">[!]:</span>{error}</p>
+            ))}
+          </div>
+        )}
 
-                                   {/* Next/Submit Button */}
-                                   {index < steps.length - 1 ? (
-                                       <motion.button
-                                           whileHover={{ scale: 1.05 }}
-                                           whileTap={{ scale: 0.95 }}
-                                           onClick={nextModal} // Assumes nextModal defined
-                                           className="w-full sm:w-auto px-5 py-2.5 bg-gray-800 text-cyan-400 border border-cyan-400/50 rounded-lg font-exo2 hover:bg-cyan-900/30 hover:text-cyan-300 hover:border-cyan-300 hover:shadow-[0_0_10px_rgba(34,211,238,0.7)] transition-all duration-300 text-sm sm:text-base font-semibold"
-                                       >
-                                           Siguiente
-                                       </motion.button>
-                                   ) : (
-                                       <motion.button
-                                           whileHover={{ scale: 1.05 }}
-                                           whileTap={{ scale: 0.95 }}
-                                           onClick={handleSubmit} // Assumes handleSubmit defined
-                                           disabled={submitting || submitted} // Assumes submitting/submitted state available
-                                           className={`w-full sm:w-auto px-5 py-2.5 bg-gradient-to-r from-green-600 to-cyan-600 text-white border border-cyan-400/50 rounded-lg font-exo2 hover:from-green-500 hover:to-cyan-500 hover:shadow-[0_0_15px_rgba(34,211,238,0.7)] transition-all duration-300 text-sm sm:text-base font-semibold relative overflow-hidden ${
-                                               submitting || submitted ? 'opacity-60 cursor-not-allowed grayscale' : ''
-                                           }`}
-                                       >
-                                            {submitting && (
-                                                <span className="absolute inset-0 flex items-center justify-center bg-black/50">
-                                                   <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                                   </svg>
-                                               </span>
-                                            )}
-                                           <span className={submitting ? 'opacity-0' : ''}>
-                                               {submitting ? 'Enviando...' : submitted ? 'Enviadas ✓' : 'Enviar Predicciones'}
-                                            </span>
-                                       </motion.button>
-                                   )}
-                               </div>
-                           </div>
-                       </motion.div>
-                   </motion.div>
-               ))}
+        {/* Navigation Buttons */}
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
+          {/* Back/Close Button */}
+          <button
+            onClick={index === 0 ? closeModal : prevModal}
+            className="w-full sm:w-auto px-5 py-2.5 bg-gray-700/80 text-white rounded-lg font-exo2 hover:bg-gray-600/80 hover:text-amber-300 border border-transparent hover:border-amber-500/50 hover:shadow-[0_0_10px_rgba(251,191,36,0.5)] transition-all duration-300 text-sm sm:text-base font-semibold"
+          >
+            {index === 0 ? 'Cerrar' : 'Anterior'}
+          </button>
 
+          {/* Next/Submit Button */}
+          {index < steps.length - 1 ? (
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={nextModal}
+              className="w-full sm:w-auto px-5 py-2.5 bg-gray-800 text-cyan-400 border border-cyan-400/50 rounded-lg font-exo2 hover:bg-cyan-900/30 hover:text-cyan-300 hover:border-cyan-300 hover:shadow-[0_0_10px_rgba(34,211,238,0.7)] transition-all duration-300 text-sm sm:text-base font-semibold"
+            >
+              Siguiente
+            </motion.button>
+          ) : (
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleSubmit}
+              disabled={submitting || submitted}
+              className={`w-full sm:w-auto px-5 py-2.5 bg-gradient-to-r from-green-600 to-cyan-600 text-white border border-cyan-400/50 rounded-lg font-exo2 hover:from-green-500 hover:to-cyan-500 hover:shadow-[0_0_15px_rgba(34,211,238,0.7)] transition-all duration-300 text-sm sm:text-base font-semibold relative overflow-hidden ${
+                submitting || submitted ? 'opacity-60 cursor-not-allowed grayscale' : ''
+              }`}
+            >
+              {submitting && (
+                <span className="absolute inset-0 flex items-center justify-center bg-black/50">
+                  <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                </span>
+              )}
+              <span className={submitting ? 'opacity-0' : ''}>
+                {submitting ? 'Enviando...' : submitted ? 'Enviadas ✓' : 'Enviar Predicciones'}
+              </span>
+            </motion.button>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  </motion.div>
+))}
 
-              {/* Share/Success Modal */}
-              {activeModal === 'share' && (
+{/* Share/Success Modal */}
+{activeModal === 'share' && (
   <motion.div
     initial={{ opacity: 0 }}
     animate={{ opacity: 1 }}
@@ -2394,101 +2446,101 @@ const handleSubmit = async () => {
   </motion.div>
 )}
 
-              {/* Full Standings Modal */}
-              {activeStandingsModal && (
-                <motion.div
+{/* Full Standings Modal */}
+{activeStandingsModal && (
+  <motion.div
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    exit={{ opacity: 0 }}
+    transition={{ duration: 0.3 }}
+    className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[60] p-4"
+    onClick={() => setActiveStandingsModal(null)}
+  >
+    <motion.div
+      variants={modalVariants}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
+      transition={{ type: 'spring', damping: 18, stiffness: 250 }}
+      className="bg-gradient-to-br from-black via-gray-900 to-black p-5 sm:p-6 rounded-xl border border-blue-500/30 shadow-xl w-full max-w-[90vw] sm:max-w-2xl max-h-[85vh] relative flex flex-col"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <button
+        onClick={() => setActiveStandingsModal(null)}
+        className="absolute top-3 right-3 text-gray-400 hover:text-amber-400 transition p-1 z-10"
+        aria-label="Cerrar"
+      >
+        ✕
+      </button>
+      <h2 className="text-lg sm:text-xl font-bold text-white mb-4 font-exo2 text-center">
+        {activeStandingsModal === 'drivers' ? 'Clasificación Completa de Pilotos 2025' : 'Clasificación Completa de Constructores 2025'}
+      </h2>
+      <div className="flex-grow overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-blue-600 scrollbar-track-gray-800">
+        <table className="w-full text-white font-exo2 text-xs sm:text-sm table-fixed">
+          <thead className="sticky top-0 bg-gray-900 z-10 shadow-sm">
+            <tr>
+              <th className="p-2 text-left w-12 sm:w-16 text-amber-400">Pos.</th>
+              <th className="p-2 text-left">{activeStandingsModal === 'drivers' ? 'Piloto' : 'Constructor'}</th>
+              <th className="p-2 text-right w-16 sm:w-20">Pts</th>
+              <th className="p-2 text-center w-12 sm:w-16">Evo.</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(activeStandingsModal === 'drivers' ? driverStandings : constructorStandings).map((standing, index) => {
+              const name = 'driver' in standing ? standing.driver : standing.constructor;
+              const teamName = 'driver' in standing ? driverToTeam[name] : name;
+              const team = teams.find((team) => team.name === teamName);
+              return (
+                <motion.tr
+                  key={index}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.3 }}
-                  className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[60] p-4" // z-index below selection
-                  onClick={() => setActiveStandingsModal(null)}
+                  transition={{ duration: 0.3, delay: index * 0.03 }}
+                  className="border-b border-blue-500/20 hover:bg-blue-800/40 transition-colors duration-150"
                 >
-                  <motion.div
-                    variants={modalVariants}
-                    initial="hidden"
-                    animate="visible"
-                    exit="exit"
-                    transition={{ type: 'spring', damping: 18, stiffness: 250 }}
-                     className="bg-gradient-to-br from-black via-gray-900 to-black p-5 sm:p-6 rounded-xl border border-blue-500/30 shadow-xl w-full max-w-[90vw] sm:max-w-2xl max-h-[85vh] relative flex flex-col" // Adjusted size
-                    onClick={(e) => e.stopPropagation()}
+                  <td className="p-2 text-amber-400 font-bold">{standing.position}</td>
+                  <td className="p-2 flex items-center gap-2 truncate">
+                    <Image
+                      src={team?.logo_url || '/images/team-logos/default-team.png'}
+                      alt={`${teamName || 'Equipo'} logo`}
+                      width={24}
+                      height={24}
+                      className="object-contain w-6 h-6 flex-shrink-0"
+                    />
+                    <span className="text-white text-sm truncate">{name}</span>
+                  </td>
+                  <td className="p-2 text-right text-gray-300 font-medium">{standing.points}</td>
+                  <td
+                    className={`p-2 text-center font-semibold ${
+                      standing.evolution.startsWith('↑') ? 'text-green-400' :
+                      standing.evolution.startsWith('↓') ? 'text-red-400' : 'text-gray-400'
+                    }`}
                   >
-                     <button
-                        onClick={() => setActiveStandingsModal(null)}
-                        className="absolute top-3 right-3 text-gray-400 hover:text-amber-400 transition p-1 z-10"
-                        aria-label="Cerrar"
-                       >
-                        ✕
-                     </button>
-                    <h2 className="text-lg sm:text-xl font-bold text-white mb-4 font-exo2 text-center">
-                      {activeStandingsModal === 'drivers' ? 'Clasificación Completa de Pilotos 2025' : 'Clasificación Completa de Constructores 2025'}
-                    </h2>
-                    <div className="flex-grow overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-blue-600 scrollbar-track-gray-800">
-                      <table className="w-full text-white font-exo2 text-xs sm:text-sm table-fixed">
-                         <thead className="sticky top-0 bg-gray-900 z-10 shadow-sm"> {/* Sticky header */}
-                           <tr>
-                             <th className="p-2 text-left w-12 sm:w-16 text-amber-400">Pos.</th>
-                             <th className="p-2 text-left">{activeStandingsModal === 'drivers' ? 'Piloto' : 'Constructor'}</th>
-                             <th className="p-2 text-right w-16 sm:w-20">Pts</th>
-                             <th className="p-2 text-center w-12 sm:w-16">Evo.</th>
-                           </tr>
-                         </thead>
-                         <tbody>
-                           {(activeStandingsModal === 'drivers' ? driverStandings : constructorStandings).map((standing, index) => { // Assumes driverStandings/constructorStandings available
-                             const name = 'driver' in standing ? standing.driver : standing.constructor;
-                             const teamName = 'driver' in standing ? driverToTeam[name] : name; // Assumes driverToTeam available
-                             const team = teams.find((team) => team.name === teamName); // Assumes teams available
-                             return (
-                               <motion.tr
-                                 key={index}
-                                 initial={{ opacity: 0 }}
-                                 animate={{ opacity: 1 }}
-                                 transition={{ duration: 0.3, delay: index * 0.03 }}
-                                 className="border-b border-blue-500/20 hover:bg-blue-800/40 transition-colors duration-150"
-                               >
-                                 <td className="p-2 text-amber-400 font-bold">{standing.position}</td>
-                                 <td className="p-2 flex items-center gap-2 truncate">
-                                   <Image
-                                     src={team?.logo_url || '/images/team-logos/default-team.png'}
-                                     alt={`${teamName || 'Equipo'} logo`}
-                                     width={24} // Slightly smaller in full list
-                                     height={24}
-                                     className="object-contain w-6 h-6 flex-shrink-0"
-                                   />
-                                   <span className="text-white text-sm truncate">{name}</span>
-                                 </td>
-                                 <td className="p-2 text-right text-gray-300 font-medium">{standing.points}</td>
-                                 <td
-                                   className={`p-2 text-center font-semibold ${
-                                     standing.evolution.startsWith('↑') ? 'text-green-400' :
-                                     standing.evolution.startsWith('↓') ? 'text-red-400' : 'text-gray-400'
-                                   }`}
-                                 >
-                                  {standing.evolution === '=' ? '–' : standing.evolution}
-                                 </td>
-                               </motion.tr>
-                             );
-                           })}
-                         </tbody>
-                      </table>
-                      {(activeStandingsModal === 'drivers' ? driverStandings.length === 0 : constructorStandings.length === 0) && (
-                           <p className="text-center text-gray-500 py-8 font-exo2">No hay datos de clasificación disponibles.</p>
-                       )}
-                    </div>
-                    <button
-                      onClick={() => setActiveStandingsModal(null)}
-                      className="mt-4 w-full flex-shrink-0 px-4 py-2 bg-gray-800 text-white rounded-lg font-exo2 hover:bg-gray-700 hover:text-blue-300 hover:shadow-[0_0_10px_rgba(96,165,250,0.5)] transition-all duration-200 text-sm sm:text-base font-semibold"
-                    >
-                      Cerrar
-                    </button>
-                  </motion.div>
-                </motion.div>
-              )}
+                    {standing.evolution === '=' ? '–' : standing.evolution}
+                  </td>
+                </motion.tr>
+              );
+            })}
+          </tbody>
+        </table>
+        {(activeStandingsModal === 'drivers' ? driverStandings.length === 0 : constructorStandings.length === 0) && (
+          <p className="text-center text-gray-500 py-8 font-exo2">No hay datos de clasificación disponibles.</p>
+        )}
+      </div>
+      <button
+        onClick={() => setActiveStandingsModal(null)}
+        className="mt-4 w-full flex-shrink-0 px-4 py-2 bg-gray-800 text-white rounded-lg font-exo2 hover:bg-gray-700 hover:text-blue-300 hover:shadow-[0_0_10px_rgba(96,165,250,0.5)] transition-all duration-200 text-sm sm:text-base font-semibold"
+      >
+        Cerrar
+      </button>
+    </motion.div>
+  </motion.div>
+)}
 
-             {/* Driver/Team Selection Modal */}
-             {renderSelectionModal()}
-             </AnimatePresence>
-        </main>
+{/* Driver/Team Selection Modal */}
+{renderSelectionModal()}
+</AnimatePresence>
+</main>
       )}
     </div>
   );
