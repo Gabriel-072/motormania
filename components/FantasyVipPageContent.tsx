@@ -2112,52 +2112,11 @@ const handleSubmit = async () => {
 
             {/* Modals */}
             <AnimatePresence>
-                {/* Scoring System Modal */}
-              {scoringModalOpen && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.3 }}
-                  className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[60] p-4" // z-index below selection modal
-                  onClick={() => setScoringModalOpen(false)}
-                >
-                  <motion.div
-                    variants={modalVariants}
-                    initial="hidden"
-                    animate="visible"
-                    exit="exit"
-                     transition={{ type: 'spring', damping: 15, stiffness: 200 }}
-                    className="bg-gradient-to-br from-black via-gray-900 to-black p-6 sm:p-8 rounded-xl border border-teal-500/30 shadow-xl w-full max-w-[90vw] sm:max-w-lg max-h-[80vh] overflow-y-auto relative flex flex-col" // flex-col added
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                     <button
-                       onClick={() => setScoringModalOpen(false)}
-                       className="absolute top-3 right-3 text-gray-400 hover:text-amber-400 transition p-1 z-10"
-                       aria-label="Cerrar"
-                      >
-                       ✕
-                     </button>
-                    <h2 className="text-lg sm:text-xl font-bold text-white mb-5 font-exo2 text-center">Sistema de Puntuación</h2>
-                    <div className="text-gray-300 font-exo2 text-sm sm:text-base space-y-3 flex-grow overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-teal-600 scrollbar-track-gray-800"> {/* List styling */}
-                         <p><strong className='text-amber-400'>Pole / GP (Exacto):</strong> <span className='text-white'>5 pts</span> por acertar la posición exacta (1º, 2º o 3º).</p>
-                         <p><strong className='text-amber-400'>Pole / GP (Top 3):</strong> <span className='text-white'>2 pts</span> si el piloto está en el Top 3 pero no en la posición exacta.</p>
-                         <p><strong className='text-cyan-400'>Pit Stop Más Rápido:</strong> <span className='text-white'>3 pts</span> por acertar el equipo.</p>
-                         <p><strong className='text-purple-400'>Vuelta Más Rápida:</strong> <span className='text-white'>3 pts</span> por acertar el piloto.</p>
-                         <p><strong className='text-purple-400'>Piloto del Día:</strong> <span className='text-white'>3 pts</span> por acertar el piloto.</p>
-                         <p><strong className='text-yellow-400'>Primer Equipo en Pits:</strong> <span className='text-white'>2 pts</span> por acertar el equipo.</p>
-                         <p><strong className='text-yellow-400'>Primer Retiro:</strong> <span className='text-white'>2 pts</span> por acertar el piloto.</p>
-                         <p className='text-xs text-gray-500 italic mt-4'>Nota: Los puntos por 'Top 3' no se suman a los puntos por 'Posición Exacta'. Máximo 5 puntos por piloto/posición.</p>
-                    </div>
-                    <button
-                      onClick={() => setScoringModalOpen(false)}
-                      className="mt-6 w-full px-4 py-2 bg-gray-800 text-white rounded-lg font-exo2 hover:bg-gray-700 hover:text-teal-300 hover:shadow-[0_0_10px_rgba(20,184,166,0.5)] transition-all duration-200 text-sm sm:text-base font-semibold"
-                    >
-                      Entendido
-                    </button>
-                  </motion.div>
-                </motion.div>
-              )}
+            {/* Scoring System Modal */}
+  <ScoringSystemModal 
+    isOpen={scoringModalOpen} 
+    onClose={() => setScoringModalOpen(false)} 
+  />
 
               {/* Prediction Step Modals */}
               {steps.map((step, index) => activeModal === step.name && (
