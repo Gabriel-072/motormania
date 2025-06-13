@@ -1,7 +1,9 @@
 // 📁 /app/api/vip/confirm-order/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
-import { createClient } from '@supabase/supabase-js';
+import { auth }                      from '@clerk/nextjs/server';
+import { createClient }              from '@supabase/supabase-js';
+
+const SLACK_WEBHOOK = process.env.SLACK_MMC_NEW_VIP_WEBHOOK_URL!;
 
 export async function POST(req: NextRequest) {
   console.log('🔍 confirm-order POST called');
@@ -10,7 +12,6 @@ export async function POST(req: NextRequest) {
     // 1️⃣ Auth
     const { userId } = await auth();
     console.log('🔍 Clerk User ID:', userId);
-    
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -19,7 +20,6 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { orderId } = body;
     console.log('🔍 Order ID from request:', orderId);
-    
     if (!orderId) {
       return NextResponse.json({ error: 'Missing orderId' }, { status: 400 });
     }
@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
       .eq('order_id', orderId)
       .single();
 
-    if (fetchError) {
+    if (fetchError || !existingOrder) {
       console.error('❌ Error fetching order:', fetchError);
       
       // Let's also try to see all orders for this user
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
       
       return NextResponse.json({ 
         error: 'Order not found', 
-        details: fetchError.message,
+        details: fetchError?.message,
         orderId,
         userId,
         userOrders
@@ -80,40 +80,73 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, message: 'Order already confirmed' });
     }
 
-    // 5️⃣ Update payment status to paid
+    // 5️⃣ Update payment status to paid and fetch updated row
     console.log('🔍 Updating payment status to paid...');
-    const { data: updateData, error: updateError } = await sb
+    const now = new Date().toISOString();
+    const { data: updatedTx, error: updateError } = await sb
       .from('vip_transactions')
       .update({ 
         payment_status: 'paid',
-        paid_at: new Date().toISOString()
+        paid_at: now
       })
       .eq('order_id', orderId)
-      .select() // Return the updated row
+      .select('id, user_id, full_name, plan_id, amount_cop, paid_at')
       .single();
 
-    if (updateError) {
+    if (updateError || !updatedTx) {
       console.error('❌ Error updating order:', updateError);
       return NextResponse.json({ 
         error: 'Database update failed', 
-        details: updateError.message,
+        details: updateError?.message,
         updateError
       }, { status: 500 });
     }
 
-    console.log('✅ Order updated successfully:', updateData);
-    
-    return NextResponse.json({ 
-      success: true,
-      updatedOrder: updateData
+    console.log('✅ Order updated successfully:', updatedTx);
+
+    // 6️⃣ Upsert into vip_users
+    await sb
+      .from('vip_users')
+      .upsert(
+        {
+          id          : updatedTx.user_id,
+          entry_tx_id : updatedTx.id,
+          joined_at   : updatedTx.paid_at
+        },
+        { onConflict: 'id' }
+      );
+
+    // 7️⃣ Send Slack notification
+    const slackPayload = {
+      text: [
+        '*✅ Pago VIP confirmado*',
+        `• Transacción ID: ${updatedTx.id}`,
+        `• Usuario: <@${updatedTx.user_id}> (${updatedTx.full_name})`,
+        `• Plan: ${updatedTx.plan_id}`,
+        `• Monto: $${updatedTx.amount_cop} COP`,
+        `• Fecha de pago: ${updatedTx.paid_at}`
+      ].join('\n'),
+    };
+
+    await fetch(SLACK_WEBHOOK, {
+      method : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body   : JSON.stringify(slackPayload)
     });
 
+    console.log('✅ Slack notification sent');
+
+    return NextResponse.json({ 
+      success: true,
+      updatedOrder: updatedTx
+    });
+    
   } catch (error) {
     console.error('❌ Unexpected error:', error);
     return NextResponse.json({ 
-      error: 'Internal server error',
+      error  : 'Internal server error',
       details: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined
+      stack  : error instanceof Error ? error.stack : undefined
     }, { status: 500 });
   }
 }
@@ -132,7 +165,7 @@ export async function GET(req: NextRequest) {
   // Reuse the POST logic
   const mockReq = new NextRequest(req.url, {
     method: 'POST',
-    body: JSON.stringify({ orderId })
+    body:   JSON.stringify({ orderId })
   });
   
   return POST(mockReq);
