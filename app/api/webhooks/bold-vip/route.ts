@@ -1,7 +1,7 @@
 // 📁 app/api/webhooks/bold-vip/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import crypto from 'crypto';
+import { createClient }              from '@supabase/supabase-js';
+import crypto                        from 'crypto';
 
 const sb = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -9,11 +9,12 @@ const sb = createClient(
   { auth: { persistSession: false } }
 );
 
-const BOLD_SECRET = process.env.BOLD_WEBHOOK_SECRET_KEY!;
+const BOLD_SECRET   = process.env.BOLD_WEBHOOK_SECRET_KEY!;
+const SLACK_WEBHOOK = process.env.SLACK_MMC_NEW_VIP_WEBHOOK_URL!;
 
-// Verify Bold signature
+/* ---------------------------- Verify signature --------------------------- */
 function verifyBold(sig: string, raw: string) {
-  const bodyB64 = Buffer.from(raw).toString('base64');
+  const bodyB64  = Buffer.from(raw).toString('base64');
   const expected = crypto
     .createHmac('sha256', BOLD_SECRET)
     .update(bodyB64)
@@ -28,6 +29,7 @@ function verifyBold(sig: string, raw: string) {
   }
 }
 
+/* ------------------------------------------------------------------------ */
 export async function POST(req: NextRequest) {
   const raw = await req.text();
   const sig = req.headers.get('x-bold-signature') ?? '';
@@ -40,71 +42,79 @@ export async function POST(req: NextRequest) {
   }
 
   const evt = JSON.parse(raw);
-  console.log('🎯 Webhook event:', evt);
+  console.log('🎯 Webhook event:', evt.type);
 
-  // Handle different event types
   if (evt.type !== 'SALE_APPROVED' && evt.type !== 'PAYMENT_APPROVED') {
     console.log('⏭️ Ignoring event type:', evt.type);
     return NextResponse.json({ ok: true, ignored: true });
   }
 
   try {
-    const data = evt.data;
+    const data    = evt.data;
     const orderId = data.metadata?.reference || data.order_id || data.external_reference;
-    
-    console.log('🔍 Looking for order:', orderId);
-
     if (!orderId) {
-      console.error('❌ No order ID found in webhook data');
+      console.error('❌ No order ID in webhook');
       return NextResponse.json({ ok: true, error: 'No order ID' });
     }
 
-    // Update the vip_transactions table
+    /* ---------- 1️⃣ Actualiza vip_transactions y obtén la fila ------------ */
     const { data: updatedTx, error: updateError } = await sb
       .from('vip_transactions')
       .update({
-        payment_status: 'paid',
-        paid_at: new Date().toISOString(),
-        bold_payment_id: data.payment_id || data.id
+        payment_status  : 'paid',
+        paid_at         : new Date().toISOString(),
+        bold_payment_id : data.payment_id || data.id
       })
       .eq('order_id', orderId)
-      .select()
+      .select('id, user_id, full_name, plan_id, amount_cop, paid_at')
       .single();
 
-    if (updateError) {
-      console.error('❌ Error updating transaction:', updateError);
-      
-      // Try to find by partial match (in case format is different)
-      const { data: transactions } = await sb
-        .from('vip_transactions')
-        .select('order_id')
-        .like('order_id', `%${orderId.slice(-8)}%`);
-      
-      console.log('🔍 Similar orders found:', transactions);
-      
-      return NextResponse.json({ ok: true, error: updateError.message });
+    if (updateError || !updatedTx) {
+      console.error('❌ Update error:', updateError);
+      return NextResponse.json({ ok: false, error: updateError?.message });
     }
 
-    console.log('✅ Transaction updated:', updatedTx);
+    console.log('✅ Transaction updated:', updatedTx.id);
 
-    // Also update vip_entries if you want to keep both systems
-    if (updatedTx) {
-      await sb
-        .from('vip_entries')
-        .upsert({
-          bold_order_id: data.payment_id || data.id,
-          user_id: updatedTx.user_id,
-          status: 'approved',
-          amount_paid: data.amount?.total || updatedTx.amount_cop,
-          currency: data.currency || 'COP'
-        }, { onConflict: 'bold_order_id' });
+    /* ---------- 2️⃣ Upsert en vip_entries y vip_users (opcional) ---------- */
+    await sb
+      .from('vip_entries')
+      .upsert({
+        bold_order_id: data.payment_id || data.id,
+        user_id      : updatedTx.user_id,
+        status       : 'approved',
+        amount_paid  : data.amount?.total || updatedTx.amount_cop,
+        currency     : data.currency || 'COP'
+      }, { onConflict: 'bold_order_id' });
 
-      await sb
-        .from('vip_users')
-        .upsert({ id: updatedTx.user_id }, { onConflict: 'id' });
-    }
+    await sb
+      .from('vip_users')
+      .upsert(
+        { id: updatedTx.user_id, entry_tx_id: updatedTx.id, joined_at: updatedTx.paid_at },
+        { onConflict: 'id' }
+      );
 
-    return NextResponse.json({ ok: true, updated: true });
+    /* ---------------- 3️⃣ Notificación a Slack ----------------- */
+    const slackPayload = {
+      text: [
+        '*✅ Pago VIP confirmado*',
+        `• Transacción ID: ${updatedTx.id}`,
+        `• Usuario: <@${updatedTx.user_id}> (${updatedTx.full_name})`,
+        `• Plan: ${updatedTx.plan_id}`,
+        `• Monto: $${updatedTx.amount_cop} COP`,
+        `• Fecha de pago: ${updatedTx.paid_at}`
+      ].join('\n'),
+    };
+
+    console.log('🔔 Enviando a Slack…');
+    const slackRes = await fetch(SLACK_WEBHOOK, {
+      method : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body   : JSON.stringify(slackPayload),
+    });
+    console.log('🔔 Slack status:', slackRes.status, await slackRes.text());
+
+    return NextResponse.json({ ok: true });
 
   } catch (err) {
     console.error('❌ Webhook error:', err);
