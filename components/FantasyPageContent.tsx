@@ -2212,245 +2212,304 @@ const handleSubmit = async () => {
     onClose={() => setScoringModalOpen(false)} 
   />
 
-{/* Prediction Step Modals */}
+{/* Enhanced Prediction Step Modals - Fixed Button Issues */}
 {steps.map((step, index) => activeModal === step.name && (
   <motion.div
     key={step.name}
     initial={{ opacity: 0 }}
     animate={{ opacity: 1 }}
     exit={{ opacity: 0 }}
-    transition={{ duration: 0.3 }}
-    className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+    transition={{ duration: 0.2 }}
+    className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4"
     onClick={closeModal}
   >
     <motion.div
-      variants={modalVariants}
-      initial="hidden"
-      animate="visible"
-      exit="exit"
-      transition={{ type: 'spring', damping: 18, stiffness: 250 }}
-      className="bg-gradient-to-br from-black to-gray-900 p-6 sm:p-8 rounded-xl border border-amber-500/30 shadow-xl w-full max-w-[90vw] sm:max-w-2xl max-h-[90vh] flex flex-col"
+      initial={{ opacity: 0, scale: 0.95, y: 20 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.95, y: 20 }}
+      transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+      className="bg-gradient-to-b from-gray-900 to-black p-4 sm:p-6 rounded-2xl border border-gray-800 shadow-2xl w-full max-w-[90vw] sm:max-w-xl max-h-[85vh] flex flex-col relative"
       onClick={(e) => e.stopPropagation()}
     >
-      {/* VIP Banner - Compact Premium Design */}
-<Link href="/fantasy-vip-info" className="block w-full mb-4 group">
-  <motion.div
-    initial={{ opacity: 0, y: -10 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ delay: 0.2, duration: 0.5 }}
-    className="relative overflow-hidden rounded-xl"
-  >
-    {/* Premium gradient background */}
-    <div className="absolute inset-0 bg-gradient-to-r from-black via-red-950 to-black" />
-    
-    {/* Animated shine effect */}
-    <div 
-      className="absolute inset-0 opacity-40"
-      style={{
-        background: 'linear-gradient(105deg, transparent 40%, rgba(255,215,0,0.4) 50%, transparent 60%)',
-        animation: 'shine 3s ease-in-out infinite'
-      }}
-    />
-    
-    {/* Subtle racing pattern */}
-    <div className="absolute inset-0 opacity-[0.02]" 
-      style={{
-        backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,0.05) 10px, rgba(255,255,255,0.05) 20px)'
-      }}
-    />
-    
-    {/* Content - Single Row Layout */}
-    <div className="relative z-10 px-4 py-2.5 sm:px-6 sm:py-3">
-      <div className="flex items-center justify-between gap-3">
-        {/* Left side - Icon & Text */}
-        <div className="flex items-center gap-3 flex-1 min-w-0">
-          {/* Trophy icon with glow */}
-          <div className="relative flex-shrink-0">
-            <div className="absolute inset-0 bg-yellow-400 rounded-full blur-md opacity-60" />
-            <div className="relative bg-gradient-to-br from-yellow-400 to-amber-600 p-1.5 rounded-full">
-              <svg className="w-4 h-4 text-black" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-              </svg>
+      {/* Background pattern */}
+      <div className="absolute inset-0 opacity-[0.015] pointer-events-none" 
+        style={{
+          backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 1px)',
+          backgroundSize: '40px 40px'
+        }}
+      />
+
+      {/* Step color accent */}
+      <div className={`absolute top-0 left-0 right-0 h-1 ${
+        step.name === 'pole' ? 'bg-gradient-to-r from-amber-500 to-yellow-500' :
+        step.name === 'gp' ? 'bg-gradient-to-r from-cyan-500 to-blue-500' :
+        step.name === 'extras' ? 'bg-gradient-to-r from-purple-500 to-pink-500' :
+        step.name === 'micro' ? 'bg-gradient-to-r from-yellow-500 to-orange-500' :
+        'bg-gradient-to-r from-green-500 to-emerald-500'
+      }`} />
+
+      {/* VIP Banner - Compact */}
+      <Link href="/fantasy-vip-info" className="block w-full mb-3 group relative z-10">
+        <div className="relative overflow-hidden rounded-lg bg-gradient-to-r from-black/50 via-red-950/50 to-black/50 border border-red-900/30 p-2.5 hover:border-yellow-500/50 transition-all duration-200">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 bg-gradient-to-br from-yellow-400 to-amber-600 rounded-full flex items-center justify-center">
+                <span className="text-xs">🏆</span>
+              </div>
+              <span className="text-xs font-bold text-yellow-400 font-exo2">GANA UN VIAJE A LA F1</span>
+              <span className="text-[10px] text-white/60 hidden sm:inline">• Fantasy VIP</span>
             </div>
-          </div>
-          
-          {/* Text content */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2 min-w-0">
-            <h3 className="text-sm sm:text-base font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 to-yellow-500 font-exo2 leading-tight">
-              GANA UN VIAJE A LA F1
-            </h3>
-            <span className="text-[10px] sm:text-xs text-white/70 font-medium font-exo2">
-              con Fantasy VIP • Paddock Club
+            <span className="text-xs font-semibold text-white/80 group-hover:text-yellow-400 transition-colors flex items-center gap-1">
+              Ver más
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
             </span>
           </div>
         </div>
-        
-        {/* Right side - CTA */}
-        <motion.div
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          className="flex-shrink-0"
-        >
-          <div className="relative group">
-            <div className="absolute inset-0 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-lg blur opacity-50 group-hover:opacity-75 transition-opacity" />
-            <button className="relative bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-300 hover:to-orange-400 text-black font-bold px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg shadow-lg flex items-center gap-1.5 transition-all duration-200">
-              <span className="text-xs sm:text-sm">VER MÁS</span>
-              <svg className="w-3 h-3 sm:w-4 sm:h-4 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
-          </div>
-        </motion.div>
-      </div>
-    </div>
-    
-    {/* Bottom accent line */}
-    <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-yellow-400 to-transparent opacity-50" />
-  </motion.div>
-</Link>
+      </Link>
 
-      {/* Header */}
-      <div className='mb-4'>
-        {/* Progress Bar */}
-        <div className="w-full bg-gray-800 rounded-full h-1.5 mb-2 relative overflow-hidden">
+      {/* Header - Simplified */}
+      <div className='mb-4 relative z-10'>
+        {/* Progress Bar - Sleeker */}
+        <div className="w-full bg-gray-800/50 rounded-full h-1 mb-3 relative overflow-hidden">
           <motion.div
-            className="bg-gradient-to-r from-amber-500 to-cyan-500 h-full rounded-full"
+            className={`h-full rounded-full relative ${
+              step.name === 'pole' ? 'bg-gradient-to-r from-amber-400 to-yellow-500' :
+              step.name === 'gp' ? 'bg-gradient-to-r from-cyan-400 to-blue-500' :
+              step.name === 'extras' ? 'bg-gradient-to-r from-purple-400 to-pink-500' :
+              step.name === 'micro' ? 'bg-gradient-to-r from-yellow-400 to-orange-500' :
+              'bg-gradient-to-r from-green-400 to-emerald-500'
+            }`}
             initial={{ width: 0 }}
             animate={{ width: `${progress}%` }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
           />
         </div>
-        {/* Step Indicator */}
-        <p className="text-center text-xs font-medium text-gray-500 font-exo2 mb-2 uppercase tracking-wider">
-          Paso {index + 1} / {steps.length}
-        </p>
-        {/* Title */}
-        <h2 className={`text-lg sm:text-xl font-bold mb-2 font-exo2 text-center ${
-          step.name === 'pole' ? 'text-amber-400' :
-          step.name === 'gp' ? 'text-cyan-400' :
-          step.name === 'extras' ? 'text-purple-400' :
-          step.name === 'micro' ? 'text-yellow-400' :
-          'text-white' // Review title color
-        }`}>
-          {step.label}
-        </h2>
-        {/* Instructions */}
-        <p className="text-gray-400 text-center mb-5 font-exo2 text-sm">{instructions[step.name as keyof typeof instructions]}</p>
+
+        {/* Title & Step - Compact */}
+        <div className="flex items-center justify-between mb-2">
+          <h2 className={`text-lg font-bold font-exo2 ${
+            step.name === 'pole' ? 'text-amber-400' :
+            step.name === 'gp' ? 'text-cyan-400' :
+            step.name === 'extras' ? 'text-purple-400' :
+            step.name === 'micro' ? 'text-yellow-400' :
+            'text-white'
+          }`}>
+            {step.label}
+          </h2>
+          <span className="text-xs text-gray-500 font-medium bg-gray-800/50 px-2 py-1 rounded-full">
+            {index + 1} / {steps.length}
+          </span>
+        </div>
+
+        {/* Instructions - Subtle */}
+        <p className="text-xs text-gray-400 font-exo2">{instructions[step.name as keyof typeof instructions]}</p>
       </div>
 
-      {/* Content Area */}
-      <div className="flex-grow overflow-y-auto pr-3 space-y-4 scrollbar-thin scrollbar-thumb-amber-600/70 scrollbar-track-gray-800">
+      {/* Content Area - Optimized - FIXED OVERFLOW */}
+      <div className="flex-grow overflow-y-auto space-y-3 mb-4" style={{ paddingRight: '8px' }}>
         {step.name === 'pole' && (
-          <>
-            {renderPredictionField('pole1', 'Pole Pos. 1')}
-            {renderPredictionField('pole2', 'Pole Pos. 2')}
-            {renderPredictionField('pole3', 'Pole Pos. 3')}
-          </>
+          <div className="space-y-3">
+            {renderPredictionField('pole1', '1º Posición')}
+            {renderPredictionField('pole2', '2º Posición')}
+            {renderPredictionField('pole3', '3º Posición')}
+          </div>
         )}
         {step.name === 'gp' && (
-          <>
-            {renderPredictionField('gp1', 'GP Pos. 1')}
-            {renderPredictionField('gp2', 'GP Pos. 2')}
-            {renderPredictionField('gp3', 'GP Pos. 3')}
-          </>
+          <div className="space-y-3">
+            {renderPredictionField('gp1', '1º Posición')}
+            {renderPredictionField('gp2', '2º Posición')}
+            {renderPredictionField('gp3', '3º Posición')}
+          </div>
         )}
         {step.name === 'extras' && (
-          <>
-            {renderPredictionField('fastest_pit_stop_team', 'Equipo - Pit Stop Más Rápido')}
-            {renderPredictionField('fastest_lap_driver', 'Piloto - Vuelta Más Rápida')}
+          <div className="space-y-3">
+            {renderPredictionField('fastest_pit_stop_team', 'Pit Stop Más Rápido')}
+            {renderPredictionField('fastest_lap_driver', 'Vuelta Más Rápida')}
             {renderPredictionField('driver_of_the_day', 'Piloto del Día')}
-          </>
+          </div>
         )}
         {step.name === 'micro' && (
-          <>
+          <div className="space-y-3">
             {renderPredictionField('first_team_to_pit', 'Primer Equipo en Pits')}
-            {renderPredictionField('first_retirement', 'Primer Retiro (Piloto)')}
-          </>
+            {renderPredictionField('first_retirement', 'Primer Retiro')}
+          </div>
         )}
         {step.name === 'review' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {/* Pole Section */}
-            <motion.div onClick={() => setActiveModal('pole')} className="cursor-pointer bg-gray-800/50 p-4 rounded-lg hover:bg-gray-700/60 transition duration-200 space-y-1 border border-transparent hover:border-amber-500/50" whileHover={{ y: -2 }}>
-              <h3 className="text-base sm:text-lg font-semibold text-amber-400 font-exo2 mb-2">Posiciones de Pole</h3>
-              <p className="text-gray-300 font-exo2 text-sm"><span className="font-medium text-gray-100 w-6 inline-block">1:</span> {predictions.pole1 || <span className="text-gray-500 italic">Vacío</span>}</p>
-              <p className="text-gray-300 font-exo2 text-sm"><span className="font-medium text-gray-100 w-6 inline-block">2:</span> {predictions.pole2 || <span className="text-gray-500 italic">Vacío</span>}</p>
-              <p className="text-gray-300 font-exo2 text-sm"><span className="font-medium text-gray-100 w-6 inline-block">3:</span> {predictions.pole3 || <span className="text-gray-500 italic">Vacío</span>}</p>
+          <div className="space-y-3">
+            {/* Review cards with better visual hierarchy */}
+            <motion.div 
+              whileHover={{ scale: 1.02 }}
+              onClick={() => setActiveModal('pole')} 
+              className="cursor-pointer bg-gradient-to-r from-amber-900/20 to-amber-800/20 p-4 rounded-xl border border-amber-500/20 hover:border-amber-500/40 transition-all"
+            >
+              <h3 className="text-sm font-bold text-amber-400 font-exo2 mb-2 flex items-center gap-2">
+                <span className="w-6 h-6 bg-amber-500/20 rounded-full flex items-center justify-center text-xs">Q</span>
+                Qualifying
+              </h3>
+              <div className="space-y-1 text-sm">
+                <p className="text-gray-300 flex justify-between">
+                  <span className="text-gray-500">P1:</span>
+                  <span className="font-medium">{predictions.pole1 || '—'}</span>
+                </p>
+                <p className="text-gray-300 flex justify-between">
+                  <span className="text-gray-500">P2:</span>
+                  <span className="font-medium">{predictions.pole2 || '—'}</span>
+                </p>
+                <p className="text-gray-300 flex justify-between">
+                  <span className="text-gray-500">P3:</span>
+                  <span className="font-medium">{predictions.pole3 || '—'}</span>
+                </p>
+              </div>
             </motion.div>
-            {/* GP Section */}
-            <motion.div onClick={() => setActiveModal('gp')} className="cursor-pointer bg-gray-800/50 p-4 rounded-lg hover:bg-gray-700/60 transition duration-200 space-y-1 border border-transparent hover:border-cyan-500/50" whileHover={{ y: -2 }}>
-              <h3 className="text-base sm:text-lg font-semibold text-cyan-400 font-exo2 mb-2">Posiciones de GP</h3>
-              <p className="text-gray-300 font-exo2 text-sm"><span className="font-medium text-gray-100 w-6 inline-block">1:</span> {predictions.gp1 || <span className="text-gray-500 italic">Vacío</span>}</p>
-              <p className="text-gray-300 font-exo2 text-sm"><span className="font-medium text-gray-100 w-6 inline-block">2:</span> {predictions.gp2 || <span className="text-gray-500 italic">Vacío</span>}</p>
-              <p className="text-gray-300 font-exo2 text-sm"><span className="font-medium text-gray-100 w-6 inline-block">3:</span> {predictions.gp3 || <span className="text-gray-500 italic">Vacío</span>}</p>
+
+            <motion.div 
+              whileHover={{ scale: 1.02 }}
+              onClick={() => setActiveModal('gp')} 
+              className="cursor-pointer bg-gradient-to-r from-cyan-900/20 to-cyan-800/20 p-4 rounded-xl border border-cyan-500/20 hover:border-cyan-500/40 transition-all"
+            >
+              <h3 className="text-sm font-bold text-cyan-400 font-exo2 mb-2 flex items-center gap-2">
+                <span className="w-6 h-6 bg-cyan-500/20 rounded-full flex items-center justify-center text-xs">R</span>
+                Carrera
+              </h3>
+              <div className="space-y-1 text-sm">
+                <p className="text-gray-300 flex justify-between">
+                  <span className="text-gray-500">P1:</span>
+                  <span className="font-medium">{predictions.gp1 || '—'}</span>
+                </p>
+                <p className="text-gray-300 flex justify-between">
+                  <span className="text-gray-500">P2:</span>
+                  <span className="font-medium">{predictions.gp2 || '—'}</span>
+                </p>
+                <p className="text-gray-300 flex justify-between">
+                  <span className="text-gray-500">P3:</span>
+                  <span className="font-medium">{predictions.gp3 || '—'}</span>
+                </p>
+              </div>
             </motion.div>
-            {/* Extras Section */}
-            <motion.div onClick={() => setActiveModal('extras')} className="cursor-pointer bg-gray-800/50 p-4 rounded-lg hover:bg-gray-700/60 transition duration-200 space-y-2 border border-transparent hover:border-purple-500/50" whileHover={{ y: -2 }}>
-              <h3 className="text-base sm:text-lg font-semibold text-purple-400 font-exo2 mb-2">Predicciones Adicionales</h3>
-              <p className="text-gray-300 font-exo2 text-sm"><strong className="text-gray-100 font-medium">Pit Stop + Rápido:</strong> {predictions.fastest_pit_stop_team || <span className="text-gray-500 italic">Vacío</span>}</p>
-              <p className="text-gray-300 font-exo2 text-sm"><strong className="text-gray-100 font-medium">Vuelta + Rápida:</strong> {predictions.fastest_lap_driver || <span className="text-gray-500 italic">Vacío</span>}</p>
-              <p className="text-gray-300 font-exo2 text-sm"><strong className="text-gray-100 font-medium">Piloto del Día:</strong> {predictions.driver_of_the_day || <span className="text-gray-500 italic">Vacío</span>}</p>
+
+            <motion.div 
+              whileHover={{ scale: 1.02 }}
+              onClick={() => setActiveModal('extras')} 
+              className="cursor-pointer bg-gradient-to-r from-purple-900/20 to-purple-800/20 p-4 rounded-xl border border-purple-500/20 hover:border-purple-500/40 transition-all"
+            >
+              <h3 className="text-sm font-bold text-purple-400 font-exo2 mb-2 flex items-center gap-2">
+                <span className="w-6 h-6 bg-purple-500/20 rounded-full flex items-center justify-center text-xs">+</span>
+                Extras
+              </h3>
+              <div className="space-y-1 text-sm">
+                <p className="text-gray-300 flex justify-between">
+                  <span className="text-gray-500 text-xs">Pit Stop:</span>
+                  <span className="font-medium text-xs">{predictions.fastest_pit_stop_team || '—'}</span>
+                </p>
+                <p className="text-gray-300 flex justify-between">
+                  <span className="text-gray-500 text-xs">V. Rápida:</span>
+                  <span className="font-medium text-xs">{predictions.fastest_lap_driver || '—'}</span>
+                </p>
+                <p className="text-gray-300 flex justify-between">
+                  <span className="text-gray-500 text-xs">DOTD:</span>
+                  <span className="font-medium text-xs">{predictions.driver_of_the_day || '—'}</span>
+                </p>
+              </div>
             </motion.div>
-            {/* Micro Section */}
-            <motion.div onClick={() => setActiveModal('micro')} className="cursor-pointer bg-gray-800/50 p-4 rounded-lg hover:bg-gray-700/60 transition duration-200 space-y-2 border border-transparent hover:border-yellow-500/50" whileHover={{ y: -2 }}>
-              <h3 className="text-base sm:text-lg font-semibold text-yellow-400 font-exo2 mb-2">Micro-Predicciones</h3>
-              <p className="text-gray-300 font-exo2 text-sm"><strong className="text-gray-100 font-medium">1er Equipo en Pits:</strong> {predictions.first_team_to_pit || <span className="text-gray-500 italic">Vacío</span>}</p>
-              <p className="text-gray-300 font-exo2 text-sm"><strong className="text-gray-100 font-medium">1er Retiro:</strong> {predictions.first_retirement || <span className="text-gray-500 italic">Vacío</span>}</p>
+
+            <motion.div 
+              whileHover={{ scale: 1.02 }}
+              onClick={() => setActiveModal('micro')} 
+              className="cursor-pointer bg-gradient-to-r from-yellow-900/20 to-yellow-800/20 p-4 rounded-xl border border-yellow-500/20 hover:border-yellow-500/40 transition-all"
+            >
+              <h3 className="text-sm font-bold text-yellow-400 font-exo2 mb-2 flex items-center gap-2">
+                <span className="w-6 h-6 bg-yellow-500/20 rounded-full flex items-center justify-center text-xs">μ</span>
+                Micro
+              </h3>
+              <div className="space-y-1 text-sm">
+                <p className="text-gray-300 flex justify-between">
+                  <span className="text-gray-500 text-xs">1º en Pits:</span>
+                  <span className="font-medium text-xs">{predictions.first_team_to_pit || '—'}</span>
+                </p>
+                <p className="text-gray-300 flex justify-between">
+                  <span className="text-gray-500 text-xs">1º Retiro:</span>
+                  <span className="font-medium text-xs">{predictions.first_retirement || '—'}</span>
+                </p>
+              </div>
             </motion.div>
           </div>
         )}
       </div>
 
-      {/* Footer Buttons & Errors */}
-      <div className="mt-auto pt-4">
-        {/* Error Display */}
+      {/* Footer - FIXED POSITIONING AND Z-INDEX */}
+      <div className="relative z-20 mt-auto pt-4 border-t border-gray-800 bg-gradient-to-b from-transparent to-black/50">
+        {/* Error Display - Compact */}
         {errors.length > 0 && (
-          <div className="my-4 bg-red-900/30 border border-red-500/50 text-red-300 p-3 rounded-md text-center font-exo2 text-sm space-y-1">
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-3 bg-red-900/20 border border-red-500/30 text-red-400 p-2 rounded-lg text-xs font-exo2"
+          >
             {errors.map((error, idx) => (
-              <p key={idx}><span className="font-semibold mr-1">[!]:</span>{error}</p>
+              <p key={idx} className="flex items-center gap-1">
+                <span className="w-4 h-4 bg-red-500/20 rounded-full flex items-center justify-center flex-shrink-0">!</span>
+                {error}
+              </p>
             ))}
-          </div>
+          </motion.div>
         )}
 
-        {/* Navigation Buttons */}
-        <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
-          {/* Back/Close Button */}
+        {/* Navigation Buttons - PROPER STYLING AND POSITIONING */}
+        <div className="flex gap-3">
           <button
+            type="button"
             onClick={index === 0 ? closeModal : prevModal}
-            className="w-full sm:w-auto px-5 py-2.5 bg-gray-700/80 text-white rounded-lg font-exo2 hover:bg-gray-600/80 hover:text-amber-300 border border-transparent hover:border-amber-500/50 hover:shadow-[0_0_10px_rgba(251,191,36,0.5)] transition-all duration-300 text-sm sm:text-base font-semibold"
+            className="relative z-30 flex-1 sm:flex-initial px-4 py-2.5 bg-gray-800/80 hover:bg-gray-700 text-white rounded-lg font-exo2 font-medium text-sm transition-all duration-200 border border-gray-700 hover:border-gray-600 active:scale-95"
           >
             {index === 0 ? 'Cerrar' : 'Anterior'}
           </button>
 
-          {/* Next/Submit Button */}
           {index < steps.length - 1 ? (
             <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+              type="button"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               onClick={nextModal}
-              className="w-full sm:w-auto px-5 py-2.5 bg-gray-800 text-cyan-400 border border-cyan-400/50 rounded-lg font-exo2 hover:bg-cyan-900/30 hover:text-cyan-300 hover:border-cyan-300 hover:shadow-[0_0_10px_rgba(34,211,238,0.7)] transition-all duration-300 text-sm sm:text-base font-semibold"
+              className={`relative z-30 flex-1 sm:flex-initial px-4 py-2.5 rounded-lg font-exo2 font-medium text-sm transition-all duration-200 flex items-center justify-center gap-2 active:scale-95 ${
+                step.name === 'pole' ? 'bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black' :
+                step.name === 'gp' ? 'bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white' :
+                step.name === 'extras' ? 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white' :
+                'bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-black'
+              }`}
             >
               Siguiente
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
             </motion.button>
           ) : (
             <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+              type="button"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               onClick={handleSubmit}
               disabled={submitting || submitted}
-              className={`w-full sm:w-auto px-5 py-2.5 bg-gradient-to-r from-green-600 to-cyan-600 text-white border border-cyan-400/50 rounded-lg font-exo2 hover:from-green-500 hover:to-cyan-500 hover:shadow-[0_0_15px_rgba(34,211,238,0.7)] transition-all duration-300 text-sm sm:text-base font-semibold relative overflow-hidden ${
-                submitting || submitted ? 'opacity-60 cursor-not-allowed grayscale' : ''
+              className={`relative z-30 flex-1 sm:flex-initial px-6 py-2.5 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-white rounded-lg font-exo2 font-bold text-sm transition-all duration-200 active:scale-95 ${
+                submitting || submitted ? 'opacity-60 cursor-not-allowed' : ''
               }`}
             >
               {submitting && (
-                <span className="absolute inset-0 flex items-center justify-center bg-black/50">
-                  <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <span className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-lg">
+                  <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
                 </span>
               )}
-              <span className={submitting ? 'opacity-0' : ''}>
-                {submitting ? 'Enviando...' : submitted ? 'Enviadas ✓' : 'Enviar Predicciones'}
+              <span className={`flex items-center gap-2 ${submitting ? 'opacity-0' : ''}`}>
+                {submitted ? 'Enviadas ✓' : 'Enviar'}
+                {!submitted && (
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                  </svg>
+                )}
               </span>
             </motion.button>
           )}
