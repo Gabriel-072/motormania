@@ -1599,93 +1599,507 @@ const handleSubmit = async () => {
 
           {/* Row 2: Predictions & Standings */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            {/* Predictions Card */}
-            <div
-              className="md:col-span-1 animate-rotate-border rounded-xl p-px" // Span 1 column on medium+
-              style={{
-                 //@ts-ignore
-                 '--border-angle': '270deg', // Different start angle
-                 background: `conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #9333ea 20deg, #c084fc 30deg, #9333ea 40deg, transparent 50deg, transparent 360deg)`,
-                 animation: `rotate-border 6s linear infinite reverse`, // Slowest, reversed
-              }}
-            >
-              <motion.div
-                 className="bg-gradient-to-br from-gray-950 to-black p-4 sm:p-6 rounded-xl shadow-lg relative z-10 h-full flex flex-col justify-between" // Use full height
-              >
-                <div>
-                  <h2 className="text-lg sm:text-xl font-bold text-white mb-3 font-exo2 text-center">
-                    🏁 Haz tus Predicciones 🏁
-                  </h2>
-                   <p className="text-center text-xs text-gray-400 mb-3 font-exo2">
-                      {currentGp ? `Para el ${currentGp.gp_name}` : "La temporada ha terminado"}
-                   </p>
-                  <div className="w-full bg-gray-800 rounded-full h-2.5 mb-2 relative overflow-hidden border border-gray-700"> {/* Slightly thicker bar */}
-                    <motion.div
-                      className="bg-gradient-to-r from-amber-500 to-cyan-500 h-full rounded-full shadow-[0_0_8px_rgba(34,211,238,0.7)]"
-                      initial={{ width: 0 }}
-                      animate={{ width: `${progress}%` }}
-                      transition={{ duration: 0.5, ease: "easeOut" }}
-                    />
-                  </div>
-                  <p className="text-gray-300 text-center mb-4 font-exo2 text-sm font-medium">
-                    {Math.round(progress)}% completado
-                  </p>
-                </div>
-                 {/* Buttons Section */}
-                 <div className="grid grid-cols-1 gap-3 mt-auto"> {/* mt-auto pushes buttons down */}
-                     {steps.slice(0, -1).map((step, index) => { // Exclude 'review' step
-                         const colors = [
-                             { border: 'border-amber-400/60', text: 'text-amber-400', shadow: 'hover:shadow-[0_0_12px_rgba(251,191,36,0.6)]', bg: 'hover:bg-amber-500/10' }, // pole
-                             { border: 'border-cyan-400/60', text: 'text-cyan-400', shadow: 'hover:shadow-[0_0_12px_rgba(34,211,238,0.6)]', bg: 'hover:bg-cyan-500/10' },   // gp
-                             { border: 'border-purple-400/60', text: 'text-purple-400', shadow: 'hover:shadow-[0_0_12px_rgba(168,85,247,0.6)]', bg: 'hover:bg-purple-500/10' }, // extras
-                             { border: 'border-yellow-400/60', text: 'text-yellow-400', shadow: 'hover:shadow-[0_0_12px_rgba(250,204,21,0.6)]', bg: 'hover:bg-yellow-500/10' }, // micro
-                         ];
-                         const color = colors[index % colors.length];
-                         const isComplete = isSectionComplete(step.name);
-                         const isStepAllowed = step.name.startsWith('pole') ? isQualyAllowed : isRaceAllowed;
-
-                         return (
-                              <motion.button
-                                key={step.name}
-                                whileHover={{ scale: 1.03, y: -1 }}
-                                whileTap={{ scale: 0.98 }}
-                                onClick={() => openModal(step.name)}
-                                className={`w-full py-3 px-4 rounded-lg bg-gray-900/80 border ${color.border} ${color.text} ${color.bg} ${color.shadow} font-exo2 text-sm sm:text-base font-semibold transition-all duration-200 flex justify-between items-center ${
-                                  (submitted || !isStepAllowed) ? 'opacity-50 cursor-not-allowed grayscale-[50%]' : '' // Grayscale if disabled
-                                }`}
-                                disabled={submitted || !isStepAllowed}
-                                title={(submitted || !isStepAllowed) ? (submitted ? "Predicciones ya enviadas" : (step.name.startsWith('pole') ? "Qualy cerrada" : "Carrera cerrada")) : `Ir a ${step.label}`}
-                              >
-                                <span>{step.label}</span>
-                                {isComplete && !submitted && isStepAllowed && <span className="text-green-400">✓</span>}
-                                {!isStepAllowed && !submitted && <span className="text-red-500 text-xs">Cerrado</span>}
-                              </motion.button>
-                         )
-                     })}
-                     {/* Review Button */}
-                     <motion.button
-                        whileHover={{ scale: 1.03, y: -1 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={() => openModal('review')}
-                         className={`w-full py-3 px-4 rounded-lg bg-gradient-to-r from-amber-600 to-cyan-600 border border-gray-500 text-white font-exo2 text-sm sm:text-base font-semibold transition-all duration-200 hover:from-amber-500 hover:to-cyan-500 hover:shadow-[0_0_15px_rgba(255,255,255,0.3)] ${
-                             submitted ? 'opacity-50 cursor-not-allowed grayscale-[50%]' : ''
-                         }`}
-                        disabled={submitted}
-                      >
-                        Revisar y Enviar {progress === 100 && !submitted ? '🚀' : ''}
-                      </motion.button>
-                    {/* Scoring System Button */}
-<motion.button
-    whileHover={{ scale: 1.03, y: -1 }}
-    whileTap={{ scale: 0.98 }}
-    onClick={() => setScoringModalOpen(true)}
-    className="w-full py-2.5 px-4 rounded-lg bg-gray-800/70 border border-teal-400/50 text-teal-400 font-exo2 text-xs sm:text-sm font-semibold transition-all duration-200 hover:bg-teal-900/40 hover:text-teal-300 hover:border-teal-300 hover:shadow-[0_0_10px_rgba(20,184,166,0.5)]"
+{/* Predictions Card - World-Class UI */}
+<div
+  className="md:col-span-1 animate-rotate-border rounded-xl p-px"
+  style={{
+    //@ts-ignore
+    '--border-angle': '270deg',
+    background: `conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #9333ea 20deg, #c084fc 30deg, #9333ea 40deg, transparent 50deg, transparent 360deg)`,
+    animation: `rotate-border 6s linear infinite reverse`,
+  }}
 >
-    Sistema de Puntuación
-</motion.button>
+  <motion.div
+    className="bg-gradient-to-br from-gray-950 via-gray-900 to-black p-4 sm:p-6 rounded-xl shadow-lg relative z-10 h-full flex flex-col justify-between overflow-hidden"
+  >
+    {/* Premium background effects */}
+    <div className="absolute inset-0 opacity-30">
+      <div className="absolute top-0 -right-20 w-40 h-40 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl animate-blob" />
+      <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-amber-500 rounded-full mix-blend-multiply filter blur-3xl animate-blob animation-delay-2000" />
+    </div>
+    
+    {/* Subtle grid pattern */}
+    <div 
+      className="absolute inset-0 opacity-[0.02]"
+      style={{
+        backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 1px)',
+        backgroundSize: '32px 32px'
+      }}
+    />
+
+    <div className="relative z-10">
+      {/* Header with enhanced typography */}
+      <div className="text-center mb-4">
+        <div className="inline-flex items-center gap-3 mb-2">
+          <div className="w-8 h-[2px] bg-gradient-to-r from-transparent to-purple-400" />
+          <h2 className="text-xl sm:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-300 to-cyan-300 font-exo2 tracking-tight">
+            HAZ TUS PREDICCIONES
+          </h2>
+          <div className="w-8 h-[2px] bg-gradient-to-l from-transparent to-cyan-400" />
+        </div>
+        
+        {currentGp && (
+          <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/5 backdrop-blur-sm rounded-full border border-white/10">
+            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+            <p className="text-xs text-gray-300 font-medium font-exo2">
+              {currentGp.gp_name}
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Enhanced Progress Section */}
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs text-gray-400 font-medium">Progreso</span>
+          <span className="text-xs font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-cyan-400">
+            {Math.round(progress)}%
+          </span>
+        </div>
+        
+        <div className="relative">
+          {/* Background track with glow */}
+          <div className="w-full h-3 bg-gray-800/50 rounded-full overflow-hidden border border-gray-700/50 shadow-inner">
+            <motion.div
+              className="h-full rounded-full relative overflow-hidden"
+              initial={{ width: 0 }}
+              animate={{ width: `${progress}%` }}
+              transition={{ duration: 0.5, ease: "easeOut" }}
+            >
+              {/* Gradient fill */}
+              <div className="absolute inset-0 bg-gradient-to-r from-amber-500 via-purple-500 to-cyan-500" />
+              
+              {/* Shimmer effect */}
+              <div 
+                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
+                style={{ animation: 'shimmer 2s ease-in-out infinite' }}
+              />
+              
+              {/* Glow effect */}
+              <div className="absolute inset-0 shadow-[0_0_20px_rgba(168,85,247,0.5)]" />
+            </motion.div>
+          </div>
+          
+          {/* Progress milestones */}
+          <div className="absolute inset-0 flex items-center justify-between px-1">
+            {[25, 50, 75].map((milestone) => (
+              <div
+                key={milestone}
+                className={`w-1 h-1 rounded-full transition-all duration-500 ${
+                  progress >= milestone ? 'bg-white' : 'bg-gray-600'
+                }`}
+                style={{ marginLeft: `${milestone}%` }}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Completion status */}
+        <div className="mt-3 flex items-center justify-center gap-2">
+          {progress === 100 ? (
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              className="flex items-center gap-2 text-xs"
+            >
+              <div className="w-5 h-5 bg-green-500/20 rounded-full flex items-center justify-center">
+                <svg className="w-3 h-3 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <span className="text-green-400 font-medium">¡Completo!</span>
+            </motion.div>
+          ) : (
+            <span className="text-xs text-gray-400">
+              {11 - Object.values(predictions).filter(Boolean).length} predicciones restantes
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+
+    {/* Premium Buttons Section */}
+    <div className="grid grid-cols-1 gap-2.5 mt-auto relative z-10">
+      {steps.slice(0, -1).map((step, index) => {
+        const gradients = [
+          { from: 'from-amber-600', to: 'to-yellow-500', glow: 'hover:shadow-[0_0_25px_rgba(245,158,11,0.4)]' },
+          { from: 'from-cyan-600', to: 'to-blue-500', glow: 'hover:shadow-[0_0_25px_rgba(6,182,212,0.4)]' },
+          { from: 'from-purple-600', to: 'to-pink-500', glow: 'hover:shadow-[0_0_25px_rgba(168,85,247,0.4)]' },
+          { from: 'from-yellow-600', to: 'to-orange-500', glow: 'hover:shadow-[0_0_25px_rgba(245,158,11,0.4)]' },
+        ];
+        const gradient = gradients[index % gradients.length];
+        const isComplete = isSectionComplete(step.name);
+        const isStepAllowed = step.name.startsWith('pole') ? isQualyAllowed : isRaceAllowed;
+
+        return (
+          <motion.button
+            key={step.name}
+            whileHover={{ scale: 1.02, y: -2 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => openModal(step.name)}
+            className={`group relative overflow-hidden ${
+              (submitted || !isStepAllowed) ? 'cursor-not-allowed' : 'cursor-pointer'
+            }`}
+            disabled={submitted || !isStepAllowed}
+          >
+            {/* Button background */}
+            <div className={`absolute inset-0 bg-gradient-to-r ${gradient.from} ${gradient.to} opacity-10 group-hover:opacity-20 transition-opacity duration-300`} />
+            
+            {/* Button border */}
+            <div className={`absolute inset-0 bg-gradient-to-r ${gradient.from} ${gradient.to} opacity-60 blur-sm ${!submitted && isStepAllowed ? gradient.glow : ''} transition-all duration-300`} />
+            
+            {/* Button content */}
+            <div className={`relative bg-gray-900/90 backdrop-blur-sm m-[1px] rounded-lg px-4 py-3 flex items-center justify-between ${
+              (submitted || !isStepAllowed) ? 'opacity-50' : ''
+            }`}>
+              <div className="flex items-center gap-3">
+                <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${gradient.from} ${gradient.to} p-[1px]`}>
+                  <div className="w-full h-full bg-gray-900 rounded-[7px] flex items-center justify-center">
+                    <span className="text-xs font-bold text-white">{index + 1}</span>
+                  </div>
                 </div>
-              </motion.div>
+                <span className={`font-semibold text-sm sm:text-base text-white`}>
+                  {step.label}
+                </span>
+              </div>
+              
+              {/* Status indicators */}
+              <div className="flex items-center gap-2">
+                {isComplete && !submitted && isStepAllowed && (
+                  <motion.div
+                    initial={{ scale: 0, rotate: -180 }}
+                    animate={{ scale: 1, rotate: 0 }}
+                    className="w-5 h-5 bg-green-500/20 rounded-full flex items-center justify-center"
+                  >
+                    <svg className="w-3 h-3 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </motion.div>
+                )}
+                {!isStepAllowed && !submitted && (
+                  <span className="px-2 py-0.5 bg-red-500/20 text-red-400 text-xs rounded-full font-medium">
+                    Cerrado
+                  </span>
+                )}
+                {!submitted && isStepAllowed && !isComplete && (
+                  <svg className="w-4 h-4 text-gray-400 group-hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                )}
+              </div>
             </div>
+          </motion.button>
+        );
+      })}
+
+      {/* Review Button - Premium Design */}
+      <motion.button
+        whileHover={{ scale: 1.02, y: -2 }}
+        whileTap={{ scale: 0.98 }}
+        onClick={() => openModal('review')}
+        className={`group relative overflow-hidden ${submitted ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+        disabled={submitted}
+      >
+        {/* Animated gradient background */}
+        <div 
+          className="absolute inset-0 bg-gradient-to-r from-amber-500 via-purple-500 to-cyan-500 opacity-75"
+          style={{
+            backgroundSize: '200% 100%',
+            animation: 'gradient-x 3s ease infinite'
+          }}
+        />
+        
+        {/* Inner content */}
+        <div className={`relative bg-gray-900/80 backdrop-blur-sm m-[1px] rounded-lg px-4 py-3.5 ${
+          submitted ? 'opacity-50' : ''
+        }`}>
+          <div className="flex items-center justify-center gap-2">
+            <span className="font-bold text-white text-sm sm:text-base">
+              Revisar y Enviar
+            </span>
+            {progress === 100 && !submitted && (
+              <motion.span
+                animate={{ x: [0, 3, 0] }}
+                transition={{ duration: 1.5, repeat: Infinity }}
+                className="text-lg"
+              >
+                🚀
+              </motion.span>
+            )}
+          </div>
+        </div>
+      </motion.button>
+
+      {/* Scoring System Button - Elegant Design */}
+      <motion.button
+        whileHover={{ scale: 1.01 }}
+        whileTap={{ scale: 0.99 }}
+        onClick={() => setScoringModalOpen(true)}
+        className="relative group"
+      >
+        <div className="absolute inset-0 bg-gradient-to-r from-teal-600/20 to-cyan-600/20 rounded-lg" />
+        <div className="relative bg-gray-900/50 backdrop-blur-sm border border-teal-500/30 rounded-lg px-4 py-2.5 flex items-center justify-center gap-2 group-hover:border-teal-400/50 transition-all duration-200">
+          <svg className="w-4 h-4 text-teal-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span className="text-teal-400 font-medium text-xs sm:text-sm">
+            Sistema de Puntuación
+          </span>
+        </div>
+      </motion.button>
+    </div>
+  </motion.div>
+</div>{/* Predictions Card - World-Class UI */}
+<div
+  className="md:col-span-1 animate-rotate-border rounded-xl p-px"
+  style={{
+    //@ts-ignore
+    '--border-angle': '270deg',
+    background: `conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #9333ea 20deg, #c084fc 30deg, #9333ea 40deg, transparent 50deg, transparent 360deg)`,
+    animation: `rotate-border 6s linear infinite reverse`,
+  }}
+>
+  <motion.div
+    className="bg-gradient-to-br from-gray-950 via-gray-900 to-black p-4 sm:p-6 rounded-xl shadow-lg relative z-10 h-full flex flex-col justify-between overflow-hidden"
+  >
+    {/* Premium background effects */}
+    <div className="absolute inset-0 opacity-30">
+      <div className="absolute top-0 -right-20 w-40 h-40 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl animate-blob" />
+      <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-amber-500 rounded-full mix-blend-multiply filter blur-3xl animate-blob animation-delay-2000" />
+    </div>
+    
+    {/* Subtle grid pattern */}
+    <div 
+      className="absolute inset-0 opacity-[0.02]"
+      style={{
+        backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 1px)',
+        backgroundSize: '32px 32px'
+      }}
+    />
+
+    <div className="relative z-10">
+      {/* Header with enhanced typography */}
+      <div className="text-center mb-4">
+        <div className="inline-flex items-center gap-3 mb-2">
+          <div className="w-8 h-[2px] bg-gradient-to-r from-transparent to-purple-400" />
+          <h2 className="text-xl sm:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-300 to-cyan-300 font-exo2 tracking-tight">
+            HAZ TUS PREDICCIONES
+          </h2>
+          <div className="w-8 h-[2px] bg-gradient-to-l from-transparent to-cyan-400" />
+        </div>
+        
+        {currentGp && (
+          <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/5 backdrop-blur-sm rounded-full border border-white/10">
+            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+            <p className="text-xs text-gray-300 font-medium font-exo2">
+              {currentGp.gp_name}
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Enhanced Progress Section */}
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs text-gray-400 font-medium">Progreso</span>
+          <span className="text-xs font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-cyan-400">
+            {Math.round(progress)}%
+          </span>
+        </div>
+        
+        <div className="relative">
+          {/* Background track with glow */}
+          <div className="w-full h-3 bg-gray-800/50 rounded-full overflow-hidden border border-gray-700/50 shadow-inner">
+            <motion.div
+              className="h-full rounded-full relative overflow-hidden"
+              initial={{ width: 0 }}
+              animate={{ width: `${progress}%` }}
+              transition={{ duration: 0.5, ease: "easeOut" }}
+            >
+              {/* Gradient fill */}
+              <div className="absolute inset-0 bg-gradient-to-r from-amber-500 via-purple-500 to-cyan-500" />
+              
+              {/* Shimmer effect */}
+              <div 
+                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
+                style={{ animation: 'shimmer 2s ease-in-out infinite' }}
+              />
+              
+              {/* Glow effect */}
+              <div className="absolute inset-0 shadow-[0_0_20px_rgba(168,85,247,0.5)]" />
+            </motion.div>
+          </div>
+          
+          {/* Progress milestones */}
+          <div className="absolute inset-0 flex items-center justify-between px-1">
+            {[25, 50, 75].map((milestone) => (
+              <div
+                key={milestone}
+                className={`w-1 h-1 rounded-full transition-all duration-500 ${
+                  progress >= milestone ? 'bg-white' : 'bg-gray-600'
+                }`}
+                style={{ marginLeft: `${milestone}%` }}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Completion status */}
+        <div className="mt-3 flex items-center justify-center gap-2">
+          {progress === 100 ? (
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              className="flex items-center gap-2 text-xs"
+            >
+              <div className="w-5 h-5 bg-green-500/20 rounded-full flex items-center justify-center">
+                <svg className="w-3 h-3 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <span className="text-green-400 font-medium">¡Completo!</span>
+            </motion.div>
+          ) : (
+            <span className="text-xs text-gray-400">
+              {11 - Object.values(predictions).filter(Boolean).length} predicciones restantes
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+
+    {/* Premium Buttons Section */}
+    <div className="grid grid-cols-1 gap-2.5 mt-auto relative z-10">
+      {steps.slice(0, -1).map((step, index) => {
+        const gradients = [
+          { from: 'from-amber-600', to: 'to-yellow-500', glow: 'hover:shadow-[0_0_25px_rgba(245,158,11,0.4)]' },
+          { from: 'from-cyan-600', to: 'to-blue-500', glow: 'hover:shadow-[0_0_25px_rgba(6,182,212,0.4)]' },
+          { from: 'from-purple-600', to: 'to-pink-500', glow: 'hover:shadow-[0_0_25px_rgba(168,85,247,0.4)]' },
+          { from: 'from-yellow-600', to: 'to-orange-500', glow: 'hover:shadow-[0_0_25px_rgba(245,158,11,0.4)]' },
+        ];
+        const gradient = gradients[index % gradients.length];
+        const isComplete = isSectionComplete(step.name);
+        const isStepAllowed = step.name.startsWith('pole') ? isQualyAllowed : isRaceAllowed;
+
+        return (
+          <motion.button
+            key={step.name}
+            whileHover={{ scale: 1.02, y: -2 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => openModal(step.name)}
+            className={`group relative overflow-hidden ${
+              (submitted || !isStepAllowed) ? 'cursor-not-allowed' : 'cursor-pointer'
+            }`}
+            disabled={submitted || !isStepAllowed}
+          >
+            {/* Button background */}
+            <div className={`absolute inset-0 bg-gradient-to-r ${gradient.from} ${gradient.to} opacity-10 group-hover:opacity-20 transition-opacity duration-300`} />
+            
+            {/* Button border */}
+            <div className={`absolute inset-0 bg-gradient-to-r ${gradient.from} ${gradient.to} opacity-60 blur-sm ${!submitted && isStepAllowed ? gradient.glow : ''} transition-all duration-300`} />
+            
+            {/* Button content */}
+            <div className={`relative bg-gray-900/90 backdrop-blur-sm m-[1px] rounded-lg px-4 py-3 flex items-center justify-between ${
+              (submitted || !isStepAllowed) ? 'opacity-50' : ''
+            }`}>
+              <div className="flex items-center gap-3">
+                <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${gradient.from} ${gradient.to} p-[1px]`}>
+                  <div className="w-full h-full bg-gray-900 rounded-[7px] flex items-center justify-center">
+                    <span className="text-xs font-bold text-white">{index + 1}</span>
+                  </div>
+                </div>
+                <span className={`font-semibold text-sm sm:text-base text-white`}>
+                  {step.label}
+                </span>
+              </div>
+              
+              {/* Status indicators */}
+              <div className="flex items-center gap-2">
+                {isComplete && !submitted && isStepAllowed && (
+                  <motion.div
+                    initial={{ scale: 0, rotate: -180 }}
+                    animate={{ scale: 1, rotate: 0 }}
+                    className="w-5 h-5 bg-green-500/20 rounded-full flex items-center justify-center"
+                  >
+                    <svg className="w-3 h-3 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </motion.div>
+                )}
+                {!isStepAllowed && !submitted && (
+                  <span className="px-2 py-0.5 bg-red-500/20 text-red-400 text-xs rounded-full font-medium">
+                    Cerrado
+                  </span>
+                )}
+                {!submitted && isStepAllowed && !isComplete && (
+                  <svg className="w-4 h-4 text-gray-400 group-hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                )}
+              </div>
+            </div>
+          </motion.button>
+        );
+      })}
+
+      {/* Review Button - Premium Design */}
+      <motion.button
+        whileHover={{ scale: 1.02, y: -2 }}
+        whileTap={{ scale: 0.98 }}
+        onClick={() => openModal('review')}
+        className={`group relative overflow-hidden ${submitted ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+        disabled={submitted}
+      >
+        {/* Animated gradient background */}
+        <div 
+          className="absolute inset-0 bg-gradient-to-r from-amber-500 via-purple-500 to-cyan-500 opacity-75"
+          style={{
+            backgroundSize: '200% 100%',
+            animation: 'gradient-x 3s ease infinite'
+          }}
+        />
+        
+        {/* Inner content */}
+        <div className={`relative bg-gray-900/80 backdrop-blur-sm m-[1px] rounded-lg px-4 py-3.5 ${
+          submitted ? 'opacity-50' : ''
+        }`}>
+          <div className="flex items-center justify-center gap-2">
+            <span className="font-bold text-white text-sm sm:text-base">
+              Revisar y Enviar
+            </span>
+            {progress === 100 && !submitted && (
+              <motion.span
+                animate={{ x: [0, 3, 0] }}
+                transition={{ duration: 1.5, repeat: Infinity }}
+                className="text-lg"
+              >
+                🚀
+              </motion.span>
+            )}
+          </div>
+        </div>
+      </motion.button>
+
+      {/* Scoring System Button - Elegant Design */}
+      <motion.button
+        whileHover={{ scale: 1.01 }}
+        whileTap={{ scale: 0.99 }}
+        onClick={() => setScoringModalOpen(true)}
+        className="relative group"
+      >
+        <div className="absolute inset-0 bg-gradient-to-r from-teal-600/20 to-cyan-600/20 rounded-lg" />
+        <div className="relative bg-gray-900/50 backdrop-blur-sm border border-teal-500/30 rounded-lg px-4 py-2.5 flex items-center justify-center gap-2 group-hover:border-teal-400/50 transition-all duration-200">
+          <svg className="w-4 h-4 text-teal-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span className="text-teal-400 font-medium text-xs sm:text-sm">
+            Sistema de Puntuación
+          </span>
+        </div>
+      </motion.button>
+    </div>
+  </motion.div>
+</div>
 
             {/* Driver Standings Card - REMOVED FIXED HEIGHT & INTERNAL SCROLL */}
             <div
@@ -2118,176 +2532,291 @@ const handleSubmit = async () => {
     onClose={() => setScoringModalOpen(false)} 
   />
 
-              {/* Prediction Step Modals */}
-              {steps.map((step, index) => activeModal === step.name && (
-                   <motion.div
-                       key={step.name}
-                       initial={{ opacity: 0 }}
-                       animate={{ opacity: 1 }}
-                       exit={{ opacity: 0 }}
-                       transition={{ duration: 0.3 }}
-                       className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-                       onClick={closeModal} // Assumes closeModal is defined
-                   >
-                       <motion.div
-                           variants={modalVariants}
-                           initial="hidden"
-                           animate="visible"
-                           exit="exit"
-                           transition={{ type: 'spring', damping: 18, stiffness: 250 }}
-                           className="bg-gradient-to-br from-black to-gray-900 p-6 sm:p-8 rounded-xl border border-amber-500/30 shadow-xl w-full max-w-[90vw] sm:max-w-2xl max-h-[90vh] flex flex-col" // Increased max-height, flex-col
-                           onClick={(e) => e.stopPropagation()}
-                       >
-                           {/* Header */}
-                           <div className='mb-4'>
-                               {/* Progress Bar */}
-                               <div className="w-full bg-gray-800 rounded-full h-1.5 mb-2 relative overflow-hidden">
-                                   <motion.div
-                                       className="bg-gradient-to-r from-amber-500 to-cyan-500 h-full rounded-full"
-                                       initial={{ width: 0 }}
-                                       animate={{ width: `${progress}%` }} // Assumes progress state is available
-                                       transition={{ duration: 0.5, ease: "easeOut" }}
-                                   />
-                               </div>
-                                {/* Step Indicator */}
-                                <p className="text-center text-xs font-medium text-gray-500 font-exo2 mb-2 uppercase tracking-wider">
-                                   Paso {index + 1} / {steps.length}
-                                </p>
-                                {/* Title */}
-                               <h2 className={`text-lg sm:text-xl font-bold mb-2 font-exo2 text-center ${
-                                   step.name === 'pole' ? 'text-amber-400' :
-                                   step.name === 'gp' ? 'text-cyan-400' :
-                                   step.name === 'extras' ? 'text-purple-400' :
-                                   step.name === 'micro' ? 'text-yellow-400' :
-                                   'text-white' // Review title color
-                               }`}>
-                                   {step.label}
-                                </h2>
-                                {/* Instructions */}
-                               <p className="text-gray-400 text-center mb-5 font-exo2 text-sm">{instructions[step.name as keyof typeof instructions]}</p>
-                           </div>
+              {/* Enhanced Prediction Step Modals - Fixed Button Issues */}
+{steps.map((step, index) => activeModal === step.name && (
+  <motion.div
+    key={step.name}
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    exit={{ opacity: 0 }}
+    transition={{ duration: 0.2 }}
+    className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4"
+    onClick={closeModal}
+  >
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95, y: 20 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.95, y: 20 }}
+      transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+      className="bg-gradient-to-b from-gray-900 to-black p-4 sm:p-6 rounded-2xl border border-gray-800 shadow-2xl w-full max-w-[90vw] sm:max-w-xl max-h-[85vh] flex flex-col relative"
+      onClick={(e) => e.stopPropagation()}
+    >
+      {/* Background pattern */}
+      <div className="absolute inset-0 opacity-[0.015] pointer-events-none" 
+        style={{
+          backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 1px)',
+          backgroundSize: '40px 40px'
+        }}
+      />
 
-                           {/* Content Area */}
-                           <div className="flex-grow overflow-y-auto pr-3 space-y-4 scrollbar-thin scrollbar-thumb-amber-600/70 scrollbar-track-gray-800">
-                              {step.name === 'pole' && (
-                                  <>
-                                      {renderPredictionField('pole1', 'Pole Pos. 1')}
-                                      {renderPredictionField('pole2', 'Pole Pos. 2')}
-                                      {renderPredictionField('pole3', 'Pole Pos. 3')}
-                                  </>
-                              )}
-                               {step.name === 'gp' && (
-                                  <>
-                                      {renderPredictionField('gp1', 'GP Pos. 1')}
-                                      {renderPredictionField('gp2', 'GP Pos. 2')}
-                                      {renderPredictionField('gp3', 'GP Pos. 3')}
-                                  </>
-                               )}
-                              {step.name === 'extras' && (
-                                  <>
-                                      {renderPredictionField('fastest_pit_stop_team', 'Equipo - Pit Stop Más Rápido')}
-                                      {renderPredictionField('fastest_lap_driver', 'Piloto - Vuelta Más Rápida')}
-                                      {renderPredictionField('driver_of_the_day', 'Piloto del Día')}
-                                  </>
-                              )}
-                              {step.name === 'micro' && (
-                                  <>
-                                      {renderPredictionField('first_team_to_pit', 'Primer Equipo en Pits')}
-                                      {renderPredictionField('first_retirement', 'Primer Retiro (Piloto)')}
-                                  </>
-                              )}
-                              {step.name === 'review' && (
-                                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                       {/* Pole Section */}
-                                       <motion.div onClick={() => setActiveModal('pole')} className="cursor-pointer bg-gray-800/50 p-4 rounded-lg hover:bg-gray-700/60 transition duration-200 space-y-1 border border-transparent hover:border-amber-500/50" whileHover={{ y: -2 }}>
-                                           <h3 className="text-base sm:text-lg font-semibold text-amber-400 font-exo2 mb-2">Posiciones de Pole</h3>
-                                           <p className="text-gray-300 font-exo2 text-sm"><span className="font-medium text-gray-100 w-6 inline-block">1:</span> {predictions.pole1 || <span className="text-gray-500 italic">Vacío</span>}</p>
-                                           <p className="text-gray-300 font-exo2 text-sm"><span className="font-medium text-gray-100 w-6 inline-block">2:</span> {predictions.pole2 || <span className="text-gray-500 italic">Vacío</span>}</p>
-                                           <p className="text-gray-300 font-exo2 text-sm"><span className="font-medium text-gray-100 w-6 inline-block">3:</span> {predictions.pole3 || <span className="text-gray-500 italic">Vacío</span>}</p>
-                                       </motion.div>
-                                        {/* GP Section */}
-                                       <motion.div onClick={() => setActiveModal('gp')} className="cursor-pointer bg-gray-800/50 p-4 rounded-lg hover:bg-gray-700/60 transition duration-200 space-y-1 border border-transparent hover:border-cyan-500/50" whileHover={{ y: -2 }}>
-                                           <h3 className="text-base sm:text-lg font-semibold text-cyan-400 font-exo2 mb-2">Posiciones de GP</h3>
-                                           <p className="text-gray-300 font-exo2 text-sm"><span className="font-medium text-gray-100 w-6 inline-block">1:</span> {predictions.gp1 || <span className="text-gray-500 italic">Vacío</span>}</p>
-                                           <p className="text-gray-300 font-exo2 text-sm"><span className="font-medium text-gray-100 w-6 inline-block">2:</span> {predictions.gp2 || <span className="text-gray-500 italic">Vacío</span>}</p>
-                                           <p className="text-gray-300 font-exo2 text-sm"><span className="font-medium text-gray-100 w-6 inline-block">3:</span> {predictions.gp3 || <span className="text-gray-500 italic">Vacío</span>}</p>
-                                       </motion.div>
-                                        {/* Extras Section */}
-                                       <motion.div onClick={() => setActiveModal('extras')} className="cursor-pointer bg-gray-800/50 p-4 rounded-lg hover:bg-gray-700/60 transition duration-200 space-y-2 border border-transparent hover:border-purple-500/50" whileHover={{ y: -2 }}>
-                                           <h3 className="text-base sm:text-lg font-semibold text-purple-400 font-exo2 mb-2">Predicciones Adicionales</h3>
-                                           <p className="text-gray-300 font-exo2 text-sm"><strong className="text-gray-100 font-medium">Pit Stop + Rápido:</strong> {predictions.fastest_pit_stop_team || <span className="text-gray-500 italic">Vacío</span>}</p>
-                                           <p className="text-gray-300 font-exo2 text-sm"><strong className="text-gray-100 font-medium">Vuelta + Rápida:</strong> {predictions.fastest_lap_driver || <span className="text-gray-500 italic">Vacío</span>}</p>
-                                           <p className="text-gray-300 font-exo2 text-sm"><strong className="text-gray-100 font-medium">Piloto del Día:</strong> {predictions.driver_of_the_day || <span className="text-gray-500 italic">Vacío</span>}</p>
-                                       </motion.div>
-                                        {/* Micro Section */}
-                                        <motion.div onClick={() => setActiveModal('micro')} className="cursor-pointer bg-gray-800/50 p-4 rounded-lg hover:bg-gray-700/60 transition duration-200 space-y-2 border border-transparent hover:border-yellow-500/50" whileHover={{ y: -2 }}>
-                                           <h3 className="text-base sm:text-lg font-semibold text-yellow-400 font-exo2 mb-2">Micro-Predicciones</h3>
-                                           <p className="text-gray-300 font-exo2 text-sm"><strong className="text-gray-100 font-medium">1er Equipo en Pits:</strong> {predictions.first_team_to_pit || <span className="text-gray-500 italic">Vacío</span>}</p>
-                                           <p className="text-gray-300 font-exo2 text-sm"><strong className="text-gray-100 font-medium">1er Retiro:</strong> {predictions.first_retirement || <span className="text-gray-500 italic">Vacío</span>}</p>
-                                       </motion.div>
-                                   </div>
-                              )}
-                           </div>
+      {/* Step color accent */}
+      <div className={`absolute top-0 left-0 right-0 h-1 ${
+        step.name === 'pole' ? 'bg-gradient-to-r from-amber-500 to-yellow-500' :
+        step.name === 'gp' ? 'bg-gradient-to-r from-cyan-500 to-blue-500' :
+        step.name === 'extras' ? 'bg-gradient-to-r from-purple-500 to-pink-500' :
+        step.name === 'micro' ? 'bg-gradient-to-r from-yellow-500 to-orange-500' :
+        'bg-gradient-to-r from-green-500 to-emerald-500'
+      }`} />
 
-                           {/* Footer Buttons & Errors */}
-                           <div className="mt-auto pt-4"> {/* Pushes footer down, adds padding top */}
-                               {/* Error Display */}
-                               {errors.length > 0 && ( // Assumes errors state is available
-                                   <div className="my-4 bg-red-900/30 border border-red-500/50 text-red-300 p-3 rounded-md text-center font-exo2 text-sm space-y-1">
-                                       {errors.map((error, idx) => (
-                                           <p key={idx}><span className="font-semibold mr-1">[!]:</span>{error}</p>
-                                       ))}
-                                   </div>
-                               )}
+      {/* Header - Simplified */}
+      <div className='mb-4 relative z-10'>
+        {/* Progress Bar - Sleeker */}
+        <div className="w-full bg-gray-800/50 rounded-full h-1 mb-3 relative overflow-hidden">
+          <motion.div
+            className={`h-full rounded-full relative ${
+              step.name === 'pole' ? 'bg-gradient-to-r from-amber-400 to-yellow-500' :
+              step.name === 'gp' ? 'bg-gradient-to-r from-cyan-400 to-blue-500' :
+              step.name === 'extras' ? 'bg-gradient-to-r from-purple-400 to-pink-500' :
+              step.name === 'micro' ? 'bg-gradient-to-r from-yellow-400 to-orange-500' :
+              'bg-gradient-to-r from-green-400 to-emerald-500'
+            }`}
+            initial={{ width: 0 }}
+            animate={{ width: `${progress}%` }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
+          />
+        </div>
 
-                               {/* Navigation Buttons */}
-                               <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
-                                   {/* Back/Close Button */}
-                                   <button
-                                       onClick={index === 0 ? closeModal : prevModal} // Assumes prevModal defined
-                                       className="w-full sm:w-auto px-5 py-2.5 bg-gray-700/80 text-white rounded-lg font-exo2 hover:bg-gray-600/80 hover:text-amber-300 border border-transparent hover:border-amber-500/50 hover:shadow-[0_0_10px_rgba(251,191,36,0.5)] transition-all duration-300 text-sm sm:text-base font-semibold"
-                                   >
-                                       {index === 0 ? 'Cerrar' : 'Anterior'}
-                                   </button>
+        {/* Title & Step - Compact */}
+        <div className="flex items-center justify-between mb-2">
+          <h2 className={`text-lg font-bold font-exo2 ${
+            step.name === 'pole' ? 'text-amber-400' :
+            step.name === 'gp' ? 'text-cyan-400' :
+            step.name === 'extras' ? 'text-purple-400' :
+            step.name === 'micro' ? 'text-yellow-400' :
+            'text-white'
+          }`}>
+            {step.label}
+          </h2>
+          <span className="text-xs text-gray-500 font-medium bg-gray-800/50 px-2 py-1 rounded-full">
+            {index + 1} / {steps.length}
+          </span>
+        </div>
 
-                                   {/* Next/Submit Button */}
-                                   {index < steps.length - 1 ? (
-                                       <motion.button
-                                           whileHover={{ scale: 1.05 }}
-                                           whileTap={{ scale: 0.95 }}
-                                           onClick={nextModal} // Assumes nextModal defined
-                                           className="w-full sm:w-auto px-5 py-2.5 bg-gray-800 text-cyan-400 border border-cyan-400/50 rounded-lg font-exo2 hover:bg-cyan-900/30 hover:text-cyan-300 hover:border-cyan-300 hover:shadow-[0_0_10px_rgba(34,211,238,0.7)] transition-all duration-300 text-sm sm:text-base font-semibold"
-                                       >
-                                           Siguiente
-                                       </motion.button>
-                                   ) : (
-                                       <motion.button
-                                           whileHover={{ scale: 1.05 }}
-                                           whileTap={{ scale: 0.95 }}
-                                           onClick={handleSubmit} // Assumes handleSubmit defined
-                                           disabled={submitting || submitted} // Assumes submitting/submitted state available
-                                           className={`w-full sm:w-auto px-5 py-2.5 bg-gradient-to-r from-green-600 to-cyan-600 text-white border border-cyan-400/50 rounded-lg font-exo2 hover:from-green-500 hover:to-cyan-500 hover:shadow-[0_0_15px_rgba(34,211,238,0.7)] transition-all duration-300 text-sm sm:text-base font-semibold relative overflow-hidden ${
-                                               submitting || submitted ? 'opacity-60 cursor-not-allowed grayscale' : ''
-                                           }`}
-                                       >
-                                            {submitting && (
-                                                <span className="absolute inset-0 flex items-center justify-center bg-black/50">
-                                                   <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                                   </svg>
-                                               </span>
-                                            )}
-                                           <span className={submitting ? 'opacity-0' : ''}>
-                                               {submitting ? 'Enviando...' : submitted ? 'Enviadas ✓' : 'Enviar Predicciones'}
-                                            </span>
-                                       </motion.button>
-                                   )}
-                               </div>
-                           </div>
-                       </motion.div>
-                   </motion.div>
-               ))}
+        {/* Instructions - Subtle */}
+        <p className="text-xs text-gray-400 font-exo2">{instructions[step.name as keyof typeof instructions]}</p>
+      </div>
+
+      {/* Content Area - Optimized - FIXED OVERFLOW */}
+      <div className="flex-grow overflow-y-auto space-y-3 mb-4" style={{ paddingRight: '8px' }}>
+        {step.name === 'pole' && (
+          <div className="space-y-3">
+            {renderPredictionField('pole1', '1º Posición')}
+            {renderPredictionField('pole2', '2º Posición')}
+            {renderPredictionField('pole3', '3º Posición')}
+          </div>
+        )}
+        {step.name === 'gp' && (
+          <div className="space-y-3">
+            {renderPredictionField('gp1', '1º Posición')}
+            {renderPredictionField('gp2', '2º Posición')}
+            {renderPredictionField('gp3', '3º Posición')}
+          </div>
+        )}
+        {step.name === 'extras' && (
+          <div className="space-y-3">
+            {renderPredictionField('fastest_pit_stop_team', 'Pit Stop Más Rápido')}
+            {renderPredictionField('fastest_lap_driver', 'Vuelta Más Rápida')}
+            {renderPredictionField('driver_of_the_day', 'Piloto del Día')}
+          </div>
+        )}
+        {step.name === 'micro' && (
+          <div className="space-y-3">
+            {renderPredictionField('first_team_to_pit', 'Primer Equipo en Pits')}
+            {renderPredictionField('first_retirement', 'Primer Retiro')}
+          </div>
+        )}
+        {step.name === 'review' && (
+          <div className="space-y-3">
+            {/* Review cards with better visual hierarchy */}
+            <motion.div 
+              whileHover={{ scale: 1.02 }}
+              onClick={() => setActiveModal('pole')} 
+              className="cursor-pointer bg-gradient-to-r from-amber-900/20 to-amber-800/20 p-4 rounded-xl border border-amber-500/20 hover:border-amber-500/40 transition-all"
+            >
+              <h3 className="text-sm font-bold text-amber-400 font-exo2 mb-2 flex items-center gap-2">
+                <span className="w-6 h-6 bg-amber-500/20 rounded-full flex items-center justify-center text-xs">Q</span>
+                Qualifying
+              </h3>
+              <div className="space-y-1 text-sm">
+                <p className="text-gray-300 flex justify-between">
+                  <span className="text-gray-500">P1:</span>
+                  <span className="font-medium">{predictions.pole1 || '—'}</span>
+                </p>
+                <p className="text-gray-300 flex justify-between">
+                  <span className="text-gray-500">P2:</span>
+                  <span className="font-medium">{predictions.pole2 || '—'}</span>
+                </p>
+                <p className="text-gray-300 flex justify-between">
+                  <span className="text-gray-500">P3:</span>
+                  <span className="font-medium">{predictions.pole3 || '—'}</span>
+                </p>
+              </div>
+            </motion.div>
+
+            <motion.div 
+              whileHover={{ scale: 1.02 }}
+              onClick={() => setActiveModal('gp')} 
+              className="cursor-pointer bg-gradient-to-r from-cyan-900/20 to-cyan-800/20 p-4 rounded-xl border border-cyan-500/20 hover:border-cyan-500/40 transition-all"
+            >
+              <h3 className="text-sm font-bold text-cyan-400 font-exo2 mb-2 flex items-center gap-2">
+                <span className="w-6 h-6 bg-cyan-500/20 rounded-full flex items-center justify-center text-xs">R</span>
+                Carrera
+              </h3>
+              <div className="space-y-1 text-sm">
+                <p className="text-gray-300 flex justify-between">
+                  <span className="text-gray-500">P1:</span>
+                  <span className="font-medium">{predictions.gp1 || '—'}</span>
+                </p>
+                <p className="text-gray-300 flex justify-between">
+                  <span className="text-gray-500">P2:</span>
+                  <span className="font-medium">{predictions.gp2 || '—'}</span>
+                </p>
+                <p className="text-gray-300 flex justify-between">
+                  <span className="text-gray-500">P3:</span>
+                  <span className="font-medium">{predictions.gp3 || '—'}</span>
+                </p>
+              </div>
+            </motion.div>
+
+            <motion.div 
+              whileHover={{ scale: 1.02 }}
+              onClick={() => setActiveModal('extras')} 
+              className="cursor-pointer bg-gradient-to-r from-purple-900/20 to-purple-800/20 p-4 rounded-xl border border-purple-500/20 hover:border-purple-500/40 transition-all"
+            >
+              <h3 className="text-sm font-bold text-purple-400 font-exo2 mb-2 flex items-center gap-2">
+                <span className="w-6 h-6 bg-purple-500/20 rounded-full flex items-center justify-center text-xs">+</span>
+                Extras
+              </h3>
+              <div className="space-y-1 text-sm">
+                <p className="text-gray-300 flex justify-between">
+                  <span className="text-gray-500 text-xs">Pit Stop:</span>
+                  <span className="font-medium text-xs">{predictions.fastest_pit_stop_team || '—'}</span>
+                </p>
+                <p className="text-gray-300 flex justify-between">
+                  <span className="text-gray-500 text-xs">V. Rápida:</span>
+                  <span className="font-medium text-xs">{predictions.fastest_lap_driver || '—'}</span>
+                </p>
+                <p className="text-gray-300 flex justify-between">
+                  <span className="text-gray-500 text-xs">DOTD:</span>
+                  <span className="font-medium text-xs">{predictions.driver_of_the_day || '—'}</span>
+                </p>
+              </div>
+            </motion.div>
+
+            <motion.div 
+              whileHover={{ scale: 1.02 }}
+              onClick={() => setActiveModal('micro')} 
+              className="cursor-pointer bg-gradient-to-r from-yellow-900/20 to-yellow-800/20 p-4 rounded-xl border border-yellow-500/20 hover:border-yellow-500/40 transition-all"
+            >
+              <h3 className="text-sm font-bold text-yellow-400 font-exo2 mb-2 flex items-center gap-2">
+                <span className="w-6 h-6 bg-yellow-500/20 rounded-full flex items-center justify-center text-xs">μ</span>
+                Micro
+              </h3>
+              <div className="space-y-1 text-sm">
+                <p className="text-gray-300 flex justify-between">
+                  <span className="text-gray-500 text-xs">1º en Pits:</span>
+                  <span className="font-medium text-xs">{predictions.first_team_to_pit || '—'}</span>
+                </p>
+                <p className="text-gray-300 flex justify-between">
+                  <span className="text-gray-500 text-xs">1º Retiro:</span>
+                  <span className="font-medium text-xs">{predictions.first_retirement || '—'}</span>
+                </p>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </div>
+
+      {/* Footer - FIXED POSITIONING AND Z-INDEX */}
+      <div className="relative z-20 mt-auto pt-4 border-t border-gray-800 bg-gradient-to-b from-transparent to-black/50">
+        {/* Error Display - Compact */}
+        {errors.length > 0 && (
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-3 bg-red-900/20 border border-red-500/30 text-red-400 p-2 rounded-lg text-xs font-exo2"
+          >
+            {errors.map((error, idx) => (
+              <p key={idx} className="flex items-center gap-1">
+                <span className="w-4 h-4 bg-red-500/20 rounded-full flex items-center justify-center flex-shrink-0">!</span>
+                {error}
+              </p>
+            ))}
+          </motion.div>
+        )}
+
+        {/* Navigation Buttons - PROPER STYLING AND POSITIONING */}
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={index === 0 ? closeModal : prevModal}
+            className="relative z-30 flex-1 sm:flex-initial px-4 py-2.5 bg-gray-800/80 hover:bg-gray-700 text-white rounded-lg font-exo2 font-medium text-sm transition-all duration-200 border border-gray-700 hover:border-gray-600 active:scale-95"
+          >
+            {index === 0 ? 'Cerrar' : 'Anterior'}
+          </button>
+
+          {index < steps.length - 1 ? (
+            <motion.button
+              type="button"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={nextModal}
+              className={`relative z-30 flex-1 sm:flex-initial px-4 py-2.5 rounded-lg font-exo2 font-medium text-sm transition-all duration-200 flex items-center justify-center gap-2 active:scale-95 ${
+                step.name === 'pole' ? 'bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black' :
+                step.name === 'gp' ? 'bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white' :
+                step.name === 'extras' ? 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white' :
+                'bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-black'
+              }`}
+            >
+              Siguiente
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </motion.button>
+          ) : (
+            <motion.button
+              type="button"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={handleSubmit}
+              disabled={submitting || submitted}
+              className={`relative z-30 flex-1 sm:flex-initial px-6 py-2.5 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-white rounded-lg font-exo2 font-bold text-sm transition-all duration-200 active:scale-95 ${
+                submitting || submitted ? 'opacity-60 cursor-not-allowed' : ''
+              }`}
+            >
+              {submitting && (
+                <span className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-lg">
+                  <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                </span>
+              )}
+              <span className={`flex items-center gap-2 ${submitting ? 'opacity-0' : ''}`}>
+                {submitted ? 'Enviadas ✓' : 'Enviar'}
+                {!submitted && (
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                  </svg>
+                )}
+              </span>
+            </motion.button>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  </motion.div>
+))}
 
 
               {/* Share/Success Modal */}

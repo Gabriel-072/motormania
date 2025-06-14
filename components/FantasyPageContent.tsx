@@ -1686,93 +1686,257 @@ const handleSubmit = async () => {
 
           {/* Row 2: Predictions & Standings */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            {/* Predictions Card */}
-            <div
-              className="md:col-span-1 animate-rotate-border rounded-xl p-px" // Span 1 column on medium+
-              style={{
-                 //@ts-ignore
-                 '--border-angle': '270deg', // Different start angle
-                 background: `conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #9333ea 20deg, #c084fc 30deg, #9333ea 40deg, transparent 50deg, transparent 360deg)`,
-                 animation: `rotate-border 6s linear infinite reverse`, // Slowest, reversed
-              }}
-            >
-              <motion.div
-                 className="bg-gradient-to-br from-gray-950 to-black p-4 sm:p-6 rounded-xl shadow-lg relative z-10 h-full flex flex-col justify-between" // Use full height
-              >
-                <div>
-                  <h2 className="text-lg sm:text-xl font-bold text-white mb-3 font-exo2 text-center">
-                    🏁 Haz tus Predicciones 🏁
-                  </h2>
-                   <p className="text-center text-xs text-gray-400 mb-3 font-exo2">
-                      {currentGp ? `Para el ${currentGp.gp_name}` : "La temporada ha terminado"}
-                   </p>
-                  <div className="w-full bg-gray-800 rounded-full h-2.5 mb-2 relative overflow-hidden border border-gray-700"> {/* Slightly thicker bar */}
-                    <motion.div
-                      className="bg-gradient-to-r from-amber-500 to-cyan-500 h-full rounded-full shadow-[0_0_8px_rgba(34,211,238,0.7)]"
-                      initial={{ width: 0 }}
-                      animate={{ width: `${progress}%` }}
-                      transition={{ duration: 0.5, ease: "easeOut" }}
-                    />
-                  </div>
-                  <p className="text-gray-300 text-center mb-4 font-exo2 text-sm font-medium">
-                    {Math.round(progress)}% completado
-                  </p>
-                </div>
-                 {/* Buttons Section */}
-                 <div className="grid grid-cols-1 gap-3 mt-auto"> {/* mt-auto pushes buttons down */}
-                     {steps.slice(0, -1).map((step, index) => { // Exclude 'review' step
-                         const colors = [
-                             { border: 'border-amber-400/60', text: 'text-amber-400', shadow: 'hover:shadow-[0_0_12px_rgba(251,191,36,0.6)]', bg: 'hover:bg-amber-500/10' }, // pole
-                             { border: 'border-cyan-400/60', text: 'text-cyan-400', shadow: 'hover:shadow-[0_0_12px_rgba(34,211,238,0.6)]', bg: 'hover:bg-cyan-500/10' },   // gp
-                             { border: 'border-purple-400/60', text: 'text-purple-400', shadow: 'hover:shadow-[0_0_12px_rgba(168,85,247,0.6)]', bg: 'hover:bg-purple-500/10' }, // extras
-                             { border: 'border-yellow-400/60', text: 'text-yellow-400', shadow: 'hover:shadow-[0_0_12px_rgba(250,204,21,0.6)]', bg: 'hover:bg-yellow-500/10' }, // micro
-                         ];
-                         const color = colors[index % colors.length];
-                         const isComplete = isSectionComplete(step.name);
-                         const isStepAllowed = step.name.startsWith('pole') ? isQualyAllowed : isRaceAllowed;
+{/* Predictions Card - World-Class UI */}
+<div
+  className="md:col-span-1 animate-rotate-border rounded-xl p-px"
+  style={{
+    //@ts-ignore
+    '--border-angle': '270deg',
+    background: `conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #9333ea 20deg, #c084fc 30deg, #9333ea 40deg, transparent 50deg, transparent 360deg)`,
+    animation: `rotate-border 6s linear infinite reverse`,
+  }}
+>
+  <motion.div
+    className="bg-gradient-to-br from-gray-950 via-gray-900 to-black p-4 sm:p-6 rounded-xl shadow-lg relative z-10 h-full flex flex-col justify-between overflow-hidden"
+  >
+    {/* Premium background effects */}
+    <div className="absolute inset-0 opacity-30">
+      <div className="absolute top-0 -right-20 w-40 h-40 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl animate-blob" />
+      <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-amber-500 rounded-full mix-blend-multiply filter blur-3xl animate-blob animation-delay-2000" />
+    </div>
+    
+    {/* Subtle grid pattern */}
+    <div 
+      className="absolute inset-0 opacity-[0.02]"
+      style={{
+        backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 1px)',
+        backgroundSize: '32px 32px'
+      }}
+    />
 
-                         return (
-                              <motion.button
-                                key={step.name}
-                                whileHover={{ scale: 1.03, y: -1 }}
-                                whileTap={{ scale: 0.98 }}
-                                onClick={() => openModal(step.name)}
-                                className={`w-full py-3 px-4 rounded-lg bg-gray-900/80 border ${color.border} ${color.text} ${color.bg} ${color.shadow} font-exo2 text-sm sm:text-base font-semibold transition-all duration-200 flex justify-between items-center ${
-                                  (submitted || !isStepAllowed) ? 'opacity-50 cursor-not-allowed grayscale-[50%]' : '' // Grayscale if disabled
-                                }`}
-                                disabled={submitted || !isStepAllowed}
-                                title={(submitted || !isStepAllowed) ? (submitted ? "Predicciones ya enviadas" : (step.name.startsWith('pole') ? "Qualy cerrada" : "Carrera cerrada")) : `Ir a ${step.label}`}
-                              >
-                                <span>{step.label}</span>
-                                {isComplete && !submitted && isStepAllowed && <span className="text-green-400">✓</span>}
-                                {!isStepAllowed && !submitted && <span className="text-red-500 text-xs">Cerrado</span>}
-                              </motion.button>
-                         )
-                     })}
-                     {/* Review Button */}
-                     <motion.button
-                        whileHover={{ scale: 1.03, y: -1 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={() => openModal('review')}
-                         className={`w-full py-3 px-4 rounded-lg bg-gradient-to-r from-amber-600 to-cyan-600 border border-gray-500 text-white font-exo2 text-sm sm:text-base font-semibold transition-all duration-200 hover:from-amber-500 hover:to-cyan-500 hover:shadow-[0_0_15px_rgba(255,255,255,0.3)] ${
-                             submitted ? 'opacity-50 cursor-not-allowed grayscale-[50%]' : ''
-                         }`}
-                        disabled={submitted}
-                      >
-                        Revisar y Enviar {progress === 100 && !submitted ? '🚀' : ''}
-                      </motion.button>
-                    {/* Scoring System Button */}
-                    <motion.button
-                        whileHover={{ scale: 1.03, y: -1 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={() => setScoringModalOpen(true)}
-                        className="w-full py-2.5 px-4 rounded-lg bg-gray-800/70 border border-teal-400/50 text-teal-400 font-exo2 text-xs sm:text-sm font-semibold transition-all duration-200 hover:bg-teal-900/40 hover:text-teal-300 hover:border-teal-300 hover:shadow-[0_0_10px_rgba(20,184,166,0.5)]"
-                     >
-                        Sistema de Puntuación
-                    </motion.button>
+    <div className="relative z-10">
+      {/* Header with enhanced typography */}
+      <div className="text-center mb-4">
+        <div className="inline-flex items-center gap-3 mb-2">
+          <div className="w-8 h-[2px] bg-gradient-to-r from-transparent to-purple-400" />
+          <h2 className="text-xl sm:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-300 to-cyan-300 font-exo2 tracking-tight">
+            HAZ TUS PREDICCIONES
+          </h2>
+          <div className="w-8 h-[2px] bg-gradient-to-l from-transparent to-cyan-400" />
+        </div>
+        
+        {currentGp && (
+          <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/5 backdrop-blur-sm rounded-full border border-white/10">
+            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+            <p className="text-xs text-gray-300 font-medium font-exo2">
+              {currentGp.gp_name}
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Enhanced Progress Section */}
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs text-gray-400 font-medium">Progreso</span>
+          <span className="text-xs font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-cyan-400">
+            {Math.round(progress)}%
+          </span>
+        </div>
+        
+        <div className="relative">
+          {/* Background track with glow */}
+          <div className="w-full h-3 bg-gray-800/50 rounded-full overflow-hidden border border-gray-700/50 shadow-inner">
+            <motion.div
+              className="h-full rounded-full relative overflow-hidden"
+              initial={{ width: 0 }}
+              animate={{ width: `${progress}%` }}
+              transition={{ duration: 0.5, ease: "easeOut" }}
+            >
+              {/* Gradient fill */}
+              <div className="absolute inset-0 bg-gradient-to-r from-amber-500 via-purple-500 to-cyan-500" />
+              
+              {/* Shimmer effect */}
+              <div 
+                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
+                style={{ animation: 'shimmer 2s ease-in-out infinite' }}
+              />
+              
+              {/* Glow effect */}
+              <div className="absolute inset-0 shadow-[0_0_20px_rgba(168,85,247,0.5)]" />
+            </motion.div>
+          </div>
+          
+          {/* Progress milestones */}
+          <div className="absolute inset-0 flex items-center justify-between px-1">
+            {[25, 50, 75].map((milestone) => (
+              <div
+                key={milestone}
+                className={`w-1 h-1 rounded-full transition-all duration-500 ${
+                  progress >= milestone ? 'bg-white' : 'bg-gray-600'
+                }`}
+                style={{ marginLeft: `${milestone}%` }}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Completion status */}
+        <div className="mt-3 flex items-center justify-center gap-2">
+          {progress === 100 ? (
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              className="flex items-center gap-2 text-xs"
+            >
+              <div className="w-5 h-5 bg-green-500/20 rounded-full flex items-center justify-center">
+                <svg className="w-3 h-3 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <span className="text-green-400 font-medium">¡Completo!</span>
+            </motion.div>
+          ) : (
+            <span className="text-xs text-gray-400">
+              {11 - Object.values(predictions).filter(Boolean).length} predicciones restantes
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+
+    {/* Premium Buttons Section */}
+    <div className="grid grid-cols-1 gap-2.5 mt-auto relative z-10">
+      {steps.slice(0, -1).map((step, index) => {
+        const gradients = [
+          { from: 'from-amber-600', to: 'to-yellow-500', glow: 'hover:shadow-[0_0_25px_rgba(245,158,11,0.4)]' },
+          { from: 'from-cyan-600', to: 'to-blue-500', glow: 'hover:shadow-[0_0_25px_rgba(6,182,212,0.4)]' },
+          { from: 'from-purple-600', to: 'to-pink-500', glow: 'hover:shadow-[0_0_25px_rgba(168,85,247,0.4)]' },
+          { from: 'from-yellow-600', to: 'to-orange-500', glow: 'hover:shadow-[0_0_25px_rgba(245,158,11,0.4)]' },
+        ];
+        const gradient = gradients[index % gradients.length];
+        const isComplete = isSectionComplete(step.name);
+        const isStepAllowed = step.name.startsWith('pole') ? isQualyAllowed : isRaceAllowed;
+
+        return (
+          <motion.button
+            key={step.name}
+            whileHover={{ scale: 1.02, y: -2 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => openModal(step.name)}
+            className={`group relative overflow-hidden ${
+              (submitted || !isStepAllowed) ? 'cursor-not-allowed' : 'cursor-pointer'
+            }`}
+            disabled={submitted || !isStepAllowed}
+          >
+            {/* Button background */}
+            <div className={`absolute inset-0 bg-gradient-to-r ${gradient.from} ${gradient.to} opacity-10 group-hover:opacity-20 transition-opacity duration-300`} />
+            
+            {/* Button border */}
+            <div className={`absolute inset-0 bg-gradient-to-r ${gradient.from} ${gradient.to} opacity-60 blur-sm ${!submitted && isStepAllowed ? gradient.glow : ''} transition-all duration-300`} />
+            
+            {/* Button content */}
+            <div className={`relative bg-gray-900/90 backdrop-blur-sm m-[1px] rounded-lg px-4 py-3 flex items-center justify-between ${
+              (submitted || !isStepAllowed) ? 'opacity-50' : ''
+            }`}>
+              <div className="flex items-center gap-3">
+                <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${gradient.from} ${gradient.to} p-[1px]`}>
+                  <div className="w-full h-full bg-gray-900 rounded-[7px] flex items-center justify-center">
+                    <span className="text-xs font-bold text-white">{index + 1}</span>
+                  </div>
                 </div>
-              </motion.div>
+                <span className={`font-semibold text-sm sm:text-base text-white`}>
+                  {step.label}
+                </span>
+              </div>
+              
+              {/* Status indicators */}
+              <div className="flex items-center gap-2">
+                {isComplete && !submitted && isStepAllowed && (
+                  <motion.div
+                    initial={{ scale: 0, rotate: -180 }}
+                    animate={{ scale: 1, rotate: 0 }}
+                    className="w-5 h-5 bg-green-500/20 rounded-full flex items-center justify-center"
+                  >
+                    <svg className="w-3 h-3 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </motion.div>
+                )}
+                {!isStepAllowed && !submitted && (
+                  <span className="px-2 py-0.5 bg-red-500/20 text-red-400 text-xs rounded-full font-medium">
+                    Cerrado
+                  </span>
+                )}
+                {!submitted && isStepAllowed && !isComplete && (
+                  <svg className="w-4 h-4 text-gray-400 group-hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                )}
+              </div>
             </div>
+          </motion.button>
+        );
+      })}
+
+      {/* Review Button - Premium Design */}
+      <motion.button
+        whileHover={{ scale: 1.02, y: -2 }}
+        whileTap={{ scale: 0.98 }}
+        onClick={() => openModal('review')}
+        className={`group relative overflow-hidden ${submitted ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+        disabled={submitted}
+      >
+        {/* Animated gradient background */}
+        <div 
+          className="absolute inset-0 bg-gradient-to-r from-amber-500 via-purple-500 to-cyan-500 opacity-75"
+          style={{
+            backgroundSize: '200% 100%',
+            animation: 'gradient-x 3s ease infinite'
+          }}
+        />
+        
+        {/* Inner content */}
+        <div className={`relative bg-gray-900/80 backdrop-blur-sm m-[1px] rounded-lg px-4 py-3.5 ${
+          submitted ? 'opacity-50' : ''
+        }`}>
+          <div className="flex items-center justify-center gap-2">
+            <span className="font-bold text-white text-sm sm:text-base">
+              Revisar y Enviar
+            </span>
+            {progress === 100 && !submitted && (
+              <motion.span
+                animate={{ x: [0, 3, 0] }}
+                transition={{ duration: 1.5, repeat: Infinity }}
+                className="text-lg"
+              >
+                🚀
+              </motion.span>
+            )}
+          </div>
+        </div>
+      </motion.button>
+
+      {/* Scoring System Button - Elegant Design */}
+      <motion.button
+        whileHover={{ scale: 1.01 }}
+        whileTap={{ scale: 0.99 }}
+        onClick={() => setScoringModalOpen(true)}
+        className="relative group"
+      >
+        <div className="absolute inset-0 bg-gradient-to-r from-teal-600/20 to-cyan-600/20 rounded-lg" />
+        <div className="relative bg-gray-900/50 backdrop-blur-sm border border-teal-500/30 rounded-lg px-4 py-2.5 flex items-center justify-center gap-2 group-hover:border-teal-400/50 transition-all duration-200">
+          <svg className="w-4 h-4 text-teal-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span className="text-teal-400 font-medium text-xs sm:text-sm">
+            Sistema de Puntuación
+          </span>
+        </div>
+      </motion.button>
+    </div>
+  </motion.div>
+</div>
 
             {/* Driver Standings Card - REMOVED FIXED HEIGHT & INTERNAL SCROLL */}
             <div
