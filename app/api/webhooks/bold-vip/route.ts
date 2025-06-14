@@ -76,46 +76,73 @@ export async function POST(req: NextRequest) {
 
     console.log('✅ Transaction updated:', updatedTx.id);
 
-    /* ---------- 2️⃣ Upsert en vip_entries y vip_users (opcional) ---------- */
+    /* ---------- 2️⃣ Upsert en vip_entries y vip_users ---------- */
     await sb
       .from('vip_entries')
-      .upsert({
-        bold_order_id: data.payment_id || data.id,
-        user_id      : updatedTx.user_id,
-        status       : 'approved',
-        amount_paid  : data.amount?.total || updatedTx.amount_cop,
-        currency     : data.currency || 'COP'
-      }, { onConflict: 'bold_order_id' });
+      .upsert(
+        {
+          bold_order_id: data.payment_id || data.id,
+          user_id      : updatedTx.user_id,
+          status       : 'approved',
+          amount_paid  : data.amount?.total || updatedTx.amount_cop,
+          currency     : data.currency || 'COP'
+        },
+        { onConflict: 'bold_order_id' }
+      );
+
+    // Obtenemos nombre real si existe en clerk_users
+    const { data: clerkUser } = await sb
+      .from('clerk_users')
+      .select('full_name')
+      .eq('clerk_id', updatedTx.user_id)
+      .single();
+
+    const displayName = clerkUser?.full_name ?? updatedTx.full_name ?? 'Sin nombre';
+
+    // entry_tx_id es uuid en vip_users
+    const entryTxId = crypto.randomUUID();
 
     await sb
       .from('vip_users')
       .upsert(
-        { id: updatedTx.user_id, entry_tx_id: updatedTx.id, joined_at: updatedTx.paid_at },
+        {
+          id          : updatedTx.user_id,
+          entry_tx_id : entryTxId,
+          joined_at   : updatedTx.paid_at
+        },
         { onConflict: 'id' }
       );
 
     /* ---------------- 3️⃣ Notificación a Slack ----------------- */
-    const slackPayload = {
-      text: [
-        '*✅ Pago VIP confirmado*',
-        `• Transacción ID: ${updatedTx.id}`,
-        `• Usuario: <@${updatedTx.user_id}> (${updatedTx.full_name})`,
-        `• Plan: ${updatedTx.plan_id}`,
-        `• Monto: $${updatedTx.amount_cop} COP`,
-        `• Fecha de pago: ${updatedTx.paid_at}`
-      ].join('\n'),
-    };
+    try {
+      const slackPayload = {
+        text: [
+          '*✅ Pago VIP confirmado*',
+          `• Transacción ID: ${updatedTx.id}`,
+          `• Usuario: <@${updatedTx.user_id}> (${displayName})`,
+          `• Plan: ${updatedTx.plan_id}`,
+          `• Monto: $${updatedTx.amount_cop} COP`,
+          `• Fecha de pago: ${updatedTx.paid_at}`
+        ].join('\n'),
+      };
 
-    console.log('🔔 Enviando a Slack…');
-    const slackRes = await fetch(SLACK_WEBHOOK, {
-      method : 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body   : JSON.stringify(slackPayload),
-    });
-    console.log('🔔 Slack status:', slackRes.status, await slackRes.text());
+      console.log('🔔 Payload Slack:', JSON.stringify(slackPayload));
+
+      const slackRes = await fetch(SLACK_WEBHOOK, {
+        method : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body   : JSON.stringify(slackPayload),
+      });
+
+      const slackText = await slackRes.text();
+      console.log('🔔 Slack status:', slackRes.status, 'body:', slackText);
+
+      if (!slackRes.ok) throw new Error('Slack respondió código no-200');
+    } catch (err) {
+      console.error('❌ Slack fetch error:', err);
+    }
 
     return NextResponse.json({ ok: true });
-
   } catch (err) {
     console.error('❌ Webhook error:', err);
     return new NextResponse('Internal error', { status: 500 });
