@@ -2101,149 +2101,346 @@ const handleSubmit = async () => {
   </motion.div>
 </div>
 
-            {/* Driver Standings Card - REMOVED FIXED HEIGHT & INTERNAL SCROLL */}
-            <div
-              className="md:col-span-1 animate-rotate-border rounded-xl p-px"
-              style={{
-                 //@ts-ignore
-                 '--border-angle': '0deg',
-                 background: `conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #1e3a8a 20deg, #38bdf8 30deg, #1e3a8a 40deg, transparent 50deg, transparent 360deg)`,
-                 animation: `rotate-border 5s linear infinite`,
-              }}
-            >
-              <motion.div
-                 className="bg-gradient-to-br from-gray-950 to-black p-4 sm:p-6 rounded-xl shadow-lg relative z-10 h-full flex flex-col" // Use h-full and flex-col
-              >
-                 <h2 className="text-lg sm:text-xl font-bold text-white mb-4 font-exo2 text-center">
-                  Clasificación Pilotos 2025
-                </h2>
-                {/* REMOVED internal scroll container */}
-                <div className="flex-grow space-y-2 mb-4"> {/* List items directly here */}
-                     {driverStandings.length > 0 ? (
-                       driverStandings.slice(0, 8).map((standing, index) => { // Show top 8 initially
-                         const teamName = driverToTeam[standing.driver];
-                         const team = teams.find((t) => t.name === teamName);
-                         return (
-                           <motion.div
-                             initial={{ opacity: 0, x: -20 }}
-                             animate={{ opacity: 1, x: 0 }}
-                             transition={{ duration: 0.4, delay: index * 0.05 }}
-                             key={standing.position}
-                             className="bg-gray-800/70 p-2 rounded-lg flex items-center justify-between hover:bg-blue-800/50 transition-all duration-200 shadow-sm"
-                           >
-                             <div className="flex items-center gap-2 flex-1 min-w-0">
-                               <span className="text-amber-400 font-bold text-sm w-6 text-center flex-shrink-0">{standing.position}</span>
-                               <Image
-                                 src={team?.logo_url || '/images/team-logos/default-team.png'}
-                                 alt={`${teamName || 'Equipo'} logo`}
-                                 width={24}
-                                 height={24}
-                                 className="object-contain w-6 h-6 flex-shrink-0"
-                               />
-                               <span className="text-white text-xs sm:text-sm truncate">{standing.driver}</span>
-                             </div>
-                             <div className="flex items-center gap-2 flex-shrink-0">
-                               <span className="text-gray-300 text-xs sm:text-sm font-medium w-12 text-right">{standing.points} pts</span>
-                               <span
-                                 className={`text-xs sm:text-sm w-8 text-center font-semibold ${
-                                   standing.evolution.startsWith('↑') ? 'text-green-400' :
-                                   standing.evolution.startsWith('↓') ? 'text-red-400' : 'text-gray-400'
-                                 }`}
-                               >
-                                 {standing.evolution === '=' ? '–' : standing.evolution}
-                               </span>
-                             </div>
-                           </motion.div>
-                         );
-                       })
-                     ) : (
-                       <p className="text-gray-400 font-exo2 text-sm text-center py-10">Cargando clasificación...</p>
-                     )}
-                 </div>
-                 {/* REMOVED fade effect div */}
-                 <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => setActiveStandingsModal('drivers')}
-                    className="w-full mt-auto py-2 px-4 bg-gray-800/80 text-cyan-400 border border-cyan-400/50 rounded-lg font-exo2 hover:bg-cyan-900/40 hover:text-cyan-300 hover:border-cyan-300 hover:shadow-[0_0_10px_2px_rgba(34,211,238,0.7)] transition-all duration-300 text-sm sm:text-base font-semibold"
-                    aria-label="Ver clasificación completa de pilotos"
-                  >
-                   Ver Clasificación Completa
-                 </motion.button>
-              </motion.div>
-            </div>
+            {/* Driver Standings Card - World-Class UI */}
+<div
+  className="md:col-span-1 animate-rotate-border rounded-xl p-px"
+  style={{
+    //@ts-ignore
+    '--border-angle': '0deg',
+    background: `conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #1e3a8a 20deg, #38bdf8 30deg, #1e3a8a 40deg, transparent 50deg, transparent 360deg)`,
+    animation: `rotate-border 5s linear infinite`,
+  }}
+>
+  <motion.div
+    className="bg-gradient-to-br from-gray-950 via-gray-900 to-black p-4 sm:p-6 rounded-xl shadow-lg relative z-10 h-full flex flex-col overflow-hidden"
+  >
+    {/* Premium background effects */}
+    <div className="absolute inset-0 opacity-20">
+      <div className="absolute top-0 -left-20 w-32 h-32 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl animate-blob" />
+      <div className="absolute bottom-0 -right-20 w-32 h-32 bg-cyan-500 rounded-full mix-blend-multiply filter blur-3xl animate-blob animation-delay-4000" />
+    </div>
+    
+    {/* Racing stripes pattern */}
+    <div 
+      className="absolute inset-0 opacity-[0.03]"
+      style={{
+        backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,0.02) 10px, rgba(255,255,255,0.02) 20px)'
+      }}
+    />
 
-            {/* Constructor Standings Card - REMOVED FIXED HEIGHT & INTERNAL SCROLL */}
-             <div
-               className="md:col-span-1 animate-rotate-border rounded-xl p-px"
-               style={{
-                 //@ts-ignore
-                 '--border-angle': '90deg',
-                 background: `conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #15803d 20deg, #86efac 30deg, #15803d 40deg, transparent 50deg, transparent 360deg)`,
-                 animation: `rotate-border 4.5s linear infinite reverse`,
-               }}
-             >
-               <motion.div
-                 className="bg-gradient-to-br from-gray-950 to-black p-4 sm:p-6 rounded-xl shadow-lg relative z-10 h-full flex flex-col" // Use h-full and flex-col
-               >
-                 <h2 className="text-lg sm:text-xl font-bold text-white mb-4 font-exo2 text-center">
-                   Clasificación Constructores 2025
-                 </h2>
-                  {/* REMOVED internal scroll container */}
-                  <div className="flex-grow space-y-2 mb-4"> {/* List items directly here */}
-                      {constructorStandings.length > 0 ? (
-                        constructorStandings.slice(0, 8).map((standing, index) => { // Show top 7 initially
-                          const team = teams.find((t) => t.name === standing.constructor);
-                          return (
-                            <motion.div
-                              initial={{ opacity: 0, x: -20 }}
-                              animate={{ opacity: 1, x: 0 }}
-                              transition={{ duration: 0.4, delay: index * 0.05 }}
-                              key={standing.position}
-                              className="bg-gray-800/70 p-2 rounded-lg flex items-center justify-between hover:bg-green-800/40 transition-all duration-200 shadow-sm" // Greenish hover
-                            >
-                              <div className="flex items-center gap-2 flex-1 min-w-0">
-                                <span className="text-amber-400 font-bold text-sm w-6 text-center flex-shrink-0">{standing.position}</span>
-                                <Image
-                                  src={team?.logo_url || '/images/team-logos/default-team.png'}
-                                  alt={`${standing.constructor} logo`}
-                                  width={24}
-                                  height={24}
-                                  className="object-contain w-6 h-6 flex-shrink-0"
-                                />
-                                <span className="text-white text-xs sm:text-sm truncate">{standing.constructor}</span>
-                              </div>
-                              <div className="flex items-center gap-2 flex-shrink-0">
-                                <span className="text-gray-300 text-xs sm:text-sm font-medium w-12 text-right">{standing.points} pts</span>
-                                <span
-                                  className={`text-xs sm:text-sm w-8 text-center font-semibold ${
-                                    standing.evolution.startsWith('↑') ? 'text-green-400' :
-                                    standing.evolution.startsWith('↓') ? 'text-red-400' : 'text-gray-400'
-                                  }`}
-                                >
-                                  {standing.evolution === '=' ? '–' : standing.evolution}
-                                </span>
-                              </div>
-                            </motion.div>
-                          );
-                        })
-                      ) : (
-                        <p className="text-gray-400 font-exo2 text-sm text-center py-10">Cargando clasificación...</p>
-                      )}
-                    </div>
-                 {/* REMOVED fade effect div */}
-                 <motion.button
-                   whileHover={{ scale: 1.05 }}
-                   whileTap={{ scale: 0.95 }}
-                   onClick={() => setActiveStandingsModal('constructors')}
-                   className="w-full mt-auto py-2 px-4 bg-gray-800/80 text-cyan-400 border border-cyan-400/50 rounded-lg font-exo2 hover:bg-cyan-900/40 hover:text-cyan-300 hover:border-cyan-300 hover:shadow-[0_0_10px_2px_rgba(34,211,238,0.7)] transition-all duration-300 text-sm sm:text-base font-semibold"
-                   aria-label="Ver clasificación completa de constructores"
-                 >
-                   Ver Clasificación Completa
-                 </motion.button>
-               </motion.div>
-             </div>
+    {/* Header with trophy icon */}
+    <div className="relative z-10 mb-4">
+      <div className="flex items-center justify-center gap-3">
+        <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-cyan-600 rounded-full p-[2px]">
+          <div className="w-full h-full bg-gray-900 rounded-full flex items-center justify-center">
+            <span className="text-lg">🏆</span>
           </div>
+        </div>
+        <h2 className="text-xl sm:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-cyan-300 font-exo2">
+          PILOTOS 2025
+        </h2>
+      </div>
+      
+      {/* Live indicator */}
+      <div className="flex items-center justify-center gap-2 mt-2">
+        <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
+        <span className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">Actualizado en vivo</span>
+      </div>
+    </div>
+
+    {/* Standings list with enhanced design */}
+    <div className="flex-grow space-y-1.5 mb-4 relative z-10">
+      {driverStandings.length > 0 ? (
+        driverStandings.slice(0, 8).map((standing, index) => {
+          const teamName = driverToTeam[standing.driver];
+          const team = teams.find((t) => t.name === teamName);
+          const isTop3 = standing.position <= 3;
+          
+          return (
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.4, delay: index * 0.05 }}
+              key={standing.position}
+              className={`group relative overflow-hidden ${
+                isTop3 ? 'bg-gradient-to-r from-gray-800/90 to-gray-800/70' : 'bg-gray-800/50'
+              } rounded-lg transition-all duration-300 hover:scale-[1.02] hover:shadow-lg`}
+            >
+              {/* Hover gradient effect */}
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-600/0 via-blue-600/10 to-blue-600/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              
+              <div className="relative p-2.5 flex items-center justify-between">
+                <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                  {/* Position with special styling for top 3 */}
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm flex-shrink-0 ${
+                    standing.position === 1 ? 'bg-gradient-to-br from-yellow-400 to-amber-600 text-black' :
+                    standing.position === 2 ? 'bg-gradient-to-br from-gray-300 to-gray-500 text-black' :
+                    standing.position === 3 ? 'bg-gradient-to-br from-orange-400 to-orange-600 text-black' :
+                    'bg-gray-700 text-amber-400'
+                  }`}>
+                    {standing.position}
+                  </div>
+                  
+                  {/* Team logo with glow effect */}
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-blue-400 rounded-full blur-md opacity-0 group-hover:opacity-30 transition-opacity" />
+                    <Image
+                      src={team?.logo_url || '/images/team-logos/default-team.png'}
+                      alt={`${teamName || 'Equipo'} logo`}
+                      width={28}
+                      height={28}
+                      className="relative object-contain w-7 h-7 flex-shrink-0"
+                    />
+                  </div>
+                  
+                  {/* Driver name */}
+                  <span className="text-white text-sm font-medium truncate group-hover:text-blue-300 transition-colors">
+                    {standing.driver}
+                  </span>
+                </div>
+                
+                <div className="flex items-center gap-3 flex-shrink-0">
+                  {/* Points with gradient text */}
+                  <div className="text-right">
+                    <span className="text-sm font-bold bg-gradient-to-r from-blue-300 to-cyan-300 bg-clip-text text-transparent">
+                      {standing.points}
+                    </span>
+                    <span className="text-xs text-gray-500 ml-1">pts</span>
+                  </div>
+                  
+                  {/* Evolution indicator with animation */}
+                  <div className="w-10 flex items-center justify-center">
+                    {standing.evolution.startsWith('↑') && (
+                      <motion.div
+                        initial={{ y: 5, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        className="flex items-center text-green-400"
+                      >
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M5.293 9.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 7.414V15a1 1 0 11-2 0V7.414L6.707 9.707a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                        </svg>
+                        <span className="text-xs font-bold ml-0.5">{standing.evolution.substring(1)}</span>
+                      </motion.div>
+                    )}
+                    {standing.evolution.startsWith('↓') && (
+                      <motion.div
+                        initial={{ y: -5, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        className="flex items-center text-red-400"
+                      >
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M14.707 10.293a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L9 12.586V5a1 1 0 012 0v7.586l2.293-2.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                        <span className="text-xs font-bold ml-0.5">{standing.evolution.substring(1)}</span>
+                      </motion.div>
+                    )}
+                    {standing.evolution === '=' && (
+                      <div className="w-4 h-[2px] bg-gray-600 rounded-full" />
+                    )}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          );
+        })
+      ) : (
+        <div className="flex flex-col items-center justify-center py-10">
+          <div className="w-12 h-12 border-2 border-blue-400 border-t-transparent rounded-full animate-spin mb-3" />
+          <p className="text-gray-400 font-exo2 text-sm">Cargando clasificación...</p>
+        </div>
+      )}
+    </div>
+
+    {/* Premium button */}
+    <motion.button
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
+      onClick={() => setActiveStandingsModal('drivers')}
+      className="relative group overflow-hidden"
+    >
+      <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-cyan-600 opacity-80 group-hover:opacity-100 transition-opacity" />
+      <div className="relative bg-gray-900/90 m-[1px] rounded-lg px-4 py-2.5 flex items-center justify-center gap-2">
+        <span className="text-cyan-300 font-bold text-sm">Ver Clasificación Completa</span>
+        <svg className="w-4 h-4 text-cyan-300 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        </svg>
+      </div>
+    </motion.button>
+  </motion.div>
+</div>
+
+{/* Constructor Standings Card - World-Class UI */}
+<div
+  className="md:col-span-1 animate-rotate-border rounded-xl p-px"
+  style={{
+    //@ts-ignore
+    '--border-angle': '90deg',
+    background: `conic-gradient(from var(--border-angle), transparent 0deg, transparent 10deg, #15803d 20deg, #86efac 30deg, #15803d 40deg, transparent 50deg, transparent 360deg)`,
+    animation: `rotate-border 4.5s linear infinite reverse`,
+  }}
+>
+  <motion.div
+    className="bg-gradient-to-br from-gray-950 via-gray-900 to-black p-4 sm:p-6 rounded-xl shadow-lg relative z-10 h-full flex flex-col overflow-hidden"
+  >
+    {/* Premium background effects */}
+    <div className="absolute inset-0 opacity-20">
+      <div className="absolute top-0 -right-20 w-32 h-32 bg-green-500 rounded-full mix-blend-multiply filter blur-3xl animate-blob" />
+      <div className="absolute bottom-0 -left-20 w-32 h-32 bg-emerald-500 rounded-full mix-blend-multiply filter blur-3xl animate-blob animation-delay-4000" />
+    </div>
+    
+    {/* Grid pattern */}
+    <div 
+      className="absolute inset-0 opacity-[0.02]"
+      style={{
+        backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 1px)',
+        backgroundSize: '24px 24px'
+      }}
+    />
+
+    {/* Header with shield icon */}
+    <div className="relative z-10 mb-4">
+      <div className="flex items-center justify-center gap-3">
+        <div className="w-10 h-10 bg-gradient-to-br from-green-400 to-emerald-600 rounded-full p-[2px]">
+          <div className="w-full h-full bg-gray-900 rounded-full flex items-center justify-center">
+            <span className="text-lg">🛡️</span>
+          </div>
+        </div>
+        <h2 className="text-xl sm:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-300 to-emerald-300 font-exo2">
+          CONSTRUCTORES 2025
+        </h2>
+      </div>
+      
+      {/* Stats indicator */}
+      <div className="flex items-center justify-center gap-4 mt-2">
+        <div className="flex items-center gap-1">
+          <div className="w-1.5 h-1.5 bg-green-400 rounded-full" />
+          <span className="text-[10px] text-gray-500">{constructorStandings.length} equipos</span>
+        </div>
+        <div className="w-px h-3 bg-gray-700" />
+        <span className="text-[10px] text-gray-500">Campeonato en curso</span>
+      </div>
+    </div>
+
+    {/* Standings list with enhanced design */}
+    <div className="flex-grow space-y-1.5 mb-4 relative z-10">
+      {constructorStandings.length > 0 ? (
+        constructorStandings.slice(0, 8).map((standing, index) => {
+          const team = teams.find((t) => t.name === standing.constructor);
+          const isTop3 = standing.position <= 3;
+          
+          return (
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.4, delay: index * 0.05 }}
+              key={standing.position}
+              className={`group relative overflow-hidden ${
+                isTop3 ? 'bg-gradient-to-r from-gray-800/90 to-gray-800/70' : 'bg-gray-800/50'
+              } rounded-lg transition-all duration-300 hover:scale-[1.02] hover:shadow-lg`}
+            >
+              {/* Hover gradient effect */}
+              <div className="absolute inset-0 bg-gradient-to-r from-green-600/0 via-green-600/10 to-green-600/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              
+              <div className="relative p-2.5 flex items-center justify-between">
+                <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                  {/* Position with special styling */}
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm flex-shrink-0 ${
+                    standing.position === 1 ? 'bg-gradient-to-br from-yellow-400 to-amber-600 text-black' :
+                    standing.position === 2 ? 'bg-gradient-to-br from-gray-300 to-gray-500 text-black' :
+                    standing.position === 3 ? 'bg-gradient-to-br from-orange-400 to-orange-600 text-black' :
+                    'bg-gray-700 text-amber-400'
+                  }`}>
+                    {standing.position}
+                  </div>
+                  
+                  {/* Team logo with hover effect */}
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-green-400 rounded-full blur-md opacity-0 group-hover:opacity-30 transition-opacity" />
+                    <Image
+                      src={team?.logo_url || '/images/team-logos/default-team.png'}
+                      alt={`${standing.constructor} logo`}
+                      width={28}
+                      height={28}
+                      className="relative object-contain w-7 h-7 flex-shrink-0"
+                    />
+                  </div>
+                  
+                  {/* Constructor name */}
+                  <span className="text-white text-sm font-medium truncate group-hover:text-green-300 transition-colors">
+                    {standing.constructor}
+                  </span>
+                </div>
+                
+                <div className="flex items-center gap-3 flex-shrink-0">
+                  {/* Points with gradient */}
+                  <div className="text-right">
+                    <span className="text-sm font-bold bg-gradient-to-r from-green-300 to-emerald-300 bg-clip-text text-transparent">
+                      {standing.points}
+                    </span>
+                    <span className="text-xs text-gray-500 ml-1">pts</span>
+                  </div>
+                  
+                  {/* Evolution indicator */}
+                  <div className="w-10 flex items-center justify-center">
+                    {standing.evolution.startsWith('↑') && (
+                      <motion.div
+                        initial={{ y: 5, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        className="flex items-center text-green-400"
+                      >
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M5.293 9.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 7.414V15a1 1 0 11-2 0V7.414L6.707 9.707a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                        </svg>
+                        <span className="text-xs font-bold ml-0.5">{standing.evolution.substring(1)}</span>
+                      </motion.div>
+                    )}
+                    {standing.evolution.startsWith('↓') && (
+                      <motion.div
+                        initial={{ y: -5, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        className="flex items-center text-red-400"
+                      >
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M14.707 10.293a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L9 12.586V5a1 1 0 012 0v7.586l2.293-2.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                        <span className="text-xs font-bold ml-0.5">{standing.evolution.substring(1)}</span>
+                      </motion.div>
+                    )}
+                    {standing.evolution === '=' && (
+                      <div className="w-4 h-[2px] bg-gray-600 rounded-full" />
+                    )}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          );
+        })
+      ) : (
+        <div className="flex flex-col items-center justify-center py-10">
+          <div className="w-12 h-12 border-2 border-green-400 border-t-transparent rounded-full animate-spin mb-3" />
+          <p className="text-gray-400 font-exo2 text-sm">Cargando clasificación...</p>
+        </div>
+      )}
+    </div>
+
+    {/* Premium button */}
+    <motion.button
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
+      onClick={() => setActiveStandingsModal('constructors')}
+      className="relative group overflow-hidden"
+    >
+      <div className="absolute inset-0 bg-gradient-to-r from-green-600 to-emerald-600 opacity-80 group-hover:opacity-100 transition-opacity" />
+      <div className="relative bg-gray-900/90 m-[1px] rounded-lg px-4 py-2.5 flex items-center justify-center gap-2">
+        <span className="text-emerald-300 font-bold text-sm">Ver Clasificación Completa</span>
+        <svg className="w-4 h-4 text-emerald-300 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        </svg>
+      </div>
+    </motion.button>
+  </motion.div>
+</div>
+</div>
 
           {/* Row 3: Destructors, Rookies, Leaderboard */}
            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
