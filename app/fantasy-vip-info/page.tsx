@@ -2,22 +2,22 @@
 'use client';
 
 import React, { useState, useEffect, useRef, Suspense } from 'react';
-import { useUser, useClerk }         from '@clerk/nextjs';
-import { useRouter }                 from 'next/navigation';
-import { motion, AnimatePresence }   from 'framer-motion';
-import { Disclosure }                from '@headlessui/react';
-import Image                         from 'next/image';
-import { toast }                     from 'sonner';
+import { useUser, useClerk } from '@clerk/nextjs';
+import { useRouter } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Disclosure } from '@headlessui/react';
+import Image from 'next/image';
+import { toast } from 'sonner';
 
 import {
   PlayIcon, PauseIcon, SpeakerWaveIcon, SpeakerXMarkIcon,
   ForwardIcon, ChevronUpIcon, ExclamationTriangleIcon
 } from '@heroicons/react/24/solid';
 
-import { createClient }   from '@supabase/supabase-js';
-import { openBoldCheckout } from '@/lib/bold';           
-import MovingBarFantasy     from '@/components/MovingBarFantasy';
-import LoadingAnimation     from '@/components/LoadingAnimation';
+import { createClient } from '@supabase/supabase-js';
+import { openBoldCheckout } from '@/lib/bold';
+import MovingBarFantasy from '@/components/MovingBarFantasy';
+import LoadingAnimation from '@/components/LoadingAnimation';
 import StickyAccessCTA from '@/components/StickyAccessCTA';
 
 /* ──────────────────────────────────────────────────────────
@@ -350,7 +350,7 @@ function VideoPlayer() {
         window.clearTimeout(loadingTimeoutRef.current);
       }
     };
-  }, [isMounted, volume]);
+  }, [isMounted, volume, loadingStrategy]);
 
   const togglePlay = async () => {
     if (hasError) return;
@@ -795,7 +795,7 @@ function VideoPlayer() {
 }
 
 /* ╔════════════════════════════════╗
-   ║ 2. MINI-PANEL “PREDICE …”      ║
+   ║ 2. MINI-PANEL "PREDICE …"      ║
    ╚════════════════════════════════╝ */
 type RaceResult = {
   gp_name: string | null;
@@ -1021,32 +1021,31 @@ interface FAQ { q: string; a: string; }
 
 export default function FantasyVipLanding() {
   /* ───────── Clerk & Router ───────── */
-  const clerk               = useClerk();
-  const router              = useRouter();
+  const clerk = useClerk();
+  const router = useRouter();
   const { isSignedIn, user } = useUser();
 
-   
-   // Ref para recordar el plan que queremos comprar tras login
-   const pendingPlanRef = useRef<string | null>(null);
-     
-   // 1️⃣ Estado para mostrar/ocultar el sticky button
-   const [showSticky, setShowSticky] = useState(true);
+  // Ref para recordar el plan que queremos comprar tras login
+  const pendingPlanRef = useRef<string | null>(null);
 
-// 2️⃣ Observer para la sección de paquetes
-useEffect(() => {
-  const planesEl = document.getElementById('planes');
-  if (!planesEl) return;
-  const observer = new IntersectionObserver(
-    ([entry]) => setShowSticky(!entry.isIntersecting),
-    { rootMargin: '0px 0px -100px 0px' }
-  );
-  observer.observe(planesEl);
-  return () => observer.disconnect();
-}, []);
+  // 1️⃣ Estado para mostrar/ocultar el sticky button
+  const [showSticky, setShowSticky] = useState(true);
+
+  // 2️⃣ Observer para la sección de paquetes
+  useEffect(() => {
+    const planesEl = document.getElementById('planes');
+    if (!planesEl) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setShowSticky(!entry.isIntersecting),
+      { rootMargin: '0px 0px -100px 0px' }
+    );
+    observer.observe(planesEl);
+    return () => observer.disconnect();
+  }, []);
 
   /* ───────── State ───────── */
   const [processingPlan, setProcessingPlan] = useState<string | null>(null);
-  const [showSignModal, setShowSignModal]   = useState(false);
+  const [showSignModal, setShowSignModal] = useState(false);
 
   /* ───────── Estados para el countdown ───────── */
   const [gpSchedule, setGpSchedule] = useState<GpSchedule[]>([]);
@@ -1164,112 +1163,169 @@ useEffect(() => {
     return () => clearInterval(iv);
   }, [gpSchedule, currentGp]);
 
-  /* ═════════════════════════════════════════════════
-   handlePurchase → crea la orden + abre Bold embed
-   ═════════════════════════════════════════════════ */
-const handlePurchase = async (planId: Plan['id']) => {
-  console.log('🛒 handlePurchase invocado para:', planId);
-  const plan = planes.find(p => p.id === planId);
-  if (!plan) return;
-
-  // 1️⃣ Requiere sesión
-  if (!isSignedIn || !user) {
-    clerk.openSignIn({ redirectUrl: '/fantasy-vip-info' });
-    return;
-  }
-
-  // 2️⃣ Verificar apiKey de Bold
-  console.log('❗NEXT_PUBLIC_BOLD_BUTTON_KEY:', process.env.NEXT_PUBLIC_BOLD_BUTTON_KEY);
-  const apiKey = process.env.NEXT_PUBLIC_BOLD_BUTTON_KEY;
-  if (!apiKey) {
-    toast.error('Pago deshabilitado: falta la apiKey de Bold.');
-    return;
-  }
-
-  try {
-    setProcessingPlan(planId);
-
-    // 3️⃣ Crear orden en el backend
-    console.log('🔍 Enviando POST a /api/vip/register-order con:', {
-      planId: plan.id,
-      planName: plan.nombre,
-      amount: plan.precio,
-      fullName: user.fullName,
-      email: user.primaryEmailAddress?.emailAddress,
-    });
-    const res = await fetch('/api/vip/register-order', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        planId: plan.id,
-        planName: plan.nombre,
-        amount: plan.precio,
-        fullName: user.fullName,
-        email: user.primaryEmailAddress?.emailAddress,
-      }),
-    });
-    console.log('📬 register-order status:', res.status);
-    const text = await res.text();
-    console.log('📬 register-order body:', text);
-    if (!res.ok) {
-      let errorMsg = 'Error creando orden';
-      try {
-        const errJson = JSON.parse(text);
-        errorMsg = errJson.error || errorMsg;
-      } catch {}
-      throw new Error(errorMsg);
+  // 1. Add payment verification endpoint
+  const verifyPayment = async (orderId: string) => {
+    try {
+      const res = await fetch('/api/vip/verify-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId })
+      });
+      
+      if (!res.ok) throw new Error('Verification failed');
+      
+      const data = await res.json();
+      return data;
+    } catch (error) {
+      console.error('Payment verification error:', error);
+      return null;
     }
-    // parse the actual JSON only once
-    const { orderId, amount, redirectionUrl, integritySignature } = JSON.parse(text) as {
-      orderId: string;
-      amount: string;
-      redirectionUrl: string;
-      integritySignature: string;
-    };
+  };
 
-    // 5️⃣ Montar la configuración para openBoldCheckout
-    const config: Record<string, any> = {
-      apiKey,
-      orderId,
-      amount,
-      currency: 'COP',
-      description: `Acceso VIP · ${plan.nombre}`,
-      redirectionUrl,
-      integritySignature,
-      renderMode: 'embedded',
-      containerId: 'bold-embed-vip',
+  // 2. Add useEffect to handle redirect URL
+  useEffect(() => {
+    const handleRedirectUrl = async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const orderId = urlParams.get('orderId');
+      
+      if (orderId && isSignedIn) {
+        // Show loading state
+        toast.loading('Verificando tu pago...', { id: 'payment-check' });
+        
+        // Verify payment status
+        const verification = await verifyPayment(orderId);
+        
+        if (verification?.isPaid) {
+          toast.success('¡Pago confirmado! Bienvenido a VIP 🎉', { id: 'payment-check' });
+          // Clear URL params
+          window.history.replaceState({}, '', window.location.pathname);
+          // Redirect to VIP dashboard after a short delay
+          setTimeout(() => {
+            router.push('/fantasy-vip');
+          }, 2000);
+        } else {
+          toast.error('No pudimos verificar tu pago. Por favor contacta soporte.', { id: 'payment-check' });
+        }
+      }
     };
-    // 6️⃣ customerData
-    config.customerData = JSON.stringify({
-      email: user.primaryEmailAddress?.emailAddress ?? '',
-      fullName: user.fullName ?? '',
-    });
-    // 7️⃣ Abrir Bold Checkout embebido
-    console.log('🔑 window.BoldCheckout available?', (window as any).BoldCheckout);
-    openBoldCheckout({
-      ...config,
-      onSuccess: () => {
-        toast.success('✅ Pago confirmado. ¡Bienvenido a VIP!');
-        setProcessingPlan(null);
-        router.push('/fantasy-vip');
-      },
-      onFailed: ({ message }: { message?: string }) => {
-        toast.error(`Pago rechazado: ${message ?? ''}`);
-        setProcessingPlan(null);
-      },
-      onPending: () => {
-        toast.info('Pago pendiente de confirmación.');
-        setProcessingPlan(null);
-      },
-      onClose: () => setProcessingPlan(null),
-    });
-    console.log('✅ openBoldCheckout() ejecutado');
+    
+    handleRedirectUrl();
+  }, [isSignedIn, router]);
 
-  } catch (err: any) {
-    toast.error(err.message ?? 'Error iniciando pago');
-    setProcessingPlan(null);
-  }
-};
+  // 3. Update handlePurchase function with better error handling
+  const handlePurchase = async (planId: Plan['id']) => {
+    console.log('🛒 handlePurchase invocado para:', planId);
+    const plan = planes.find(p => p.id === planId);
+    if (!plan) return;
+
+    // 1️⃣ Requiere sesión
+    if (!isSignedIn || !user) {
+      // Store the desired plan for after login
+      sessionStorage.setItem('pendingVipPlan', planId);
+      clerk.openSignIn({ 
+        redirectUrl: window.location.href,
+        afterSignInUrl: window.location.href
+      });
+      return;
+    }
+
+    // Check for pending plan after login
+    const pendingPlan = sessionStorage.getItem('pendingVipPlan');
+    if (pendingPlan && !planId) {
+      sessionStorage.removeItem('pendingVipPlan');
+      handlePurchase(pendingPlan as Plan['id']);
+      return;
+    }
+
+    // 2️⃣ Verificar apiKey de Bold
+    const apiKey = process.env.NEXT_PUBLIC_BOLD_BUTTON_KEY;
+    if (!apiKey) {
+      toast.error('El sistema de pagos no está disponible temporalmente. Por favor intenta más tarde.');
+      return;
+    }
+
+    try {
+      setProcessingPlan(planId);
+
+      // 3️⃣ Crear orden en el backend
+      const res = await fetch('/api/vip/register-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          planId: plan.id,
+          planName: plan.nombre,
+          amount: plan.precio,
+          fullName: user.fullName,
+          email: user.primaryEmailAddress?.emailAddress,
+        }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ error: 'Error desconocido' }));
+        throw new Error(errorData.error || 'Error creando orden');
+      }
+
+      const { orderId, amount, redirectionUrl, integritySignature } = await res.json();
+
+      // 4️⃣ Configuración para Bold Checkout
+      const config = {
+        apiKey,
+        orderId,
+        amount,
+        currency: 'COP',
+        description: `Acceso VIP · ${plan.nombre}`,
+        redirectionUrl,
+        integritySignature,
+        renderMode: 'embedded',
+        containerId: 'bold-embed-vip',
+        customerData: JSON.stringify({
+          email: user.primaryEmailAddress?.emailAddress ?? '',
+          fullName: user.fullName ?? '',
+        }),
+      };
+
+      // 5️⃣ Abrir Bold Checkout
+      openBoldCheckout({
+        ...config,
+        onSuccess: async () => {
+          toast.success('✅ Procesando tu pago...', { duration: 3000 });
+          setProcessingPlan(null);
+          
+          // Wait a moment for webhook to process
+          setTimeout(async () => {
+            const verification = await verifyPayment(orderId);
+            if (verification?.isPaid) {
+              toast.success('¡Bienvenido a VIP! 🎉', { duration: 5000 });
+              router.push('/fantasy-vip');
+            } else {
+              // If webhook hasn't processed yet, redirect with orderId
+              router.push(`/fantasy-vip?orderId=${orderId}`);
+            }
+          }, 2000);
+        },
+        onFailed: ({ message }: { message?: string }) => {
+          toast.error(`Pago rechazado: ${message || 'Por favor intenta con otro método de pago'}`);
+          setProcessingPlan(null);
+        },
+        onPending: () => {
+          toast.info('Tu pago está pendiente de confirmación. Te notificaremos cuando se complete.');
+          setProcessingPlan(null);
+          router.push(`/fantasy-vip?orderId=${orderId}`);
+        },
+        onClose: () => {
+          if (processingPlan) {
+            toast.info('Pago cancelado');
+            setProcessingPlan(null);
+          }
+        },
+      });
+
+    } catch (err: any) {
+      console.error('Error en handlePurchase:', err);
+      toast.error(err.message || 'Error al iniciar el proceso de pago');
+      setProcessingPlan(null);
+    }
+  };
 
   /* ───────── Glow util ───────── */
   const Glow = () => (
@@ -1295,7 +1351,7 @@ const handlePurchase = async (planId: Plan['id']) => {
     );
   };
 
-/* ───────── Página VIP Fantasy – Copy alineado a oferta Race Pass / Season Pass (2025-2026) con optimizaciones ───────── */
+  /* ───────── Página VIP Fantasy – Copy alineado a oferta Race Pass / Season Pass (2025-2026) con optimizaciones ───────── */
 
 return (
   <>
