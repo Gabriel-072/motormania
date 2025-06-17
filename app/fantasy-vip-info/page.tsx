@@ -1182,36 +1182,6 @@ export default function FantasyVipLanding() {
     }
   };
 
-  // 2. Add useEffect to handle redirect URL
-  useEffect(() => {
-    const handleRedirectUrl = async () => {
-      const urlParams = new URLSearchParams(window.location.search);
-      const orderId = urlParams.get('orderId');
-      
-      if (orderId && isSignedIn) {
-        // Show loading state
-        toast.loading('Verificando tu pago...', { id: 'payment-check' });
-        
-        // Verify payment status
-        const verification = await verifyPayment(orderId);
-        
-        if (verification?.isPaid) {
-          toast.success('¡Pago confirmado! Bienvenido a VIP 🎉', { id: 'payment-check' });
-          // Clear URL params
-          window.history.replaceState({}, '', window.location.pathname);
-          // Redirect to VIP dashboard after a short delay
-          setTimeout(() => {
-            router.push('/fantasy-vip');
-          }, 2000);
-        } else {
-          toast.error('No pudimos verificar tu pago. Por favor contacta soporte.', { id: 'payment-check' });
-        }
-      }
-    };
-    
-    handleRedirectUrl();
-  }, [isSignedIn, router]);
-
   // 3. Update handlePurchase function with better error handling
   const handlePurchase = async (planId: Plan['id']) => {
     console.log('🛒 handlePurchase invocado para:', planId);
@@ -1288,29 +1258,20 @@ export default function FantasyVipLanding() {
       openBoldCheckout({
         ...config,
         onSuccess: async () => {
-          toast.success('✅ Procesando tu pago...', { duration: 3000 });
+          toast.success('✅ Pago exitoso! Redirigiendo...', { duration: 2000 });
           setProcessingPlan(null);
-          
-          // Wait a moment for webhook to process
-          setTimeout(async () => {
-            const verification = await verifyPayment(orderId);
-            if (verification?.isPaid) {
-              toast.success('¡Bienvenido a VIP! 🎉', { duration: 5000 });
-              router.push('/fantasy-vip');
-            } else {
-              // If webhook hasn't processed yet, redirect with orderId
-              router.push(`/fantasy-vip?orderId=${orderId}`);
-            }
-          }, 2000);
+          // Redirect to success page immediately
+          router.push(`/fantasy-vip-success?orderId=${orderId}`);
         },
         onFailed: ({ message }: { message?: string }) => {
           toast.error(`Pago rechazado: ${message || 'Por favor intenta con otro método de pago'}`);
           setProcessingPlan(null);
         },
         onPending: () => {
-          toast.info('Tu pago está pendiente de confirmación. Te notificaremos cuando se complete.');
+          toast.info('Tu pago está siendo procesado...');
           setProcessingPlan(null);
-          router.push(`/fantasy-vip?orderId=${orderId}`);
+          // Also redirect to success page for pending payments
+          router.push(`/fantasy-vip-success?orderId=${orderId}`);
         },
         onClose: () => {
           if (processingPlan) {
@@ -1318,7 +1279,7 @@ export default function FantasyVipLanding() {
             setProcessingPlan(null);
           }
         },
-      });
+      }); 
 
     } catch (err: any) {
       console.error('Error en handlePurchase:', err);
