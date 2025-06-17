@@ -1008,285 +1008,305 @@ function PredictionsTeaser() {
 /* ╔════════════════════════════╗
    ║ 3. MAIN LANDING PAGE       ║
    ╚════════════════════════════════╝ */
-interface Plan {
-  id: 'race-pass' | 'season-pass';
-  nombre: string;
-  precio: number;        // COP
-  periodo: string;
-  beneficios: string[];
-  isPopular?: boolean;
-}
-
-interface FAQ { q: string; a: string; }
-
-export default function FantasyVipLanding() {
-  /* ───────── Clerk & Router ───────── */
-  const clerk = useClerk();
-  const router = useRouter();
-  const { isSignedIn, user } = useUser();
-
-  // Ref para recordar el plan que queremos comprar tras login
-  const pendingPlanRef = useRef<string | null>(null);
-
-  // 1️⃣ Estado para mostrar/ocultar el sticky button
-  const [showSticky, setShowSticky] = useState(true);
-
-  // 2️⃣ Observer para la sección de paquetes
-  useEffect(() => {
-    const planesEl = document.getElementById('planes');
-    if (!planesEl) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => setShowSticky(!entry.isIntersecting),
-      { rootMargin: '0px 0px -100px 0px' }
-    );
-    observer.observe(planesEl);
-    return () => observer.disconnect();
-  }, []);
-
-  /* ───────── State ───────── */
-  const [processingPlan, setProcessingPlan] = useState<string | null>(null);
-  const [showSignModal, setShowSignModal] = useState(false);
-
-  /* ───────── Estados para el countdown ───────── */
-  const [gpSchedule, setGpSchedule] = useState<GpSchedule[]>([]);
-  const [currentGp, setCurrentGp] = useState<GpSchedule | null>(null);
-  const [qualyCountdown, setQualyCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
-  const [raceCountdown, setRaceCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
-  const [showQualy, setShowQualy] = useState(true);
-
-  /* ───────── Planes ───────── */
-  const planes: Plan[] = [
-    {
-      id: 'race-pass',
-      nombre: 'Race Pass',
-      precio: 2_000,
-      periodo: 'por carrera',
-      beneficios: [
-        'Predicciones VIP para 1 GP',
-        'Ranking exclusivo en vivo',
-        'Compite por merch oficial',
-        'Acceso al sorteo de premios en efectivo',
-      ]
-    },
-    {
-      id: 'season-pass',
-      nombre: 'Season Pass',
-      precio: 200_000,
-      periodo: 'temporada completa',
-      beneficios: [
-        'Acceso VIP a todos los GPs',
-        'Ahorra un 15 % vs Race Pass',
-        'Panel telemetry',
-        'Early-access a nuevas funciones',
-        'Soporte prioritario 24/7'
-      ],
-      isPopular: true
-    }
-  ];
-
-  /* ───────── FAQ ───────── */
-  const faqData: FAQ[] = [
-    {
-      q: '¿Qué incluye exactamente el Race Pass?',
-      a: 'El Race Pass te da acceso VIP a nuestras predicciones avanzadas, el ranking exclusivo con premios especiales y estadísticas detalladas para un único Gran Premio de tu elección.'
-    },
-    {
-      q: '¿Puedo cambiar de Race Pass a Season Pass más tarde?',
-      a: '¡Claro! Puedes hacer el upgrade en cualquier momento. Pagarás solo la diferencia y todos los puntos que hayas acumulado en tu ranking se mantendrán.'
-    },
-    {
-      q: '¿Qué tan seguro es el proceso de pago?',
-      a: 'Utilizamos Bold Checkout, una pasarela de pagos líder que cumple con los más altos estándares de seguridad, incluyendo cifrado TLS 1.2. Tu información de pago nunca toca nuestros servidores.'
-    },
-    {
-      q: '¿Cuál es la política de reembolso?',
-      a: 'Ofrecemos una garantía de satisfacción. Tienes 7 días para solicitar un reembolso completo, siempre y cuando no se haya disputado ningún Gran Premio desde el momento de tu compra.'
-    }
-  ];
-
-  /* ───────── Helpers ───────── */
-  const formatCOP = (n: number) =>
-    new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
-
-  const formatCountdown = (c: typeof qualyCountdown) => {
-    const d = String(Math.max(0, c.days)).padStart(2, '0');
-    const h = String(Math.max(0, c.hours)).padStart(2, '0');
-    const m = String(Math.max(0, c.minutes)).padStart(2, '0');
-    const s = String(Math.max(0, c.seconds)).padStart(2, '0');
-    return `${d}d ${h}h ${m}m ${s}s`;
-  };
-
-  /* ───────── Cargar calendario de GPs ───────── */
-  useEffect(() => {
-    supabase
-      .from('gp_schedule')
-      .select('gp_name, qualy_time, race_time')
-      .order('race_time', { ascending: true })
-      .then(({ data }) => data && setGpSchedule(data as GpSchedule[]));
-  }, []);
-
-  /* ───────── Lógica del countdown ───────── */
-  useEffect(() => {
-    if (!gpSchedule.length) return;
-
-    // Determina el próximo GP (primer GP futuro o buffer de 4h tras carrera)
-    const now = Date.now();
-    let idx = gpSchedule.findIndex(g => new Date(g.race_time).getTime() > now);
-    if (idx === -1) idx = gpSchedule.length - 1; // Si no hay GPs futuros, usa el último
-    setCurrentGp(gpSchedule[idx]);
-
-    const tick = () => {
-      if (!currentGp) return;
-      const now2 = Date.now();
-      const qDiff = new Date(currentGp.qualy_time).getTime() - now2;
-      const rDiff = new Date(currentGp.race_time).getTime() - now2;
-
-      setQualyCountdown({
-        days: Math.floor(qDiff / 86400000),
-        hours: Math.floor((qDiff % 86400000) / 3600000),
-        minutes: Math.floor((qDiff % 3600000) / 60000),
-        seconds: Math.floor((qDiff % 60000) / 1000),
-      });
-      setRaceCountdown({
-        days: Math.floor(rDiff / 86400000),
-        hours: Math.floor((rDiff % 86400000) / 3600000),
-        minutes: Math.floor((rDiff % 3600000) / 60000),
-        seconds: Math.floor((rDiff % 60000) / 1000),
-      });
-    };
-
-    tick();
-    const iv = setInterval(() => {
-      tick();
-      setShowQualy(prev => !prev); // Alterna cada 5 segundos
-    }, 5000);
-    return () => clearInterval(iv);
-  }, [gpSchedule, currentGp]);
-
-  // 1. Add payment verification endpoint
-  const verifyPayment = async (orderId: string) => {
-    try {
-      const res = await fetch('/api/vip/verify-payment', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId })
-      });
-      
-      if (!res.ok) throw new Error('Verification failed');
-      
-      const data = await res.json();
-      return data;
-    } catch (error) {
-      console.error('Payment verification error:', error);
-      return null;
-    }
-  };
-
-  // 3. Update handlePurchase function with better error handling
-  const handlePurchase = async (planId: Plan['id']) => {
-    console.log('🛒 handlePurchase invocado para:', planId);
-    const plan = planes.find(p => p.id === planId);
-    if (!plan) return;
-
-    // 1️⃣ Requiere sesión
-    if (!isSignedIn || !user) {
-      // Store the desired plan for after login
-      sessionStorage.setItem('pendingVipPlan', planId);
-      clerk.openSignIn({ 
-        redirectUrl: window.location.href,
-        afterSignInUrl: window.location.href
-      });
-      return;
-    }
-
-    // Check for pending plan after login
-    const pendingPlan = sessionStorage.getItem('pendingVipPlan');
-    if (pendingPlan && !planId) {
-      sessionStorage.removeItem('pendingVipPlan');
-      handlePurchase(pendingPlan as Plan['id']);
-      return;
-    }
-
-    // 2️⃣ Verificar apiKey de Bold
-    const apiKey = process.env.NEXT_PUBLIC_BOLD_BUTTON_KEY;
-    if (!apiKey) {
-      toast.error('El sistema de pagos no está disponible temporalmente. Por favor intenta más tarde.');
-      return;
-    }
-
-    try {
-      setProcessingPlan(planId);
-
-      // 3️⃣ Crear orden en el backend
-      const res = await fetch('/api/vip/register-order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          planId: plan.id,
-          planName: plan.nombre,
-          amount: plan.precio,
-          fullName: user.fullName,
-          email: user.primaryEmailAddress?.emailAddress,
-        }),
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({ error: 'Error desconocido' }));
-        throw new Error(errorData.error || 'Error creando orden');
+   interface Plan {
+    id: 'race-pass' | 'season-pass';
+    nombre: string;
+    precio: number;        // COP
+    periodo: string;
+    beneficios: string[];
+    isPopular?: boolean;
+  }
+  
+  interface FAQ { q: string; a: string; }
+  
+  export default function FantasyVipLanding() {
+    /* ───────── Clerk & Router ───────── */
+    const clerk = useClerk();
+    const router = useRouter();
+    const { isSignedIn, user } = useUser();
+  
+    // Ref para recordar el plan que queremos comprar tras login
+    const pendingPlanRef = useRef<string | null>(null);
+  
+    // 1️⃣ Estado para mostrar/ocultar el sticky button
+    const [showSticky, setShowSticky] = useState(true);
+  
+    // 2️⃣ Observer para la sección de paquetes
+    useEffect(() => {
+      const planesEl = document.getElementById('planes');
+      if (!planesEl) return;
+      const observer = new IntersectionObserver(
+        ([entry]) => setShowSticky(!entry.isIntersecting),
+        { rootMargin: '0px 0px -100px 0px' }
+      );
+      observer.observe(planesEl);
+      return () => observer.disconnect();
+    }, []);
+  
+    /* ───────── State ───────── */
+    const [processingPlan, setProcessingPlan] = useState<string | null>(null);
+    const [showSignModal, setShowSignModal] = useState(false);
+  
+    /* ───────── Estados para el countdown ───────── */
+    const [gpSchedule, setGpSchedule] = useState<GpSchedule[]>([]);
+    const [currentGp, setCurrentGp] = useState<GpSchedule | null>(null);
+    const [qualyCountdown, setQualyCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+    const [raceCountdown, setRaceCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+    const [showQualy, setShowQualy] = useState(true);
+  
+    /* ───────── Planes ───────── */
+    const planes: Plan[] = [
+      {
+        id: 'race-pass',
+        nombre: 'Race Pass',
+        precio: 2_000,
+        periodo: 'por carrera',
+        beneficios: [
+          'Predicciones VIP para 1 GP',
+          'Ranking exclusivo en vivo',
+          'Compite por merch oficial',
+          'Acceso al sorteo de premios en efectivo',
+        ]
+      },
+      {
+        id: 'season-pass',
+        nombre: 'Season Pass',
+        precio: 200_000,
+        periodo: 'temporada completa',
+        beneficios: [
+          'Acceso VIP a todos los GPs',
+          'Ahorra un 15 % vs Race Pass',
+          'Panel telemetry',
+          'Early-access a nuevas funciones',
+          'Soporte prioritario 24/7'
+        ],
+        isPopular: true
       }
-
-      const { orderId, amount, redirectionUrl, integritySignature } = await res.json();
-
-      // 4️⃣ Configuración para Bold Checkout
-      const config = {
-        apiKey,
-        orderId,
-        amount,
-        currency: 'COP',
-        description: `Acceso VIP · ${plan.nombre}`,
-        redirectionUrl,
-        integritySignature,
-        renderMode: 'embedded',
-        containerId: 'bold-embed-vip',
-        customerData: JSON.stringify({
-          email: user.primaryEmailAddress?.emailAddress ?? '',
-          fullName: user.fullName ?? '',
-        }),
+    ];
+  
+    /* ───────── FAQ ───────── */
+    const faqData: FAQ[] = [
+      {
+        q: '¿Qué incluye exactamente el Race Pass?',
+        a: 'El Race Pass te da acceso VIP a nuestras predicciones avanzadas, el ranking exclusivo con premios especiales y estadísticas detalladas para un único Gran Premio de tu elección.'
+      },
+      {
+        q: '¿Puedo cambiar de Race Pass a Season Pass más tarde?',
+        a: '¡Claro! Puedes hacer el upgrade en cualquier momento. Pagarás solo la diferencia y todos los puntos que hayas acumulado en tu ranking se mantendrán.'
+      },
+      {
+        q: '¿Qué tan seguro es el proceso de pago?',
+        a: 'Utilizamos Bold Checkout, una pasarela de pagos líder que cumple con los más altos estándares de seguridad, incluyendo cifrado TLS 1.2. Tu información de pago nunca toca nuestros servidores.'
+      },
+      {
+        q: '¿Cuál es la política de reembolso?',
+        a: 'Ofrecemos una garantía de satisfacción. Tienes 7 días para solicitar un reembolso completo, siempre y cuando no se haya disputado ningún Gran Premio desde el momento de tu compra.'
+      }
+    ];
+  
+    /* ───────── Helpers ───────── */
+    const formatCOP = (n: number) =>
+      new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
+  
+    const formatCountdown = (c: typeof qualyCountdown) => {
+      const d = String(Math.max(0, c.days)).padStart(2, '0');
+      const h = String(Math.max(0, c.hours)).padStart(2, '0');
+      const m = String(Math.max(0, c.minutes)).padStart(2, '0');
+      const s = String(Math.max(0, c.seconds)).padStart(2, '0');
+      return `${d}d ${h}h ${m}m ${s}s`;
+    };
+  
+    /* ───────── Cargar calendario de GPs ───────── */
+    useEffect(() => {
+      supabase
+        .from('gp_schedule')
+        .select('gp_name, qualy_time, race_time')
+        .order('race_time', { ascending: true })
+        .then(({ data }) => data && setGpSchedule(data as GpSchedule[]));
+    }, []);
+  
+    /* ───────── Lógica del countdown ───────── */
+    useEffect(() => {
+      if (!gpSchedule.length) return;
+  
+      // Determina el próximo GP (primer GP futuro o buffer de 4h tras carrera)
+      const now = Date.now();
+      let idx = gpSchedule.findIndex(g => new Date(g.race_time).getTime() > now);
+      if (idx === -1) idx = gpSchedule.length - 1; // Si no hay GPs futuros, usa el último
+      setCurrentGp(gpSchedule[idx]);
+  
+      const tick = () => {
+        if (!currentGp) return;
+        const now2 = Date.now();
+        const qDiff = new Date(currentGp.qualy_time).getTime() - now2;
+        const rDiff = new Date(currentGp.race_time).getTime() - now2;
+  
+        setQualyCountdown({
+          days: Math.floor(qDiff / 86400000),
+          hours: Math.floor((qDiff % 86400000) / 3600000),
+          minutes: Math.floor((qDiff % 3600000) / 60000),
+          seconds: Math.floor((qDiff % 60000) / 1000),
+        });
+        setRaceCountdown({
+          days: Math.floor(rDiff / 86400000),
+          hours: Math.floor((rDiff % 86400000) / 3600000),
+          minutes: Math.floor((rDiff % 3600000) / 60000),
+          seconds: Math.floor((rDiff % 60000) / 1000),
+        });
       };
-
-      // 5️⃣ Abrir Bold Checkout
-      openBoldCheckout({
-        ...config,
-        onSuccess: async () => {
-          toast.success('✅ Pago exitoso! Redirigiendo...', { duration: 2000 });
-          setProcessingPlan(null);
-          // Redirect to success page immediately
-          router.push(`/fantasy-vip-success?orderId=${orderId}`);
-        },
-        onFailed: ({ message }: { message?: string }) => {
-          toast.error(`Pago rechazado: ${message || 'Por favor intenta con otro método de pago'}`);
-          setProcessingPlan(null);
-        },
-        onPending: () => {
-          toast.info('Tu pago está siendo procesado...');
-          setProcessingPlan(null);
-          // Also redirect to success page for pending payments
-          router.push(`/fantasy-vip-success?orderId=${orderId}`);
-        },
-        onClose: () => {
-          if (processingPlan) {
-            toast.info('Pago cancelado');
-            setProcessingPlan(null);
+  
+      tick();
+      const iv = setInterval(() => {
+        tick();
+        setShowQualy(prev => !prev); // Alterna cada 5 segundos
+      }, 5000);
+      return () => clearInterval(iv);
+    }, [gpSchedule, currentGp]);
+  
+    /* ───────── Check for pending plan after login ───────── */
+    useEffect(() => {
+      // Only run once after component mounts and user is signed in
+      if (!isSignedIn || !user) return;
+      
+      const pendingPlan = sessionStorage.getItem('pendingVipPlan');
+      if (pendingPlan) {
+        sessionStorage.removeItem('pendingVipPlan');
+        // Trigger purchase after a small delay
+        const timer = setTimeout(() => {
+          const button = document.querySelector(`[data-plan-id="${pendingPlan}"]`);
+          if (button) {
+            (button as HTMLButtonElement).click();
           }
-        },
-      }); 
-
-    } catch (err: any) {
-      console.error('Error en handlePurchase:', err);
-      toast.error(err.message || 'Error al iniciar el proceso de pago');
-      setProcessingPlan(null);
-    }
-  };
+        }, 500);
+        
+        return () => clearTimeout(timer);
+      }
+    }, [isSignedIn, user]);
+  
+    /* ───────── Verify Payment ───────── */
+    const verifyPayment = async (orderId: string) => {
+      try {
+        const res = await fetch('/api/vip/verify-payment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId })
+        });
+        
+        if (!res.ok) throw new Error('Verification failed');
+        
+        const data = await res.json();
+        return data;
+      } catch (error) {
+        console.error('Payment verification error:', error);
+        return null;
+      }
+    };
+  
+    /* ───────── Handle Purchase ───────── */
+    const handlePurchase = async (planId: Plan['id']) => {
+      console.log('🛒 handlePurchase invocado para:', planId);
+      const plan = planes.find(p => p.id === planId);
+      if (!plan) return;
+    
+      // 1️⃣ Requiere sesión
+      if (!isSignedIn || !user) {
+        // Store the desired plan for after login
+        sessionStorage.setItem('pendingVipPlan', planId);
+        clerk.openSignIn({ 
+          redirectUrl: window.location.href,
+          afterSignInUrl: window.location.href
+        });
+        return;
+      }
+  
+      // Check for pending plan after login
+      const pendingPlan = sessionStorage.getItem('pendingVipPlan');
+      if (pendingPlan && !planId) {
+        sessionStorage.removeItem('pendingVipPlan');
+        handlePurchase(pendingPlan as Plan['id']);
+        return;
+      }
+  
+      // 2️⃣ Verificar apiKey de Bold
+      const apiKey = process.env.NEXT_PUBLIC_BOLD_BUTTON_KEY;
+      if (!apiKey) {
+        toast.error('El sistema de pagos no está disponible temporalmente. Por favor intenta más tarde.');
+        return;
+      }
+  
+      try {
+        setProcessingPlan(planId);
+  
+        // 3️⃣ Crear orden en el backend
+        const res = await fetch('/api/vip/register-order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            planId: plan.id,
+            planName: plan.nombre,
+            amount: plan.precio,
+            fullName: user.fullName,
+            email: user.primaryEmailAddress?.emailAddress,
+          }),
+        });
+  
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({ error: 'Error desconocido' }));
+          throw new Error(errorData.error || 'Error creando orden');
+        }
+  
+        const { orderId, amount, redirectionUrl, integritySignature } = await res.json();
+  
+        // 4️⃣ Configuración para Bold Checkout
+        const config = {
+          apiKey,
+          orderId,
+          amount,
+          currency: 'COP',
+          description: `Acceso VIP · ${plan.nombre}`,
+          redirectionUrl,
+          integritySignature,
+          renderMode: 'embedded',
+          containerId: 'bold-embed-vip',
+          customerData: JSON.stringify({
+            email: user.primaryEmailAddress?.emailAddress ?? '',
+            fullName: user.fullName ?? '',
+          }),
+        };
+  
+        // 5️⃣ Abrir Bold Checkout
+        openBoldCheckout({
+          ...config,
+          onSuccess: async () => {
+            toast.success('✅ Pago exitoso! Redirigiendo...', { duration: 2000 });
+            setProcessingPlan(null);
+            // Redirect to success page immediately
+            router.push(`/fantasy-vip-success?orderId=${orderId}`);
+          },
+          onFailed: ({ message }: { message?: string }) => {
+            toast.error(`Pago rechazado: ${message || 'Por favor intenta con otro método de pago'}`);
+            setProcessingPlan(null);
+          },
+          onPending: () => {
+            toast.info('Tu pago está siendo procesado...');
+            setProcessingPlan(null);
+            // Also redirect to success page for pending payments
+            router.push(`/fantasy-vip-success?orderId=${orderId}`);
+          },
+          onClose: () => {
+            if (processingPlan) {
+              toast.info('Pago cancelado');
+              setProcessingPlan(null);
+            }
+          },
+        }); 
+  
+      } catch (err: any) {
+        console.error('Error en handlePurchase:', err);
+        toast.error(err.message || 'Error al iniciar el proceso de pago');
+        setProcessingPlan(null);
+      }
+    };
 
   /* ───────── Glow util ───────── */
   const Glow = () => (
@@ -1316,21 +1336,21 @@ export default function FantasyVipLanding() {
 
 return (
   <>
-{/* Contenedor para el embed de Bold: sólo mientras processPlan esté activo */}
-{processingPlan && (
-  <div
-    id="bold-embed-vip"
-    data-bold-embed
-    className="fixed inset-0 z-[100] pointer-events-none"
-  >
-    <style>{`
-      /* Sólo los hijos directos (el iframe de Bold) recibirán clicks */
-      #bold-embed-vip > * {
-        pointer-events: auto !important;
-      }
-    `}</style>
-  </div>
-)}
+    {/* Contenedor para el embed de Bold: sólo mientras processPlan esté activo */}
+    {processingPlan && (
+      <div
+        id="bold-embed-vip"
+        data-bold-embed
+        className="fixed inset-0 z-[100] pointer-events-none"
+      >
+        <style>{`
+          /* Sólo los hijos directos (el iframe de Bold) recibirán clicks */
+          #bold-embed-vip > * {
+            pointer-events: auto !important;
+          }
+        `}</style>
+      </div>
+    )}
 
     <MovingBarFantasy />
 
@@ -1366,15 +1386,21 @@ return (
 
       <main className="relative z-10">
 
-{/* ───────────── HERO OPTIMIZADO ───────────── */}
+    {/* ───────────── HERO OPTIMIZADO ───────────── */}
 <section className="relative py-8 sm:py-12 lg:py-16 px-4 sm:px-6 overflow-hidden">
   {/* Background Enhancement */}
   <div className="absolute inset-0 bg-gradient-to-br from-red-900/10 via-transparent to-orange-900/10" />
   <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(255,107,107,0.1),transparent_50%)]" />
   
-  <div className="relative max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-    {/* 1️⃣ Headline */}
-    <div className="order-1 space-y-6 text-center lg:text-left">
+  {/* This is the main grid container.
+    The key is that it now has TWO direct children below, which allows 
+    `lg:grid-cols-2` to correctly create a two-column layout on desktop.
+    I've added `lg:items-center` for better vertical alignment on desktop.
+  */}
+  <div className="relative max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8 items-start lg:items-center">
+    
+    {/* 1️⃣ First Column (Headline) */}
+    <div className="space-y-6 text-center lg:text-left">
       {/* Social Proof Badge */}
       <motion.div
         className="inline-flex items-center gap-2 bg-green-500/20 border border-green-400/40 rounded-full px-5 py-2.5 text-green-300 text-sm font-semibold shadow-lg backdrop-blur-sm"
@@ -1390,494 +1416,495 @@ return (
       </motion.div>
 
       {/* Headline */}
-<motion.h1
-  className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black leading-[1.1] tracking-tight"
-  initial={{ y: 30, opacity: 0 }}
-  animate={{ y: 0, opacity: 1 }}
-  transition={{ duration: 0.7 }}
->
-  <span className="block text-white drop-shadow-lg">
-    Envía Tus Predicciones
-  </span>
-  <span className="block bg-clip-text text-transparent bg-gradient-to-r from-amber-300 via-orange-400 to-red-400 drop-shadow-lg">
-    Gana Un Viaje A La F1
-  </span>
-</motion.h1>
-
-{/* 2️⃣ Video + CTA */}
-<div className="order-2 flex flex-col items-center lg:items-start space-y-6">
-  {/* Video */}
-  <motion.div
-    className="w-full max-w-md mx-auto lg:mx-0"
-    initial={{ y: 20, opacity: 0 }}
-    animate={{ y: 0, opacity: 1 }}
-    transition={{ duration: 0.7, delay: 0.1 }}
-  >
-    <VideoPlayer />
-  </motion.div>
-
-  
-<StickyAccessCTA />
-
-</div>
-</div>
-</div>
-</section>
-
-{/* ─── Testimonial Section (Social Proof) ─── */}
-<section className="relative py-12 px-4 sm:px-6 bg-gradient-to-b from-neutral-950 to-neutral-900 overflow-hidden">
-  {/* Background Elements */}
-  <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(245,158,11,0.05),transparent_70%)]" />
-  <div className="absolute top-0 left-1/4 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl" />
-  <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-orange-500/5 rounded-full blur-3xl" />
-  
-  <div className="relative max-w-4xl mx-auto">
-    <motion.div
-      initial={{ y: 20, opacity: 0 }}
-      whileInView={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.6 }}
-      viewport={{ once: true }}
-      className="text-center"
-    >
-      <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold mb-3 bg-gradient-to-r from-amber-400 via-orange-500 to-red-400 bg-clip-text text-transparent drop-shadow-lg">
-        El mejor fantasy de la F1
-      </h2>
-      <p className="text-gray-300 text-lg lg:text-xl max-w-2xl mx-auto mb-12 leading-relaxed">
-        Nuestros miembros ya viven la adrenalina de <strong className="text-amber-400">predecir,
-        sumar puntos y liderar el ranking</strong> antes del debut con premios.
-      </p>
-
-      <div className="grid md:grid-cols-3 gap-6 lg:gap-8">
-        {/* Card 1 */}
-        <motion.div 
-          className="group relative rounded-2xl border border-amber-500/30 bg-gradient-to-br from-neutral-800/80 to-neutral-900/60 p-6 backdrop-blur-sm hover:border-amber-500/50 transition-all duration-300 hover:transform hover:scale-105"
-          initial={{ y: 20, opacity: 0 }}
-          whileInView={{ y: 0, opacity: 1 }}
-          transition={{ duration: 0.6, delay: 0.1 }}
-          viewport={{ once: true }}
-        >
-          {/* Glow Effect */}
-          <div className="absolute -inset-0.5 bg-gradient-to-r from-amber-500/20 to-orange-500/20 rounded-2xl blur opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-          
-          <span className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-500 to-amber-400 text-black text-xs font-bold px-4 py-1.5 rounded-full shadow-xl border border-amber-300">
-            Top-20 Pretemporada
-          </span>
-          
-          <div className="relative">
-            <div className="flex items-center gap-3 mb-4 pt-4">
-              <div className="h-12 w-12 rounded-full bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center font-bold text-black shadow-lg">
-                JC
-              </div>
-              <div>
-                <p className="font-semibold text-white">Juan Carlos</p>
-                <p className="text-sm text-gray-400 flex items-center gap-1">
-                  <span className="w-2 h-2 bg-green-400 rounded-full"></span>
-                  Medellín, CO
-                </p>
-              </div>
-            </div>
-            <p className="text-gray-300 text-sm italic mb-4 leading-relaxed">
-              "Nunca había visto una carrera con tanta emoción. Mis predicciones
-              suben en el ranking y ya quiero competir por premios."
-            </p>
-            <div className="text-amber-400 text-lg">⭐⭐⭐⭐⭐</div>
-          </div>
-        </motion.div>
-
-        {/* Card 2 */}
-        <motion.div 
-          className="group relative rounded-2xl border border-amber-500/30 bg-gradient-to-br from-neutral-800/80 to-neutral-900/60 p-6 backdrop-blur-sm hover:border-amber-500/50 transition-all duration-300 hover:transform hover:scale-105"
-          initial={{ y: 20, opacity: 0 }}
-          whileInView={{ y: 0, opacity: 1 }}
-          transition={{ duration: 0.6, delay: 0.2 }}
-          viewport={{ once: true }}
-        >
-          {/* Glow Effect */}
-          <div className="absolute -inset-0.5 bg-gradient-to-r from-amber-500/20 to-orange-500/20 rounded-2xl blur opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-          
-          <span className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-500 to-amber-400 text-black text-xs font-bold px-4 py-1.5 rounded-full shadow-xl border border-amber-300">
-            Fanática #1
-          </span>
-          
-          <div className="relative">
-            <div className="flex items-center gap-3 mb-4 pt-4">
-              <div className="h-12 w-12 rounded-full bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center font-bold text-black shadow-lg">
-                MR
-              </div>
-              <div>
-                <p className="font-semibold text-white">María Rodríguez</p>
-                <p className="text-sm text-gray-400 flex items-center gap-1">
-                  <span className="w-2 h-2 bg-green-400 rounded-full"></span>
-                  Bogotá, CO
-                </p>
-              </div>
-            </div>
-            <p className="text-gray-300 text-sm italic mb-4 leading-relaxed">
-              "Competir contra otros y ver la tabla en vivo es
-              adictivo. ¡Ansiosa por los premios reales!"
-            </p>
-            <div className="text-amber-400 text-lg">⭐⭐⭐⭐⭐</div>
-          </div>
-        </motion.div>
-
-        {/* Card 3 */}
-        <motion.div 
-          className="group relative rounded-2xl border border-amber-500/30 bg-gradient-to-br from-neutral-800/80 to-neutral-900/60 p-6 backdrop-blur-sm hover:border-amber-500/50 transition-all duration-300 hover:transform hover:scale-105"
-          initial={{ y: 20, opacity: 0 }}
-          whileInView={{ y: 0, opacity: 1 }}
-          transition={{ duration: 0.6, delay: 0.3 }}
-          viewport={{ once: true }}
-        >
-          {/* Glow Effect */}
-          <div className="absolute -inset-0.5 bg-gradient-to-r from-amber-500/20 to-orange-500/20 rounded-2xl blur opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-          
-          <span className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-500 to-amber-400 text-black text-xs font-bold px-4 py-1.5 rounded-full shadow-xl border border-amber-300">
-            Season Pass
-          </span>
-          
-          <div className="relative">
-            <div className="flex items-center gap-3 mb-4 pt-4">
-              <div className="h-12 w-12 rounded-full bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center font-bold text-black shadow-lg">
-                AL
-              </div>
-              <div>
-                <p className="font-semibold text-white">Andrés López</p>
-                <p className="text-sm text-gray-400 flex items-center gap-1">
-                  <span className="w-2 h-2 bg-green-400 rounded-full"></span>
-                  Cali, CO
-                </p>
-              </div>
-            </div>
-            <p className="text-gray-300 text-sm italic mb-4 leading-relaxed">
-              "Solo por el dashboard y la comunidad ya vale la
-              pena. Esto va a romperla cuando empiecen los premios."
-            </p>
-            <div className="text-amber-400 text-lg">⭐⭐⭐⭐⭐</div>
-          </div>
-        </motion.div>
-      </div>
-    </motion.div>
-  </div>
-</section>
-
-        {/* ─── Premios VIP 2025 (Optimized with testimonial patterns) ─── */}
-<section className="relative py-16 sm:py-20 px-4 sm:px-6 bg-gradient-to-b from-neutral-900 to-neutral-950 overflow-hidden">
-  {/* Background Elements */}
-  <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(245,158,11,0.08),transparent_70%)]" />
-  <div className="absolute top-0 left-1/3 w-96 h-96 bg-amber-500/8 rounded-full blur-3xl" />
-  <div className="absolute bottom-0 right-1/3 w-96 h-96 bg-orange-500/8 rounded-full blur-3xl" />
-  
-  <div className="relative max-w-6xl mx-auto">
-    <motion.div
-      className="text-center mb-12"
-      initial={{ y: 20, opacity: 0 }}
-      whileInView={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.6 }}
-      viewport={{ once: true }}
-    >
-      <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold mb-4 bg-gradient-to-r from-amber-400 via-orange-500 to-red-400 bg-clip-text text-transparent drop-shadow-lg">
-        Un Botín de $75,000 USD te Espera
-      </h2>
-      <p className="text-gray-300 text-lg lg:text-xl max-w-2xl mx-auto mb-8 leading-relaxed">
-        Tu membresía VIP es la llave para competir por estos premios que <strong className="text-amber-400">cambiarán tu vida</strong>.
-      </p>
-      
-      {/* Urgency Indicator */}
-      <div className="inline-flex items-center gap-2 bg-red-600/20 border border-red-500/30 rounded-full px-4 py-2 text-red-400 text-sm font-medium mb-8">
-        <span className="animate-ping w-2 h-2 bg-red-400 rounded-full"></span>
-        Cupos limitados con 40% de descuento
-      </div>
-    </motion.div>
-
-    <div className="grid gap-6 lg:gap-8 md:grid-cols-3">
-      {/* Prize Card 1 - Grand Prize */}
-      <motion.div
+      <motion.h1
+        className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black leading-[1.1] tracking-tight"
         initial={{ y: 30, opacity: 0 }}
-        whileInView={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.6, delay: 0.1 }}
-        viewport={{ once: true }}
-        className="group relative rounded-2xl border border-amber-500/40 bg-gradient-to-br from-neutral-800/90 to-neutral-900/70 p-6 backdrop-blur-sm hover:border-amber-500/60 transition-all duration-300 hover:transform hover:scale-105"
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.7 }}
       >
-        {/* Glow Effect */}
-        <div className="absolute -inset-0.5 bg-gradient-to-r from-amber-500/30 to-orange-500/30 rounded-2xl blur opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-        
-        {/* Badge */}
-        <span className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-red-600 to-red-500 text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-xl border border-red-400">
-          🏆 PREMIO MÁXIMO
+        <span className="block text-white drop-shadow-lg">
+          Envía Tus Predicciones
         </span>
-        
-        <div className="relative pt-4">
-          <div className="text-center mb-6">
-            <div className="text-3xl font-black text-amber-400 mb-2">Viaje VIP F1 2026</div>
-            <div className="text-amber-300 text-sm font-semibold">Valor: $20,000+ USD</div>
-          </div>
-          
-          <div className="space-y-3 mb-6">
-            <div className="flex items-center gap-3 text-gray-300 text-sm">
-              <span className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></span>
-              <span><strong className="text-white">Top 2 del ranking anual</strong> ganan automáticamente</span>
-            </div>
-            <div className="flex items-center gap-3 text-gray-300 text-sm">
-              <span className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></span>
-              <span><strong className="text-white">1 ganador por sorteo</strong> entre todos los VIP</span>
-            </div>
-            <div className="flex items-center gap-3 text-gray-300 text-sm">
-              <span className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></span>
-              <span>Vuelos, hotel 5⭐ y suite de hospitalidad incluidos</span>
-            </div>
-          </div>
-          
-          <div className="bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30 rounded-lg p-3 text-center">
-            <p className="text-amber-300 text-xs font-semibold">
-              ✈️ Experiencia todo pagado para 1 persona.
-            </p>
-          </div>
-        </div>
-      </motion.div>
-
-      {/* Prize Card 2 - Race Winnings */}
-      <motion.div
-        initial={{ y: 30, opacity: 0 }}
-        whileInView={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.6, delay: 0.2 }}
-        viewport={{ once: true }}
-        className="group relative rounded-2xl border border-orange-500/40 bg-gradient-to-br from-neutral-800/90 to-neutral-900/70 p-6 backdrop-blur-sm hover:border-orange-500/60 transition-all duration-300 hover:transform hover:scale-105"
-      >
-        {/* Glow Effect */}
-        <div className="absolute -inset-0.5 bg-gradient-to-r from-orange-500/30 to-red-500/30 rounded-2xl blur opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-        
-        {/* Badge */}
-        <span className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-orange-600 to-orange-500 text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-xl border border-orange-400">
-          💰 CADA CARRERA
+        <span className="block bg-clip-text text-transparent bg-gradient-to-r from-amber-300 via-orange-400 to-red-400 drop-shadow-lg">
+          Gana Un Viaje A La F1
         </span>
-        
-        <div className="relative pt-4">
-          <div className="text-center mb-6">
-            <div className="text-3xl font-black text-orange-400 mb-2">$20,000 USD</div>
-            <div className="text-orange-300 text-sm font-semibold">En premios por temporada</div>
-          </div>
-          
-          <div className="space-y-3 mb-6">
-            <div className="flex items-center gap-3 text-gray-300 text-sm">
-              <span className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></span>
-              <span><strong className="text-white">$500-$1,500 USD</strong> por carrera a los mejores</span>
-            </div>
-            <div className="flex items-center gap-3 text-gray-300 text-sm">
-              <span className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></span>
-              <span>Merchandising oficial de F1 incluido</span>
-            </div>
-            <div className="flex items-center gap-3 text-gray-300 text-sm">
-              <span className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></span>
-              <span>24 oportunidades de ganar en el año</span>
-            </div>
-          </div>
-          
-          <div className="bg-gradient-to-r from-orange-500/20 to-red-500/20 border border-orange-500/30 rounded-lg p-3 text-center">
-            <p className="text-orange-300 text-xs font-semibold">
-              🏁 Gana dinero real cada fin de semana
-            </p>
-          </div>
-        </div>
-      </motion.div>
-
-      {/* Prize Card 3 - Weekly Draws */}
-      <motion.div
-        initial={{ y: 30, opacity: 0 }}
-        whileInView={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.6, delay: 0.3 }}
-        viewport={{ once: true }}
-        className="group relative rounded-2xl border border-cyan-500/40 bg-gradient-to-br from-neutral-800/90 to-neutral-900/70 p-6 backdrop-blur-sm hover:border-cyan-500/60 transition-all duration-300 hover:transform hover:scale-105"
-      >
-        {/* Glow Effect */}
-        <div className="absolute -inset-0.5 bg-gradient-to-r from-cyan-500/30 to-blue-500/30 rounded-2xl blur opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-        
-        {/* Badge */}
-        <span className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-cyan-600 to-cyan-500 text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-xl border border-cyan-400">
-          🎲 SORTEOS VIP
-        </span>
-        
-        <div className="relative pt-4">
-          <div className="text-center mb-6">
-            <div className="text-3xl font-black text-cyan-400 mb-2">$5,000 USD</div>
-            <div className="text-cyan-300 text-sm font-semibold">En sorteos semanales</div>
-          </div>
-          
-          <div className="space-y-3 mb-6">
-            <div className="flex items-center gap-3 text-gray-300 text-sm">
-              <span className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></span>
-              <span><strong className="text-white">3 ganadores aleatorios</strong> cada GP</span>
-            </div>
-            <div className="flex items-center gap-3 text-gray-300 text-sm">
-              <span className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></span>
-              <span>$200-$300 USD por ganador</span>
-            </div>
-            <div className="flex items-center gap-3 text-gray-300 text-sm">
-              <span className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></span>
-              <span>Solo por participar, sin requisitos</span>
-            </div>
-          </div>
-          
-          <div className="bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-cyan-500/30 rounded-lg p-3 text-center">
-            <p className="text-cyan-300 text-xs font-semibold">
-              🍀 Suerte pura, solo para miembros VIP
-            </p>
-          </div>
-        </div>
-      </motion.div>
+      </motion.h1>
     </div>
 
-    {/* Final CTA Section */}
-    <motion.div
-      className="mt-12 text-center"
-      initial={{ y: 20, opacity: 0 }}
-      whileInView={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.6, delay: 0.4 }}
-      viewport={{ once: true }}
-    >
-      <div className="bg-gradient-to-r from-neutral-800/80 to-neutral-900/60 border border-amber-500/30 rounded-2xl p-6 max-w-2xl mx-auto backdrop-blur-sm">
-        <h3 className="text-xl sm:text-2xl font-bold text-white mb-3">
-          ¿Listo para cambiar tu vida con F1?
-        </h3>
-        <p className="text-gray-300 text-sm sm:text-base mb-4">
-          Más de <strong className="text-amber-400">$75,000 USD en premios</strong> esperan a los miembros VIP. 
-          Tu oportunidad de ganar empieza ahora.
-        </p>
-        <div className="flex items-center justify-center gap-2 text-green-400 text-sm">
-          <span className="animate-pulse w-2 h-2 bg-green-400 rounded-full"></span>
-          <span>184 miembros VIP ya compitiendo</span>
-        </div>
-      </div>
-    </motion.div>
-  </div>
+    {/* 2️⃣ Second Column (Video + CTA) */}
+    <div className="flex flex-col items-center lg:items-start space-y-6">
+      {/* Video */}
+      <motion.div
+        className="w-full max-w-md mx-auto lg:mx-0"
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.7, delay: 0.1 }}
+      >
+        {/* Make sure <VideoPlayer /> is defined or imported in your file */}
+        <VideoPlayer /> 
+      </motion.div>
+      
+      {/* Make sure <StickyAccessCTA /> is defined or imported in your file */}
+      <StickyAccessCTA />
+    </div>
 
-            {/* OPTIMIZATION: Urgency element - Made more specific and believable */}
+  </div>
+</section>
+
+        {/* ─── Testimonial Section (Social Proof) ─── */}
+        <section className="relative py-12 px-4 sm:px-6 bg-gradient-to-b from-neutral-950 to-neutral-900 overflow-hidden">
+          {/* Background Elements */}
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(245,158,11,0.05),transparent_70%)]" />
+          <div className="absolute top-0 left-1/4 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl" />
+          <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-orange-500/5 rounded-full blur-3xl" />
+          
+          <div className="relative max-w-4xl mx-auto">
             <motion.div
-              className="mt-8 text-center"
               initial={{ y: 20, opacity: 0 }}
               whileInView={{ y: 0, opacity: 1 }}
-              transition={{ duration: 0.5, delay: 0.3 }}
+              transition={{ duration: 0.6 }}
               viewport={{ once: true }}
+              className="text-center"
             >
-              <div className="inline-flex items-center gap-2 bg-red-600/20 border border-red-500/30 rounded-full px-4 py-2 text-red-400 text-sm font-medium">
-                <span className="animate-ping w-2 h-2 bg-red-400 rounded-full"></span>
-                Atención: Cupos con descuento limtiados
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold mb-3 bg-gradient-to-r from-amber-400 via-orange-500 to-red-400 bg-clip-text text-transparent drop-shadow-lg">
+                El mejor fantasy de la F1
+              </h2>
+              <p className="text-gray-300 text-lg lg:text-xl max-w-2xl mx-auto mb-12 leading-relaxed">
+                Nuestros miembros ya viven la adrenalina de <strong className="text-amber-400">predecir,
+                sumar puntos y liderar el ranking</strong> antes del debut con premios.
+              </p>
+
+              <div className="grid md:grid-cols-3 gap-6 lg:gap-8">
+                {/* Card 1 */}
+                <motion.div 
+                  className="group relative rounded-2xl border border-amber-500/30 bg-gradient-to-br from-neutral-800/80 to-neutral-900/60 p-6 backdrop-blur-sm hover:border-amber-500/50 transition-all duration-300 hover:transform hover:scale-105"
+                  initial={{ y: 20, opacity: 0 }}
+                  whileInView={{ y: 0, opacity: 1 }}
+                  transition={{ duration: 0.6, delay: 0.1 }}
+                  viewport={{ once: true }}
+                >
+                  {/* Glow Effect */}
+                  <div className="absolute -inset-0.5 bg-gradient-to-r from-amber-500/20 to-orange-500/20 rounded-2xl blur opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  
+                  <span className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-500 to-amber-400 text-black text-xs font-bold px-4 py-1.5 rounded-full shadow-xl border border-amber-300">
+                    Top-20 Pretemporada
+                  </span>
+                  
+                  <div className="relative">
+                    <div className="flex items-center gap-3 mb-4 pt-4">
+                      <div className="h-12 w-12 rounded-full bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center font-bold text-black shadow-lg">
+                        JC
+                      </div>
+                      <div>
+                        <p className="font-semibold text-white">Juan Carlos</p>
+                        <p className="text-sm text-gray-400 flex items-center gap-1">
+                          <span className="w-2 h-2 bg-green-400 rounded-full"></span>
+                          Medellín, CO
+                        </p>
+                      </div>
+                    </div>
+                    <p className="text-gray-300 text-sm italic mb-4 leading-relaxed">
+                      "Nunca había visto una carrera con tanta emoción. Mis predicciones
+                      suben en el ranking y ya quiero competir por premios."
+                    </p>
+                    <div className="text-amber-400 text-lg">⭐⭐⭐⭐⭐</div>
+                  </div>
+                </motion.div>
+
+                {/* Card 2 */}
+                <motion.div 
+                  className="group relative rounded-2xl border border-amber-500/30 bg-gradient-to-br from-neutral-800/80 to-neutral-900/60 p-6 backdrop-blur-sm hover:border-amber-500/50 transition-all duration-300 hover:transform hover:scale-105"
+                  initial={{ y: 20, opacity: 0 }}
+                  whileInView={{ y: 0, opacity: 1 }}
+                  transition={{ duration: 0.6, delay: 0.2 }}
+                  viewport={{ once: true }}
+                >
+                  {/* Glow Effect */}
+                  <div className="absolute -inset-0.5 bg-gradient-to-r from-amber-500/20 to-orange-500/20 rounded-2xl blur opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  
+                  <span className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-500 to-amber-400 text-black text-xs font-bold px-4 py-1.5 rounded-full shadow-xl border border-amber-300">
+                    Fanática #1
+                  </span>
+                  
+                  <div className="relative">
+                    <div className="flex items-center gap-3 mb-4 pt-4">
+                      <div className="h-12 w-12 rounded-full bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center font-bold text-black shadow-lg">
+                        MR
+                      </div>
+                      <div>
+                        <p className="font-semibold text-white">María Rodríguez</p>
+                        <p className="text-sm text-gray-400 flex items-center gap-1">
+                          <span className="w-2 h-2 bg-green-400 rounded-full"></span>
+                          Bogotá, CO
+                        </p>
+                      </div>
+                    </div>
+                    <p className="text-gray-300 text-sm italic mb-4 leading-relaxed">
+                      "Competir contra otros y ver la tabla en vivo es
+                      adictivo. ¡Ansiosa por los premios reales!"
+                    </p>
+                    <div className="text-amber-400 text-lg">⭐⭐⭐⭐⭐</div>
+                  </div>
+                </motion.div>
+
+                {/* Card 3 */}
+                <motion.div 
+                  className="group relative rounded-2xl border border-amber-500/30 bg-gradient-to-br from-neutral-800/80 to-neutral-900/60 p-6 backdrop-blur-sm hover:border-amber-500/50 transition-all duration-300 hover:transform hover:scale-105"
+                  initial={{ y: 20, opacity: 0 }}
+                  whileInView={{ y: 0, opacity: 1 }}
+                  transition={{ duration: 0.6, delay: 0.3 }}
+                  viewport={{ once: true }}
+                >
+                  {/* Glow Effect */}
+                  <div className="absolute -inset-0.5 bg-gradient-to-r from-amber-500/20 to-orange-500/20 rounded-2xl blur opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  
+                  <span className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-500 to-amber-400 text-black text-xs font-bold px-4 py-1.5 rounded-full shadow-xl border border-amber-300">
+                    Season Pass
+                  </span>
+                  
+                  <div className="relative">
+                    <div className="flex items-center gap-3 mb-4 pt-4">
+                      <div className="h-12 w-12 rounded-full bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center font-bold text-black shadow-lg">
+                        AL
+                      </div>
+                      <div>
+                        <p className="font-semibold text-white">Andrés López</p>
+                        <p className="text-sm text-gray-400 flex items-center gap-1">
+                          <span className="w-2 h-2 bg-green-400 rounded-full"></span>
+                          Cali, CO
+                        </p>
+                      </div>
+                    </div>
+                    <p className="text-gray-300 text-sm italic mb-4 leading-relaxed">
+                      "Solo por el dashboard y la comunidad ya vale la
+                      pena. Esto va a romperla cuando empiecen los premios."
+                    </p>
+                    <div className="text-amber-400 text-lg">⭐⭐⭐⭐⭐</div>
+                  </div>
+                </motion.div>
               </div>
             </motion.div>
+          </div>
+        </section>
+
+        {/* ─── Premios VIP 2025 (Optimized with testimonial patterns) ─── */}
+        <section className="relative py-16 sm:py-20 px-4 sm:px-6 bg-gradient-to-b from-neutral-900 to-neutral-950 overflow-hidden">
+          {/* Background Elements */}
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(245,158,11,0.08),transparent_70%)]" />
+          <div className="absolute top-0 left-1/3 w-96 h-96 bg-amber-500/8 rounded-full blur-3xl" />
+          <div className="absolute bottom-0 right-1/3 w-96 h-96 bg-orange-500/8 rounded-full blur-3xl" />
+          
+          <div className="relative max-w-6xl mx-auto">
+            <motion.div
+              className="text-center mb-12"
+              initial={{ y: 20, opacity: 0 }}
+              whileInView={{ y: 0, opacity: 1 }}
+              transition={{ duration: 0.6 }}
+              viewport={{ once: true }}
+            >
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold mb-4 bg-gradient-to-r from-amber-400 via-orange-500 to-red-400 bg-clip-text text-transparent drop-shadow-lg">
+                Un Botín de $75,000 USD te Espera
+              </h2>
+              <p className="text-gray-300 text-lg lg:text-xl max-w-2xl mx-auto mb-8 leading-relaxed">
+                Tu membresía VIP es la llave para competir por estos premios que <strong className="text-amber-400">cambiarán tu vida</strong>.
+              </p>
+              
+              {/* Urgency Indicator */}
+              <div className="inline-flex items-center gap-2 bg-red-600/20 border border-red-500/30 rounded-full px-4 py-2 text-red-400 text-sm font-medium mb-8">
+                <span className="animate-ping w-2 h-2 bg-red-400 rounded-full"></span>
+                Cupos limitados con 40% de descuento
+              </div>
+            </motion.div>
+
+            <div className="grid gap-6 lg:gap-8 md:grid-cols-3">
+              {/* Prize Card 1 - Grand Prize */}
+              <motion.div
+                initial={{ y: 30, opacity: 0 }}
+                whileInView={{ y: 0, opacity: 1 }}
+                transition={{ duration: 0.6, delay: 0.1 }}
+                viewport={{ once: true }}
+                className="group relative rounded-2xl border border-amber-500/40 bg-gradient-to-br from-neutral-800/90 to-neutral-900/70 p-6 backdrop-blur-sm hover:border-amber-500/60 transition-all duration-300 hover:transform hover:scale-105"
+              >
+                {/* Glow Effect */}
+                <div className="absolute -inset-0.5 bg-gradient-to-r from-amber-500/30 to-orange-500/30 rounded-2xl blur opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                
+                {/* Badge */}
+                <span className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-red-600 to-red-500 text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-xl border border-red-400">
+                  🏆 PREMIO MÁXIMO
+                </span>
+                
+                <div className="relative pt-4">
+                  <div className="text-center mb-6">
+                    <div className="text-3xl font-black text-amber-400 mb-2">Viaje VIP F1 2026</div>
+                    <div className="text-amber-300 text-sm font-semibold">Valor: $20,000+ USD</div>
+                  </div>
+                  
+                  <div className="space-y-3 mb-6">
+                    <div className="flex items-center gap-3 text-gray-300 text-sm">
+                      <span className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></span>
+                      <span><strong className="text-white">Top 2 del ranking anual</strong> ganan automáticamente</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-gray-300 text-sm">
+                      <span className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></span>
+                      <span><strong className="text-white">1 ganador por sorteo</strong> entre todos los VIP</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-gray-300 text-sm">
+                      <span className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></span>
+                      <span>Vuelos, hotel 5⭐ y suite de hospitalidad incluidos</span>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30 rounded-lg p-3 text-center">
+                    <p className="text-amber-300 text-xs font-semibold">
+                      ✈️ Experiencia todo pagado para 1 persona.
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+
+              {/* Prize Card 2 - Race Winnings */}
+              <motion.div
+                initial={{ y: 30, opacity: 0 }}
+                whileInView={{ y: 0, opacity: 1 }}
+                transition={{ duration: 0.6, delay: 0.2 }}
+                viewport={{ once: true }}
+                className="group relative rounded-2xl border border-orange-500/40 bg-gradient-to-br from-neutral-800/90 to-neutral-900/70 p-6 backdrop-blur-sm hover:border-orange-500/60 transition-all duration-300 hover:transform hover:scale-105"
+              >
+                {/* Glow Effect */}
+                <div className="absolute -inset-0.5 bg-gradient-to-r from-orange-500/30 to-red-500/30 rounded-2xl blur opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                
+                {/* Badge */}
+                <span className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-orange-600 to-orange-500 text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-xl border border-orange-400">
+                  💰 CADA CARRERA
+                </span>
+                
+                <div className="relative pt-4">
+                  <div className="text-center mb-6">
+                    <div className="text-3xl font-black text-orange-400 mb-2">$20,000 USD</div>
+                    <div className="text-orange-300 text-sm font-semibold">En premios por temporada</div>
+                  </div>
+                  
+                  <div className="space-y-3 mb-6">
+                    <div className="flex items-center gap-3 text-gray-300 text-sm">
+                      <span className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></span>
+                      <span><strong className="text-white">$500-$1,500 USD</strong> por carrera a los mejores</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-gray-300 text-sm">
+                      <span className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></span>
+                      <span>Merchandising oficial de F1 incluido</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-gray-300 text-sm">
+                      <span className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></span>
+                      <span>24 oportunidades de ganar en el año</span>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-gradient-to-r from-orange-500/20 to-red-500/20 border border-orange-500/30 rounded-lg p-3 text-center">
+                    <p className="text-orange-300 text-xs font-semibold">
+                      🏁 Gana dinero real cada fin de semana
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+
+              {/* Prize Card 3 - Weekly Draws */}
+              <motion.div
+                initial={{ y: 30, opacity: 0 }}
+                whileInView={{ y: 0, opacity: 1 }}
+                transition={{ duration: 0.6, delay: 0.3 }}
+                viewport={{ once: true }}
+                className="group relative rounded-2xl border border-cyan-500/40 bg-gradient-to-br from-neutral-800/90 to-neutral-900/70 p-6 backdrop-blur-sm hover:border-cyan-500/60 transition-all duration-300 hover:transform hover:scale-105"
+              >
+                {/* Glow Effect */}
+                <div className="absolute -inset-0.5 bg-gradient-to-r from-cyan-500/30 to-blue-500/30 rounded-2xl blur opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                
+                {/* Badge */}
+                <span className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-cyan-600 to-cyan-500 text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-xl border border-cyan-400">
+                  🎲 SORTEOS VIP
+                </span>
+                
+                <div className="relative pt-4">
+                  <div className="text-center mb-6">
+                    <div className="text-3xl font-black text-cyan-400 mb-2">$5,000 USD</div>
+                    <div className="text-cyan-300 text-sm font-semibold">En sorteos semanales</div>
+                  </div>
+                  
+                  <div className="space-y-3 mb-6">
+                    <div className="flex items-center gap-3 text-gray-300 text-sm">
+                      <span className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></span>
+                      <span><strong className="text-white">3 ganadores aleatorios</strong> cada GP</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-gray-300 text-sm">
+                      <span className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></span>
+                      <span>$200-$300 USD por ganador</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-gray-300 text-sm">
+                      <span className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></span>
+                      <span>Solo por participar, sin requisitos</span>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-cyan-500/30 rounded-lg p-3 text-center">
+                    <p className="text-cyan-300 text-xs font-semibold">
+                      🍀 Suerte pura, solo para miembros VIP
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+
+            {/* Final CTA Section */}
+            <motion.div
+              className="mt-12 text-center"
+              initial={{ y: 20, opacity: 0 }}
+              whileInView={{ y: 0, opacity: 1 }}
+              transition={{ duration: 0.6, delay: 0.4 }}
+              viewport={{ once: true }}
+            >
+              <div className="bg-gradient-to-r from-neutral-800/80 to-neutral-900/60 border border-amber-500/30 rounded-2xl p-6 max-w-2xl mx-auto backdrop-blur-sm">
+                <h3 className="text-xl sm:text-2xl font-bold text-white mb-3">
+                  ¿Listo para cambiar tu vida con F1?
+                </h3>
+                <p className="text-gray-300 text-sm sm:text-base mb-4">
+                  Más de <strong className="text-amber-400">$75,000 USD en premios</strong> esperan a los miembros VIP. 
+                  Tu oportunidad de ganar empieza ahora.
+                </p>
+                <div className="flex items-center justify-center gap-2 text-green-400 text-sm">
+                  <span className="animate-pulse w-2 h-2 bg-green-400 rounded-full"></span>
+                  <span>184 miembros VIP ya compitiendo</span>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+
+          {/* OPTIMIZATION: Urgency element - Made more specific and believable */}
+          <motion.div
+            className="mt-8 text-center"
+            initial={{ y: 20, opacity: 0 }}
+            whileInView={{ y: 0, opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+            viewport={{ once: true }}
+          >
+            <div className="inline-flex items-center gap-2 bg-red-600/20 border border-red-500/30 rounded-full px-4 py-2 text-red-400 text-sm font-medium">
+              <span className="animate-ping w-2 h-2 bg-red-400 rounded-full"></span>
+              Atención: Cupos con descuento limtiados
+            </div>
+          </motion.div>
         </section>
         
         {/* ─── How It Works Section (Optimized with visual enhancements) ─── */}
-<section className="relative py-16 sm:py-20 px-4 sm:px-6 bg-gradient-to-b from-neutral-950 to-neutral-900 overflow-hidden">
-  {/* Background Elements */}
-  <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(245,158,11,0.04),transparent_70%)]" />
-  <div className="absolute top-1/2 left-1/4 w-72 h-72 bg-amber-500/5 rounded-full blur-3xl" />
-  
-  <div className="relative max-w-4xl mx-auto">
-    <motion.div
-      className="text-center mb-12"
-      initial={{ y: 20, opacity: 0 }}
-      whileInView={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.6 }}
-      viewport={{ once: true }}
-    >
-      <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold mb-4 bg-gradient-to-r from-amber-400 via-orange-500 to-red-400 bg-clip-text text-transparent drop-shadow-lg">
-        Compite en 4 Simples Pasos
-      </h2>
-      <p className="text-gray-300 text-lg leading-relaxed">
-        Así de fácil es <strong className="text-amber-400">empezar</strong>
-      </p>
-    </motion.div>
-    
-    <div className="grid gap-6 md:gap-8 sm:grid-cols-2 lg:grid-cols-4 text-center">
-      {[
-        { 
-          icon: '📱', 
-          title: 'Únete al VIP', 
-          text: 'Elige tu plan y obtén acceso instantáneo a la plataforma.',
-          color: 'from-blue-500/20 to-cyan-500/20',
-          border: 'border-blue-500/30'
-        },
-        { 
-          icon: '✍️', 
-          title: 'Haz tus Predicciones', 
-          text: 'Antes de cada carrera, envía tus pronósticos estratégicos.',
-          color: 'from-purple-500/20 to-pink-500/20',
-          border: 'border-purple-500/30'
-        },
-        { 
-          icon: '🏁', 
-          title: 'Suma Puntos', 
-          text: 'Gana puntos según la precisión de tus predicciones.',
-          color: 'from-green-500/20 to-emerald-500/20',
-          border: 'border-green-500/30'
-        },
-        { 
-          icon: '🏆', 
-          title: 'Cobra tus Premios', 
-          text: 'Los mejores del ranking ganan dinero real. ¡Así de simple!',
-          color: 'from-amber-500/20 to-orange-500/20',
-          border: 'border-amber-500/30'
-        },
-      ].map((item, index) => (
-        <motion.div
-          key={index}
-          className={`group relative p-6 bg-gradient-to-br from-neutral-800/80 to-neutral-900/60 rounded-2xl border ${item.border} backdrop-blur-sm hover:border-opacity-60 transition-all duration-300 hover:transform hover:scale-105`}
-          initial={{ y: 30, opacity: 0 }}
-          whileInView={{ y: 0, opacity: 1 }}
-          transition={{ duration: 0.5, delay: index * 0.1 }}
-          viewport={{ once: true }}
-        >
-          {/* Glow Effect */}
-          <div className={`absolute -inset-0.5 bg-gradient-to-r ${item.color} rounded-2xl blur opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
+        <section className="relative py-16 sm:py-20 px-4 sm:px-6 bg-gradient-to-b from-neutral-950 to-neutral-900 overflow-hidden">
+          {/* Background Elements */}
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(245,158,11,0.04),transparent_70%)]" />
+          <div className="absolute top-1/2 left-1/4 w-72 h-72 bg-amber-500/5 rounded-full blur-3xl" />
           
-          {/* Step Number */}
-          <span className="absolute -top-3 -left-3 w-8 h-8 bg-gradient-to-r from-amber-500 to-orange-500 text-black text-sm font-bold rounded-full flex items-center justify-center shadow-lg">
-            {index + 1}
-          </span>
-          
-          <div className="relative">
-            <div className="text-5xl mb-4 transform group-hover:scale-110 transition-transform duration-300">
-              {item.icon}
+          <div className="relative max-w-4xl mx-auto">
+            <motion.div
+              className="text-center mb-12"
+              initial={{ y: 20, opacity: 0 }}
+              whileInView={{ y: 0, opacity: 1 }}
+              transition={{ duration: 0.6 }}
+              viewport={{ once: true }}
+            >
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold mb-4 bg-gradient-to-r from-amber-400 via-orange-500 to-red-400 bg-clip-text text-transparent drop-shadow-lg">
+                Compite en 4 Simples Pasos
+              </h2>
+              <p className="text-gray-300 text-lg leading-relaxed">
+                Así de fácil es <strong className="text-amber-400">empezar</strong>
+              </p>
+            </motion.div>
+            
+            <div className="grid gap-6 md:gap-8 sm:grid-cols-2 lg:grid-cols-4 text-center">
+              {[
+                { 
+                  icon: '📱', 
+                  title: 'Únete al VIP', 
+                  text: 'Elige tu plan y obtén acceso instantáneo a la plataforma.',
+                  color: 'from-blue-500/20 to-cyan-500/20',
+                  border: 'border-blue-500/30'
+                },
+                { 
+                  icon: '✍️', 
+                  title: 'Haz tus Predicciones', 
+                  text: 'Antes de cada carrera, envía tus pronósticos estratégicos.',
+                  color: 'from-purple-500/20 to-pink-500/20',
+                  border: 'border-purple-500/30'
+                },
+                { 
+                  icon: '🏁', 
+                  title: 'Suma Puntos', 
+                  text: 'Gana puntos según la precisión de tus predicciones.',
+                  color: 'from-green-500/20 to-emerald-500/20',
+                  border: 'border-green-500/30'
+                },
+                { 
+                  icon: '🏆', 
+                  title: 'Cobra tus Premios', 
+                  text: 'Los mejores del ranking ganan dinero real. ¡Así de simple!',
+                  color: 'from-amber-500/20 to-orange-500/20',
+                  border: 'border-amber-500/30'
+                },
+              ].map((item, index) => (
+                <motion.div
+                  key={index}
+                  className={`group relative p-6 bg-gradient-to-br from-neutral-800/80 to-neutral-900/60 rounded-2xl border ${item.border} backdrop-blur-sm hover:border-opacity-60 transition-all duration-300 hover:transform hover:scale-105`}
+                  initial={{ y: 30, opacity: 0 }}
+                  whileInView={{ y: 0, opacity: 1 }}
+                  transition={{ duration: 0.5, delay: index * 0.1 }}
+                  viewport={{ once: true }}
+                >
+                  {/* Glow Effect */}
+                  <div className={`absolute -inset-0.5 bg-gradient-to-r ${item.color} rounded-2xl blur opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
+                  
+                  {/* Step Number */}
+                  <span className="absolute -top-3 -left-3 w-8 h-8 bg-gradient-to-r from-amber-500 to-orange-500 text-black text-sm font-bold rounded-full flex items-center justify-center shadow-lg">
+                    {index + 1}
+                  </span>
+                  
+                  <div className="relative">
+                    <div className="text-5xl mb-4 transform group-hover:scale-110 transition-transform duration-300">
+                      {item.icon}
+                    </div>
+                    <h3 className="font-bold text-white mb-3 text-lg">{item.title}</h3>
+                    <p className="text-gray-300 text-sm leading-relaxed">
+                      {item.text}
+                    </p>
+                  </div>
+                </motion.div>
+              ))}
             </div>
-            <h3 className="font-bold text-white mb-3 text-lg">{item.title}</h3>
-            <p className="text-gray-300 text-sm leading-relaxed">
-              {item.text}
-            </p>
+            
+            {/* Connection Lines for Desktop */}
+            <div className="hidden lg:block absolute top-1/2 left-0 right-0 -translate-y-1/2 pointer-events-none">
+              <div className="flex justify-between items-center max-w-4xl mx-auto px-24">
+                {[0, 1, 2].map((i) => (
+                  <motion.div
+                    key={i}
+                    className="w-16 h-0.5 bg-gradient-to-r from-amber-500/50 to-orange-500/50"
+                    initial={{ scaleX: 0 }}
+                    whileInView={{ scaleX: 1 }}
+                    transition={{ duration: 0.8, delay: 0.5 + i * 0.2 }}
+                    viewport={{ once: true }}
+                  />
+                ))}
+              </div>
+            </div>
+            
+            {/* Bottom CTA */}
+            <motion.div
+              className="mt-12 text-center"
+              initial={{ y: 20, opacity: 0 }}
+              whileInView={{ y: 0, opacity: 1 }}
+              transition={{ duration: 0.6, delay: 0.6 }}
+              viewport={{ once: true }}
+            >
+              <div className="inline-flex items-center gap-2 bg-green-600/20 border border-green-500/30 rounded-full px-6 py-3 text-green-400 font-medium">
+                <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+                Empiezas a competir en menos de 5 minutos
+              </div>
+            </motion.div>
           </div>
-        </motion.div>
-      ))}
-    </div>
-    
-    {/* Connection Lines for Desktop */}
-    <div className="hidden lg:block absolute top-1/2 left-0 right-0 -translate-y-1/2 pointer-events-none">
-      <div className="flex justify-between items-center max-w-4xl mx-auto px-24">
-        {[0, 1, 2].map((i) => (
-          <motion.div
-            key={i}
-            className="w-16 h-0.5 bg-gradient-to-r from-amber-500/50 to-orange-500/50"
-            initial={{ scaleX: 0 }}
-            whileInView={{ scaleX: 1 }}
-            transition={{ duration: 0.8, delay: 0.5 + i * 0.2 }}
-            viewport={{ once: true }}
-          />
-        ))}
-      </div>
-    </div>
-    
-    {/* Bottom CTA */}
-    <motion.div
-      className="mt-12 text-center"
-      initial={{ y: 20, opacity: 0 }}
-      whileInView={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.6, delay: 0.6 }}
-      viewport={{ once: true }}
-    >
-      <div className="inline-flex items-center gap-2 bg-green-600/20 border border-green-500/30 rounded-full px-6 py-3 text-green-400 font-medium">
-        <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
-        Empiezas a competir en menos de 5 minutos
-      </div>
-    </motion.div>
-  </div>
-</section>
+        </section>
 
         {/* ─── PredictionsTeaser ─── */}
         <PredictionsTeaser />
@@ -1900,190 +1927,189 @@ return (
               <p className="mt-3 sm:mt-4 text-base sm:text-lg text-gray-400 max-w-2xl mx-auto">
                 <strong className="text-white">Oferta por Tiempo Limitado:</strong> Ahorra hasta un 40% y asegura tu lugar.
               </p>
-              </motion.div>
+            </motion.div>
 
-{/* ───── Countdown dinámico al siguiente GP ───── */}
-<div className="relative group bg-gradient-to-b from-blue-800 to-sky-600 p-4 rounded-xl shadow-lg flex flex-col justify-between overflow-hidden">
-  {currentGp && (
-    <div className="relative z-10">
-      <div className="flex items-center gap-2 mb-2">
-        <svg className="h-4 w-4 text-white/80" viewBox="0 0 20 20" fill="currentColor">
-          <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
-        </svg>
-        <h2 className="text-sm font-semibold text-white truncate">
-          {currentGp.gp_name}
-        </h2>
-      </div>
-      <div className="flex flex-col items-center my-2">
-        <p className="text-[10px] uppercase text-white/70 mb-1">
-          {showQualy ? 'Tiempo para Qualy' : 'Tiempo para Carrera'}
-        </p>
-        <AnimatePresence mode="wait">
-          <motion.p
-            key={showQualy ? 'qualy' : 'race'}
-            className="font-mono text-2xl text-white font-bold"
-            initial={{ opacity: 0, y: 5 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -5 }}
-            transition={{ duration: 0.3 }}
-          >
-            {formatCountdown(showQualy ? qualyCountdown : raceCountdown)}
-          </motion.p>
-        </AnimatePresence>
-      </div>
-      <div className="flex items-center justify-end gap-1 text-[10px] text-white/80">
-        <svg className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4l2.828 2.829a1 1 0 101.414-1.414L11 10.586V6z" clipRule="evenodd" />
-        </svg>
-        <span>
-          Carrera:{' '}
-          {new Date(currentGp.race_time).toLocaleDateString('es-CO', {
-            day: '2-digit',
-            month: 'short',
-            year: 'numeric',
-          })}
-        </span>
-      </div>
-    </div>
-  )}
-</div>
+            {/* ───── Countdown dinámico al siguiente GP ───── */}
+            <div className="relative group bg-gradient-to-b from-blue-800 to-sky-600 p-4 rounded-xl shadow-lg flex flex-col justify-between overflow-hidden">
+              {currentGp && (
+                <div className="relative z-10">
+                  <div className="flex items-center gap-2 mb-2">
+                    <svg className="h-4 w-4 text-white/80" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+                    </svg>
+                    <h2 className="text-sm font-semibold text-white truncate">
+                      {currentGp.gp_name}
+                    </h2>
+                  </div>
+                  <div className="flex flex-col items-center my-2">
+                    <p className="text-[10px] uppercase text-white/70 mb-1">
+                      {showQualy ? 'Tiempo para Qualy' : 'Tiempo para Carrera'}
+                    </p>
+                    <AnimatePresence mode="wait">
+                      <motion.p
+                        key={showQualy ? 'qualy' : 'race'}
+                        className="font-mono text-2xl text-white font-bold"
+                        initial={{ opacity: 0, y: 5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -5 }}
+                        transition={{ duration: 0.3 }}
+                      >
+                        {formatCountdown(showQualy ? qualyCountdown : raceCountdown)}
+                      </motion.p>
+                    </AnimatePresence>
+                  </div>
+                  <div className="flex items-center justify-end gap-1 text-[10px] text-white/80">
+                    <svg className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4l2.828 2.829a1 1 0 101.414-1.414L11 10.586V6z" clipRule="evenodd" />
+                    </svg>
+                    <span>
+                      Carrera:{' '}
+                      {new Date(currentGp.race_time).toLocaleDateString('es-CO', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric',
+                      })}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
 
-{/* ─── Pricing Cards ───────────────────────────── */}
-<div className="flex flex-col md:grid md:grid-cols-2 gap-6 mt-6">
-  {planes.map((plan, i) => (
-    <motion.div
-      key={plan.id}
-      initial={{ y: 30, opacity: 0 }}
-      whileInView={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.4, delay: i * 0.1, ease: 'easeOut' }}
-      viewport={{ once: true, amount: 0.3 }}
-      className={`relative p-6 sm:p-8 rounded-2xl ring-1 bg-neutral-900/60 backdrop-blur-lg transition-all duration-300 hover:ring-white/20 hover:scale-[1.03] ${
-        plan.isPopular
-          ? 'border-2 border-amber-500 ring-2 ring-amber-500/30'
-          : 'border border-neutral-700'
-      }`}
-    >
-      {plan.isPopular && (
-        <>
-          <div className="absolute top-0 right-4 -translate-y-1/2 px-3 py-1 bg-gradient-to-r from-amber-400 to-orange-500 text-black text-xs font-bold rounded-full uppercase tracking-wide shadow-lg">
-            MÁS POPULAR
-          </div>
-          <div className="absolute top-0 left-4 -translate-y-1/2 px-3 py-1 bg-red-600 text-white text-xs font-bold rounded-full uppercase tracking-wide shadow-lg">
-            AHORRA 40%
-          </div>
-        </>
-      )}
+            {/* ─── Pricing Cards ───────────────────────────── */}
+            <div className="flex flex-col md:grid md:grid-cols-2 gap-6 mt-6">
+              {planes.map((plan, i) => (
+                <motion.div
+                  key={plan.id}
+                  initial={{ y: 30, opacity: 0 }}
+                  whileInView={{ y: 0, opacity: 1 }}
+                  transition={{ duration: 0.4, delay: i * 0.1, ease: 'easeOut' }}
+                  viewport={{ once: true, amount: 0.3 }}
+                  className={`relative p-6 sm:p-8 rounded-2xl ring-1 bg-neutral-900/60 backdrop-blur-lg transition-all duration-300 hover:ring-white/20 hover:scale-[1.03] ${
+                    plan.isPopular
+                      ? 'border-2 border-amber-500 ring-2 ring-amber-500/30'
+                      : 'border border-neutral-700'
+                  }`}
+                >
+                  {plan.isPopular && (
+                    <>
+                      <div className="absolute top-0 right-4 -translate-y-1/2 px-3 py-1 bg-gradient-to-r from-amber-400 to-orange-500 text-black text-xs font-bold rounded-full uppercase tracking-wide shadow-lg">
+                        MÁS POPULAR
+                      </div>
+                      <div className="absolute top-0 left-4 -translate-y-1/2 px-3 py-1 bg-red-600 text-white text-xs font-bold rounded-full uppercase tracking-wide shadow-lg">
+                        AHORRA 40%
+                      </div>
+                    </>
+                  )}
 
-      <div className="flex flex-col h-full">
-        <h3 className="text-xl sm:text-2xl font-bold text-white">{plan.nombre}</h3>
+                  <div className="flex flex-col h-full">
+                    <h3 className="text-xl sm:text-2xl font-bold text-white">{plan.nombre}</h3>
 
-        <div className="my-5">
-          <div className="flex items-baseline gap-2 mb-2">
-            <span className="text-3xl sm:text-4xl font-black bg-gradient-to-r from-amber-300 via-orange-400 to-red-400 bg-clip-text text-transparent">
-              {formatCOP(plan.precio)}
-            </span>
-            {plan.isPopular && (
-              <span className="text-lg text-gray-500 line-through">
-                {formatCOP(Math.round(plan.precio * 1.66))}
-              </span>
-            )}
-          </div>
-          <p className="text-gray-400 text-xs sm:text-sm mt-1">
-            {plan.periodo}
-            {plan.isPopular && (
-              <span className="block text-green-400 font-semibold">
-                ¡Precio especial solo por hoy!
-              </span>
-            )}
-          </p>
-        </div>
+                    <div className="my-5">
+                      <div className="flex items-baseline gap-2 mb-2">
+                        <span className="text-3xl sm:text-4xl font-black bg-gradient-to-r from-amber-300 via-orange-400 to-red-400 bg-clip-text text-transparent">
+                          {formatCOP(plan.precio)}
+                        </span>
+                        {plan.isPopular && (
+                          <span className="text-lg text-gray-500 line-through">
+                            {formatCOP(Math.round(plan.precio * 1.66))}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-gray-400 text-xs sm:text-sm mt-1">
+                        {plan.periodo}
+                        {plan.isPopular && (
+                          <span className="block text-green-400 font-semibold">
+                            ¡Precio especial solo por hoy!
+                          </span>
+                        )}
+                      </p>
+                    </div>
 
-        <ul className="space-y-3 sm:space-y-4 mb-6 text-sm">
-          {plan.beneficios.map((b) => (
-            <li key={b} className="flex items-start gap-3 text-gray-300">
-              <svg
-                className="w-5 h-5 flex-shrink-0 text-green-400 mt-0.5"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586l-2.293-2.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l4-4z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              <span
-                dangerouslySetInnerHTML={{
-                  __html: b
-                    .replace('Top 2 del ranking', '<strong>Top 2 del ranking</strong>')
-                    .replace('3 ganadores aleatorios', '<strong>3 ganadores aleatorios</strong>'),
-                }}
-              />
-            </li>
-          ))}
-        </ul>
+                    <ul className="space-y-3 sm:space-y-4 mb-6 text-sm">
+                      {plan.beneficios.map((b) => (
+                        <li key={b} className="flex items-start gap-3 text-gray-300">
+                          <svg
+                            className="w-5 h-5 flex-shrink-0 text-green-400 mt-0.5"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586l-2.293-2.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l4-4z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                          <span
+                            dangerouslySetInnerHTML={{
+                              __html: b
+                                .replace('Top 2 del ranking', '<strong>Top 2 del ranking</strong>')
+                                .replace('3 ganadores aleatorios', '<strong>3 ganadores aleatorios</strong>'),
+                            }}
+                          />
+                        </li>
+                      ))}
+                    </ul>
 
-        <div className="mb-4 p-3 bg-green-500/10 border border-green-500/20 rounded-lg text-center">
-          <p className="text-green-400 text-xs font-semibold">
-            💡{' '}
-            {plan.isPopular
-              ? 'Acceso a TODO, máximo potencial de ganancias.'
-              : 'Ideal para probar y empezar a ganar.'}
-          </p>
-        </div>
+                    <div className="mb-4 p-3 bg-green-500/10 border border-green-500/20 rounded-lg text-center">
+                      <p className="text-green-400 text-xs font-semibold">
+                        💡{' '}
+                        {plan.isPopular
+                          ? 'Acceso a TODO, máximo potencial de ganancias.'
+                          : 'Ideal para probar y empezar a ganar.'}
+                      </p>
+                    </div>
 
-        <div className="mt-auto">
-          <button
-            onClick={() => handlePurchase(plan.id)}
-            disabled={processingPlan === plan.id}
-            className={`w-full py-4 rounded-xl font-bold text-lg active:scale-95 transition-all flex items-center justify-center gap-2 shadow-2xl ${
-              plan.isPopular
-                ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-black hover:brightness-110 animate-pulse'
-                : 'bg-gradient-to-r from-gray-700 to-gray-600 text-white hover:from-gray-600 hover:to-gray-500'
-            } ${processingPlan === plan.id ? 'opacity-60 cursor-wait' : ''}`}
-          >
-            {processingPlan === plan.id ? (
-              <>
-                <svg className="w-5 h-5 animate-spin" viewBox="0 0 24 24">
-                  <circle
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    strokeWidth="4"
-                    className="opacity-25"
-                    stroke="currentColor"
-                    fill="none"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                  />
-                </svg>
-                Procesando...
-              </>
-            ) : plan.isPopular ? (
-              '🔥 QUIERO EL SEASON PASS'
-            ) : (
-              `Obtener ${plan.nombre}`
-            )}
-            {!processingPlan && (
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                <path
-                  fillRule="evenodd"
-                  d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            )}
-          </button>
-        </div>
-      </div>
-    </motion.div>
-  ))}
-</div>
-
-            
+                    <div className="mt-auto">
+                      <button
+                        onClick={() => handlePurchase(plan.id)}
+                        data-plan-id={plan.id} // ← Added here
+                        disabled={processingPlan === plan.id}
+                        className={`w-full py-4 rounded-xl font-bold text-lg active:scale-95 transition-all flex items-center justify-center gap-2 shadow-2xl ${
+                          plan.isPopular
+                            ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-black hover:brightness-110 animate-pulse'
+                            : 'bg-gradient-to-r from-gray-700 to-gray-600 text-white hover:from-gray-600 hover:to-gray-500'
+                        } ${processingPlan === plan.id ? 'opacity-60 cursor-wait' : ''}`}
+                      >
+                        {processingPlan === plan.id ? (
+                          <>
+                            <svg className="w-5 h-5 animate-spin" viewBox="0 0 24 24">
+                              <circle
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                strokeWidth="4"
+                                className="opacity-25"
+                                stroke="currentColor"
+                                fill="none"
+                              />
+                              <path
+                                className="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                              />
+                            </svg>
+                            Procesando...
+                          </>
+                        ) : plan.isPopular ? (
+                          '🔥 QUIERO EL SEASON PASS'
+                        ) : (
+                          `Obtener ${plan.nombre}`
+                        )}
+                        {!processingPlan && (
+                          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path
+                              fillRule="evenodd"
+                              d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
 
             {/* OPTIMIZATION: Final CTA - Strong final push */}
             <motion.div
@@ -2121,26 +2147,26 @@ return (
         </section>
 
         {/* ───────── Botón Telegram ───────── */}
-<div className="mt-12 text-center">
-  <a
-    href="https://t.me/+573009290499"
-    target="_blank"
-    rel="noopener noreferrer"
-    className="inline-flex items-center gap-3 px-8 py-4 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-2xl shadow-lg transition"
-  >
-    {/* Icono de Telegram */}
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      className="w-6 h-6"
-      fill="currentColor"
-      viewBox="0 0 24 24"
-    >
-      <path d="M12 0C5.371 0 0 5.371 0 12c0 6.628 5.371 12 12 12s12-5.372 12-12C24 5.371 18.629 0 12 0zm5.363 8.55l-1.482 7.06c-.112.54-.4.676-.81.423l-2.25-1.66-1.084 1.043c-.12.12-.22.22-.45.22l.162-2.283 4.152-3.758c.18-.16 0-.25-.28-.09l-5.13 3.227-2.21-.69c-.48-.15-.49-.48.1-.71l8.64-3.33c.4-.15.75.09.62.68z"/>
-    </svg>
+        <div className="mt-12 text-center">
+          <a
+            href="https://t.me/+573009290499"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-3 px-8 py-4 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-2xl shadow-lg transition"
+          >
+            {/* Icono de Telegram */}
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="w-6 h-6"
+              fill="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path d="M12 0C5.371 0 0 5.371 0 12c0 6.628 5.371 12 12 12s12-5.372 12-12C24 5.371 18.629 0 12 0zm5.363 8.55l-1.482 7.06c-.112.54-.4.676-.81.423l-2.25-1.66-1.084 1.043c-.12.12-.22.22-.45.22l.162-2.283 4.152-3.758c.18-.16 0-.25-.28-.09l-5.13 3.227-2.21-.69c-.48-.15-.49-.48.1-.71l8.64-3.33c.4-.15.75.09.62.68z"/>
+            </svg>
 
-    <span>Envíanos un mensaje por Telegram</span>
-  </a>
-</div>
+            <span>Envíanos un mensaje por Telegram</span>
+          </a>
+        </div>
 
         {/* ─── FAQ ─── */}
         <section className="py-16 sm:py-20 px-4 sm:px-6 bg-neutral-950">
@@ -2236,3 +2262,4 @@ return (
     </div>
   </>
 );}
+  
