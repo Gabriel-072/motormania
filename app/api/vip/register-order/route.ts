@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
     .update(`${orderId}${amount}${CURRENCY}${BOLD_SECRET}`)
     .digest('hex');
 
-  const redirectionUrl = `${SITE_URL}/fantasy-vip?orderId=${orderId}`;
+  const redirectionUrl = `${SITE_URL}/fantasy-vip-success?orderId=${orderId}`;
 
   /* ───────────── 4️⃣ Guardar orden en Supabase ───────────── */
   const { error } = await sb.from('vip_transactions').insert({
