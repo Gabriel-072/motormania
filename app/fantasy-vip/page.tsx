@@ -1,96 +1,89 @@
-// app/fantasy-vip/page.tsx - Improved useEffect section
+// 📁 /app/fantasy-vip/page.tsx
 'use client';
 
-import { useUser } from '@clerk/nextjs';
-import { useState, useEffect, Suspense } from 'react';
+import {
+  useUser,
+  useAuth
+} from '@clerk/nextjs';
+import {
+  useState,
+  useEffect,
+  Suspense
+} from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { createClient } from '@supabase/supabase-js';
 
+import { createAuthClient } from '@/lib/supabase';
 import FantasyVipPageContent from '@/components/FantasyVipPageContent';
 import LoadingAnimation      from '@/components/LoadingAnimation';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
 export default function FantasyVipPage() {
+  /* Clerk */
   const { isLoaded, isSignedIn, user } = useUser();
+  const { getToken }                  = useAuth();
+
+  /* Router */
   const router = useRouter();
-  
-  const [vipStatus, setVipStatus] = useState<'loading' | 'valid' | 'invalid'>('loading');
-  const [showSignInModal, setShowSignInModal] = useState(false);
+
+  /* Estado general */
+  const [vipStatus, setVipStatus]           = useState<'loading' | 'valid' | 'invalid'>('loading');
   const [confirmingOrder, setConfirmingOrder] = useState(false);
 
-  // Check VIP status function (extracted for reuse)
+  /* Estado y handlers del modal de sign-in */
+  const [showSignInModal, setShowSignInModal] = useState(false);
+  const handleCloseModal   = () => setShowSignInModal(false);
+  const triggerSignInModal = () => setShowSignInModal(true);
+  const handleSignIn       = () =>
+    router.push(`/sign-in?redirect_url=${encodeURIComponent('/fantasy-vip')}`);
+
+  /* ------------------------------------------------------------ */
+  /* Helper: consulta si el usuario ya tiene pago 'paid' */
+  /* ------------------------------------------------------------ */
   const checkVipStatus = async (userId: string) => {
     try {
-      const { data, error } = await supabase
+      const jwt = await getToken({ template: 'supabase' });
+      if (!jwt) throw new Error('JWT no disponible');
+      const sb  = createAuthClient(jwt);
+
+      const { data, error } = await sb
         .from('vip_transactions')
         .select('id')
         .eq('user_id', userId)
         .eq('payment_status', 'paid')
-        .limit(1)
         .maybeSingle();
-
       if (error) throw error;
       return data ? 'valid' : 'invalid';
     } catch (err) {
-      console.error('Error checking VIP status:', err);
+      console.error('[VIP] checkVipStatus error:', err);
       return 'invalid';
     }
   };
 
-  // Handle order confirmation from URL
+  /* ------------------------------------------------------------ */
+  /* Fallback manual si llega ?orderId=...                        */
+  /* ------------------------------------------------------------ */
   useEffect(() => {
     if (!isLoaded || !isSignedIn || !user) return;
 
-    const params = new URL(window.location.href).searchParams;
+    const params  = new URLSearchParams(window.location.search);
     const orderId = params.get('orderId');
-    
     if (!orderId) return;
 
     const confirmOrder = async () => {
       setConfirmingOrder(true);
       try {
-        // Confirm the order
-        const response = await fetch('/api/vip/confirm-order', {
-          method: 'POST',
+        await fetch('/api/vip/confirm-order', {
+          method : 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ orderId }),
+          body   : JSON.stringify({ orderId }),
         });
-
-        const data = await response.json();
-        
-        if (!response.ok) {
-          console.error('Error confirming order:', data);
-          // Show specific error message
-          if (data.details) {
-            console.error('Error details:', data.details);
-          }
-          // You might want to show a toast with data.error
-        } else {
-          console.log('Order confirmed successfully:', data);
-        }
-
-        // Wait a bit to ensure DB is updated
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
-        // Check VIP status after confirmation
-        const status = await checkVipStatus(user.id);
-        setVipStatus(status as 'valid' | 'invalid');
-
-        // Clean up URL
-        const newUrl = window.location.pathname;
-        window.history.replaceState({}, document.title, newUrl);
-
       } catch (e) {
-        console.error('Error in order confirmation:', e);
-        // Still check VIP status in case the order was already confirmed
+        console.error('[VIP] confirm-order error:', e);
+      } finally {
+        await new Promise(r => setTimeout(r, 1000)); // dar tiempo al webhook
         const status = await checkVipStatus(user.id);
         setVipStatus(status as 'valid' | 'invalid');
-      } finally {
+        window.history.replaceState({}, '', '/fantasy-vip');
         setConfirmingOrder(false);
       }
     };
@@ -98,55 +91,40 @@ export default function FantasyVipPage() {
     confirmOrder();
   }, [isLoaded, isSignedIn, user]);
 
-  // Check authentication status
-  useEffect(() => {
-    if (isLoaded && !isSignedIn) {
-      setShowSignInModal(true);
-    }
-  }, [isLoaded, isSignedIn]);
-
-  // Check VIP status (only if not confirming an order)
+  /* ------------------------------------------------------------ */
+  /* Chequeo normal al cargar / refrescar                         */
+  /* ------------------------------------------------------------ */
   useEffect(() => {
     if (!isLoaded || !isSignedIn || !user || confirmingOrder) return;
 
-    // Don't check if we're already processing an order from URL
-    const params = new URL(window.location.href).searchParams;
-    const orderId = params.get('orderId');
-    if (orderId) return;
-
-    const checkStatus = async () => {
+    (async () => {
       setVipStatus('loading');
       const status = await checkVipStatus(user.id);
       setVipStatus(status as 'valid' | 'invalid');
-    };
-
-    checkStatus();
+    })();
   }, [isLoaded, isSignedIn, user, confirmingOrder]);
 
-  // Helper functions
-  const handleSignIn = () => {
-    router.push(`/sign-in?redirect_url=${encodeURIComponent('/fantasy-vip')}`);
-  };
-  
-  const handleCloseModal = () => setShowSignInModal(false);
-  const triggerSignInModal = () => setShowSignInModal(true);
-  const goToPurchase = () => router.push('/fantasy-vip-info');
-
-  // Render logic
+  /* ------------------------------------------------------------ */
+  /* Render                                                       */
+  /* ------------------------------------------------------------ */
   if (!isLoaded) {
     return <LoadingAnimation animationDuration={2} text="Cargando cuenta..." />;
   }
 
   if (!isSignedIn) {
+    /* Mostrar modal de login si lo usas, o redirigir */
+    triggerSignInModal();
     return null;
   }
 
   if (vipStatus === 'loading' || confirmingOrder) {
     return (
       <div className="flex justify-center py-20">
-        <LoadingAnimation 
-          animationDuration={1} 
-          text={confirmingOrder ? "Confirmando tu compra..." : "Verificando acceso VIP…"} 
+        <LoadingAnimation
+          animationDuration={1}
+          text={confirmingOrder
+            ? 'Confirmando tu compra...'
+            : 'Verificando acceso VIP…'}
         />
       </div>
     );
@@ -160,7 +138,7 @@ export default function FantasyVipPage() {
           Para acceder a esta sección necesitas un Race Pass o Season Pass activo.
         </p>
         <button
-          onClick={goToPurchase}
+          onClick={() => router.push('/fantasy-vip-info')}
           className="px-6 py-3 bg-amber-500 hover:bg-amber-400 text-black rounded-xl font-semibold transition"
         >
           Ver planes VIP
@@ -172,9 +150,11 @@ export default function FantasyVipPage() {
   return (
     <>
       <Suspense fallback={<LoadingAnimation animationDuration={2} text="Cargando contenido..." />}>
+        {/* Pasamos el trigger al contenido por si se requiere login en sub-componentes */}
         <FantasyVipPageContent triggerSignInModal={triggerSignInModal} />
       </Suspense>
 
+      {/* Modal de inicio de sesión */}
       {showSignInModal && (
         <motion.div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"

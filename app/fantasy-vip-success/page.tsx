@@ -64,19 +64,40 @@ export default function FantasyVipSuccess() {
             origin: { y: 0.6 }
           });
           
-          // Start countdown to redirect
-          let timeLeft = 5;
-          const countdownInterval = setInterval(() => {
-            timeLeft--;
-            setCountdown(timeLeft);
-            if (timeLeft <= 0) {
-              clearInterval(countdownInterval);
-              router.push('/fantasy-vip');
-            }
-          }, 1000);
-          
+          // Start countdown...
         } else if (retryCount < maxRetries) {
-          // Retry after delay
+          // If not paid yet, try manual confirmation as fallback
+          if (retryCount === 3) { // On the 3rd retry, try manual confirmation
+            console.log('Attempting manual order confirmation...');
+            try {
+              const confirmRes = await fetch('/api/vip/confirm-order', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ orderId })
+              });
+              
+              if (confirmRes.ok) {
+                console.log('Manual confirmation successful');
+                // Check payment status again
+                const recheck = await verifyPayment(orderId);
+                if (recheck?.isPaid) {
+                  setVerificationStatus('success');
+                  setOrderDetails(recheck);
+                  confetti({
+                    particleCount: 100,
+                    spread: 70,
+                    origin: { y: 0.6 }
+                  });
+                  // Start countdown...
+                  return;
+                }
+              }
+            } catch (e) {
+              console.error('Manual confirmation failed:', e);
+            }
+          }
+          
+          // Continue with normal retry
           retryCount++;
           setTimeout(checkPayment, retryDelay);
         } else {

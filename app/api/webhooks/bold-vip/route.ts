@@ -116,6 +116,8 @@ export async function POST(req: NextRequest) {
   const sig = req.headers.get('x-bold-signature') ?? '';
 
   console.log('🎯 Bold webhook received');
+  console.log('🎯 Bold VIP webhook received');
+  console.log('📦 Raw body:', raw.substring(0, 200)); // First 200 chars
 
   // Verify signature
   if (!verifyBold(sig, raw)) {
