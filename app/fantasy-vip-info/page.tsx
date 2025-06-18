@@ -1275,31 +1275,29 @@ function PredictionsTeaser() {
         };
   
         // 5️⃣ Abrir Bold Checkout
-        openBoldCheckout({
-          ...config,
-          onSuccess: async () => {
-            toast.success('✅ Pago exitoso! Redirigiendo...', { duration: 2000 });
-            setProcessingPlan(null);
-            // Redirect to success page immediately
-            router.push(`/fantasy-vip-success?orderId=${orderId}`);
-          },
-          onFailed: ({ message }: { message?: string }) => {
-            toast.error(`Pago rechazado: ${message || 'Por favor intenta con otro método de pago'}`);
-            setProcessingPlan(null);
-          },
-          onPending: () => {
-            toast.info('Tu pago está siendo procesado...');
-            setProcessingPlan(null);
-            // Also redirect to success page for pending payments
-            router.push(`/fantasy-vip-success?orderId=${orderId}`);
-          },
-          onClose: () => {
-            if (processingPlan) {
-              toast.info('Pago cancelado');
-              setProcessingPlan(null);
-            }
-          },
-        }); 
+openBoldCheckout({
+  ...config,
+  onSuccess: async () => {
+    toast.success('✅ Pago exitoso! Redirigiendo...', { duration: 2000 });
+    setProcessingPlan(null);
+    // DON'T redirect here - Bold will handle it via redirectionUrl
+  },
+  onFailed: ({ message }: { message?: string }) => {
+    toast.error(`Pago rechazado: ${message || 'Por favor intenta con otro método de pago'}`);
+    setProcessingPlan(null);
+  },
+  onPending: () => {
+    toast.info('Tu pago está siendo procesado...');
+    setProcessingPlan(null);
+    // DON'T redirect here either - Bold will handle it
+  },
+  onClose: () => {
+    if (processingPlan) {
+      toast.info('Pago cancelado');
+      setProcessingPlan(null);
+    }
+  },
+}); 
   
       } catch (err: any) {
         console.error('Error en handlePurchase:', err);
