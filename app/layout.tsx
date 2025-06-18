@@ -18,8 +18,8 @@ import { SpeedInsights } from "@vercel/speed-insights/next"
 const exo2 = Exo_2({ subsets: ["latin"] });
 
 export const metadata = {
-  title: "MotorManía Colombia",
-  description: "La comunidad de apasionados por los autos en Colombia",
+  title: "MotorManía",
+  description: "Envía tus predicciones y gana un viaje a la",
 };
 
 export default function RootLayout({

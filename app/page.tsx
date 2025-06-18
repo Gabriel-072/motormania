@@ -48,12 +48,12 @@ const reviews: ReviewData[] = [
   { name: 'Diego Torres', rating: 4, comment: 'Las promociones de los socios son muy útiles para mi taller.' },
   { name: 'Valeria Díaz', rating: 5, comment: 'Ser parte de este club ha hecho que mis gastos sean más económicos.' },
   { name: 'Andrés Morales', rating: 4, comment: 'Me gusta la variedad. ¡Siempre hay algo nuevo!' },
-  { name: 'Laura Vargas', rating: 5, comment: 'El mejor club para fanáticos de los autos en Colombia.' },
+  { name: 'Laura Vargas', rating: 5, comment: 'El mejor club para fanáticos de los autos.' },
   { name: 'Javier Castillo', rating: 4, comment: 'Esperando con ansias lo siguiente.' },
   { name: 'Camila Rojas', rating: 5, comment: 'El soporte al cliente es rápido y muy profesional.' },
   { name: 'Felipe Gómez', rating: 4, comment: 'Las invitaciones a eventos son un toque especial.' },
   { name: 'Natalia Ortiz', rating: 5, comment: 'He ahorrado mucho en servicios automotrices con MotorManía.' },
-  { name: 'Santiago Gonzales', rating: 4, comment: 'Creo que es la empresa más genial de Colombia' },
+  { name: 'Santiago Gonzales', rating: 4, comment: 'Creo que es la empresa más genial de todo latam' },
   { name: 'Mateo Silva', rating: 4, comment: 'La comunidad es increíble, siempre hay algo nuevo que descubrir.' },
   { name: 'Gabriela Mendoza', rating: 5, comment: 'MotorManía ha superado todas mis expectativas.' },
   { name: 'Elena Castro', rating: 5, comment: '¡Los sorteos y descuentos son lo mejor! Súper recomendado.' },
@@ -69,7 +69,7 @@ const maxEntries: Record<Tier, number> = { Intro: 5, Estándar: 20, Premium: 50 
 const categories = [
   { title: 'Automotriz', description: 'Tu tienda única para ofertas exclusivas en talleres, repuestos, accesorios y más.', image: '/images/automotriz.png' },
   { title: 'Servicios y Artículos del Hogar', description: 'Descubre servicios y productos para el hogar con descuentos exclusivos.', image: '/images/servicios_hogar.png' },
-  { title: 'Merch', description: 'Explora nuestra colección oficial de MotorManía Colombia para fanáticos.', image: '/images/merch.png' },
+  { title: 'Merch', description: 'Explora nuestra colección oficial de MotorManía para fanáticos.', image: '/images/merch.png' },
 ];
 
 const signUpBenefits = [
@@ -285,19 +285,19 @@ export default function Home() {
             initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}
             className="text-amber-400 text-lg sm:text-xl font-semibold mb-4 block" // Used font-semibold
           >
-            ¡El mejor club de beneficios en el sector automotriz!
+            ¡Vive el deporte motor y cumple tus sueños!
           </motion.span>
           <motion.h1
             initial={{ opacity: 0, y: -50 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }}
             className="text-4xl sm:text-5xl md:text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-cyan-400 to-purple-400 mb-6 drop-shadow-[0_0_15px_rgba(255,191,0,0.6)]"
           >
-            MotorManía Colombia
+            MotorManía 
           </motion.h1>
           <motion.p
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.2 }}
             className="text-lg sm:text-xl md:text-2xl text-gray-300 mt-4 mb-10 max-w-2xl mx-auto"
           >
-            Ahorro, velocidad y premios para los apasionados por los carros y las motos en Colombia.
+            Velocidad y premios para los apasionados por la F1.
           </motion.p>
 
           {/* Framed CTA Box */}
