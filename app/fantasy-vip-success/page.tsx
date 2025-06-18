@@ -11,7 +11,7 @@ import confetti from 'canvas-confetti';
 
 export default function FantasyVipSuccess() {
   const router = useRouter();
-  const { isLoaded, isSignedIn, user } = useUser();
+  const { isSignedIn, user } = useUser();
   const [verificationStatus, setVerificationStatus] = useState<'checking' | 'success' | 'error'>('checking');
   const [orderDetails, setOrderDetails] = useState<any>(null);
   const [countdown, setCountdown] = useState(5);
@@ -36,81 +36,63 @@ export default function FantasyVipSuccess() {
   };
 
   useEffect(() => {
-    // Wait for Clerk to load
-    if (!isLoaded) return;
-    
     const urlParams = new URLSearchParams(window.location.search);
     const orderId = urlParams.get('orderId');
     
     if (!orderId) {
-      console.log('No orderId found in URL');
       router.push('/fantasy-vip-info');
       return;
     }
-    
-    // If Clerk is loaded but user is not signed in (shouldn't happen)
-    if (!isSignedIn) {
-      console.log('User not signed in (this should not happen)');
-      router.push('/fantasy-vip-info');
-      return;
-    }
-  
-    let retryCount = 0;
-    const maxRetries = 10;
-    const retryDelay = 2000; // 2 seconds
-  
-    const checkPayment = async () => {
-      const verification = await verifyPayment(orderId);
-      
-      if (verification?.isPaid) {
-        setVerificationStatus('success');
-        setOrderDetails(verification);
+
+    // Add a small delay to ensure auth is ready
+    setTimeout(() => {
+      let retryCount = 0;
+      const maxRetries = 10;
+      const retryDelay = 2000; // 2 seconds
+
+      const checkPayment = async () => {
+        const verification = await verifyPayment(orderId);
         
-        // Fire confetti!
-        confetti({
-          particleCount: 100,
-          spread: 70,
-          origin: { y: 0.6 }
-        });
-        
-        // Start countdown to redirect
-        let timeLeft = 5;
-        const countdownInterval = setInterval(() => {
-          timeLeft--;
-          setCountdown(timeLeft);
-          if (timeLeft <= 0) {
-            clearInterval(countdownInterval);
-            router.push('/fantasy-vip');
-          }
-        }, 1000);
-        
-      } else if (retryCount < maxRetries) {
-        // Retry after delay
-        retryCount++;
-        setTimeout(checkPayment, retryDelay);
-      } else {
-        // Max retries reached
-        setVerificationStatus('error');
-      }
-    };
-  
-    checkPayment();
-  }, [isLoaded, isSignedIn, router]);
+        if (verification?.isPaid) {
+          setVerificationStatus('success');
+          setOrderDetails(verification);
+          
+          // Fire confetti!
+          confetti({
+            particleCount: 100,
+            spread: 70,
+            origin: { y: 0.6 }
+          });
+          
+          // Start countdown to redirect
+          let timeLeft = 5;
+          const countdownInterval = setInterval(() => {
+            timeLeft--;
+            setCountdown(timeLeft);
+            if (timeLeft <= 0) {
+              clearInterval(countdownInterval);
+              router.push('/fantasy-vip');
+            }
+          }, 1000);
+          
+        } else if (retryCount < maxRetries) {
+          // Retry after delay
+          retryCount++;
+          setTimeout(checkPayment, retryDelay);
+        } else {
+          // Max retries reached
+          setVerificationStatus('error');
+        }
+      };
+
+      checkPayment();
+    }, 1000); // Give auth 1 second to be ready
+  }, [router]); // Remove isSignedIn from dependencies
 
   // Manual redirect function
   const handleManualRedirect = () => {
     router.push('/fantasy-vip');
   };
-
-
-  // Don't render anything until Clerk is loaded
-  if (!isLoaded) {
-    return (
-      <div className="min-h-screen bg-neutral-950 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-amber-500 border-t-transparent"></div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-neutral-950 flex items-center justify-center px-4">
