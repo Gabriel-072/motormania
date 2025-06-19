@@ -43,16 +43,22 @@ export default function FantasyVipPage() {
     try {
       const jwt = await getToken({ template: 'supabase' });
       if (!jwt) throw new Error('JWT no disponible');
-      const sb  = createAuthClient(jwt);
-
+      const sb = createAuthClient(jwt);
+  
       const { data, error } = await sb
-        .from('vip_transactions')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('payment_status', 'paid')
+        .from('vip_users')
+        .select('id, active_plan, plan_expires_at')
+        .eq('id', userId)
         .maybeSingle();
+      
       if (error) throw error;
-      return data ? 'valid' : 'invalid';
+      
+      if (data && data.plan_expires_at) {
+        const isExpired = new Date(data.plan_expires_at) < new Date();
+        return isExpired ? 'invalid' : 'valid';
+      }
+      
+      return 'invalid';
     } catch (err) {
       console.error('[VIP] checkVipStatus error:', err);
       return 'invalid';
