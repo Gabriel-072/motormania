@@ -20,7 +20,6 @@ import LoadingAnimation      from '@/components/LoadingAnimation';
 export default function FantasyVipPage() {
   /* Clerk */
   const { isLoaded, isSignedIn, user } = useUser();
-  const { getToken }                  = useAuth();
 
   /* Router */
   const router = useRouter();
@@ -39,25 +38,14 @@ export default function FantasyVipPage() {
   /* ------------------------------------------------------------ */
   /* Helper: consulta si el usuario ya tiene pago 'paid' */
   /* ------------------------------------------------------------ */
-  const checkVipStatus = async (userId: string) => {
+  const checkVipStatus = async () => {
     try {
-      const jwt = await getToken({ template: 'supabase' });
-      if (!jwt) throw new Error('JWT no disponible');
-      const sb = createAuthClient(jwt);
-  
-      const { data, error } = await sb
-        .from('vip_users')
-        .select('id, active_plan, plan_expires_at')
-        .eq('id', userId)
-        .maybeSingle();
+      const response = await fetch('/api/vip/check-access');
+      const data = await response.json();
       
-      if (error) throw error;
-      
-      if (data && data.plan_expires_at) {
-        const isExpired = new Date(data.plan_expires_at) < new Date();
-        return isExpired ? 'invalid' : 'valid';
+      if (data.hasAccess) {
+        return 'valid';
       }
-      
       return 'invalid';
     } catch (err) {
       console.error('[VIP] checkVipStatus error:', err);
@@ -87,7 +75,7 @@ export default function FantasyVipPage() {
         console.error('[VIP] confirm-order error:', e);
       } finally {
         await new Promise(r => setTimeout(r, 1000)); // dar tiempo al webhook
-        const status = await checkVipStatus(user.id);
+        const status = await checkVipStatus();
         setVipStatus(status as 'valid' | 'invalid');
         window.history.replaceState({}, '', '/fantasy-vip');
         setConfirmingOrder(false);
@@ -105,7 +93,7 @@ export default function FantasyVipPage() {
 
     (async () => {
       setVipStatus('loading');
-      const status = await checkVipStatus(user.id);
+      const status = await checkVipStatus();
       setVipStatus(status as 'valid' | 'invalid');
     })();
   }, [isLoaded, isSignedIn, user, confirmingOrder]);
