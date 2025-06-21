@@ -10,7 +10,7 @@ export default function MovingBarFantasy() {
 
   /* ─── mensaje + separador ─── */
   const message =
-    '¡Activa tu Pase VIP, compite por premios en efectivo y un viaje a un GP de la F1 en 2026!';
+  '¡Activa tu Pase VIP, compite por premios en efectivo, merch y un viaje a un GP de la F1 en 2026!';
   const separator = ' • ';
 
   /* ─── duplicamos texto para el loop ─── */

@@ -1126,42 +1126,50 @@ function PredictionsTeaser() {
     }, []);
   
     /* ───────── Lógica del countdown ───────── */
-    useEffect(() => {
-      if (!gpSchedule.length) return;
+useEffect(() => {
+  if (!gpSchedule.length) return;
+
+  // Determina el próximo GP (primer GP futuro o buffer de 4h tras carrera)
+  const now = Date.now();
+  let idx = gpSchedule.findIndex(g => new Date(g.race_time).getTime() > now);
+  if (idx === -1) idx = gpSchedule.length - 1; // Si no hay GPs futuros, usa el último
+  setCurrentGp(gpSchedule[idx]);
+
+  const tick = () => {
+    if (!currentGp) return;
+    const now2 = Date.now();
+    const qDiff = new Date(currentGp.qualy_time).getTime() - now2;
+    const rDiff = new Date(currentGp.race_time).getTime() - now2;
+
+    setQualyCountdown({
+      days: Math.floor(qDiff / 86400000),
+      hours: Math.floor((qDiff % 86400000) / 3600000),
+      minutes: Math.floor((qDiff % 3600000) / 60000),
+      seconds: Math.floor((qDiff % 60000) / 1000),
+    });
+    setRaceCountdown({
+      days: Math.floor(rDiff / 86400000),
+      hours: Math.floor((rDiff % 86400000) / 3600000),
+      minutes: Math.floor((rDiff % 3600000) / 60000),
+      seconds: Math.floor((rDiff % 60000) / 1000),
+    });
+  };
+
+  tick();
   
-      // Determina el próximo GP (primer GP futuro o buffer de 4h tras carrera)
-      const now = Date.now();
-      let idx = gpSchedule.findIndex(g => new Date(g.race_time).getTime() > now);
-      if (idx === -1) idx = gpSchedule.length - 1; // Si no hay GPs futuros, usa el último
-      setCurrentGp(gpSchedule[idx]);
+  // Update countdown every second
+  const countdownInterval = setInterval(tick, 1000);
   
-      const tick = () => {
-        if (!currentGp) return;
-        const now2 = Date.now();
-        const qDiff = new Date(currentGp.qualy_time).getTime() - now2;
-        const rDiff = new Date(currentGp.race_time).getTime() - now2;
+  // Toggle between Qualy/Race display every 5 seconds
+  const toggleInterval = setInterval(() => {
+    setShowQualy(prev => !prev);
+  }, 5000);
   
-        setQualyCountdown({
-          days: Math.floor(qDiff / 86400000),
-          hours: Math.floor((qDiff % 86400000) / 3600000),
-          minutes: Math.floor((qDiff % 3600000) / 60000),
-          seconds: Math.floor((qDiff % 60000) / 1000),
-        });
-        setRaceCountdown({
-          days: Math.floor(rDiff / 86400000),
-          hours: Math.floor((rDiff % 86400000) / 3600000),
-          minutes: Math.floor((rDiff % 3600000) / 60000),
-          seconds: Math.floor((rDiff % 60000) / 1000),
-        });
-      };
-  
-      tick();
-      const iv = setInterval(() => {
-        tick();
-        setShowQualy(prev => !prev); // Alterna cada 5 segundos
-      }, 5000);
-      return () => clearInterval(iv);
-    }, [gpSchedule, currentGp]);
+  return () => {
+    clearInterval(countdownInterval);
+    clearInterval(toggleInterval);
+  };
+}, [gpSchedule, currentGp]);
   
     /* ───────── Check for pending plan after login ───────── */
     useEffect(() => {
@@ -1390,11 +1398,6 @@ return (
   <div className="absolute inset-0 bg-gradient-to-br from-red-900/10 via-transparent to-orange-900/10" />
   <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(255,107,107,0.1),transparent_50%)]" />
   
-  {/* This is the main grid container.
-    The key is that it now has TWO direct children below, which allows 
-    `lg:grid-cols-2` to correctly create a two-column layout on desktop.
-    I've added `lg:items-center` for better vertical alignment on desktop.
-  */}
   <div className="relative max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8 items-start lg:items-center">
     
     {/* 1️⃣ First Column (Headline) */}
@@ -1427,7 +1430,54 @@ return (
           Gana Un Viaje A La F1
         </span>
       </motion.h1>
+
+{/* ─── SLIM, FIXED-WIDTH COUNTDOWN BAR ─── */}
+{currentGp && (
+  <motion.div
+    initial={{ y: 20, opacity: 0 }}
+    animate={{ y: 0, opacity: 1 }}
+    transition={{ duration: 0.6 }}
+    /* 20 rem = 320 px ⇒ se mantiene siempre igual, no importa el texto */
+    className="w-80 mx-auto sm:mx-0 rounded-2xl border border-white/15 bg-white/5 backdrop-blur-lg shadow-md px-4 py-3 flex flex-col gap-1"
+  >
+    {/* GP NAME (TOP LINE) */}
+    <div className="flex items-center justify-center gap-2">
+      <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping" />
+      <span className="text-xs font-semibold tracking-wide text-gray-200 truncate">
+        {currentGp.gp_name}
+      </span>
     </div>
+
+    <div className="h-px w-full bg-white/10" />
+
+    {/* LABEL + COUNTDOWN */}
+    <div className="flex items-center justify-center gap-2">
+      {/* longest label (“CLASIFICACIÓN EN”) sets min-width so bar no cambia */}
+      <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-300 inline-block min-w-[108px] text-center">
+        {showQualy ? 'Clasificación en' : 'Carrera en'}
+      </span>
+
+      {/* DIGITS  – always render 4 bloques para que el ancho sea constante */}
+      <div className="flex items-center gap-1 font-mono text-white">
+        {[
+          { v: (showQualy ? qualyCountdown : raceCountdown).days, l: 'd' },
+          { v: (showQualy ? qualyCountdown : raceCountdown).hours, l: 'h' },
+          { v: (showQualy ? qualyCountdown : raceCountdown).minutes, l: 'm' },
+          { v: (showQualy ? qualyCountdown : raceCountdown).seconds, l: 's' },
+        ].map((t, i) => (
+          <React.Fragment key={t.l}>
+            <span className="tabular-nums text-base font-bold">
+              {String(t.v).padStart(2, '0')}
+              <span className="text-[10px] ml-0.5 text-gray-400">{t.l}</span>
+            </span>
+            {i < 3 && <span className="text-base text-gray-500">:</span>}
+          </React.Fragment>
+        ))}
+      </div>
+    </div>
+  </motion.div>
+)}
+ </div>
 
     {/* 2️⃣ Second Column (Video + CTA) */}
     <div className="flex flex-col items-center lg:items-start space-y-6">
@@ -1438,11 +1488,9 @@ return (
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.7, delay: 0.1 }}
       >
-        {/* Make sure <VideoPlayer /> is defined or imported in your file */}
         <VideoPlayer /> 
       </motion.div>
       
-      {/* Make sure <StickyAccessCTA /> is defined or imported in your file */}
       <StickyAccessCTA />
     </div>
 
@@ -1601,10 +1649,10 @@ return (
               viewport={{ once: true }}
             >
               <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold mb-4 bg-gradient-to-r from-amber-400 via-orange-500 to-red-400 bg-clip-text text-transparent drop-shadow-lg">
-                Un Botín de $75,000 USD te Espera
+                Cumple Tus Sueños De La F1
               </h2>
               <p className="text-gray-300 text-lg lg:text-xl max-w-2xl mx-auto mb-8 leading-relaxed">
-                Tu membresía VIP es la llave para competir por estos premios que <strong className="text-amber-400">cambiarán tu vida</strong>.
+                Tu membresía VIP es la llave para competir por premios que <strong className="text-amber-400">cambiarán tu vida</strong>.
               </p>
               
               {/* Urgency Indicator */}
@@ -1648,13 +1696,13 @@ return (
                     </div>
                     <div className="flex items-center gap-3 text-gray-300 text-sm">
                       <span className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></span>
-                      <span>Vuelos, hotel 5⭐ y suite de hospitalidad incluidos</span>
+                      <span>Vuelos y estadía incluidos</span>
                     </div>
                   </div>
                   
                   <div className="bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30 rounded-lg p-3 text-center">
                     <p className="text-amber-300 text-xs font-semibold">
-                      ✈️ Experiencia todo pagado para 1 persona.
+                      ✈️ 3 ganadores en total!
                     </p>
                   </div>
                 </div>
@@ -1678,14 +1726,14 @@ return (
                 
                 <div className="relative pt-4">
                   <div className="text-center mb-6">
-                    <div className="text-3xl font-black text-orange-400 mb-2">$20,000 USD</div>
-                    <div className="text-orange-300 text-sm font-semibold">En premios por temporada</div>
+                    <div className="text-3xl font-black text-orange-400 mb-2">Merch Oficial</div>
+                    <div className="text-orange-300 text-sm font-semibold">Cientos de premios cada temporadas</div>
                   </div>
                   
                   <div className="space-y-3 mb-6">
                     <div className="flex items-center gap-3 text-gray-300 text-sm">
                       <span className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></span>
-                      <span><strong className="text-white">$500-$1,500 USD</strong> por carrera a los mejores</span>
+                      <span><strong className="text-white">Oportunidades de ganar</strong> en cada carrera</span>
                     </div>
                     <div className="flex items-center gap-3 text-gray-300 text-sm">
                       <span className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></span>
@@ -1699,7 +1747,7 @@ return (
                   
                   <div className="bg-gradient-to-r from-orange-500/20 to-red-500/20 border border-orange-500/30 rounded-lg p-3 text-center">
                     <p className="text-orange-300 text-xs font-semibold">
-                      🏁 Gana dinero real cada fin de semana
+                      🏁 Premios cada fin de semana
                     </p>
                   </div>
                 </div>
@@ -1718,33 +1766,33 @@ return (
                 
                 {/* Badge */}
                 <span className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-cyan-600 to-cyan-500 text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-xl border border-cyan-400">
-                  🎲 SORTEOS VIP
+                  🎲 GANADORES VIP
                 </span>
                 
                 <div className="relative pt-4">
                   <div className="text-center mb-6">
-                    <div className="text-3xl font-black text-cyan-400 mb-2">$5,000 USD</div>
-                    <div className="text-cyan-300 text-sm font-semibold">En sorteos semanales</div>
+                    <div className="text-3xl font-black text-cyan-400 mb-2">Giveaways</div>
+                    <div className="text-cyan-300 text-sm font-semibold">Exclusivos para VIPs</div>
                   </div>
                   
                   <div className="space-y-3 mb-6">
                     <div className="flex items-center gap-3 text-gray-300 text-sm">
                       <span className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></span>
-                      <span><strong className="text-white">3 ganadores aleatorios</strong> cada GP</span>
+                      <span><strong className="text-white">1 ganador aleatorios</strong> cada GP</span>
                     </div>
                     <div className="flex items-center gap-3 text-gray-300 text-sm">
                       <span className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></span>
-                      <span>$200-$300 USD por ganador</span>
+                      <span>Merch de la F1</span>
                     </div>
                     <div className="flex items-center gap-3 text-gray-300 text-sm">
                       <span className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></span>
-                      <span>Solo por participar, sin requisitos</span>
+                      <span>Solo por ser VIP y participar</span>
                     </div>
                   </div>
                   
                   <div className="bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-cyan-500/30 rounded-lg p-3 text-center">
                     <p className="text-cyan-300 text-xs font-semibold">
-                      🍀 Suerte pura, solo para miembros VIP
+                      🍀 Solo para miembros VIP
                     </p>
                   </div>
                 </div>
@@ -1761,15 +1809,15 @@ return (
             >
               <div className="bg-gradient-to-r from-neutral-800/80 to-neutral-900/60 border border-amber-500/30 rounded-2xl p-6 max-w-2xl mx-auto backdrop-blur-sm">
                 <h3 className="text-xl sm:text-2xl font-bold text-white mb-3">
-                  ¿Listo para cambiar tu vida con F1?
+                 Listo para vivir la F1 como nunca antes?
                 </h3>
                 <p className="text-gray-300 text-sm sm:text-base mb-4">
-                  Más de <strong className="text-amber-400">$75,000 USD en premios</strong> esperan a los miembros VIP. 
+                  Premios <strong className="text-amber-400">Increíbles</strong> para los miembros VIP. 
                   Tu oportunidad de ganar empieza ahora.
                 </p>
                 <div className="flex items-center justify-center gap-2 text-green-400 text-sm">
                   <span className="animate-pulse w-2 h-2 bg-green-400 rounded-full"></span>
-                  <span>184 miembros VIP ya compitiendo</span>
+                  <span>Miles de miembros VIP ya están compitiendo</span>
                 </div>
               </div>
             </motion.div>
@@ -1837,7 +1885,7 @@ return (
                 },
                 { 
                   icon: '🏆', 
-                  title: 'Cobra tus Premios', 
+                  title: 'Compite por un viaje a la F1', 
                   text: 'Los mejores del ranking ganan dinero real. ¡Así de simple!',
                   color: 'from-amber-500/20 to-orange-500/20',
                   border: 'border-amber-500/30'
@@ -1872,35 +1920,7 @@ return (
               ))}
             </div>
             
-            {/* Connection Lines for Desktop */}
-            <div className="hidden lg:block absolute top-1/2 left-0 right-0 -translate-y-1/2 pointer-events-none">
-              <div className="flex justify-between items-center max-w-4xl mx-auto px-24">
-                {[0, 1, 2].map((i) => (
-                  <motion.div
-                    key={i}
-                    className="w-16 h-0.5 bg-gradient-to-r from-amber-500/50 to-orange-500/50"
-                    initial={{ scaleX: 0 }}
-                    whileInView={{ scaleX: 1 }}
-                    transition={{ duration: 0.8, delay: 0.5 + i * 0.2 }}
-                    viewport={{ once: true }}
-                  />
-                ))}
-              </div>
-            </div>
-            
             {/* Bottom CTA */}
-            <motion.div
-              className="mt-12 text-center"
-              initial={{ y: 20, opacity: 0 }}
-              whileInView={{ y: 0, opacity: 1 }}
-              transition={{ duration: 0.6, delay: 0.6 }}
-              viewport={{ once: true }}
-            >
-              <div className="inline-flex items-center gap-2 bg-green-600/20 border border-green-500/30 rounded-full px-6 py-3 text-green-400 font-medium">
-                <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
-                Empiezas a competir en menos de 5 minutos
-              </div>
-            </motion.div>
           </div>
         </section>
 
@@ -2057,6 +2077,14 @@ return (
                       </p>
                     </div>
 
+                    {plan.id === 'race-pass' && currentGp && (
+                    <div className="mb-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                    <p className="text-blue-400 text-xs font-semibold text-center">
+                    ✓ Válido para: {currentGp.gp_name}
+                    </p>
+                    </div>
+                    )}
+                    
                     <div className="mt-auto">
                       <button
                         onClick={() => handlePurchase(plan.id)}
@@ -2130,8 +2158,8 @@ return (
                   }
                   className="inline-flex items-center gap-2 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white font-bold px-8 py-4 rounded-xl text-lg shadow-2xl active:scale-95 transition-transform hover:scale-105"
                 >
-                  QUIERO MI ACCESO VIP AHORA
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  ACCEDER
+                  <svg className="w-30 h-5" fill="currentColor" viewBox="0 0 20 20">
                     <path
                       fillRule="evenodd"
                       d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z"
@@ -2258,6 +2286,37 @@ return (
         </section>
       </main>
     </div>
+
+    
+{/*// ───────── Botón Telegram Flotante Soporte 24/7 ─────────//*/}
+<a
+  href="https://t.me/+573009290499"
+  target="_blank"
+  rel="noopener noreferrer"
+  title="Soporte 24/7"
+  aria-label="Soporte 24/7"
+  className="fixed bottom-32 right-4 z-50 bg-blue-500 hover:bg-blue-600 text-white p-4 rounded-full shadow-lg transition-all duration-300 flex items-center justify-center"
+>
+  {/* Badge 24/7 */}
+  <span className="absolute -top-2 -right-2 bg-red-600 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+    24/7
+  </span>
+
+  {/* Icono de Telegram */}
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    className="w-6 h-6"
+    fill="currentColor"
+    viewBox="0 0 24 24"
+  >
+    <path d="M12 0C5.371 0 0 5.371 0 12c0 6.628 5.371 12 12 12s12-5.372 12-12C24 5.371 18.629 0 12 0zm5.363 8.55l-1.482 7.06c-.112.54-.4.676-.81.423l-2.25-1.66-1.084 1.043c-.12.12-.22.22-.45.22l.162-2.283 4.152-3.758c.18-.16 0-.25-.28-.09l-5.13 3.227-2.21-.69c-.48-.15-.49-.48.1-.71l8.64-3.33c.4-.15.75.09.62.68z"/>
+  </svg>
+
+  {/* Badge Soporte */}
+  <span className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 bg-red-600 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+    Soporte
+  </span>
+</a>
   </>
 );}
   

@@ -45,12 +45,33 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'PLAN_NOT_FOUND' }, { status: 400 });
   }
 
+  /* ───────────── 2.5️⃣ Get Active GP for Race Pass ───────────── */
+  let activeGp = null;
+  if (planId === 'race-pass') {
+    const { data: gpData } = await sb
+      .from('gp_schedule')
+      .select('gp_name, qualy_time, race_time')
+      .gte('qualy_time', new Date().toISOString()) // Predictions close at qualy time
+      .order('race_time', { ascending: true })
+      .limit(1)
+      .single();
+    
+    activeGp = gpData?.gp_name || null;
+    
+    if (!activeGp) {
+      return NextResponse.json({ 
+        error: 'NO_ACTIVE_GP',
+        message: 'No hay ningún Gran Premio activo para predicciones en este momento.' 
+      }, { status: 400 });
+    }
+  }
+
   /* ───────────── 3️⃣ Generar orden (≤ 40 chars) ───────────── */
   const safeUserId = userId.toLowerCase().replace(/[^a-z0-9-]/g, '-').slice(0, 12);
   const shortStamp = Date.now().toString(36);
   const orderId    = `vip-${planId}-${safeUserId}-${shortStamp}`; // p.ej: vip-race-pass-abc123-kg9hf5
   const amount     = String(plan.price);
-
+  
   const integritySignature = crypto
     .createHash('sha256')
     .update(`${orderId}${amount}${CURRENCY}${BOLD_SECRET}`)
@@ -66,7 +87,8 @@ export async function POST(req: NextRequest) {
     plan_id       : planId,
     order_id      : orderId,
     amount_cop    : plan.price,
-    payment_status: 'pending'
+    payment_status: 'pending',
+    selected_gp   : activeGp // Auto-assigned for race-pass, null for season-pass
   });
 
   if (error) {
@@ -78,8 +100,9 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({
     orderId,
     amount,
-    description       : `F1 Fantasy VIP – ${plan.name}`,
+    description       : `F1 Fantasy VIP – ${plan.name}${activeGp ? ` (${activeGp})` : ''}`,
     integritySignature,
-    redirectionUrl
+    redirectionUrl,
+    activeGp          : activeGp // Include in response so frontend can show it
   });
 }
