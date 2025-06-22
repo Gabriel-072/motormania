@@ -1369,9 +1369,7 @@ return (
         }}
       />
       <div className="relative z-10 flex items-center justify-center gap-2 text-sm font-bold">
-        <span className="animate-pulse">🔥</span>
-        <span>ÚLTIMAS HORAS: 40% DE DESCUENTO EN TU PASE VIP</span>
-        <span className="animate-pulse">🔥</span>
+                <span>40% DE DESCUENTO EN TU PASE VIP</span>
       </div>
     </div>
 
@@ -1424,10 +1422,10 @@ return (
         transition={{ duration: 0.7 }}
       >
         <span className="block text-white drop-shadow-lg">
-          Envía Tus Predicciones
+        Predice y Compite
         </span>
         <span className="block bg-clip-text text-transparent bg-gradient-to-r from-amber-300 via-orange-400 to-red-400 drop-shadow-lg">
-          Gana Un Viaje A La F1
+          Por Un Viaje A La F1
         </span>
       </motion.h1>
 
@@ -1513,11 +1511,11 @@ return (
               className="text-center"
             >
               <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold mb-3 bg-gradient-to-r from-amber-400 via-orange-500 to-red-400 bg-clip-text text-transparent drop-shadow-lg">
-                El mejor fantasy de la F1
+                Vive la F1 como nunca antes
               </h2>
               <p className="text-gray-300 text-lg lg:text-xl max-w-2xl mx-auto mb-12 leading-relaxed">
-                Nuestros miembros ya viven la adrenalina de <strong className="text-amber-400">predecir,
-                sumar puntos y liderar el ranking</strong> antes del debut con premios.
+                Latinoamérica ya vive la adrenalina de <strong className="text-amber-400">predecir,
+                sumar puntos y liderar el ranking</strong>
               </p>
 
               <div className="grid md:grid-cols-3 gap-6 lg:gap-8">
@@ -1533,7 +1531,7 @@ return (
                   <div className="absolute -inset-0.5 bg-gradient-to-r from-amber-500/20 to-orange-500/20 rounded-2xl blur opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   
                   <span className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-500 to-amber-400 text-black text-xs font-bold px-4 py-1.5 rounded-full shadow-xl border border-amber-300">
-                    Top-20 Pretemporada
+                    Colombia
                   </span>
                   
                   <div className="relative">
@@ -1545,15 +1543,13 @@ return (
                         <p className="font-semibold text-white">Juan Carlos</p>
                         <p className="text-sm text-gray-400 flex items-center gap-1">
                           <span className="w-2 h-2 bg-green-400 rounded-full"></span>
-                          Medellín, CO
+                          Medellín
                         </p>
                       </div>
                     </div>
                     <p className="text-gray-300 text-sm italic mb-4 leading-relaxed">
-                      "Nunca había visto una carrera con tanta emoción. Mis predicciones
-                      suben en el ranking y ya quiero competir por premios."
+                      "Nunca había vivido una carrera con tanta emoción."
                     </p>
-                    <div className="text-amber-400 text-lg">⭐⭐⭐⭐⭐</div>
                   </div>
                 </motion.div>
 
@@ -1569,7 +1565,7 @@ return (
                   <div className="absolute -inset-0.5 bg-gradient-to-r from-amber-500/20 to-orange-500/20 rounded-2xl blur opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   
                   <span className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-500 to-amber-400 text-black text-xs font-bold px-4 py-1.5 rounded-full shadow-xl border border-amber-300">
-                    Fanática #1
+                    México
                   </span>
                   
                   <div className="relative">
@@ -1581,15 +1577,13 @@ return (
                         <p className="font-semibold text-white">María Rodríguez</p>
                         <p className="text-sm text-gray-400 flex items-center gap-1">
                           <span className="w-2 h-2 bg-green-400 rounded-full"></span>
-                          Bogotá, CO
+                          Monterrey
                         </p>
                       </div>
                     </div>
                     <p className="text-gray-300 text-sm italic mb-4 leading-relaxed">
                       "Competir contra otros y ver la tabla en vivo es
-                      adictivo. ¡Ansiosa por los premios reales!"
-                    </p>
-                    <div className="text-amber-400 text-lg">⭐⭐⭐⭐⭐</div>
+                      adictivo"</p>
                   </div>
                 </motion.div>
 
@@ -1605,7 +1599,7 @@ return (
                   <div className="absolute -inset-0.5 bg-gradient-to-r from-amber-500/20 to-orange-500/20 rounded-2xl blur opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   
                   <span className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-500 to-amber-400 text-black text-xs font-bold px-4 py-1.5 rounded-full shadow-xl border border-amber-300">
-                    Season Pass
+                    Argentina
                   </span>
                   
                   <div className="relative">
@@ -1614,18 +1608,16 @@ return (
                         AL
                       </div>
                       <div>
-                        <p className="font-semibold text-white">Andrés López</p>
+                        <p className="font-semibold text-white">Franco Suarez</p>
                         <p className="text-sm text-gray-400 flex items-center gap-1">
                           <span className="w-2 h-2 bg-green-400 rounded-full"></span>
-                          Cali, CO
+                          Buenos Aires
                         </p>
                       </div>
                     </div>
                     <p className="text-gray-300 text-sm italic mb-4 leading-relaxed">
-                      "Solo por el dashboard y la comunidad ya vale la
-                      pena. Esto va a romperla cuando empiecen los premios."
+                      "Rompiendola, ese viaje es mio"
                     </p>
-                    <div className="text-amber-400 text-lg">⭐⭐⭐⭐⭐</div>
                   </div>
                 </motion.div>
               </div>
@@ -1649,7 +1641,7 @@ return (
               viewport={{ once: true }}
             >
               <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold mb-4 bg-gradient-to-r from-amber-400 via-orange-500 to-red-400 bg-clip-text text-transparent drop-shadow-lg">
-                Cumple Tus Sueños De La F1
+                Cumple Tus Sueños
               </h2>
               <p className="text-gray-300 text-lg lg:text-xl max-w-2xl mx-auto mb-8 leading-relaxed">
                 Tu membresía VIP es la llave para competir por premios que <strong className="text-amber-400">cambiarán tu vida</strong>.
@@ -1676,7 +1668,7 @@ return (
                 
                 {/* Badge */}
                 <span className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-red-600 to-red-500 text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-xl border border-red-400">
-                  🏆 PREMIO MÁXIMO
+                  🏆 Compite y gana
                 </span>
                 
                 <div className="relative pt-4">
@@ -1692,7 +1684,7 @@ return (
                     </div>
                     <div className="flex items-center gap-3 text-gray-300 text-sm">
                       <span className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></span>
-                      <span><strong className="text-white">1 ganador por sorteo</strong> entre todos los VIP</span>
+                      <span><strong className="text-white">1 ganador aleatorio</strong> entre todos los VIP</span>
                     </div>
                     <div className="flex items-center gap-3 text-gray-300 text-sm">
                       <span className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></span>
@@ -1721,13 +1713,13 @@ return (
                 
                 {/* Badge */}
                 <span className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-orange-600 to-orange-500 text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-xl border border-orange-400">
-                  💰 CADA CARRERA
+                  💰 Cada Carrera
                 </span>
                 
                 <div className="relative pt-4">
                   <div className="text-center mb-6">
                     <div className="text-3xl font-black text-orange-400 mb-2">Merch Oficial</div>
-                    <div className="text-orange-300 text-sm font-semibold">Cientos de premios cada temporadas</div>
+                    <div className="text-orange-300 text-sm font-semibold">Cientos de premios cada temporada</div>
                   </div>
                   
                   <div className="space-y-3 mb-6">
@@ -1766,7 +1758,7 @@ return (
                 
                 {/* Badge */}
                 <span className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-cyan-600 to-cyan-500 text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-xl border border-cyan-400">
-                  🎲 GANADORES VIP
+                  🎲 Premios adicionales
                 </span>
                 
                 <div className="relative pt-4">
@@ -1778,11 +1770,11 @@ return (
                   <div className="space-y-3 mb-6">
                     <div className="flex items-center gap-3 text-gray-300 text-sm">
                       <span className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></span>
-                      <span><strong className="text-white">1 ganador aleatorios</strong> cada GP</span>
+                      <span><strong className="text-white">Emocionantes</strong> giveaways</span>
                     </div>
                     <div className="flex items-center gap-3 text-gray-300 text-sm">
                       <span className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></span>
-                      <span>Merch de la F1</span>
+                      <span>Merch oficial y mucho más</span>
                     </div>
                     <div className="flex items-center gap-3 text-gray-300 text-sm">
                       <span className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></span>
@@ -1798,29 +1790,6 @@ return (
                 </div>
               </motion.div>
             </div>
-
-            {/* Final CTA Section */}
-            <motion.div
-              className="mt-12 text-center"
-              initial={{ y: 20, opacity: 0 }}
-              whileInView={{ y: 0, opacity: 1 }}
-              transition={{ duration: 0.6, delay: 0.4 }}
-              viewport={{ once: true }}
-            >
-              <div className="bg-gradient-to-r from-neutral-800/80 to-neutral-900/60 border border-amber-500/30 rounded-2xl p-6 max-w-2xl mx-auto backdrop-blur-sm">
-                <h3 className="text-xl sm:text-2xl font-bold text-white mb-3">
-                 Listo para vivir la F1 como nunca antes?
-                </h3>
-                <p className="text-gray-300 text-sm sm:text-base mb-4">
-                  Premios <strong className="text-amber-400">Increíbles</strong> para los miembros VIP. 
-                  Tu oportunidad de ganar empieza ahora.
-                </p>
-                <div className="flex items-center justify-center gap-2 text-green-400 text-sm">
-                  <span className="animate-pulse w-2 h-2 bg-green-400 rounded-full"></span>
-                  <span>Miles de miembros VIP ya están compitiendo</span>
-                </div>
-              </div>
-            </motion.div>
           </div>
 
           {/* OPTIMIZATION: Urgency element - Made more specific and believable */}
@@ -1833,13 +1802,13 @@ return (
           >
             <div className="inline-flex items-center gap-2 bg-red-600/20 border border-red-500/30 rounded-full px-4 py-2 text-red-400 text-sm font-medium">
               <span className="animate-ping w-2 h-2 bg-red-400 rounded-full"></span>
-              Atención: Cupos con descuento limtiados
+              Atención: Los cupos con descuento son limitados
             </div>
           </motion.div>
         </section>
         
         {/* ─── How It Works Section (Optimized with visual enhancements) ─── */}
-        <section className="relative py-16 sm:py-20 px-4 sm:px-6 bg-gradient-to-b from-neutral-950 to-neutral-900 overflow-hidden">
+        <section className="relative py-auto sm:py-20 px-4 sm:px-6 bg-gradient-to-b from-neutral-950 to-neutral-900 overflow-hidden">
           {/* Background Elements */}
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(245,158,11,0.04),transparent_70%)]" />
           <div className="absolute top-1/2 left-1/4 w-72 h-72 bg-amber-500/5 rounded-full blur-3xl" />
@@ -1855,9 +1824,6 @@ return (
               <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold mb-4 bg-gradient-to-r from-amber-400 via-orange-500 to-red-400 bg-clip-text text-transparent drop-shadow-lg">
                 Compite en 4 Simples Pasos
               </h2>
-              <p className="text-gray-300 text-lg leading-relaxed">
-                Así de fácil es <strong className="text-amber-400">empezar</strong>
-              </p>
             </motion.div>
             
             <div className="grid gap-6 md:gap-8 sm:grid-cols-2 lg:grid-cols-4 text-center">
@@ -1994,7 +1960,26 @@ return (
             </div>
 
             {/* ─── Pricing Cards ───────────────────────────── */}
-            <div className="flex flex-col md:grid md:grid-cols-2 gap-6 mt-6">
+
+            <div className="w-full max-w-5xl mx-auto px-4 py-8">
+      {/* Trust Indicators */}
+      <div className="text-center mb-8">
+        <div className="flex items-center justify-center gap-4 mb-4">
+          <div className="flex items-center gap-1">
+            {[...Array(5)].map((_, i) => (
+              <svg key={i} className="w-5 h-5 text-yellow-400 fill-current" viewBox="0 0 24 24">
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+              </svg>
+            ))}
+          </div>
+          <span className="text-gray-400 text-sm">4.9/5 (2,847 usuarios)</span>
+        </div>
+        <p className="text-gray-500 text-sm">
+          🔒 Pago seguro • 💳 Garantía de devolución • 🏆 +$50M en premios repartidos
+        </p>
+      </div>
+      </div>
+            <div className="flex flex-col md:grid md:grid-cols-2 gap-6 mt-auto">
               {planes.map((plan, i) => (
                 <motion.div
                   key={plan.id}
@@ -2011,7 +1996,7 @@ return (
                   {plan.isPopular && (
                     <>
                       <div className="absolute top-0 right-4 -translate-y-1/2 px-3 py-1 bg-gradient-to-r from-amber-400 to-orange-500 text-black text-xs font-bold rounded-full uppercase tracking-wide shadow-lg">
-                        MÁS POPULAR
+                        MÁS VALIOSO
                       </div>
                       <div className="absolute top-0 left-4 -translate-y-1/2 px-3 py-1 bg-red-600 text-white text-xs font-bold rounded-full uppercase tracking-wide shadow-lg">
                         AHORRA 40%
@@ -2037,7 +2022,6 @@ return (
                         {plan.periodo}
                         {plan.isPopular && (
                           <span className="block text-green-400 font-semibold">
-                            ¡Precio especial solo por hoy!
                           </span>
                         )}
                       </p>
@@ -2136,39 +2120,6 @@ return (
                 </motion.div>
               ))}
             </div>
-
-            {/* OPTIMIZATION: Final CTA - Strong final push */}
-            <motion.div
-              className="mt-12 text-center"
-              initial={{ y: 20, opacity: 0 }}
-              whileInView={{ y: 0, opacity: 1 }}
-              transition={{ duration: 0.5 }}
-              viewport={{ once: true }}
-            >
-              <div className="bg-gradient-to-r from-red-600/20 to-orange-600/20 border border-red-500/30 rounded-2xl p-6 max-w-2xl mx-auto">
-                <h3 className="text-xl sm:text-2xl font-bold text-white mb-3">
-                  ¿Listo para unirte?
-                </h3>
-                <p className="text-gray-300 text-sm sm:text-base mb-6">
-                  El descuento del <strong>40% desaparece pronto</strong>. Asegura tu pase ahora, únete a la comunidad y empieza a competir por premios que te cambiarán la vida.
-                </p>
-                <button
-                  onClick={() =>
-                    document.getElementById('planes')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                  }
-                  className="inline-flex items-center gap-2 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white font-bold px-8 py-4 rounded-xl text-lg shadow-2xl active:scale-95 transition-transform hover:scale-105"
-                >
-                  ACCEDER
-                  <svg className="w-30 h-5" fill="currentColor" viewBox="0 0 20 20">
-                    <path
-                      fillRule="evenodd"
-                      d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </button>
-              </div>
-            </motion.div>
           </div>
         </section>
 
