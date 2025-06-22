@@ -140,9 +140,6 @@ export async function POST(req: NextRequest) {
         { onConflict: 'bold_order_id' }
       );
 
-    // NOTE: We don't send Slack notification here to avoid duplicates
-    // The webhook handler is responsible for Slack notifications
-
     return NextResponse.json({
       success: true,
       message: 'Payment confirmed successfully',
