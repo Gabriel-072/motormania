@@ -21,7 +21,7 @@ const BOLD_CURRENCY = 'COP';
 const APP_ORIGIN =
   typeof window !== 'undefined'
     ? window.location.origin
-    : 'https://motormaniacolombia.com';
+    : 'https://motormania.app';
 
 type UserData = {
   username: string | null;

@@ -68,7 +68,7 @@ export function EmailTemplate({ numbers, userName, unsubscribeLink }: EmailTempl
           </p>
           <div style={{ textAlign: "center" }}>
             <a
-              href="https://motormaniacolombia.com/dashboard?extra=true"
+              href="https://motormania.app/dashboard?extra=true"
               style={{
                 backgroundColor: "#10B981",
                 color: "#FFFFFF",
@@ -137,14 +137,14 @@ ${numbers.join(", ")}
 
 🎯 ¿Quieres más oportunidades?
 Agrega 5 números adicionales por solo $5.000 COP:
-https://motormaniacolombia.com/dashboard?extra=true
+https://motormania.app/dashboard?extra=true
 
 🏎️ ¿Amas la F1?
 Haz predicciones con MMC-GO y gana premios:
-https://motormaniacolombia.com/mmc-go
+https://motormania.app/mmc-go
 
 Ver tus números en el dashboard:
-https://motormaniacolombia.com/dashboard
+https://motormania.app/dashboard
 
 —
 MotorMania SAs

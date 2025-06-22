@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createHash } from 'crypto'; // Add crypto for hashing email
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': 'https://www.motormaniacolombia.com',
+  'Access-Control-Allow-Origin': 'https://www.motormania.app',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
   'Access-Control-Max-Age': '86400',
@@ -39,6 +39,8 @@ export async function POST(req: NextRequest) {
 
   const referer = req.headers.get('referer') || '';
   const allowedDomains = [
+    'https://motormania.app',
+    'https://www.motormania.app',
     'https://www.motormaniacolombia.com',
     'https://motormaniacolombia.com',
     'http://localhost:3000',
