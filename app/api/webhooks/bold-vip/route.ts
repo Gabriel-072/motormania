@@ -1,4 +1,5 @@
 // 📁 app/api/webhooks/bold-vip/route.ts
+
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
@@ -10,7 +11,6 @@ const sb = createClient(
 );
 
 const BOLD_SECRET = process.env.BOLD_WEBHOOK_SECRET_KEY!;
-const SLACK_WEBHOOK = process.env.SLACK_MMC_NEW_VIP_WEBHOOK_URL!;
 
 /* ---------------------------- Verify signature --------------------------- */
 function verifyBold(sig: string, raw: string): boolean {
@@ -25,87 +25,6 @@ function verifyBold(sig: string, raw: string): boolean {
       Buffer.from(expected, 'hex')
     );
   } catch {
-    return false;
-  }
-}
-
-/* ---------------------------- Send Slack Notification --------------------------- */
-async function sendSlackNotification(data: {
-  transactionId: bigint;
-  userId: string;
-  fullName: string;
-  email: string;
-  planId: string;
-  amountCop: number;
-  paidAt: string;
-}) {
-  try {
-    const planName = data.planId === 'season-pass' ? '🏆 Season Pass' : '🏁 Race Pass';
-    const formattedAmount = new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency: 'COP',
-      maximumFractionDigits: 0
-    }).format(data.amountCop);
-
-    const slackPayload = {
-      text: `✅ *Nuevo miembro VIP confirmado*`,
-      blocks: [
-        {
-          type: 'header',
-          text: {
-            type: 'plain_text',
-            text: '🎉 Nuevo Miembro VIP',
-            emoji: true
-          }
-        },
-        {
-          type: 'section',
-          fields: [
-            {
-              type: 'mrkdwn',
-              text: `*Usuario:*\n${data.fullName}`
-            },
-            {
-              type: 'mrkdwn',
-              text: `*Email:*\n${data.email}`
-            },
-            {
-              type: 'mrkdwn',
-              text: `*Plan:*\n${planName}`
-            },
-            {
-              type: 'mrkdwn',
-              text: `*Monto:*\n${formattedAmount}`
-            }
-          ]
-        },
-        {
-          type: 'context',
-          elements: [
-            {
-              type: 'mrkdwn',
-              text: `Transaction ID: ${data.transactionId} | User ID: ${data.userId} | Pagado: ${new Date(data.paidAt).toLocaleString('es-CO')}`
-            }
-          ]
-        }
-      ]
-    };
-
-    const slackRes = await fetch(SLACK_WEBHOOK, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(slackPayload),
-    });
-
-    if (!slackRes.ok) {
-      const errorText = await slackRes.text();
-      throw new Error(`Slack responded with ${slackRes.status}: ${errorText}`);
-    }
-
-    console.log('✅ Slack notification sent successfully');
-    return true;
-  } catch (error) {
-    console.error('❌ Slack notification error:', error);
     return false;
   }
 }
@@ -235,27 +154,6 @@ export async function POST(req: NextRequest) {
 
     if (userError) {
       console.error('❌ Error upserting vip_user:', userError);
-    }
-
-    // Send Slack notification if needed
-    if (result.should_notify_slack) {
-      const slackSuccess = await sendSlackNotification({
-        transactionId: result.transaction_id,
-        userId: transaction.user_id,
-        fullName: displayName,
-        email: displayEmail,
-        planId: transaction.plan_id,
-        amountCop: transaction.amount_cop,
-        paidAt: transaction.paid_at
-      });
-
-      // Mark as notified if successful
-      if (slackSuccess) {
-        await sb
-          .from('vip_transactions')
-          .update({ slack_notified: true })
-          .eq('id', result.transaction_id);
-      }
     }
 
     return NextResponse.json({ 
