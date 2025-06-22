@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 const INTERNAL_KEY = process.env.INTERNAL_API_KEY!;
-const SITE_URL     = process.env.NEXT_PUBLIC_SITE_URL!; // → https://motormaniacolombia.com
+const SITE_URL     = process.env.NEXT_PUBLIC_SITE_URL!;
 
 export async function POST(req: NextRequest) {
   // body viene directamente del frontend, validado en la ruta destino
