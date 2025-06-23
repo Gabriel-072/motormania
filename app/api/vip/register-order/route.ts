@@ -22,21 +22,19 @@ const PLANS: Record<string, { price: number; name: string }> = {
 
 export async function POST(req: NextRequest) {
   /* ───────────── 1️⃣ Auth ───────────── */
-  const { userId, sessionClaims } = await auth();
+  const { userId } = await auth();
   if (!userId) return new NextResponse('Unauthorized', { status: 401 });
 
-  // Nombre y email reales de Clerk (con fallback)
-  const fullName =
-    sessionClaims?.full_name ||
-    sessionClaims?.name      ||
-    `${sessionClaims?.first_name ?? ''} ${sessionClaims?.last_name ?? ''}`.trim() ||
-    'Sin nombre';
+  /* ───────────── 1.5️⃣ Get user data from clerk_users table ───────────── */
+  const { data: clerkUser } = await sb
+    .from('clerk_users')
+    .select('full_name, email')
+    .eq('clerk_id', userId)
+    .single();
 
-  const email =
-    sessionClaims?.email ||
-    sessionClaims?.email_address ||
-    (sessionClaims as any)?.primary_email_address_id ||
-    '';
+  // Use data from clerk_users table, with fallbacks
+  const fullName = clerkUser?.full_name || 'Sin nombre';
+  const email = clerkUser?.email || '';
 
   /* ───────────── 2️⃣ Plan ───────────── */
   const { planId } = await req.json();
@@ -82,8 +80,8 @@ export async function POST(req: NextRequest) {
   /* ───────────── 4️⃣ Guardar orden en Supabase ───────────── */
   const { error } = await sb.from('vip_transactions').insert({
     user_id       : userId,
-    full_name     : fullName,
-    email         : email,
+    full_name     : fullName,    // Now from clerk_users table
+    email         : email,        // Now from clerk_users table
     plan_id       : planId,
     order_id      : orderId,
     amount_cop    : plan.price,

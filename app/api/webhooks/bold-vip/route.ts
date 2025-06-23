@@ -120,41 +120,70 @@ export async function POST(req: NextRequest) {
       console.error('❌ Error upserting vip_entry:', entryError);
     }
 
-    // Get user data from clerk_users for accurate information
-    const { data: clerkUser } = await sb
-      .from('clerk_users')
-      .select('full_name, email')
-      .eq('clerk_id', transaction.user_id)
-      .single();
+// In the webhook handler, after getting the transaction:
 
-    const displayName = clerkUser?.full_name || transaction.full_name || 'Sin nombre';
-    const displayEmail = clerkUser?.email || transaction.email || 'No email';
+// Get user data from clerk_users for accurate information
+const { data: clerkUser } = await sb
+  .from('clerk_users')
+  .select('full_name, email')
+  .eq('clerk_id', transaction.user_id)
+  .single();
 
-    // Create/Update vip_users
-    const entryTxId = crypto.randomUUID();
-    const activePlan = transaction.plan_id;
-    const planExpiresAt = transaction.plan_id === 'season-pass' 
-      ? new Date('2026-12-31').toISOString() 
-      : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(); // 30 days for race pass
+const displayName = clerkUser?.full_name || transaction.full_name || 'Sin nombre';
+const displayEmail = clerkUser?.email || transaction.email || 'No email';
 
-    const { error: userError } = await sb
-      .from('vip_users')
-      .upsert(
-        {
-          id: transaction.user_id,
-          entry_tx_id: entryTxId,
-          joined_at: transaction.paid_at,
-          full_name: displayName,
-          email: displayEmail,
-          active_plan: activePlan,
-          plan_expires_at: planExpiresAt
-        },
-        { onConflict: 'id' }
-      );
+// Create/Update vip_users
+const entryTxId = crypto.randomUUID();
+const activePlan = transaction.plan_id;
 
-    if (userError) {
-      console.error('❌ Error upserting vip_user:', userError);
-    }
+// Calculate proper expiration based on plan type
+let planExpiresAt;
+let racePassGp = null;
+
+if (transaction.plan_id === 'race-pass' && transaction.selected_gp) {
+  // Get the race date for the selected GP
+  const { data: gpData } = await sb
+    .from('gp_schedule')
+    .select('race_time')
+    .eq('gp_name', transaction.selected_gp)
+    .single();
+  
+  if (gpData) {
+    // Race pass expires 4 hours after the race ends
+    const raceDate = new Date(gpData.race_time);
+    planExpiresAt = new Date(raceDate.getTime() + 4 * 60 * 60 * 1000).toISOString(); // +4 hours
+    racePassGp = transaction.selected_gp; // Set the GP name
+  } else {
+    // Fallback: 30 days if GP not found
+    planExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+  }
+} else if (transaction.plan_id === 'season-pass') {
+  planExpiresAt = new Date('2026-12-31').toISOString();
+  racePassGp = null; // Season pass has access to all GPs
+} else {
+  // Default fallback
+  planExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+}
+
+const { error: userError } = await sb
+  .from('vip_users')
+  .upsert(
+    {
+      id: transaction.user_id,
+      entry_tx_id: entryTxId,
+      joined_at: transaction.paid_at,
+      full_name: displayName,
+      email: displayEmail,
+      active_plan: activePlan,
+      plan_expires_at: planExpiresAt,
+      race_pass_gp: racePassGp // Now properly set!
+    },
+    { onConflict: 'id' }
+  );
+
+if (userError) {
+  console.error('❌ Error upserting vip_user:', userError);
+}
 
     return NextResponse.json({ 
       ok: true,
