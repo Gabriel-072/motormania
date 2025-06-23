@@ -1411,7 +1411,7 @@ return (
           <span className="absolute inset-0 bg-green-400 rounded-full animate-ping opacity-75" />
           <span className="relative block w-2 h-2 bg-green-400 rounded-full animate-pulse" />
         </div>
-        +2,847 miembros VIP activos en Colombia
+        +2,847 miembros VIP activos en Latinoamérica
       </motion.div>
 
       {/* Headline */}
@@ -1422,10 +1422,10 @@ return (
         transition={{ duration: 0.7 }}
       >
         <span className="block text-white drop-shadow-lg">
-        Predice y Compite
+        Predice y Gana
         </span>
         <span className="block bg-clip-text text-transparent bg-gradient-to-r from-amber-300 via-orange-400 to-red-400 drop-shadow-lg">
-          Por Un Viaje A La F1
+        Un Viaje A La F1
         </span>
       </motion.h1>
 
@@ -1495,136 +1495,6 @@ return (
   </div>
 </section>
 
-        {/* ─── Testimonial Section (Social Proof) ─── */}
-        <section className="relative py-12 px-4 sm:px-6 bg-gradient-to-b from-neutral-950 to-neutral-900 overflow-hidden">
-          {/* Background Elements */}
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(245,158,11,0.05),transparent_70%)]" />
-          <div className="absolute top-0 left-1/4 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl" />
-          <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-orange-500/5 rounded-full blur-3xl" />
-          
-          <div className="relative max-w-4xl mx-auto">
-            <motion.div
-              initial={{ y: 20, opacity: 0 }}
-              whileInView={{ y: 0, opacity: 1 }}
-              transition={{ duration: 0.6 }}
-              viewport={{ once: true }}
-              className="text-center"
-            >
-              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold mb-3 bg-gradient-to-r from-amber-400 via-orange-500 to-red-400 bg-clip-text text-transparent drop-shadow-lg">
-                Vive la F1 como nunca antes
-              </h2>
-              <p className="text-gray-300 text-lg lg:text-xl max-w-2xl mx-auto mb-12 leading-relaxed">
-                Latinoamérica ya vive la adrenalina de <strong className="text-amber-400">predecir,
-                sumar puntos y liderar el ranking</strong>
-              </p>
-
-              <div className="grid md:grid-cols-3 gap-6 lg:gap-8">
-                {/* Card 1 */}
-                <motion.div 
-                  className="group relative rounded-2xl border border-amber-500/30 bg-gradient-to-br from-neutral-800/80 to-neutral-900/60 p-6 backdrop-blur-sm hover:border-amber-500/50 transition-all duration-300 hover:transform hover:scale-105"
-                  initial={{ y: 20, opacity: 0 }}
-                  whileInView={{ y: 0, opacity: 1 }}
-                  transition={{ duration: 0.6, delay: 0.1 }}
-                  viewport={{ once: true }}
-                >
-                  {/* Glow Effect */}
-                  <div className="absolute -inset-0.5 bg-gradient-to-r from-amber-500/20 to-orange-500/20 rounded-2xl blur opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                  
-                  <span className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-500 to-amber-400 text-black text-xs font-bold px-4 py-1.5 rounded-full shadow-xl border border-amber-300">
-                    Colombia
-                  </span>
-                  
-                  <div className="relative">
-                    <div className="flex items-center gap-3 mb-4 pt-4">
-                      <div className="h-12 w-12 rounded-full bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center font-bold text-black shadow-lg">
-                        JC
-                      </div>
-                      <div>
-                        <p className="font-semibold text-white">Juan Carlos</p>
-                        <p className="text-sm text-gray-400 flex items-center gap-1">
-                          <span className="w-2 h-2 bg-green-400 rounded-full"></span>
-                          Medellín
-                        </p>
-                      </div>
-                    </div>
-                    <p className="text-gray-300 text-sm italic mb-4 leading-relaxed">
-                      "Nunca había vivido una carrera con tanta emoción."
-                    </p>
-                  </div>
-                </motion.div>
-
-                {/* Card 2 */}
-                <motion.div 
-                  className="group relative rounded-2xl border border-amber-500/30 bg-gradient-to-br from-neutral-800/80 to-neutral-900/60 p-6 backdrop-blur-sm hover:border-amber-500/50 transition-all duration-300 hover:transform hover:scale-105"
-                  initial={{ y: 20, opacity: 0 }}
-                  whileInView={{ y: 0, opacity: 1 }}
-                  transition={{ duration: 0.6, delay: 0.2 }}
-                  viewport={{ once: true }}
-                >
-                  {/* Glow Effect */}
-                  <div className="absolute -inset-0.5 bg-gradient-to-r from-amber-500/20 to-orange-500/20 rounded-2xl blur opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                  
-                  <span className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-500 to-amber-400 text-black text-xs font-bold px-4 py-1.5 rounded-full shadow-xl border border-amber-300">
-                    México
-                  </span>
-                  
-                  <div className="relative">
-                    <div className="flex items-center gap-3 mb-4 pt-4">
-                      <div className="h-12 w-12 rounded-full bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center font-bold text-black shadow-lg">
-                        MR
-                      </div>
-                      <div>
-                        <p className="font-semibold text-white">María Rodríguez</p>
-                        <p className="text-sm text-gray-400 flex items-center gap-1">
-                          <span className="w-2 h-2 bg-green-400 rounded-full"></span>
-                          Monterrey
-                        </p>
-                      </div>
-                    </div>
-                    <p className="text-gray-300 text-sm italic mb-4 leading-relaxed">
-                      "Competir contra otros y ver la tabla en vivo es
-                      adictivo"</p>
-                  </div>
-                </motion.div>
-
-                {/* Card 3 */}
-                <motion.div 
-                  className="group relative rounded-2xl border border-amber-500/30 bg-gradient-to-br from-neutral-800/80 to-neutral-900/60 p-6 backdrop-blur-sm hover:border-amber-500/50 transition-all duration-300 hover:transform hover:scale-105"
-                  initial={{ y: 20, opacity: 0 }}
-                  whileInView={{ y: 0, opacity: 1 }}
-                  transition={{ duration: 0.6, delay: 0.3 }}
-                  viewport={{ once: true }}
-                >
-                  {/* Glow Effect */}
-                  <div className="absolute -inset-0.5 bg-gradient-to-r from-amber-500/20 to-orange-500/20 rounded-2xl blur opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                  
-                  <span className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-500 to-amber-400 text-black text-xs font-bold px-4 py-1.5 rounded-full shadow-xl border border-amber-300">
-                    Argentina
-                  </span>
-                  
-                  <div className="relative">
-                    <div className="flex items-center gap-3 mb-4 pt-4">
-                      <div className="h-12 w-12 rounded-full bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center font-bold text-black shadow-lg">
-                        AL
-                      </div>
-                      <div>
-                        <p className="font-semibold text-white">Franco Suarez</p>
-                        <p className="text-sm text-gray-400 flex items-center gap-1">
-                          <span className="w-2 h-2 bg-green-400 rounded-full"></span>
-                          Buenos Aires
-                        </p>
-                      </div>
-                    </div>
-                    <p className="text-gray-300 text-sm italic mb-4 leading-relaxed">
-                      "Rompiendola, ese viaje es mio"
-                    </p>
-                  </div>
-                </motion.div>
-              </div>
-            </motion.div>
-          </div>
-        </section>
-
         {/* ─── Premios VIP 2025 (Optimized with testimonial patterns) ─── */}
         <section className="relative py-16 sm:py-20 px-4 sm:px-6 bg-gradient-to-b from-neutral-900 to-neutral-950 overflow-hidden">
           {/* Background Elements */}
@@ -1633,27 +1503,6 @@ return (
           <div className="absolute bottom-0 right-1/3 w-96 h-96 bg-orange-500/8 rounded-full blur-3xl" />
           
           <div className="relative max-w-6xl mx-auto">
-            <motion.div
-              className="text-center mb-12"
-              initial={{ y: 20, opacity: 0 }}
-              whileInView={{ y: 0, opacity: 1 }}
-              transition={{ duration: 0.6 }}
-              viewport={{ once: true }}
-            >
-              <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold mb-4 bg-gradient-to-r from-amber-400 via-orange-500 to-red-400 bg-clip-text text-transparent drop-shadow-lg">
-                Cumple Tus Sueños
-              </h2>
-              <p className="text-gray-300 text-lg lg:text-xl max-w-2xl mx-auto mb-8 leading-relaxed">
-                Tu membresía VIP es la llave para competir por premios que <strong className="text-amber-400">cambiarán tu vida</strong>.
-              </p>
-              
-              {/* Urgency Indicator */}
-              <div className="inline-flex items-center gap-2 bg-red-600/20 border border-red-500/30 rounded-full px-4 py-2 text-red-400 text-sm font-medium mb-8">
-                <span className="animate-ping w-2 h-2 bg-red-400 rounded-full"></span>
-                Cupos limitados con 40% de descuento
-              </div>
-            </motion.div>
-
             <div className="grid gap-6 lg:gap-8 md:grid-cols-3">
               {/* Prize Card 1 - Grand Prize */}
               <motion.div
@@ -1699,96 +1548,6 @@ return (
                   </div>
                 </div>
               </motion.div>
-
-              {/* Prize Card 2 - Race Winnings */}
-              <motion.div
-                initial={{ y: 30, opacity: 0 }}
-                whileInView={{ y: 0, opacity: 1 }}
-                transition={{ duration: 0.6, delay: 0.2 }}
-                viewport={{ once: true }}
-                className="group relative rounded-2xl border border-orange-500/40 bg-gradient-to-br from-neutral-800/90 to-neutral-900/70 p-6 backdrop-blur-sm hover:border-orange-500/60 transition-all duration-300 hover:transform hover:scale-105"
-              >
-                {/* Glow Effect */}
-                <div className="absolute -inset-0.5 bg-gradient-to-r from-orange-500/30 to-red-500/30 rounded-2xl blur opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                
-                {/* Badge */}
-                <span className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-orange-600 to-orange-500 text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-xl border border-orange-400">
-                  💰 Cada Carrera
-                </span>
-                
-                <div className="relative pt-4">
-                  <div className="text-center mb-6">
-                    <div className="text-3xl font-black text-orange-400 mb-2">Merch Oficial</div>
-                    <div className="text-orange-300 text-sm font-semibold">Cientos de premios cada temporada</div>
-                  </div>
-                  
-                  <div className="space-y-3 mb-6">
-                    <div className="flex items-center gap-3 text-gray-300 text-sm">
-                      <span className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></span>
-                      <span><strong className="text-white">Oportunidades de ganar</strong> en cada carrera</span>
-                    </div>
-                    <div className="flex items-center gap-3 text-gray-300 text-sm">
-                      <span className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></span>
-                      <span>Merchandising oficial de F1 incluido</span>
-                    </div>
-                    <div className="flex items-center gap-3 text-gray-300 text-sm">
-                      <span className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></span>
-                      <span>24 oportunidades de ganar en el año</span>
-                    </div>
-                  </div>
-                  
-                  <div className="bg-gradient-to-r from-orange-500/20 to-red-500/20 border border-orange-500/30 rounded-lg p-3 text-center">
-                    <p className="text-orange-300 text-xs font-semibold">
-                      🏁 Premios cada fin de semana
-                    </p>
-                  </div>
-                </div>
-              </motion.div>
-
-              {/* Prize Card 3 - Weekly Draws */}
-              <motion.div
-                initial={{ y: 30, opacity: 0 }}
-                whileInView={{ y: 0, opacity: 1 }}
-                transition={{ duration: 0.6, delay: 0.3 }}
-                viewport={{ once: true }}
-                className="group relative rounded-2xl border border-cyan-500/40 bg-gradient-to-br from-neutral-800/90 to-neutral-900/70 p-6 backdrop-blur-sm hover:border-cyan-500/60 transition-all duration-300 hover:transform hover:scale-105"
-              >
-                {/* Glow Effect */}
-                <div className="absolute -inset-0.5 bg-gradient-to-r from-cyan-500/30 to-blue-500/30 rounded-2xl blur opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                
-                {/* Badge */}
-                <span className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-cyan-600 to-cyan-500 text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-xl border border-cyan-400">
-                  🎲 Premios adicionales
-                </span>
-                
-                <div className="relative pt-4">
-                  <div className="text-center mb-6">
-                    <div className="text-3xl font-black text-cyan-400 mb-2">Giveaways</div>
-                    <div className="text-cyan-300 text-sm font-semibold">Exclusivos para VIPs</div>
-                  </div>
-                  
-                  <div className="space-y-3 mb-6">
-                    <div className="flex items-center gap-3 text-gray-300 text-sm">
-                      <span className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></span>
-                      <span><strong className="text-white">Emocionantes</strong> giveaways</span>
-                    </div>
-                    <div className="flex items-center gap-3 text-gray-300 text-sm">
-                      <span className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></span>
-                      <span>Merch oficial y mucho más</span>
-                    </div>
-                    <div className="flex items-center gap-3 text-gray-300 text-sm">
-                      <span className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></span>
-                      <span>Solo por ser VIP y participar</span>
-                    </div>
-                  </div>
-                  
-                  <div className="bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-cyan-500/30 rounded-lg p-3 text-center">
-                    <p className="text-cyan-300 text-xs font-semibold">
-                      🍀 Solo para miembros VIP
-                    </p>
-                  </div>
-                </div>
-              </motion.div>
             </div>
           </div>
 
@@ -1809,86 +1568,84 @@ return (
         
         {/* ─── How It Works Section (Optimized with visual enhancements) ─── */}
         <section className="relative py-auto sm:py-20 px-4 sm:px-6 bg-gradient-to-b from-neutral-950 to-neutral-900 overflow-hidden">
-          {/* Background Elements */}
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(245,158,11,0.04),transparent_70%)]" />
-          <div className="absolute top-1/2 left-1/4 w-72 h-72 bg-amber-500/5 rounded-full blur-3xl" />
+  {/* Background Elements */}
+  <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(245,158,11,0.04),transparent_70%)]" />
+  <div className="absolute top-1/2 left-1/4 w-72 h-72 bg-amber-500/5 rounded-full blur-3xl" />
+  
+  <div className="relative max-w-4xl mx-auto">
+    <motion.div
+      className="text-center mb-12"
+      initial={{ y: 20, opacity: 0 }}
+      whileInView={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.6 }}
+      viewport={{ once: true }}
+    >
+      <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold mb-4 bg-gradient-to-r from-amber-400 via-orange-500 to-red-400 bg-clip-text text-transparent drop-shadow-lg">
+        Compite en 4 Simples Pasos
+      </h2>
+    </motion.div>
+    
+    <div className="grid grid-cols-2 gap-6 md:gap-8 lg:grid-cols-4 text-center">
+      {[
+        { 
+          icon: '📱', 
+          title: 'Únete al VIP', 
+          text: 'Elige tu plan y obtén acceso instantáneo a la plataforma.',
+          color: 'from-blue-500/20 to-cyan-500/20',
+          border: 'border-blue-500/30'
+        },
+        { 
+          icon: '✍️', 
+          title: 'Haz tus Predicciones', 
+          text: 'Antes de cada carrera, envía tus pronósticos estratégicos.',
+          color: 'from-purple-500/20 to-pink-500/20',
+          border: 'border-purple-500/30'
+        },
+        { 
+          icon: '🏁', 
+          title: 'Suma Puntos', 
+          text: 'Gana puntos según la precisión de tus predicciones.',
+          color: 'from-green-500/20 to-emerald-500/20',
+          border: 'border-green-500/30'
+        },
+        { 
+          icon: '🏆', 
+          title: 'Compite por un viaje a la F1', 
+          text: 'Los mejores del ranking ganan un viaje a la F1 todo pago',
+          color: 'from-amber-500/20 to-orange-500/20',
+          border: 'border-amber-500/30'
+        },
+      ].map((item, index) => (
+        <motion.div
+          key={index}
+          className={`group relative p-6 bg-gradient-to-br from-neutral-800/80 to-neutral-900/60 rounded-2xl border ${item.border} backdrop-blur-sm hover:border-opacity-60 transition-all duration-300 hover:transform hover:scale-105`}
+          initial={{ y: 30, opacity: 0 }}
+          whileInView={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.5, delay: index * 0.1 }}
+          viewport={{ once: true }}
+        >
+          {/* Glow Effect */}
+          <div className={`absolute -inset-0.5 bg-gradient-to-r ${item.color} rounded-2xl blur opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
           
-          <div className="relative max-w-4xl mx-auto">
-            <motion.div
-              className="text-center mb-12"
-              initial={{ y: 20, opacity: 0 }}
-              whileInView={{ y: 0, opacity: 1 }}
-              transition={{ duration: 0.6 }}
-              viewport={{ once: true }}
-            >
-              <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold mb-4 bg-gradient-to-r from-amber-400 via-orange-500 to-red-400 bg-clip-text text-transparent drop-shadow-lg">
-                Compite en 4 Simples Pasos
-              </h2>
-            </motion.div>
-            
-            <div className="grid gap-6 md:gap-8 sm:grid-cols-2 lg:grid-cols-4 text-center">
-              {[
-                { 
-                  icon: '📱', 
-                  title: 'Únete al VIP', 
-                  text: 'Elige tu plan y obtén acceso instantáneo a la plataforma.',
-                  color: 'from-blue-500/20 to-cyan-500/20',
-                  border: 'border-blue-500/30'
-                },
-                { 
-                  icon: '✍️', 
-                  title: 'Haz tus Predicciones', 
-                  text: 'Antes de cada carrera, envía tus pronósticos estratégicos.',
-                  color: 'from-purple-500/20 to-pink-500/20',
-                  border: 'border-purple-500/30'
-                },
-                { 
-                  icon: '🏁', 
-                  title: 'Suma Puntos', 
-                  text: 'Gana puntos según la precisión de tus predicciones.',
-                  color: 'from-green-500/20 to-emerald-500/20',
-                  border: 'border-green-500/30'
-                },
-                { 
-                  icon: '🏆', 
-                  title: 'Compite por un viaje a la F1', 
-                  text: 'Los mejores del ranking ganan dinero real. ¡Así de simple!',
-                  color: 'from-amber-500/20 to-orange-500/20',
-                  border: 'border-amber-500/30'
-                },
-              ].map((item, index) => (
-                <motion.div
-                  key={index}
-                  className={`group relative p-6 bg-gradient-to-br from-neutral-800/80 to-neutral-900/60 rounded-2xl border ${item.border} backdrop-blur-sm hover:border-opacity-60 transition-all duration-300 hover:transform hover:scale-105`}
-                  initial={{ y: 30, opacity: 0 }}
-                  whileInView={{ y: 0, opacity: 1 }}
-                  transition={{ duration: 0.5, delay: index * 0.1 }}
-                  viewport={{ once: true }}
-                >
-                  {/* Glow Effect */}
-                  <div className={`absolute -inset-0.5 bg-gradient-to-r ${item.color} rounded-2xl blur opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
-                  
-                  {/* Step Number */}
-                  <span className="absolute -top-3 -left-3 w-8 h-8 bg-gradient-to-r from-amber-500 to-orange-500 text-black text-sm font-bold rounded-full flex items-center justify-center shadow-lg">
-                    {index + 1}
-                  </span>
-                  
-                  <div className="relative">
-                    <div className="text-5xl mb-4 transform group-hover:scale-110 transition-transform duration-300">
-                      {item.icon}
-                    </div>
-                    <h3 className="font-bold text-white mb-3 text-lg">{item.title}</h3>
-                    <p className="text-gray-300 text-sm leading-relaxed">
-                      {item.text}
-                    </p>
-                  </div>
-                </motion.div>
-              ))}
+          {/* Step Number */}
+          <span className="absolute -top-3 -left-3 w-8 h-8 bg-gradient-to-r from-amber-500 to-orange-500 text-black text-sm font-bold rounded-full flex items-center justify-center shadow-lg">
+            {index + 1}
+          </span>
+          
+          <div className="relative">
+            <div className="text-5xl mb-4 transform group-hover:scale-110 transition-transform duration-300">
+              {item.icon}
             </div>
-            
-            {/* Bottom CTA */}
+            <h3 className="font-bold text-white mb-3 text-lg">{item.title}</h3>
+            <p className="text-gray-300 text-sm leading-relaxed">
+              {item.text}
+            </p>
           </div>
-        </section>
+        </motion.div>
+      ))}
+    </div>
+  </div>
+</section>
 
         {/* ─── PredictionsTeaser ─── */}
         <PredictionsTeaser />
@@ -1975,7 +1732,7 @@ return (
           <span className="text-gray-400 text-sm">4.9/5 (2,847 usuarios)</span>
         </div>
         <p className="text-gray-500 text-sm">
-          🔒 Pago seguro • 💳 Garantía de devolución • 🏆 +$50M en premios repartidos
+          🔒 Pago seguro • 💳 Garantía de devolución
         </p>
       </div>
       </div>
@@ -2144,6 +1901,136 @@ return (
             <span>Envíanos un mensaje por Telegram</span>
           </a>
         </div>
+
+                {/* ─── Testimonial Section (Social Proof) ─── */}
+                <section className="relative py-12 px-4 sm:px-6 bg-gradient-to-b from-neutral-950 to-neutral-900 overflow-hidden">
+          {/* Background Elements */}
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(245,158,11,0.05),transparent_70%)]" />
+          <div className="absolute top-0 left-1/4 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl" />
+          <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-orange-500/5 rounded-full blur-3xl" />
+          
+          <div className="relative max-w-4xl mx-auto">
+            <motion.div
+              initial={{ y: 20, opacity: 0 }}
+              whileInView={{ y: 0, opacity: 1 }}
+              transition={{ duration: 0.6 }}
+              viewport={{ once: true }}
+              className="text-center"
+            >
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold mb-3 bg-gradient-to-r from-amber-400 via-orange-500 to-red-400 bg-clip-text text-transparent drop-shadow-lg">
+                Vive la F1 como nunca antes
+              </h2>
+              <p className="text-gray-300 text-lg lg:text-xl max-w-2xl mx-auto mb-12 leading-relaxed">
+                Latinoamérica ya vive la adrenalina de <strong className="text-amber-400">predecir,
+                sumar puntos y liderar el ranking</strong>
+              </p>
+
+              <div className="grid md:grid-cols-3 gap-6 lg:gap-8">
+                {/* Card 1 */}
+                <motion.div 
+                  className="group relative rounded-2xl border border-amber-500/30 bg-gradient-to-br from-neutral-800/80 to-neutral-900/60 p-6 backdrop-blur-sm hover:border-amber-500/50 transition-all duration-300 hover:transform hover:scale-105"
+                  initial={{ y: 20, opacity: 0 }}
+                  whileInView={{ y: 0, opacity: 1 }}
+                  transition={{ duration: 0.6, delay: 0.1 }}
+                  viewport={{ once: true }}
+                >
+                  {/* Glow Effect */}
+                  <div className="absolute -inset-0.5 bg-gradient-to-r from-amber-500/20 to-orange-500/20 rounded-2xl blur opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  
+                  <span className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-500 to-amber-400 text-black text-xs font-bold px-4 py-1.5 rounded-full shadow-xl border border-amber-300">
+                    Colombia
+                  </span>
+                  
+                  <div className="relative">
+                    <div className="flex items-center gap-3 mb-4 pt-4">
+                      <div className="h-12 w-12 rounded-full bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center font-bold text-black shadow-lg">
+                        JC
+                      </div>
+                      <div>
+                        <p className="font-semibold text-white">Juan Carlos</p>
+                        <p className="text-sm text-gray-400 flex items-center gap-1">
+                          <span className="w-2 h-2 bg-green-400 rounded-full"></span>
+                          Medellín
+                        </p>
+                      </div>
+                    </div>
+                    <p className="text-gray-300 text-sm italic mb-4 leading-relaxed">
+                      "Nunca había vivido una carrera con tanta emoción."
+                    </p>
+                  </div>
+                </motion.div>
+
+                {/* Card 2 */}
+                <motion.div 
+                  className="group relative rounded-2xl border border-amber-500/30 bg-gradient-to-br from-neutral-800/80 to-neutral-900/60 p-6 backdrop-blur-sm hover:border-amber-500/50 transition-all duration-300 hover:transform hover:scale-105"
+                  initial={{ y: 20, opacity: 0 }}
+                  whileInView={{ y: 0, opacity: 1 }}
+                  transition={{ duration: 0.6, delay: 0.2 }}
+                  viewport={{ once: true }}
+                >
+                  {/* Glow Effect */}
+                  <div className="absolute -inset-0.5 bg-gradient-to-r from-amber-500/20 to-orange-500/20 rounded-2xl blur opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  
+                  <span className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-500 to-amber-400 text-black text-xs font-bold px-4 py-1.5 rounded-full shadow-xl border border-amber-300">
+                    México
+                  </span>
+                  
+                  <div className="relative">
+                    <div className="flex items-center gap-3 mb-4 pt-4">
+                      <div className="h-12 w-12 rounded-full bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center font-bold text-black shadow-lg">
+                        MR
+                      </div>
+                      <div>
+                        <p className="font-semibold text-white">María Rodríguez</p>
+                        <p className="text-sm text-gray-400 flex items-center gap-1">
+                          <span className="w-2 h-2 bg-green-400 rounded-full"></span>
+                          Monterrey
+                        </p>
+                      </div>
+                    </div>
+                    <p className="text-gray-300 text-sm italic mb-4 leading-relaxed">
+                      "Competir contra otros y ver la tabla en vivo es
+                      adictivo"</p>
+                  </div>
+                </motion.div>
+
+                {/* Card 3 */}
+                <motion.div 
+                  className="group relative rounded-2xl border border-amber-500/30 bg-gradient-to-br from-neutral-800/80 to-neutral-900/60 p-6 backdrop-blur-sm hover:border-amber-500/50 transition-all duration-300 hover:transform hover:scale-105"
+                  initial={{ y: 20, opacity: 0 }}
+                  whileInView={{ y: 0, opacity: 1 }}
+                  transition={{ duration: 0.6, delay: 0.3 }}
+                  viewport={{ once: true }}
+                >
+                  {/* Glow Effect */}
+                  <div className="absolute -inset-0.5 bg-gradient-to-r from-amber-500/20 to-orange-500/20 rounded-2xl blur opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  
+                  <span className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-500 to-amber-400 text-black text-xs font-bold px-4 py-1.5 rounded-full shadow-xl border border-amber-300">
+                    Argentina
+                  </span>
+                  
+                  <div className="relative">
+                    <div className="flex items-center gap-3 mb-4 pt-4">
+                      <div className="h-12 w-12 rounded-full bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center font-bold text-black shadow-lg">
+                        AL
+                      </div>
+                      <div>
+                        <p className="font-semibold text-white">Franco Suarez</p>
+                        <p className="text-sm text-gray-400 flex items-center gap-1">
+                          <span className="w-2 h-2 bg-green-400 rounded-full"></span>
+                          Buenos Aires
+                        </p>
+                      </div>
+                    </div>
+                    <p className="text-gray-300 text-sm italic mb-4 leading-relaxed">
+                      "Rompiendola, ese viaje es mio"
+                    </p>
+                  </div>
+                </motion.div>
+              </div>
+            </motion.div>
+          </div>
+        </section>
 
         {/* ─── FAQ ─── */}
         <section className="py-16 sm:py-20 px-4 sm:px-6 bg-neutral-950">

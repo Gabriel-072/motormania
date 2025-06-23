@@ -1,3 +1,4 @@
+//api/fb-track/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { createHash } from 'crypto'; // Add crypto for hashing email
 
