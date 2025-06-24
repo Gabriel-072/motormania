@@ -1503,7 +1503,7 @@ return (
           <div className="absolute bottom-0 right-1/3 w-96 h-96 bg-orange-500/8 rounded-full blur-3xl" />
           
           <div className="relative max-w-6xl mx-auto">
-            <div className="grid gap-6 lg:gap-8 md:grid-cols-3">
+            <div className="grid gap-6 lg:gap-8 md:grid-cols-1">
               {/* Prize Card 1 - Grand Prize */}
               <motion.div
                 initial={{ y: 30, opacity: 0 }}
