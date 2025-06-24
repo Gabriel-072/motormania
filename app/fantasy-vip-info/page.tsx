@@ -1063,9 +1063,9 @@ function PredictionsTeaser() {
         periodo: 'por carrera',
         beneficios: [
           'Predicciones VIP para 1 GP',
-          'Ranking exclusivo en vivo',
-          'Compite por merch oficial',
-          'Acceso al sorteo de premios en efectivo',
+          'Acumula tus primeros puntos',
+          'Empieza a competir por el viaje',
+          'Acceso a sorteos exclusivos para VIPs',
         ]
       },
       {
@@ -1898,7 +1898,7 @@ return (
               <path d="M12 0C5.371 0 0 5.371 0 12c0 6.628 5.371 12 12 12s12-5.372 12-12C24 5.371 18.629 0 12 0zm5.363 8.55l-1.482 7.06c-.112.54-.4.676-.81.423l-2.25-1.66-1.084 1.043c-.12.12-.22.22-.45.22l.162-2.283 4.152-3.758c.18-.16 0-.25-.28-.09l-5.13 3.227-2.21-.69c-.48-.15-.49-.48.1-.71l8.64-3.33c.4-.15.75.09.62.68z"/>
             </svg>
 
-            <span>Envíanos un mensaje por Telegram</span>
+            <span>Dudas? Telegram Oficial</span>
           </a>
         </div>
 
