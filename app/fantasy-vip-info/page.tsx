@@ -1338,7 +1338,7 @@ openBoldCheckout({
     );
   };
 
-  /* ───────── Página VIP Fantasy – Copy alineado a oferta Race Pass / Season Pass (2025-2026) con optimizaciones ───────── */
+/* ───────── Página VIP Fantasy – Copy alineado a oferta Race Pass / Season Pass (2025-2026) con optimizaciones ───────── */
 
 return (
   <>
@@ -1450,7 +1450,7 @@ return (
 
     {/* LABEL + COUNTDOWN */}
     <div className="flex items-center justify-center gap-2">
-      {/* longest label (“CLASIFICACIÓN EN”) sets min-width so bar no cambia */}
+      {/* longest label ("CLASIFICACIÓN EN") sets min-width so bar no cambia */}
       <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-300 inline-block min-w-[108px] text-center">
         {showQualy ? 'Clasificación en' : 'Carrera en'}
       </span>
@@ -1880,7 +1880,48 @@ return (
           </div>
         </section>
 
-        {/* ───────── Botón Telegram ───────── */}
+        {/* ───────── Free Play Section ───────── */}
+        <section className="py-12 sm:py-16 px-4 sm:px-6 bg-gradient-to-b from-neutral-950 to-neutral-900">
+          <div className="max-w-2xl mx-auto text-center">
+            <motion.div
+              initial={{ y: 20, opacity: 0 }}
+              whileInView={{ y: 0, opacity: 1 }}
+              transition={{ duration: 0.6 }}
+              viewport={{ once: true }}
+              className="space-y-6"
+            >
+              <h2 className="text-2xl sm:text-3xl font-bold text-white">
+                ¿No estás listo para competir?
+              </h2>
+              
+              <p className="text-gray-400 text-lg max-w-xl mx-auto">
+                Prueba nuestra experiencia gratuita y familiarízate con el juego antes de unirte al club VIP.
+              </p>
+              
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                whileInView={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 0.4, delay: 0.2 }}
+                viewport={{ once: true }}
+              >
+                <a
+                  href="/fantasy"
+                  className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-gray-700 to-gray-600 hover:from-gray-600 hover:to-gray-500 text-white font-bold rounded-xl text-lg shadow-xl transition-all transform hover:scale-105 active:scale-95"
+                >
+                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                  </svg>
+                  Jugar Gratis
+                </a>
+              </motion.div>
+              
+              <p className="text-gray-500 text-sm">
+                Sin tarjeta de crédito • Sin compromisos
+              </p>
+            </motion.div>
+          </div>
+        </section>
+
         <div className="mt-12 text-center">
           <a
             href="https://t.me/+573009290499"
@@ -2157,4 +2198,3 @@ return (
 </a>
   </>
 );}
-  
