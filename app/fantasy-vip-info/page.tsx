@@ -124,675 +124,698 @@ const getTeamCarImage = (team: string) =>
 /* ╔════════════════════════════════╗
    ║ 1. ENHANCED VIDEO PLAYER       ║
    ╚════════════════════════════════╝ */
-function VideoPlayer() {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const progressBarRef = useRef<HTMLDivElement>(null);
-  const volumeControlRef = useRef<HTMLDivElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
-  const [volume, setVolume] = useState(0.8);
-  const [playbackRate, setPlaybackRate] = useState(1);
-  const [progress, setProgress] = useState(0);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
-  const [hasError, setHasError] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
-  const [showVolumeControl, setShowVolumeControl] = useState(false);
-  const [showControls, setShowControls] = useState(false);
-  const [hasStarted, setHasStarted] = useState(false);
-  const [isBuffering, setIsBuffering] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [loadingTimeout, setLoadingTimeout] = useState(false);
-  const [retryCount, setRetryCount] = useState(0);
-  const [loadingStrategy, setLoadingStrategy] = useState(0);
-
-  // Auto-hide controls timer
-  const controlsTimeoutRef = useRef<number | null>(null);
-  const loadingTimeoutRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
-  // Format time for display
-  const formatTime = (time: number) => {
-    const minutes = Math.floor(time / 60);
-    const seconds = Math.floor(time % 60);
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-  };
-
-  // Handle mouse movement to show/hide controls
-  const handleMouseMove = () => {
-    setShowControls(true);
-    if (controlsTimeoutRef.current) {
-      window.clearTimeout(controlsTimeoutRef.current);
-    }
-    controlsTimeoutRef.current = window.setTimeout(() => {
-      if (isPlaying) {
-        setShowControls(false);
-      }
-    }, 3000);
-  };
-
-  // Handle mouse leave
-  const handleMouseLeave = () => {
-    if (controlsTimeoutRef.current) {
-      window.clearTimeout(controlsTimeoutRef.current);
-    }
-    controlsTimeoutRef.current = window.setTimeout(() => {
-      if (isPlaying) {
-        setShowControls(false);
-      }
-    }, 1000);
-  };
-
-  useEffect(() => {
-    if (!isMounted) return;
-    const video = videoRef.current;
-    if (!video) return;
-
-    const handleLoadStart = () => {
-      setIsLoading(true);
-      setHasError(false);
-      setLoadingTimeout(false);
-      
-      // Set a timeout for loading
-      if (loadingTimeoutRef.current) {
-        window.clearTimeout(loadingTimeoutRef.current);
-      }
-      
-      loadingTimeoutRef.current = window.setTimeout(() => {
-        console.log('Loading timeout reached, video might be stuck');
-        setLoadingTimeout(true);
-      }, 10000); // Reduced to 10 seconds
+   function VideoPlayer({ onWatchProgress }: { onWatchProgress?: (percentage: number) => void }) {
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const volumeControlRef = useRef<HTMLDivElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
+  
+    const [isPlaying, setIsPlaying] = useState(false);
+    const isUpdatingVolumeRef = useRef(false);
+    const [isMuted, setIsMuted] = useState(false); // Start unmuted for better UX
+    const [volume, setVolume] = useState(0.8);
+    const [playbackRate, setPlaybackRate] = useState(1);
+    const [progress, setProgress] = useState(0);
+    const [currentTime, setCurrentTime] = useState(0);
+    const [duration, setDuration] = useState(0);
+    const [isLoading, setIsLoading] = useState(true);
+    const [hasError, setHasError] = useState(false);
+    const [isMounted, setIsMounted] = useState(false);
+    const [showVolumeControl, setShowVolumeControl] = useState(false);
+    const [showControls, setShowControls] = useState(false);
+    const [hasStarted, setHasStarted] = useState(false);
+    const [isBuffering, setIsBuffering] = useState(false);
+    const [isFullscreen, setIsFullscreen] = useState(false);
+    const [loadingTimeout, setLoadingTimeout] = useState(false);
+    const [retryCount, setRetryCount] = useState(0);
+  
+    // Auto-hide controls timer
+    const controlsTimeoutRef = useRef<number | null>(null);
+    const loadingTimeoutRef = useRef<number | null>(null);
+  
+    useEffect(() => {
+      setIsMounted(true);
+    }, []);
+  
+    // Format time for display
+    const formatTime = (time: number) => {
+      const minutes = Math.floor(time / 60);
+      const seconds = Math.floor(time % 60);
+      return `${minutes}:${seconds.toString().padStart(2, '0')}`;
     };
-
-    const handleLoadedMetadata = () => {
-      setDuration(video.duration);
-    };
-
-    const handleWaiting = () => {
-      setIsBuffering(true);
-    };
-
-    const handleCanPlay = () => {
-      setIsLoading(false);
-      setIsBuffering(false);
-      setHasError(false);
-      setLoadingTimeout(false);
-      
-      // Clear loading timeout
-      if (loadingTimeoutRef.current) {
-        window.clearTimeout(loadingTimeoutRef.current);
-        loadingTimeoutRef.current = null;
-      }
-    };
-
-    const handleCanPlayThrough = () => {
-      setIsLoading(false);
-      setIsBuffering(false);
-      setLoadingTimeout(false);
-      
-      // Clear loading timeout
-      if (loadingTimeoutRef.current) {
-        window.clearTimeout(loadingTimeoutRef.current);
-        loadingTimeoutRef.current = null;
-      }
-    };
-
-    const handlePlay = () => {
-      setIsPlaying(true);
-      setHasStarted(true);
-    };
-
-    const handlePause = () => {
-      setIsPlaying(false);
+  
+    // Handle mouse movement to show/hide controls
+    const handleMouseMove = () => {
       setShowControls(true);
-    };
-
-    const handleTimeUpdate = () => {
-      if (video.duration) {
-        const currentTime = video.currentTime;
-        const progress = (currentTime / video.duration) * 100;
-        setCurrentTime(currentTime);
-        setProgress(progress);
-      }
-    };
-
-    const handleVolumeChangeEvent = () => {
-      setIsMuted(video.muted || video.volume === 0);
-      setVolume(video.volume);
-    };
-
-    const handleError = (e: Event) => {
-      const error = e.target as HTMLVideoElement;
-      console.error('Video error details:', {
-        error: error?.error,
-        networkState: error?.networkState,
-        readyState: error?.readyState,
-        currentSrc: error?.currentSrc
-      });
-      setIsLoading(false);
-      setIsBuffering(false);
-      setHasError(true);
-      setLoadingTimeout(false);
-      
-      // Clear loading timeout
-      if (loadingTimeoutRef.current) {
-        window.clearTimeout(loadingTimeoutRef.current);
-        loadingTimeoutRef.current = null;
-      }
-    };
-
-    const handleEnded = () => {
-      setIsPlaying(false);
-      setShowControls(true);
-    };
-
-    // Fullscreen change handler
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-
-    // Add event listeners
-    video.addEventListener('loadstart', handleLoadStart);
-    video.addEventListener('loadedmetadata', handleLoadedMetadata);
-    video.addEventListener('waiting', handleWaiting);
-    video.addEventListener('canplay', handleCanPlay);
-    video.addEventListener('canplaythrough', handleCanPlayThrough);
-    video.addEventListener('play', handlePlay);
-    video.addEventListener('pause', handlePause);
-    video.addEventListener('timeupdate', handleTimeUpdate);
-    video.addEventListener('volumechange', handleVolumeChangeEvent);
-    video.addEventListener('error', handleError);
-    video.addEventListener('ended', handleEnded);
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-
-    // Initialize video settings with different strategies
-    const strategies = ['auto', 'metadata', 'none'];
-    video.preload = strategies[loadingStrategy] as 'auto' | 'metadata' | 'none';
-    video.muted = false;
-    video.volume = volume;
-    
-    // Add debug logging
-    console.log('Video initialization:', {
-      preload: video.preload,
-      src: video.currentSrc || 'No source',
-      readyState: video.readyState,
-      networkState: video.networkState
-    });
-    
-    // Force load attempt
-    video.load();
-
-    return () => {
-      video.removeEventListener('loadstart', handleLoadStart);
-      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
-      video.removeEventListener('waiting', handleWaiting);
-      video.removeEventListener('canplay', handleCanPlay);
-      video.removeEventListener('canplaythrough', handleCanPlayThrough);
-      video.removeEventListener('play', handlePlay);
-      video.removeEventListener('pause', handlePause);
-      video.removeEventListener('timeupdate', handleTimeUpdate);
-      video.removeEventListener('volumechange', handleVolumeChangeEvent);
-      video.removeEventListener('error', handleError);
-      video.removeEventListener('ended', handleEnded);
-      document.removeEventListener('fullscreenchange', handleFullscreenChange);
-      
       if (controlsTimeoutRef.current) {
         window.clearTimeout(controlsTimeoutRef.current);
       }
+      controlsTimeoutRef.current = window.setTimeout(() => {
+        if (isPlaying) {
+          setShowControls(false);
+        }
+      }, 3000);
+    };
+  
+    // Handle mouse leave
+    const handleMouseLeave = () => {
+      if (controlsTimeoutRef.current) {
+        window.clearTimeout(controlsTimeoutRef.current);
+      }
+      controlsTimeoutRef.current = window.setTimeout(() => {
+        if (isPlaying) {
+          setShowControls(false);
+        }
+      }, 1000);
+    };
+  
+    useEffect(() => {
+      if (!isMounted) return;
+      const video = videoRef.current;
+      if (!video) return;
+  
+      const handleLoadStart = () => {
+        console.log('Video load start');
+        setIsLoading(true);
+        setHasError(false);
+        setLoadingTimeout(false);
+        
+        if (loadingTimeoutRef.current) {
+          window.clearTimeout(loadingTimeoutRef.current);
+        }
+        
+        loadingTimeoutRef.current = window.setTimeout(() => {
+          console.log('Loading timeout reached, video might be stuck');
+          setLoadingTimeout(true);
+        }, 15000);
+      };
+  
+      const handleLoadedMetadata = () => {
+        console.log('Video metadata loaded, duration:', video.duration);
+        setDuration(video.duration);
+      };
+  
+      const handleWaiting = () => {
+        console.log('Video waiting/buffering');
+        setIsBuffering(true);
+      };
+  
+      const handleCanPlay = () => {
+        console.log('Video can play');
+        setIsLoading(false);
+        setIsBuffering(false);
+        setHasError(false);
+        setLoadingTimeout(false);
+        
+        if (loadingTimeoutRef.current) {
+          window.clearTimeout(loadingTimeoutRef.current);
+          loadingTimeoutRef.current = null;
+        }
+      };
+  
+      const handleCanPlayThrough = () => {
+        console.log('Video can play through');
+        setIsLoading(false);
+        setIsBuffering(false);
+        setLoadingTimeout(false);
+        
+        if (loadingTimeoutRef.current) {
+          window.clearTimeout(loadingTimeoutRef.current);
+          loadingTimeoutRef.current = null;
+        }
+      };
+  
+      const handlePlay = () => {
+        console.log('Video started playing');
+        setIsPlaying(true);
+        setHasStarted(true);
+      };
+  
+      const handlePause = () => {
+        console.log('Video paused');
+        setIsPlaying(false);
+        setShowControls(true);
+      };
+  
+      const handleTimeUpdate = () => {
+        if (video.duration) {
+          const currentTime = video.currentTime;
+          const progress = (currentTime / video.duration) * 100;
+          const watchPercentage = Math.floor(progress);
+          
+          setCurrentTime(currentTime);
+          setProgress(progress);
+          
+          if (onWatchProgress) {
+            onWatchProgress(watchPercentage);
+          }
+        }
+      };
+  
+      const handleVolumeChangeEvent = () => {
+        setIsMuted(video.muted || video.volume === 0);
+        setVolume(video.volume);
+      };
+  
+      const handleError = (e: Event) => {
+        const error = e.target as HTMLVideoElement;
+        console.error('Video error details:', {
+          error: error?.error,
+          networkState: error?.networkState,
+          readyState: error?.readyState,
+          currentSrc: error?.currentSrc
+        });
+        setIsLoading(false);
+        setIsBuffering(false);
+        setHasError(true);
+        setLoadingTimeout(false);
+        
+        if (loadingTimeoutRef.current) {
+          window.clearTimeout(loadingTimeoutRef.current);
+          loadingTimeoutRef.current = null;
+        }
+      };
+  
+      const handleEnded = () => {
+        console.log('Video ended');
+        setIsPlaying(false);
+        setShowControls(true);
+      };
+  
+      const handleFullscreenChange = () => {
+        setIsFullscreen(!!document.fullscreenElement);
+      };
+  
+      // Add event listeners
+      video.addEventListener('loadstart', handleLoadStart);
+      video.addEventListener('loadedmetadata', handleLoadedMetadata);
+      video.addEventListener('waiting', handleWaiting);
+      video.addEventListener('canplay', handleCanPlay);
+      video.addEventListener('canplaythrough', handleCanPlayThrough);
+      video.addEventListener('play', handlePlay);
+      video.addEventListener('pause', handlePause);
+      video.addEventListener('timeupdate', handleTimeUpdate);
+      video.addEventListener('volumechange', handleVolumeChangeEvent);
+      video.addEventListener('error', handleError);
+      video.addEventListener('ended', handleEnded);
+      document.addEventListener('fullscreenchange', handleFullscreenChange);
+  
+      // Initialize video settings
+      video.muted = false; // Start unmuted
+      video.volume = volume;
+      
+      console.log('Video initialization:', {
+        src: video.currentSrc || 'No source yet',
+        readyState: video.readyState,
+        networkState: video.networkState,
+        muted: video.muted
+      });
+  
+      return () => {
+        video.removeEventListener('loadstart', handleLoadStart);
+        video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+        video.removeEventListener('waiting', handleWaiting);
+        video.removeEventListener('canplay', handleCanPlay);
+        video.removeEventListener('canplaythrough', handleCanPlayThrough);
+        video.removeEventListener('play', handlePlay);
+        video.removeEventListener('pause', handlePause);
+        video.removeEventListener('timeupdate', handleTimeUpdate);
+        video.removeEventListener('volumechange', handleVolumeChangeEvent);
+        video.removeEventListener('error', handleError);
+        video.removeEventListener('ended', handleEnded);
+        document.removeEventListener('fullscreenchange', handleFullscreenChange);
+        
+        if (controlsTimeoutRef.current) {
+          window.clearTimeout(controlsTimeoutRef.current);
+        }
+        
+        if (loadingTimeoutRef.current) {
+          window.clearTimeout(loadingTimeoutRef.current);
+        }
+      };
+    }, [isMounted, volume, onWatchProgress]);
+  
+    const togglePlay = async () => {
+      console.log('Toggle play clicked');
+      if (hasError) return;
+      const video = videoRef.current;
+      if (!video) return;
+  
+      try {
+        if (video.paused) {
+          console.log('Playing video...');
+          // Ensure video is unmuted when playing for the first time
+          if (!hasStarted) {
+            video.muted = false;
+            video.volume = volume;
+            setIsMuted(false);
+          }
+          await video.play();
+        } else {
+          console.log('Pausing video...');
+          video.pause();
+        }
+      } catch (error) {
+        console.error('Error toggling play:', error);
+        setHasError(true);
+      }
+    };
+  
+    const toggleMute = () => {
+      const video = videoRef.current;
+      if (video) {
+        // Prevent event handler from interfering
+        isUpdatingVolumeRef.current = true;
+        
+        const newMutedState = !isMuted;
+        
+        // Update video properties
+        video.muted = newMutedState;
+        
+        // If unmuting and volume was 0, set it to default
+        if (!newMutedState && video.volume === 0) {
+          video.volume = 0.8;
+          setVolume(0.8);
+        }
+        
+        // Update our state
+        setIsMuted(newMutedState);
+        
+        // Re-enable event handler after a short delay
+        setTimeout(() => {
+          isUpdatingVolumeRef.current = false;
+        }, 100);
+        
+        // If unmuting and video hasn't started, restart the video
+        if (!newMutedState && !hasStarted) {
+          video.currentTime = 0;
+          video.play().catch(console.error);
+        }
+        
+        console.log('Mute toggled:', newMutedState, 'Volume:', video.volume);
+      }
+    };
+  
+    const handleVolumeChangeInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const newVolume = parseFloat(e.target.value);
+      const video = videoRef.current;
+      if (video) {
+        // Prevent event handler from interfering
+        isUpdatingVolumeRef.current = true;
+        
+        const wasZeroVolume = video.volume === 0;
+        
+        // Update video properties
+        video.volume = newVolume;
+        video.muted = newVolume === 0;
+        
+        // Update our state
+        setVolume(newVolume);
+        setIsMuted(newVolume === 0);
+        
+        // Re-enable event handler after a short delay
+        setTimeout(() => {
+          isUpdatingVolumeRef.current = false;
+        }, 100);
+        
+        // If increasing volume from 0 and video hasn't started, restart
+        if (newVolume > 0 && wasZeroVolume && !hasStarted) {
+          video.currentTime = 0;
+          video.play().catch(console.error);
+        }
+      }
+    };
+  
+    const changePlaybackRate = (rate: number) => {
+      if (hasError) return;
+      const video = videoRef.current;
+      if (video) {
+        video.playbackRate = rate;
+        setPlaybackRate(rate);
+      }
+    };
+  
+    const toggleFullscreen = async () => {
+      const container = containerRef.current;
+      if (!container) return;
+  
+      try {
+        if (!document.fullscreenElement) {
+          await container.requestFullscreen();
+        } else {
+          await document.exitFullscreen();
+        }
+      } catch (error) {
+        console.error('Fullscreen error:', error);
+      }
+    };
+  
+    const retryVideo = () => {
+      const newRetryCount = retryCount + 1;
+      console.log(`Retry attempt ${newRetryCount}`);
+      
+      setHasError(false);
+      setIsLoading(true);
+      setHasStarted(false);
+      setLoadingTimeout(false);
+      setRetryCount(newRetryCount);
       
       if (loadingTimeoutRef.current) {
         window.clearTimeout(loadingTimeoutRef.current);
       }
-    };
-  }, [isMounted, volume, loadingStrategy]);
-
-  const togglePlay = async () => {
-    if (hasError) return;
-    const video = videoRef.current;
-    if (!video) return;
-
-    try {
-      if (video.paused) {
-        await video.play();
-      } else {
-        video.pause();
-      }
-    } catch (error) {
-      console.error('Error toggling play:', error);
-      setHasError(true);
-    }
-  };
-
-  const toggleMute = () => {
-    const video = videoRef.current;
-    if (video) {
-      const newMutedState = !video.muted;
-      video.muted = newMutedState;
       
-      if (!newMutedState && video.volume === 0) {
-        video.volume = 0.8;
-        setVolume(0.8);
-      }
-    }
-  };
-
-  const handleVolumeChangeInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newVolume = parseFloat(e.target.value);
-    const video = videoRef.current;
-    if (video) {
-      video.volume = newVolume;
-      video.muted = newVolume === 0;
-      setVolume(newVolume);
-    }
-  };
-
-  const changePlaybackRate = (rate: number) => {
-    if (hasError) return;
-    const video = videoRef.current;
-    if (video) {
-      video.playbackRate = rate;
-      setPlaybackRate(rate);
-    }
-  };
-
-  const handleProgressSeek = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (hasError || !duration) return;
-    const video = videoRef.current;
-    const bar = progressBarRef.current;
-    if (video && bar) {
-      const rect = bar.getBoundingClientRect();
-      const pos = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-      const newTime = pos * duration;
-      video.currentTime = newTime;
-      setCurrentTime(newTime);
-      setProgress(pos * 100);
-    }
-  };
-
-  const toggleFullscreen = async () => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    try {
-      if (!document.fullscreenElement) {
-        await container.requestFullscreen();
-      } else {
-        await document.exitFullscreen();
-      }
-    } catch (error) {
-      console.error('Fullscreen error:', error);
-    }
-  };
-
-  const retryVideo = () => {
-    const newRetryCount = retryCount + 1;
-    const newStrategy = newRetryCount % 3; // Cycle through strategies
-    
-    console.log(`Retry attempt ${newRetryCount}, using strategy ${newStrategy}`);
-    
-    setHasError(false);
-    setIsLoading(true);
-    setHasStarted(false);
-    setLoadingTimeout(false);
-    setRetryCount(newRetryCount);
-    setLoadingStrategy(newStrategy);
-    
-    if (loadingTimeoutRef.current) {
-      window.clearTimeout(loadingTimeoutRef.current);
-    }
-    
-    const video = videoRef.current;
-    if (video) {
-      // Different strategies based on retry count
-      const strategies = ['auto', 'metadata', 'none'];
-      video.preload = strategies[newStrategy] as 'auto' | 'metadata' | 'none';
-      
-      // Reset video completely
-      video.removeAttribute('src');
-      video.load();
-      
-      // Add source back
-      setTimeout(() => {
-        const source = video.querySelector('source');
-        if (source) {
-          source.src = '/videos/fantasyvipvsl.mp4';
-        }
+      const video = videoRef.current;
+      if (video) {
         video.load();
-        
-        // Try to trigger canplay event manually
-        setTimeout(() => {
-          console.log('Manual readiness check:', {
-            readyState: video.readyState,
-            networkState: video.networkState,
-            duration: video.duration
-          });
-          
-          if (video.readyState >= 2) { // HAVE_CURRENT_DATA
-            console.log('Video seems ready, forcing canplay');
-            setIsLoading(false);
-          }
-        }, 3000);
-      }, 100);
-    }
-  };
-
-  // Handle keyboard shortcuts - Limited for VSL
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (!videoRef.current) return;
-      
-      switch (e.code) {
-        case 'Space':
-          e.preventDefault();
-          togglePlay();
-          break;
-        case 'KeyM':
-          e.preventDefault();
-          toggleMute();
-          break;
-        case 'KeyF':
-          e.preventDefault();
-          toggleFullscreen();
-          break;
-        // Removed arrow key seeking for VSL
       }
     };
-
-    if (showControls || !isPlaying) {
-      document.addEventListener('keydown', handleKeyDown);
+  
+    useEffect(() => {
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (!videoRef.current) return;
+        
+        switch (e.code) {
+          case 'Space':
+            e.preventDefault();
+            togglePlay();
+            break;
+          case 'KeyM':
+            e.preventDefault();
+            toggleMute();
+            break;
+          case 'KeyF':
+            e.preventDefault();
+            toggleFullscreen();
+            break;
+        }
+      };
+  
+      if (showControls || !isPlaying) {
+        document.addEventListener('keydown', handleKeyDown);
+      }
+  
+      return () => {
+        document.removeEventListener('keydown', handleKeyDown);
+      };
+    }, [showControls, isPlaying]);
+  
+    if (!isMounted) {
+      return (
+        <div className="w-full max-w-md aspect-video bg-black/30 rounded-2xl flex items-center justify-center mx-auto">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-amber-500 border-t-transparent"></div>
+        </div>
+      );
     }
-
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [showControls, isPlaying]);
-
-  if (!isMounted) {
+  
+    // FIXED: Simpler visibility logic - always show overlay until user starts playing
+    const showPoster = !hasStarted && isLoading;
+    const showVideo = true; // Always show video element for proper loading
+    const showPlayOverlay = !hasStarted; // Show overlay until user clicks play
+  
     return (
-      <div className="w-full max-w-md aspect-video bg-black/30 rounded-2xl flex items-center justify-center mx-auto">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-amber-500 border-t-transparent"></div>
-      </div>
-    );
-  }
-
-  return (
-    <div 
-      ref={containerRef}
-      className={`relative w-full max-w-md aspect-video rounded-xl overflow-hidden shadow-2xl bg-black mx-auto cursor-pointer ${
-        isFullscreen ? 'max-w-none aspect-auto' : ''
-      }`}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-      onClick={togglePlay}
-    >
-      {/* Poster/Loading Background */}
-      <div
-        className={`
-          absolute inset-0 bg-center bg-cover z-10 pointer-events-none
-          transition-opacity duration-500
-          ${(isLoading && !hasStarted) || hasError ? 'opacity-100' : 'opacity-0'}
-        `}
-        style={{ backgroundImage: "url('/videos/vsl-cover.gif')" }}
-      />
-
-      {/* Video Element with Multiple Sources */}
-      <video
-        ref={videoRef}
-        className={`absolute inset-0 w-full h-full object-cover z-20 transition-opacity duration-300 ${
-          (isLoading && !hasStarted) || hasError ? 'opacity-0' : 'opacity-100'
+      <div 
+        ref={containerRef}
+        className={`relative w-full max-w-md aspect-video rounded-xl overflow-hidden shadow-2xl bg-black mx-auto cursor-pointer ${
+          isFullscreen ? 'max-w-none aspect-auto' : ''
         }`}
-        loop
-        playsInline
-        preload="auto"
-        poster="/videos/vsl-cover.gif"
-        crossOrigin="anonymous"
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        onClick={togglePlay}
       >
-        <source src="/videos/fantasyvipvsl.mp4" type="video/mp4" />
-        <source src="/videos/fantasyvip-vsl.webm" type="video/webm" />
-        <p>Su navegador no soporta videos HTML5. <a href="/videos/fantasyvipvsl.mp4">Descargar video</a>.</p>
-      </video>
-
-      {/* Loading/Error States */}
-      <AnimatePresence>
-        {((isLoading && !hasStarted) || hasError || isBuffering || loadingTimeout) && (
-          <motion.div
-            className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-md z-30"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            {hasError || loadingTimeout ? (
-              <div className="text-center p-6">
-                <ExclamationTriangleIcon className="h-16 w-16 text-amber-500 mx-auto mb-4" />
-                <p className="text-white font-medium mb-2">
-                  {loadingTimeout ? 'Tiempo de Carga Agotado' : 'Error de Video'}
-                </p>
-                <p className="text-gray-300 text-sm mb-4">
-                  {loadingTimeout 
-                    ? `Intento ${retryCount + 1}: El video está tardando mucho en cargar. Esto puede deberse a una conexión lenta o problemas con el archivo de video.`
-                    : 'No se pudo cargar el video. Verifica tu conexión e inténtalo de nuevo.'
-                  }
-                </p>
-                <div className="space-y-2">
+        {/* Poster/Loading Background - Only show when not started */}
+        <div
+          className={`absolute inset-0 bg-center bg-cover z-10 pointer-events-none transition-opacity duration-500 ${
+            showPoster ? 'opacity-100' : 'opacity-0'
+          }`}
+          style={{ backgroundImage: "url('/videos/vsl-cover.gif')" }}
+        />
+  
+        {/* Video Element - Always present but opacity controlled */}
+        <video
+          ref={videoRef}
+          className={`absolute inset-0 w-full h-full object-cover z-20 transition-opacity duration-300 ${
+            hasStarted ? 'opacity-100' : 'opacity-50'
+          }`}
+          loop
+          playsInline
+          preload="metadata"
+          poster="/videos/vsl-cover.gif"
+          crossOrigin="anonymous"
+        >
+          <source src="/videos/fantasyvipvsl.mp4" type="video/mp4" />
+          <source src="/videos/fantasyvip-vsl.webm" type="video/webm" />
+          <p>Su navegador no soporta videos HTML5. <a href="/videos/fantasyvipvsl.mp4">Descargar video</a>.</p>
+        </video>
+  
+        {/* Loading/Error States */}
+        <AnimatePresence>
+          {(isLoading || hasError || isBuffering || loadingTimeout) && (
+            <motion.div
+              className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-md z-30"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              {hasError || loadingTimeout ? (
+                <div className="text-center p-6">
+                  <ExclamationTriangleIcon className="h-16 w-16 text-amber-500 mx-auto mb-4" />
+                  <p className="text-white font-medium mb-2">
+                    {loadingTimeout ? 'Tiempo de Carga Agotado' : 'Error de Video'}
+                  </p>
+                  <p className="text-gray-300 text-sm mb-4">
+                    {loadingTimeout 
+                      ? 'El video está tardando mucho en cargar. Verifica tu conexión.'
+                      : 'No se pudo cargar el video. Verifica tu conexión e inténtalo de nuevo.'
+                    }
+                  </p>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       retryVideo();
                     }}
-                    className="block w-full px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black rounded-lg font-bold transition-colors active:scale-95"
+                    className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black rounded-lg font-bold transition-colors active:scale-95"
                   >
-                    Reintentar {retryCount > 0 ? `(${retryCount + 1})` : ''}
+                    Reintentar
                   </button>
-                  {retryCount > 1 && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        window.location.reload();
-                      }}
-                      className="block w-full px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg font-medium transition-colors active:scale-95"
-                    >
-                      Recargar Página
-                    </button>
-                  )}
-                  <div className="text-xs text-gray-400 mt-2">
-                    Estrategia: {['Carga completa', 'Solo metadatos', 'Carga manual'][loadingStrategy]}
-                  </div>
                 </div>
-              </div>
-            ) : (
-              <div className="text-center p-6">
-                <div className="animate-spin rounded-full h-12 w-12 border-4 border-amber-500 border-t-transparent mx-auto mb-4"></div>
-                <p className="text-white font-medium">
-                  {isBuffering ? 'Cargando...' : 'Preparando Video...'}
-                </p>
-                <p className="text-gray-400 text-sm mt-2">
-                  Por favor espera un momento
-                </p>
-              </div>
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Play Button Overlay */}
-      <AnimatePresence>
-        {!isPlaying && !isLoading && !hasError && !loadingTimeout && (
-          <motion.div
-            className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-[2px] z-25"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                togglePlay();
-              }}
-              className="w-20 h-20 rounded-full bg-amber-500/90 flex items-center justify-center transition-all duration-300 transform hover:scale-110 hover:bg-amber-500 active:scale-100 shadow-2xl"
-              aria-label="Reproducir video"
+              ) : (
+                <div className="text-center p-6">
+                  <div className="animate-spin rounded-full h-12 w-12 border-4 border-amber-500 border-t-transparent mx-auto mb-4"></div>
+                  <p className="text-white font-medium">
+                    {isBuffering ? 'Cargando...' : 'Preparando Video...'}
+                  </p>
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+  
+        {/* Play Button Overlay - Show when video is ready but not playing */}
+        <AnimatePresence>
+          {showPlayOverlay && (
+            <motion.div
+              className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 backdrop-blur-[2px] z-25"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
             >
-              <PlayIcon className="h-8 w-8 text-black ml-1" />
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Video Controls */}
-      <AnimatePresence>
-        {(showControls || !isPlaying) && !isLoading && !hasError && !loadingTimeout && (
-          <motion.div
-            className="absolute inset-x-0 bottom-0 z-30 bg-gradient-to-t from-black/90 via-black/60 to-transparent pt-16"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            transition={{ duration: 0.2 }}
-          >
-            <div className="px-4 pb-4">
-              {/* Progress Bar - Visual Only for VSL */}
-              <div className="mb-4">
-                <div className="w-full h-2 bg-white/20 rounded-full">
-                  <div
-                    className="h-full bg-gradient-to-r from-amber-400 to-orange-500 rounded-full relative transition-all duration-150"
-                    style={{ width: `${progress}%` }}
-                  >
-                    <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 w-4 h-4 bg-amber-500 rounded-full shadow-lg"></div>
+              {/* Pulsing Play Button */}
+              <motion.button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  togglePlay();
+                }}
+                className="w-20 h-20 rounded-full bg-amber-500/90 flex items-center justify-center transition-all duration-300 transform hover:scale-110 hover:bg-amber-500 active:scale-100 shadow-2xl animate-pulse"
+                aria-label="Reproducir video"
+                animate={{ 
+                  scale: [1, 1.05, 1],
+                  boxShadow: [
+                    "0 0 0 0 rgba(245, 158, 11, 0.4)",
+                    "0 0 0 20px rgba(245, 158, 11, 0)",
+                    "0 0 0 0 rgba(245, 158, 11, 0)"
+                  ]
+                }}
+                transition={{ 
+                  duration: 2,
+                  repeat: Infinity,
+                  ease: "easeInOut"
+                }}
+              >
+                <PlayIcon className="h-8 w-8 text-black ml-1" />
+              </motion.button>
+              
+              {/* Call to Action Text */}
+              <motion.div
+                className="mt-4 text-center"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+              >
+                <p className="text-white font-bold text-lg mb-1">
+                  🎬 REPRODUCIR VIDEO
+                </p>
+                <p className="text-amber-300 text-sm font-medium">
+                  Descubre cómo ganar un viaje a la F1
+                </p>
+              </motion.div>
+  
+              {/* Animated Cursor Indicator */}
+              <motion.div
+                className="absolute bottom-4 right-4 flex items-center gap-2 text-white/80 text-sm"
+                animate={{ opacity: [0.5, 1, 0.5] }}
+                transition={{ duration: 2, repeat: Infinity }}
+              >
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M6.672 1.911a1 1 0 10-1.932.518l.259.966a1 1 0 001.932-.518l-.26-.966zM2.429 4.74a1 1 0 10-.517 1.932l.966.259a1 1 0 00.517-1.932l-.966-.26zm8.814-.569a1 1 0 00-1.415-1.414l-.707.707a1 1 0 101.415 1.414l.707-.707zm-7.071 7.072l.707-.707A1 1 0 003.465 9.12l-.708.707a1 1 0 001.415 1.415zm3.2-5.171a1 1 0 00-1.3 1.3l4 10a1 1 0 001.823.075l1.38-2.759 3.018 3.02a1 1 0 001.414-1.415l-3.019-3.02 2.76-1.379a1 1 0 00-.076-1.822l-10-4z" clipRule="evenodd" />
+                </svg>
+                <span>Haz clic para reproducir</span>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+  
+        {/* Video Controls */}
+        <AnimatePresence>
+          {(showControls || !isPlaying) && !isLoading && !hasError && !loadingTimeout && hasStarted && (
+            <motion.div
+              className="absolute inset-x-0 bottom-0 z-30 bg-gradient-to-t from-black/90 via-black/60 to-transparent pt-16"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              transition={{ duration: 0.2 }}
+            >
+              <div className="px-4 pb-4">
+                {/* Progress Bar */}
+                <div className="mb-4">
+                  <div className="w-full h-2 bg-white/20 rounded-full">
+                    <div
+                      className="h-full bg-gradient-to-r from-amber-400 to-orange-500 rounded-full relative transition-all duration-150"
+                      style={{ width: `${progress}%` }}
+                    >
+                      <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 w-4 h-4 bg-amber-500 rounded-full shadow-lg"></div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex justify-between mt-1 text-xs text-gray-300">
+                    <span>{formatTime(currentTime)}</span>
+                    <span>{formatTime(duration)}</span>
                   </div>
                 </div>
-                
-                {/* Time Display */}
-                <div className="flex justify-between mt-1 text-xs text-gray-300">
-                  <span>{formatTime(currentTime)}</span>
-                  <span>{formatTime(duration)}</span>
-                </div>
-              </div>
-
-              {/* Controls Row */}
-              <div className="flex items-center justify-between">
-                {/* Left Controls */}
-                <div className="flex items-center gap-3">
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      togglePlay();
-                    }}
-                    className="p-2 hover:bg-white/10 rounded-lg transition-colors" 
-                    aria-label={isPlaying ? 'Pausar' : 'Reproducir'}
-                  >
-                    {isPlaying ? (
-                      <PauseIcon className="h-6 w-6 text-white" />
-                    ) : (
-                      <PlayIcon className="h-6 w-6 text-white" />
-                    )}
-                  </button>
-
-                  {/* Volume Control */}
-                  <div
-                    className="relative flex items-center"
-                    onMouseEnter={() => setShowVolumeControl(true)}
-                    onMouseLeave={() => setShowVolumeControl(false)}
-                  >
+  
+                {/* Controls Row */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
                     <button 
                       onClick={(e) => {
                         e.stopPropagation();
-                        toggleMute();
+                        togglePlay();
                       }}
                       className="p-2 hover:bg-white/10 rounded-lg transition-colors" 
-                      aria-label={isMuted ? 'Activar Sonido' : 'Silenciar'}
+                      aria-label={isPlaying ? 'Pausar' : 'Reproducir'}
                     >
-                      {isMuted ? (
-                        <SpeakerXMarkIcon className="h-6 w-6 text-white" />
+                      {isPlaying ? (
+                        <PauseIcon className="h-6 w-6 text-white" />
                       ) : (
-                        <SpeakerWaveIcon className="h-6 w-6 text-white" />
+                        <PlayIcon className="h-6 w-6 text-white" />
                       )}
                     </button>
-                    
-                    <AnimatePresence>
-                      {showVolumeControl && (
-                        <motion.div
-                          ref={volumeControlRef}
-                          initial={{ opacity: 0, width: 0 }}
-                          animate={{ opacity: 1, width: 80 }}
-                          exit={{ opacity: 0, width: 0 }}
-                          className="overflow-hidden ml-2"
-                        >
-                          <input
-                            type="range"
-                            min="0"
-                            max="1"
-                            step="0.05"
-                            value={isMuted ? 0 : volume}
-                            onChange={handleVolumeChangeInput}
-                            onClick={(e) => e.stopPropagation()}
-                            className="w-full h-1 bg-white/30 rounded-lg appearance-none cursor-pointer accent-amber-500"
-                            aria-label="Control de volumen"
-                          />
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                </div>
-
-                {/* Right Controls - Minimal for VSL */}
-                <div className="flex items-center gap-2">
-                  {/* Playback Speed - Limited options */}
-                  <div className="flex items-center gap-1 bg-black/30 backdrop-blur-sm rounded-lg p-1">
-                    <ForwardIcon className="h-4 w-4 text-gray-300 mx-1" />
-                    {[1, 1.25].map((rate) => (
-                      <button
-                        key={rate}
+  
+                    <div
+                      className="relative flex items-center"
+                      onMouseEnter={() => setShowVolumeControl(true)}
+                      onMouseLeave={() => setShowVolumeControl(false)}
+                    >
+                      <button 
                         onClick={(e) => {
                           e.stopPropagation();
-                          changePlaybackRate(rate);
+                          toggleMute();
                         }}
-                        className={`px-2 py-1 rounded-md text-xs font-bold transition-colors ${
-                          playbackRate === rate 
-                            ? 'bg-amber-500 text-black' 
-                            : 'text-white hover:bg-white/20'
-                        }`}
-                        aria-label={`Velocidad ${rate}x`}
+                        className="p-2 hover:bg-white/10 rounded-lg transition-colors" 
+                        aria-label={isMuted ? 'Activar Sonido' : 'Silenciar'}
                       >
-                        {rate}x
+                        {isMuted ? (
+                          <SpeakerXMarkIcon className="h-6 w-6 text-white" />
+                        ) : (
+                          <SpeakerWaveIcon className="h-6 w-6 text-white" />
+                        )}
                       </button>
-                    ))}
+                      
+                      <AnimatePresence>
+                        {showVolumeControl && (
+                          <motion.div
+                            ref={volumeControlRef}
+                            initial={{ opacity: 0, width: 0 }}
+                            animate={{ opacity: 1, width: 80 }}
+                            exit={{ opacity: 0, width: 0 }}
+                            className="overflow-hidden ml-2"
+                          >
+                            <input
+                              type="range"
+                              min="0"
+                              max="1"
+                              step="0.05"
+                              value={isMuted ? 0 : volume}
+                              onChange={handleVolumeChangeInput}
+                              onClick={(e) => e.stopPropagation()}
+                              className="w-full h-1 bg-white/30 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                              aria-label="Control de volumen"
+                            />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
                   </div>
-
-                  {/* Fullscreen Button */}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleFullscreen();
-                    }}
-                    className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-                    aria-label={isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'}
-                  >
-                    <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      {isFullscreen ? (
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 9V4.5M9 9H4.5M9 9L3.5 3.5M15 9h4.5M15 9V4.5M15 9l5.5-5.5M9 15v4.5M9 15H4.5M9 15l-5.5 5.5M15 15h4.5M15 15v4.5m0-4.5l5.5 5.5" />
-                      ) : (
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l6 6m10-6v4m0-4h-4m4 0l-6 6M4 16v4m0 0h4m-4 0l6-6m10 6l-6-6m6 6v-4m0 4h-4" />
-                      )}
-                    </svg>
-                  </button>
+  
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 bg-black/30 backdrop-blur-sm rounded-lg p-1">
+                      <ForwardIcon className="h-4 w-4 text-gray-300 mx-1" />
+                      {[1, 1.25].map((rate) => (
+                        <button
+                          key={rate}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            changePlaybackRate(rate);
+                          }}
+                          className={`px-2 py-1 rounded-md text-xs font-bold transition-colors ${
+                            playbackRate === rate 
+                              ? 'bg-amber-500 text-black' 
+                              : 'text-white hover:bg-white/20'
+                          }`}
+                          aria-label={`Velocidad ${rate}x`}
+                        >
+                          {rate}x
+                        </button>
+                      ))}
+                    </div>
+  
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleFullscreen();
+                      }}
+                      className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                      aria-label={isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'}
+                    >
+                      <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        {isFullscreen ? (
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 9V4.5M9 9H4.5M9 9L3.5 3.5M15 9h4.5M15 9V4.5M15 9l5.5-5.5M9 15v4.5M9 15H4.5M9 15l-5.5 5.5M15 15h4.5M15 15v4.5m0-4.5l5.5 5.5" />
+                        ) : (
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l6 6m10-6v4m0-4h-4m4 0l-6 6M4 16v4m0 0h4m-4 0l6-6m10 6l-6-6m6 6v-4m0 4h-4" />
+                        )}
+                      </svg>
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Keyboard Shortcuts Help - Limited for VSL */}
-      <div className="sr-only">
-        <p>Atajos de teclado: Espacio (reproducir/pausar), M (silenciar), F (pantalla completa)</p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+  
+        <div className="sr-only">
+          <p>Atajos de teclado: Espacio (reproducir/pausar), M (silenciar), F (pantalla completa)</p>
+        </div>
       </div>
-    </div>
-  );
-}
+    );
+  }
 
 /* ╔════════════════════════════════╗
    ║ 2. MINI-PANEL "PREDICE …"      ║
@@ -1008,311 +1031,349 @@ function PredictionsTeaser() {
 /* ╔════════════════════════════╗
    ║ 3. MAIN LANDING PAGE       ║
    ╚════════════════════════════════╝ */
-   interface Plan {
-    id: 'race-pass' | 'season-pass';
-    nombre: string;
-    precio: number;        // COP
-    periodo: string;
-    beneficios: string[];
-    isPopular?: boolean;
-  }
-  
-  interface FAQ { q: string; a: string; }
-  
-  export default function FantasyVipLanding() {
-    /* ───────── Clerk & Router ───────── */
-    const clerk = useClerk();
-    const router = useRouter();
-    const { isSignedIn, user } = useUser();
-  
-    // Ref para recordar el plan que queremos comprar tras login
-    const pendingPlanRef = useRef<string | null>(null);
-  
-    // 1️⃣ Estado para mostrar/ocultar el sticky button
-    const [showSticky, setShowSticky] = useState(true);
-  
-    // 2️⃣ Observer para la sección de paquetes
-    useEffect(() => {
-      const planesEl = document.getElementById('planes');
-      if (!planesEl) return;
-      const observer = new IntersectionObserver(
-        ([entry]) => setShowSticky(!entry.isIntersecting),
-        { rootMargin: '0px 0px -100px 0px' }
-      );
-      observer.observe(planesEl);
-      return () => observer.disconnect();
-    }, []);
-  
-    /* ───────── State ───────── */
-    const [processingPlan, setProcessingPlan] = useState<string | null>(null);
-    const [showSignModal, setShowSignModal] = useState(false);
-  
-    /* ───────── Estados para el countdown ───────── */
-    const [gpSchedule, setGpSchedule] = useState<GpSchedule[]>([]);
-    const [currentGp, setCurrentGp] = useState<GpSchedule | null>(null);
-    const [qualyCountdown, setQualyCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
-    const [raceCountdown, setRaceCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
-    const [showQualy, setShowQualy] = useState(true);
-  
-    /* ───────── Planes ───────── */
-    const planes: Plan[] = [
-      {
-        id: 'race-pass',
-        nombre: 'Race Pass',
-        precio: 20_000,
-        periodo: 'por carrera',
-        beneficios: [
-          'Predicciones VIP para 1 GP',
-          'Acumula tus primeros puntos',
-          'Empieza a competir por el viaje',
-          'Acceso a sorteos exclusivos para VIPs',
-        ]
-      },
-      {
-        id: 'season-pass',
-        nombre: 'Season Pass',
-        precio: 200_000,
-        periodo: 'temporada completa',
-        beneficios: [
-          'Acceso VIP a todos los GPs',
-          'Ahorra un 15 % vs Race Pass',
-          'Panel telemetry',
-          'Early-access a nuevas funciones',
-          'Soporte prioritario 24/7'
-        ],
-        isPopular: true
-      }
-    ];
-  
-    /* ───────── FAQ ───────── */
-    const faqData: FAQ[] = [
-      {
-        q: '¿Qué incluye exactamente el Race Pass?',
-        a: 'El Race Pass te da acceso VIP a nuestras predicciones avanzadas, el ranking exclusivo con premios especiales y estadísticas detalladas para un único Gran Premio de tu elección.'
-      },
-      {
-        q: '¿Puedo cambiar de Race Pass a Season Pass más tarde?',
-        a: '¡Claro! Puedes hacer el upgrade en cualquier momento. Pagarás solo la diferencia y todos los puntos que hayas acumulado en tu ranking se mantendrán.'
-      },
-      {
-        q: '¿Qué tan seguro es el proceso de pago?',
-        a: 'Utilizamos Bold Checkout, una pasarela de pagos líder que cumple con los más altos estándares de seguridad, incluyendo cifrado TLS 1.2. Tu información de pago nunca toca nuestros servidores.'
-      },
-      {
-        q: '¿Cuál es la política de reembolso?',
-        a: 'Ofrecemos una garantía de satisfacción. Tienes 7 días para solicitar un reembolso completo, siempre y cuando no se haya disputado ningún Gran Premio desde el momento de tu compra.'
-      }
-    ];
-  
-    /* ───────── Helpers ───────── */
-    const formatCOP = (n: number) =>
-      new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
-  
-    const formatCountdown = (c: typeof qualyCountdown) => {
-      const d = String(Math.max(0, c.days)).padStart(2, '0');
-      const h = String(Math.max(0, c.hours)).padStart(2, '0');
-      const m = String(Math.max(0, c.minutes)).padStart(2, '0');
-      const s = String(Math.max(0, c.seconds)).padStart(2, '0');
-      return `${d}d ${h}h ${m}m ${s}s`;
-    };
-  
-    /* ───────── Cargar calendario de GPs ───────── */
-    useEffect(() => {
-      supabase
-        .from('gp_schedule')
-        .select('gp_name, qualy_time, race_time')
-        .order('race_time', { ascending: true })
-        .then(({ data }) => data && setGpSchedule(data as GpSchedule[]));
-    }, []);
-  
-    /* ───────── Lógica del countdown ───────── */
-useEffect(() => {
-  if (!gpSchedule.length) return;
+interface Plan {
+  id: 'race-pass' | 'season-pass';
+  nombre: string;
+  precio: number;        // COP
+  periodo: string;
+  beneficios: string[];
+  isPopular?: boolean;
+}
 
-  // Determina el próximo GP (primer GP futuro o buffer de 4h tras carrera)
-  const now = Date.now();
-  let idx = gpSchedule.findIndex(g => new Date(g.race_time).getTime() > now);
-  if (idx === -1) idx = gpSchedule.length - 1; // Si no hay GPs futuros, usa el último
-  setCurrentGp(gpSchedule[idx]);
+interface FAQ { q: string; a: string; }
 
-  const tick = () => {
-    if (!currentGp) return;
-    const now2 = Date.now();
-    const qDiff = new Date(currentGp.qualy_time).getTime() - now2;
-    const rDiff = new Date(currentGp.race_time).getTime() - now2;
+export default function FantasyVipLanding() {
+  /* ───────── Clerk & Router ───────── */
+  const clerk = useClerk();
+  const router = useRouter();
+  const { isSignedIn, user } = useUser();
 
-    setQualyCountdown({
-      days: Math.floor(qDiff / 86400000),
-      hours: Math.floor((qDiff % 86400000) / 3600000),
-      minutes: Math.floor((qDiff % 3600000) / 60000),
-      seconds: Math.floor((qDiff % 60000) / 1000),
-    });
-    setRaceCountdown({
-      days: Math.floor(rDiff / 86400000),
-      hours: Math.floor((rDiff % 86400000) / 3600000),
-      minutes: Math.floor((rDiff % 3600000) / 60000),
-      seconds: Math.floor((rDiff % 60000) / 1000),
-    });
+  // Ref para recordar el plan que queremos comprar tras login
+  const pendingPlanRef = useRef<string | null>(null);
+
+  // 1️⃣ Estado para mostrar/ocultar el sticky button
+  const [showSticky, setShowSticky] = useState(true);
+
+  // 2️⃣ Observer para la sección de paquetes
+  useEffect(() => {
+    const planesEl = document.getElementById('planes');
+    if (!planesEl) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setShowSticky(!entry.isIntersecting),
+      { rootMargin: '0px 0px -100px 0px' }
+    );
+    observer.observe(planesEl);
+    return () => observer.disconnect();
+  }, []);
+
+  /* ───────── State ───────── */
+  const [processingPlan, setProcessingPlan] = useState<string | null>(null);
+  const [showSignModal, setShowSignModal] = useState(false);
+
+  // NEW STATES FOR VIDEO LOCK
+  const [hasWatchedVideo, setHasWatchedVideo] = useState(false);
+  const [showUnlockButton, setShowUnlockButton] = useState(false);
+  const [watchPercentage, setWatchPercentage] = useState(0);
+
+  /* ───────── Estados para el countdown ───────── */
+  const [gpSchedule, setGpSchedule] = useState<GpSchedule[]>([]);
+  const [currentGp, setCurrentGp] = useState<GpSchedule | null>(null);
+  const [qualyCountdown, setQualyCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+  const [raceCountdown, setRaceCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+  const [showQualy, setShowQualy] = useState(true);
+
+  /* ───────── Planes ───────── */
+  const planes: Plan[] = [
+    {
+      id: 'race-pass',
+      nombre: 'Race Pass',
+      precio: 20_000,
+      periodo: 'por carrera',
+      beneficios: [
+        'Predicciones VIP para 1 GP',
+        'Acumula tus primeros puntos',
+        'Empieza a competir por el viaje',
+        'Acceso a sorteos exclusivos para VIPs',
+      ]
+    },
+    {
+      id: 'season-pass',
+      nombre: 'Season Pass',
+      precio: 200_000,
+      periodo: 'temporada completa',
+      beneficios: [
+        'Acceso VIP a todos los GPs',
+        'Ahorra un 15 % vs Race Pass',
+        'Panel telemetry',
+        'Early-access a nuevas funciones',
+        'Soporte prioritario 24/7'
+      ],
+      isPopular: true
+    }
+  ];
+
+  /* ───────── FAQ ───────── */
+  const faqData: FAQ[] = [
+    {
+      q: '¿Qué incluye exactamente el Race Pass?',
+      a: 'El Race Pass te da acceso VIP a nuestras predicciones avanzadas, el ranking exclusivo con premios especiales y estadísticas detalladas para un único Gran Premio de tu elección.'
+    },
+    {
+      q: '¿Puedo cambiar de Race Pass a Season Pass más tarde?',
+      a: '¡Claro! Puedes hacer el upgrade en cualquier momento. Pagarás solo la diferencia y todos los puntos que hayas acumulado en tu ranking se mantendrán.'
+    },
+    {
+      q: '¿Qué tan seguro es el proceso de pago?',
+      a: 'Utilizamos Bold Checkout, una pasarela de pagos líder que cumple con los más altos estándares de seguridad, incluyendo cifrado TLS 1.2. Tu información de pago nunca toca nuestros servidores.'
+    },
+    {
+      q: '¿Cuál es la política de reembolso?',
+      a: 'Ofrecemos una garantía de satisfacción. Tienes 7 días para solicitar un reembolso completo, siempre y cuando no se haya disputado ningún Gran Premio desde el momento de tu compra.'
+    }
+  ];
+
+  /* ───────── Helpers ───────── */
+  const formatCOP = (n: number) =>
+    new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
+
+  const formatCountdown = (c: typeof qualyCountdown) => {
+    const d = String(Math.max(0, c.days)).padStart(2, '0');
+    const h = String(Math.max(0, c.hours)).padStart(2, '0');
+    const m = String(Math.max(0, c.minutes)).padStart(2, '0');
+    const s = String(Math.max(0, c.seconds)).padStart(2, '0');
+    return `${d}d ${h}h ${m}m ${s}s`;
   };
 
-  tick();
-  
-  // Update countdown every second
-  const countdownInterval = setInterval(tick, 1000);
-  
-  // Toggle between Qualy/Race display every 5 seconds
-  const toggleInterval = setInterval(() => {
-    setShowQualy(prev => !prev);
-  }, 5000);
-  
-  return () => {
-    clearInterval(countdownInterval);
-    clearInterval(toggleInterval);
-  };
-}, [gpSchedule, currentGp]);
-  
-    /* ───────── Check for pending plan after login ───────── */
-    useEffect(() => {
-      // Only run once after component mounts and user is signed in
-      if (!isSignedIn || !user) return;
-      
-      const pendingPlan = sessionStorage.getItem('pendingVipPlan');
-      if (pendingPlan) {
-        sessionStorage.removeItem('pendingVipPlan');
-        // Trigger purchase after a small delay
-        const timer = setTimeout(() => {
-          const button = document.querySelector(`[data-plan-id="${pendingPlan}"]`);
-          if (button) {
-            (button as HTMLButtonElement).click();
-          }
-        }, 500);
-        
-        return () => clearTimeout(timer);
-      }
-    }, [isSignedIn, user]);
-  
-    /* ───────── Verify Payment ───────── */
-    const verifyPayment = async (orderId: string) => {
-      try {
-        const res = await fetch('/api/vip/verify-payment', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ orderId })
-        });
-        
-        if (!res.ok) throw new Error('Verification failed');
-        
-        const data = await res.json();
-        return data;
-      } catch (error) {
-        console.error('Payment verification error:', error);
-        return null;
-      }
-    };
-  
-    /* ───────── Handle Purchase ───────── */
-    const handlePurchase = async (planId: Plan['id']) => {
-      console.log('🛒 handlePurchase invocado para:', planId);
-      const plan = planes.find(p => p.id === planId);
-      if (!plan) return;
+  // Function to handle video watch progress
+  const handleWatchProgress = (percentage: number) => {
+    setWatchPercentage(percentage);
     
-      // 1️⃣ Requiere sesión
-      if (!isSignedIn || !user) {
-        // Store the desired plan for after login
-        sessionStorage.setItem('pendingVipPlan', planId);
-        clerk.openSignIn({ 
-          redirectUrl: window.location.href,
-          afterSignInUrl: window.location.href
-        });
-        return;
-      }
-  
-      // Check for pending plan after login
-      const pendingPlan = sessionStorage.getItem('pendingVipPlan');
-      if (pendingPlan && !planId) {
-        sessionStorage.removeItem('pendingVipPlan');
-        handlePurchase(pendingPlan as Plan['id']);
-        return;
-      }
-  
-      // 2️⃣ Verificar apiKey de Bold
-      const apiKey = process.env.NEXT_PUBLIC_BOLD_BUTTON_KEY;
-      if (!apiKey) {
-        toast.error('El sistema de pagos no está disponible temporalmente. Por favor intenta más tarde.');
-        return;
-      }
-  
-      try {
-        setProcessingPlan(planId);
-  
-        // 3️⃣ Crear orden en el backend
-        const res = await fetch('/api/vip/register-order', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            planId: plan.id,
-            planName: plan.nombre,
-            amount: plan.precio,
-            fullName: user.fullName,
-            email: user.primaryEmailAddress?.emailAddress,
-          }),
-        });
-  
-        if (!res.ok) {
-          const errorData = await res.json().catch(() => ({ error: 'Error desconocido' }));
-          throw new Error(errorData.error || 'Error creando orden');
+    // Show unlock button after 60% watched
+    if (percentage >= 60 && !showUnlockButton) {
+      setShowUnlockButton(true);
+      // Optional: Show a toast notification
+      toast.success('🔓 ¡Video casi completo! Botón de acceso disponible', {
+        duration: 3000,
+        position: 'bottom-center'
+      });
+    }
+    
+    // Auto-unlock at 85% watched  
+    if (percentage >= 85 && !hasWatchedVideo) {
+      setHasWatchedVideo(true);
+      toast.success('🎉 ¡Acceso desbloqueado! Bienvenido a la oferta VIP', {
+        duration: 4000,
+        position: 'bottom-center'
+      });
+    }
+  };
+
+  // Function to manually unlock (when they click the button)
+  const handleManualUnlock = () => {
+    setHasWatchedVideo(true);
+    toast.success('🎉 ¡Acceso desbloqueado! Bienvenido a la oferta VIP', {
+      duration: 4000,
+      position: 'bottom-center'
+    });
+  };
+
+  /* ───────── Cargar calendario de GPs ───────── */
+  useEffect(() => {
+    supabase
+      .from('gp_schedule')
+      .select('gp_name, qualy_time, race_time')
+      .order('race_time', { ascending: true })
+      .then(({ data }) => data && setGpSchedule(data as GpSchedule[]));
+  }, []);
+
+  /* ───────── Lógica del countdown ───────── */
+  useEffect(() => {
+    if (!gpSchedule.length) return;
+
+    // Determina el próximo GP (primer GP futuro o buffer de 4h tras carrera)
+    const now = Date.now();
+    let idx = gpSchedule.findIndex(g => new Date(g.race_time).getTime() > now);
+    if (idx === -1) idx = gpSchedule.length - 1; // Si no hay GPs futuros, usa el último
+    setCurrentGp(gpSchedule[idx]);
+
+    const tick = () => {
+      if (!currentGp) return;
+      const now2 = Date.now();
+      const qDiff = new Date(currentGp.qualy_time).getTime() - now2;
+      const rDiff = new Date(currentGp.race_time).getTime() - now2;
+
+      setQualyCountdown({
+        days: Math.floor(qDiff / 86400000),
+        hours: Math.floor((qDiff % 86400000) / 3600000),
+        minutes: Math.floor((qDiff % 3600000) / 60000),
+        seconds: Math.floor((qDiff % 60000) / 1000),
+      });
+      setRaceCountdown({
+        days: Math.floor(rDiff / 86400000),
+        hours: Math.floor((rDiff % 86400000) / 3600000),
+        minutes: Math.floor((rDiff % 3600000) / 60000),
+        seconds: Math.floor((rDiff % 60000) / 1000),
+      });
+    };
+
+    tick();
+    
+    // Update countdown every second
+    const countdownInterval = setInterval(tick, 1000);
+    
+    // Toggle between Qualy/Race display every 5 seconds
+    const toggleInterval = setInterval(() => {
+      setShowQualy(prev => !prev);
+    }, 5000);
+    
+    return () => {
+      clearInterval(countdownInterval);
+      clearInterval(toggleInterval);
+    };
+  }, [gpSchedule, currentGp]);
+
+  /* ───────── Check for pending plan after login ───────── */
+  useEffect(() => {
+    // Only run once after component mounts and user is signed in
+    if (!isSignedIn || !user) return;
+    
+    const pendingPlan = sessionStorage.getItem('pendingVipPlan');
+    if (pendingPlan) {
+      sessionStorage.removeItem('pendingVipPlan');
+      // Trigger purchase after a small delay
+      const timer = setTimeout(() => {
+        const button = document.querySelector(`[data-plan-id="${pendingPlan}"]`);
+        if (button) {
+          (button as HTMLButtonElement).click();
         }
+      }, 500);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isSignedIn, user]);
+
+  /* ───────── Verify Payment ───────── */
+  const verifyPayment = async (orderId: string) => {
+    try {
+      const res = await fetch('/api/vip/verify-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId })
+      });
+      
+      if (!res.ok) throw new Error('Verification failed');
+      
+      const data = await res.json();
+      return data;
+    } catch (error) {
+      console.error('Payment verification error:', error);
+      return null;
+    }
+  };
+
+  /* ───────── Handle Purchase ───────── */
+  const handlePurchase = async (planId: Plan['id']) => {
+    console.log('🛒 handlePurchase invocado para:', planId);
+    const plan = planes.find(p => p.id === planId);
+    if (!plan) return;
   
-        const { orderId, amount, redirectionUrl, integritySignature } = await res.json();
-  
-        // 4️⃣ Configuración para Bold Checkout
-        const config = {
-          apiKey,
-          orderId,
-          amount,
-          currency: 'COP',
-          description: `Acceso VIP · ${plan.nombre}`,
-          redirectionUrl,
-          integritySignature,
-          renderMode: 'embedded',
-          containerId: 'bold-embed-vip',
-          customerData: JSON.stringify({
-            email: user.primaryEmailAddress?.emailAddress ?? '',
-            fullName: user.fullName ?? '',
-          }),
-        };
-  
-        // 5️⃣ Abrir Bold Checkout
-openBoldCheckout({
-  ...config,
-  onSuccess: async () => {
-    toast.success('✅ Pago exitoso! Redirigiendo...', { duration: 2000 });
-    setProcessingPlan(null);
-    // DON'T redirect here - Bold will handle it via redirectionUrl
-  },
-  onFailed: ({ message }: { message?: string }) => {
-    toast.error(`Pago rechazado: ${message || 'Por favor intenta con otro método de pago'}`);
-    setProcessingPlan(null);
-  },
-  onPending: () => {
-    toast.info('Tu pago está siendo procesado...');
-    setProcessingPlan(null);
-    // DON'T redirect here either - Bold will handle it
-  },
-  onClose: () => {
-    if (processingPlan) {
-      toast.info('Pago cancelado');
+    // 1️⃣ Requiere sesión
+    if (!isSignedIn || !user) {
+      // Store the desired plan for after login
+      sessionStorage.setItem('pendingVipPlan', planId);
+      clerk.openSignIn({ 
+        redirectUrl: window.location.href,
+        afterSignInUrl: window.location.href
+      });
+      return;
+    }
+
+    // Check for pending plan after login
+    const pendingPlan = sessionStorage.getItem('pendingVipPlan');
+    if (pendingPlan && !planId) {
+      sessionStorage.removeItem('pendingVipPlan');
+      handlePurchase(pendingPlan as Plan['id']);
+      return;
+    }
+
+    // 2️⃣ Verificar apiKey de Bold
+    const apiKey = process.env.NEXT_PUBLIC_BOLD_BUTTON_KEY;
+    if (!apiKey) {
+      toast.error('El sistema de pagos no está disponible temporalmente. Por favor intenta más tarde.');
+      return;
+    }
+
+    try {
+      setProcessingPlan(planId);
+
+      // 3️⃣ Crear orden en el backend
+      const res = await fetch('/api/vip/register-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          planId: plan.id,
+          planName: plan.nombre,
+          amount: plan.precio,
+          fullName: user.fullName,
+          email: user.primaryEmailAddress?.emailAddress,
+        }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ error: 'Error desconocido' }));
+        throw new Error(errorData.error || 'Error creando orden');
+      }
+
+      const { orderId, amount, redirectionUrl, integritySignature } = await res.json();
+
+      // 4️⃣ Configuración para Bold Checkout
+      const config = {
+        apiKey,
+        orderId,
+        amount,
+        currency: 'COP',
+        description: `Acceso VIP · ${plan.nombre}`,
+        redirectionUrl,
+        integritySignature,
+        renderMode: 'embedded',
+        containerId: 'bold-embed-vip',
+        customerData: JSON.stringify({
+          email: user.primaryEmailAddress?.emailAddress ?? '',
+          fullName: user.fullName ?? '',
+        }),
+      };
+
+      // 5️⃣ Abrir Bold Checkout
+      openBoldCheckout({
+        ...config,
+        onSuccess: async () => {
+          toast.success('✅ Pago exitoso! Redirigiendo...', { duration: 2000 });
+          setProcessingPlan(null);
+          // DON'T redirect here - Bold will handle it via redirectionUrl
+        },
+        onFailed: ({ message }: { message?: string }) => {
+          toast.error(`Pago rechazado: ${message || 'Por favor intenta con otro método de pago'}`);
+          setProcessingPlan(null);
+        },
+        onPending: () => {
+          toast.info('Tu pago está siendo procesado...');
+          setProcessingPlan(null);
+          // DON'T redirect here either - Bold will handle it
+        },
+        onClose: () => {
+          if (processingPlan) {
+            toast.info('Pago cancelado');
+            setProcessingPlan(null);
+          }
+        },
+      }); 
+
+    } catch (err: any) {
+      console.error('Error en handlePurchase:', err);
+      toast.error(err.message || 'Error al iniciar el proceso de pago');
       setProcessingPlan(null);
     }
-  },
-}); 
-  
-      } catch (err: any) {
-        console.error('Error en handlePurchase:', err);
-        toast.error(err.message || 'Error al iniciar el proceso de pago');
-        setProcessingPlan(null);
-      }
-    };
+  };
 
   /* ───────── Glow util ───────── */
   const Glow = () => (
@@ -1338,863 +1399,828 @@ openBoldCheckout({
     );
   };
 
-/* ───────── Página VIP Fantasy – Copy alineado a oferta Race Pass / Season Pass (2025-2026) con optimizaciones ───────── */
+  /* ───────── Página VIP Fantasy – Copy alineado a oferta Race Pass / Season Pass (2025-2026) con optimizaciones ───────── */
 
-return (
-  <>
-    {/* Contenedor para el embed de Bold: sólo mientras processPlan esté activo */}
-    {processingPlan && (
-      <div
-        id="bold-embed-vip"
-        data-bold-embed
-        className="fixed inset-0 z-[100] pointer-events-none"
-      >
-        <style>{`
-          /* Sólo los hijos directos (el iframe de Bold) recibirán clicks */
-          #bold-embed-vip > * {
-            pointer-events: auto !important;
-          }
-        `}</style>
+// ADD THESE COMPONENTS INSIDE YOUR FantasyVipLanding FUNCTION 
+  // (after the state declarations, before the return statement)
+
+  // Progress indicator component
+  const VideoProgressIndicator = () => (
+    <div className="mb-4 bg-black/80 backdrop-blur-sm border border-amber-500/40 rounded-lg p-4 max-w-md mx-auto">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-amber-300 text-sm font-semibold">Progreso del Video</span>
+        <span className="text-amber-300 text-sm font-bold">{watchPercentage}%</span>
       </div>
-    )}
-
-    <MovingBarFantasy />
-
-    {/* OPTIMIZATION: Urgency Banner - More prominent and specific */}
-    <div className="fixed top-8 left-0 w-full z-[55] bg-gradient-to-r from-red-600 to-red-500 text-white text-center py-2 px-4 overflow-hidden shadow-lg">
-      <div
-        className="absolute inset-0 opacity-20"
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-        }}
-      />
-      <div className="relative z-10 flex items-center justify-center gap-2 text-sm font-bold">
-                <span>40% DE DESCUENTO EN TU PASE VIP</span>
+      <div className="w-full bg-gray-700 rounded-full h-2 mb-2">
+        <div 
+          className="bg-gradient-to-r from-amber-400 to-orange-500 h-2 rounded-full transition-all duration-300"
+          style={{ width: `${watchPercentage}%` }}
+        ></div>
       </div>
+      <p className="text-amber-300 text-xs text-center">
+        {watchPercentage < 60 
+          ? `📊 ${60 - watchPercentage}% más para acceder a la oferta VIP` 
+          : watchPercentage < 85 
+            ? '🔓 ¡Ya puedes acceder! Haz clic abajo o sigue viendo'
+            : '🎉 ¡Acceso completo desbloqueado!'
+        }
+      </p>
     </div>
+  );
 
-    {/* Background decorativo (No changes) */}
-    <div className="min-h-screen bg-neutral-950 text-gray-200 font-sans">
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div
-          className="absolute top-[-20%] left-[-10%] w-[50rem] h-[50rem]
-                     bg-[radial-gradient(circle_at_center,_rgba(251,146,60,0.15),transparent_40%)]
-                     animate-[spin_20s_linear_infinite]"
-        />
-        <div
-          className="absolute bottom-[-30%] right-[-20%] w-[60rem] h-[60rem]
-                     bg-[radial-gradient(circle_at_center,_rgba(239,68,68,0.15),transparent_45%)]
-                     animate-[spin_25s_linear_infinite_reverse]"
-        />
-      </div>
-
-      <main className="relative z-10">
-
-    {/* ───────────── HERO OPTIMIZADO ───────────── */}
-<section className="relative py-8 sm:py-12 lg:py-16 px-4 sm:px-6 overflow-hidden">
-  {/* Background Enhancement */}
-  <div className="absolute inset-0 bg-gradient-to-br from-red-900/10 via-transparent to-orange-900/10" />
-  <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(255,107,107,0.1),transparent_50%)]" />
-  
-  <div className="relative max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8 items-start lg:items-center">
+  // Unlock button component
+  const UnlockButton = () => {
+    if (!showUnlockButton) return null;
     
-    {/* 1️⃣ First Column (Headline) */}
-    <div className="space-y-6 text-center lg:text-left">
-      {/* Social Proof Badge */}
-      <motion.div
-        className="inline-flex items-center gap-2 bg-green-500/20 border border-green-400/40 rounded-full px-5 py-2.5 text-green-300 text-sm font-semibold shadow-lg backdrop-blur-sm"
-        initial={{ y: 20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.5 }}
-      >
-        <div className="relative w-2 h-2">
-          <span className="absolute inset-0 bg-green-400 rounded-full animate-ping opacity-75" />
-          <span className="relative block w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-        </div>
-        +2,847 miembros VIP activos en Latinoamérica
-      </motion.div>
-
-      {/* Headline */}
-      <motion.h1
-        className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black leading-[1.1] tracking-tight"
-        initial={{ y: 30, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.7 }}
-      >
-        <span className="block text-white drop-shadow-lg">
-        Predice y Gana
-        </span>
-        <span className="block bg-clip-text text-transparent bg-gradient-to-r from-amber-300 via-orange-400 to-red-400 drop-shadow-lg">
-        Un Viaje A La F1
-        </span>
-      </motion.h1>
-
-{/* ─── SLIM, FIXED-WIDTH COUNTDOWN BAR ─── */}
-{currentGp && (
-  <motion.div
-    initial={{ y: 20, opacity: 0 }}
-    animate={{ y: 0, opacity: 1 }}
-    transition={{ duration: 0.6 }}
-    /* 20 rem = 320 px ⇒ se mantiene siempre igual, no importa el texto */
-    className="w-80 mx-auto sm:mx-0 rounded-2xl border border-white/15 bg-white/5 backdrop-blur-lg shadow-md px-4 py-3 flex flex-col gap-1"
-  >
-    {/* GP NAME (TOP LINE) */}
-    <div className="flex items-center justify-center gap-2">
-      <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping" />
-      <span className="text-xs font-semibold tracking-wide text-gray-200 truncate">
-        {currentGp.gp_name}
-      </span>
-    </div>
-
-    <div className="h-px w-full bg-white/10" />
-
-    {/* LABEL + COUNTDOWN */}
-    <div className="flex items-center justify-center gap-2">
-      {/* longest label ("CLASIFICACIÓN EN") sets min-width so bar no cambia */}
-      <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-300 inline-block min-w-[108px] text-center">
-        {showQualy ? 'Clasificación en' : 'Carrera en'}
-      </span>
-
-      {/* DIGITS  – always render 4 bloques para que el ancho sea constante */}
-      <div className="flex items-center gap-1 font-mono text-white">
-        {[
-          { v: (showQualy ? qualyCountdown : raceCountdown).days, l: 'd' },
-          { v: (showQualy ? qualyCountdown : raceCountdown).hours, l: 'h' },
-          { v: (showQualy ? qualyCountdown : raceCountdown).minutes, l: 'm' },
-          { v: (showQualy ? qualyCountdown : raceCountdown).seconds, l: 's' },
-        ].map((t, i) => (
-          <React.Fragment key={t.l}>
-            <span className="tabular-nums text-base font-bold">
-              {String(t.v).padStart(2, '0')}
-              <span className="text-[10px] ml-0.5 text-gray-400">{t.l}</span>
-            </span>
-            {i < 3 && <span className="text-base text-gray-500">:</span>}
-          </React.Fragment>
-        ))}
-      </div>
-    </div>
-  </motion.div>
-)}
- </div>
-
-    {/* 2️⃣ Second Column (Video + CTA) */}
-    <div className="flex flex-col items-center lg:items-start space-y-6">
-      {/* Video */}
-      <motion.div
-        className="w-full max-w-md mx-auto lg:mx-0"
-        initial={{ y: 20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.7, delay: 0.1 }}
-      >
-        <VideoPlayer /> 
-      </motion.div>
-      
-      <StickyAccessCTA />
-    </div>
-
-  </div>
-</section>
-
-        {/* ─── Premios VIP 2025 (Optimized with testimonial patterns) ─── */}
-        <section className="relative py-16 sm:py-20 px-4 sm:px-6 bg-gradient-to-b from-neutral-900 to-neutral-950 overflow-hidden">
-          {/* Background Elements */}
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(245,158,11,0.08),transparent_70%)]" />
-          <div className="absolute top-0 left-1/3 w-96 h-96 bg-amber-500/8 rounded-full blur-3xl" />
-          <div className="absolute bottom-0 right-1/3 w-96 h-96 bg-orange-500/8 rounded-full blur-3xl" />
-          
-          <div className="relative max-w-6xl mx-auto">
-            <div className="grid gap-6 lg:gap-8 md:grid-cols-1">
-              {/* Prize Card 1 - Grand Prize */}
-              <motion.div
-                initial={{ y: 30, opacity: 0 }}
-                whileInView={{ y: 0, opacity: 1 }}
-                transition={{ duration: 0.6, delay: 0.1 }}
-                viewport={{ once: true }}
-                className="group relative rounded-2xl border border-amber-500/40 bg-gradient-to-br from-neutral-800/90 to-neutral-900/70 p-6 backdrop-blur-sm hover:border-amber-500/60 transition-all duration-300 hover:transform hover:scale-105"
-              >
-                {/* Glow Effect */}
-                <div className="absolute -inset-0.5 bg-gradient-to-r from-amber-500/30 to-orange-500/30 rounded-2xl blur opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                
-                {/* Badge */}
-                <span className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-red-600 to-red-500 text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-xl border border-red-400">
-                  🏆 Compite y gana
-                </span>
-                
-                <div className="relative pt-4">
-                  <div className="text-center mb-6">
-                    <div className="text-3xl font-black text-amber-400 mb-2">Viaje VIP F1 2026</div>
-                    <div className="text-amber-300 text-sm font-semibold">Valor: $20,000+ USD</div>
-                  </div>
-                  
-                  <div className="space-y-3 mb-6">
-                    <div className="flex items-center gap-3 text-gray-300 text-sm">
-                      <span className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></span>
-                      <span><strong className="text-white">Top 2 del ranking anual</strong> ganan automáticamente</span>
-                    </div>
-                    <div className="flex items-center gap-3 text-gray-300 text-sm">
-                      <span className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></span>
-                      <span><strong className="text-white">1 ganador aleatorio</strong> entre todos los VIP</span>
-                    </div>
-                    <div className="flex items-center gap-3 text-gray-300 text-sm">
-                      <span className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></span>
-                      <span>Vuelos y estadía incluidos</span>
-                    </div>
-                  </div>
-                  
-                  <div className="bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30 rounded-lg p-3 text-center">
-                    <p className="text-amber-300 text-xs font-semibold">
-                      ✈️ 3 ganadores en total!
-                    </p>
-                  </div>
-                </div>
-              </motion.div>
-            </div>
-          </div>
-
-          {/* OPTIMIZATION: Urgency element - Made more specific and believable */}
-          <motion.div
-            className="mt-8 text-center"
-            initial={{ y: 20, opacity: 0 }}
-            whileInView={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-            viewport={{ once: true }}
-          >
-            <div className="inline-flex items-center gap-2 bg-red-600/20 border border-red-500/30 rounded-full px-4 py-2 text-red-400 text-sm font-medium">
-              <span className="animate-ping w-2 h-2 bg-red-400 rounded-full"></span>
-              Atención: Los cupos con descuento son limitados
-            </div>
-          </motion.div>
-        </section>
-        
-        {/* ─── How It Works Section (Optimized with visual enhancements) ─── */}
-        <section className="relative py-auto sm:py-20 px-4 sm:px-6 bg-gradient-to-b from-neutral-950 to-neutral-900 overflow-hidden">
-  {/* Background Elements */}
-  <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(245,158,11,0.04),transparent_70%)]" />
-  <div className="absolute top-1/2 left-1/4 w-72 h-72 bg-amber-500/5 rounded-full blur-3xl" />
-  
-  <div className="relative max-w-4xl mx-auto">
-    <motion.div
-      className="text-center mb-12"
-      initial={{ y: 20, opacity: 0 }}
-      whileInView={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.6 }}
-      viewport={{ once: true }}
-    >
-      <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold mb-4 bg-gradient-to-r from-amber-400 via-orange-500 to-red-400 bg-clip-text text-transparent drop-shadow-lg">
-        Compite en 4 Simples Pasos
-      </h2>
-    </motion.div>
-    
-    <div className="grid grid-cols-2 gap-6 md:gap-8 lg:grid-cols-4 text-center">
-      {[
-        { 
-          icon: '📱', 
-          title: 'Únete al VIP', 
-          text: 'Elige tu plan y obtén acceso instantáneo a la plataforma.',
-          color: 'from-blue-500/20 to-cyan-500/20',
-          border: 'border-blue-500/30'
-        },
-        { 
-          icon: '✍️', 
-          title: 'Haz tus Predicciones', 
-          text: 'Antes de cada carrera, envía tus pronósticos estratégicos.',
-          color: 'from-purple-500/20 to-pink-500/20',
-          border: 'border-purple-500/30'
-        },
-        { 
-          icon: '🏁', 
-          title: 'Suma Puntos', 
-          text: 'Gana puntos según la precisión de tus predicciones.',
-          color: 'from-green-500/20 to-emerald-500/20',
-          border: 'border-green-500/30'
-        },
-        { 
-          icon: '🏆', 
-          title: 'Compite por un viaje a la F1', 
-          text: 'Los mejores del ranking ganan un viaje a la F1 todo pago',
-          color: 'from-amber-500/20 to-orange-500/20',
-          border: 'border-amber-500/30'
-        },
-      ].map((item, index) => (
-        <motion.div
-          key={index}
-          className={`group relative p-6 bg-gradient-to-br from-neutral-800/80 to-neutral-900/60 rounded-2xl border ${item.border} backdrop-blur-sm hover:border-opacity-60 transition-all duration-300 hover:transform hover:scale-105`}
-          initial={{ y: 30, opacity: 0 }}
-          whileInView={{ y: 0, opacity: 1 }}
-          transition={{ duration: 0.5, delay: index * 0.1 }}
-          viewport={{ once: true }}
+    return (
+      <div className="mt-6 text-center">
+        <button
+          onClick={handleManualUnlock}
+          className="bg-gradient-to-r from-amber-500 to-orange-500 text-black font-bold px-8 py-4 rounded-xl text-lg shadow-xl hover:brightness-110 transition-all transform hover:scale-105 active:scale-95 animate-pulse"
         >
-          {/* Glow Effect */}
-          <div className={`absolute -inset-0.5 bg-gradient-to-r ${item.color} rounded-2xl blur opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
-          
-          {/* Step Number */}
-          <span className="absolute -top-3 -left-3 w-8 h-8 bg-gradient-to-r from-amber-500 to-orange-500 text-black text-sm font-bold rounded-full flex items-center justify-center shadow-lg">
-            {index + 1}
-          </span>
-          
-          <div className="relative">
-            <div className="text-5xl mb-4 transform group-hover:scale-110 transition-transform duration-300">
-              {item.icon}
-            </div>
-            <h3 className="font-bold text-white mb-3 text-lg">{item.title}</h3>
-            <p className="text-gray-300 text-sm leading-relaxed">
-              {item.text}
-            </p>
-          </div>
-        </motion.div>
-      ))}
-    </div>
-  </div>
-</section>
-
-        {/* ─── PredictionsTeaser ─── */}
-        <PredictionsTeaser />
-        
-
-        {/* ───────────── PLANES OPTIMIZADOS ───────────── */}
-        <section id="planes" className="py-16 sm:py-20 px-4 sm:px-6 bg-gradient-to-b from-neutral-900 to-neutral-950">
-          <div className="max-w-5xl mx-auto">
-            {/* OPTIMIZATION: Section Header - Creates more urgency and value */}
-            <motion.div
-              initial={{ y: 20, opacity: 0 }}
-              whileInView={{ y: 0, opacity: 1 }}
-              transition={{ duration: .5, ease: 'easeOut' }}
-              viewport={{ once: true }}
-              className="text-center mb-10 sm:mb-14"
-            >
-              <h2 className="text-2xl sm:text-3xl md:text-4xl font-black bg-gradient-to-r from-amber-400 to-orange-500 bg-clip-text text-transparent">
-                Elige Tu Pase de Acceso VIP
-              </h2>
-              <p className="mt-3 sm:mt-4 text-base sm:text-lg text-gray-400 max-w-2xl mx-auto">
-                <strong className="text-white">Oferta por Tiempo Limitado:</strong> Ahorra hasta un 40% y asegura tu lugar.
-              </p>
-            </motion.div>
-
-            {/* ───── Countdown dinámico al siguiente GP ───── */}
-            <div className="relative group bg-gradient-to-b from-blue-800 to-sky-600 p-4 rounded-xl shadow-lg flex flex-col justify-between overflow-hidden">
-              {currentGp && (
-                <div className="relative z-10">
-                  <div className="flex items-center gap-2 mb-2">
-                    <svg className="h-4 w-4 text-white/80" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
-                    </svg>
-                    <h2 className="text-sm font-semibold text-white truncate">
-                      {currentGp.gp_name}
-                    </h2>
-                  </div>
-                  <div className="flex flex-col items-center my-2">
-                    <p className="text-[10px] uppercase text-white/70 mb-1">
-                      {showQualy ? 'Tiempo para Qualy' : 'Tiempo para Carrera'}
-                    </p>
-                    <AnimatePresence mode="wait">
-                      <motion.p
-                        key={showQualy ? 'qualy' : 'race'}
-                        className="font-mono text-2xl text-white font-bold"
-                        initial={{ opacity: 0, y: 5 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -5 }}
-                        transition={{ duration: 0.3 }}
-                      >
-                        {formatCountdown(showQualy ? qualyCountdown : raceCountdown)}
-                      </motion.p>
-                    </AnimatePresence>
-                  </div>
-                  <div className="flex items-center justify-end gap-1 text-[10px] text-white/80">
-                    <svg className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4l2.828 2.829a1 1 0 101.414-1.414L11 10.586V6z" clipRule="evenodd" />
-                    </svg>
-                    <span>
-                      Carrera:{' '}
-                      {new Date(currentGp.race_time).toLocaleDateString('es-CO', {
-                        day: '2-digit',
-                        month: 'short',
-                        year: 'numeric',
-                      })}
-                    </span>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* ─── Pricing Cards ───────────────────────────── */}
-
-            <div className="w-full max-w-5xl mx-auto px-4 py-8">
-      {/* Trust Indicators */}
-      <div className="text-center mb-8">
-        <div className="flex items-center justify-center gap-4 mb-4">
-          <div className="flex items-center gap-1">
-            {[...Array(5)].map((_, i) => (
-              <svg key={i} className="w-5 h-5 text-yellow-400 fill-current" viewBox="0 0 24 24">
-                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-              </svg>
-            ))}
-          </div>
-          <span className="text-gray-400 text-sm">4.9/5 (2,847 usuarios)</span>
-        </div>
-        <p className="text-gray-500 text-sm">
-          🔒 Pago seguro • 💳 Garantía de devolución
+          🔓 ACCEDER A LA OFERTA VIP (40% OFF)
+        </button>
+        <p className="text-gray-400 text-xs mt-2">
+          O continúa viendo para desbloqueo automático al 85%
         </p>
       </div>
-      </div>
-            <div className="flex flex-col md:grid md:grid-cols-2 gap-6 mt-auto">
-              {planes.map((plan, i) => (
-                <motion.div
-                  key={plan.id}
-                  initial={{ y: 30, opacity: 0 }}
-                  whileInView={{ y: 0, opacity: 1 }}
-                  transition={{ duration: 0.4, delay: i * 0.1, ease: 'easeOut' }}
-                  viewport={{ once: true, amount: 0.3 }}
-                  className={`relative p-6 sm:p-8 rounded-2xl ring-1 bg-neutral-900/60 backdrop-blur-lg transition-all duration-300 hover:ring-white/20 hover:scale-[1.03] ${
-                    plan.isPopular
-                      ? 'border-2 border-amber-500 ring-2 ring-amber-500/30'
-                      : 'border border-neutral-700'
-                  }`}
-                >
-                  {plan.isPopular && (
-                    <>
-                      <div className="absolute top-0 right-4 -translate-y-1/2 px-3 py-1 bg-gradient-to-r from-amber-400 to-orange-500 text-black text-xs font-bold rounded-full uppercase tracking-wide shadow-lg">
-                        MÁS VALIOSO
-                      </div>
-                      <div className="absolute top-0 left-4 -translate-y-1/2 px-3 py-1 bg-red-600 text-white text-xs font-bold rounded-full uppercase tracking-wide shadow-lg">
-                        AHORRA 40%
-                      </div>
-                    </>
-                  )}
+    );
+  };
 
-                  <div className="flex flex-col h-full">
-                    <h3 className="text-xl sm:text-2xl font-bold text-white">{plan.nombre}</h3>
+  return (
+    <>
+      {/* Contenedor para el embed de Bold: sólo mientras processPlan esté activo */}
+      {processingPlan && (
+        <div
+          id="bold-embed-vip"
+          data-bold-embed
+          className="fixed inset-0 z-[100] pointer-events-none"
+        >
+          <style>{`
+            /* Sólo los hijos directos (el iframe de Bold) recibirán clicks */
+            #bold-embed-vip > * {
+              pointer-events: auto !important;
+            }
+          `}</style>
+        </div>
+      )}
 
-                    <div className="my-5">
-                      <div className="flex items-baseline gap-2 mb-2">
-                        <span className="text-3xl sm:text-4xl font-black bg-gradient-to-r from-amber-300 via-orange-400 to-red-400 bg-clip-text text-transparent">
-                          {formatCOP(plan.precio)}
-                        </span>
-                        {plan.isPopular && (
-                          <span className="text-lg text-gray-500 line-through">
-                            {formatCOP(Math.round(plan.precio * 1.66))}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-gray-400 text-xs sm:text-sm mt-1">
-                        {plan.periodo}
-                        {plan.isPopular && (
-                          <span className="block text-green-400 font-semibold">
-                          </span>
-                        )}
-                      </p>
-                    </div>
+      <MovingBarFantasy />
 
-                    <ul className="space-y-3 sm:space-y-4 mb-6 text-sm">
-                      {plan.beneficios.map((b) => (
-                        <li key={b} className="flex items-start gap-3 text-gray-300">
-                          <svg
-                            className="w-5 h-5 flex-shrink-0 text-green-400 mt-0.5"
-                            fill="currentColor"
-                            viewBox="0 0 20 20"
-                          >
-                            <path
-                              fillRule="evenodd"
-                              d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586l-2.293-2.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l4-4z"
-                              clipRule="evenodd"
-                            />
-                          </svg>
-                          <span
-                            dangerouslySetInnerHTML={{
-                              __html: b
-                                .replace('Top 2 del ranking', '<strong>Top 2 del ranking</strong>')
-                                .replace('3 ganadores aleatorios', '<strong>3 ganadores aleatorios</strong>'),
-                            }}
-                          />
-                        </li>
-                      ))}
-                    </ul>
-
-                    <div className="mb-4 p-3 bg-green-500/10 border border-green-500/20 rounded-lg text-center">
-                      <p className="text-green-400 text-xs font-semibold">
-                        💡{' '}
-                        {plan.isPopular
-                          ? 'Acceso a TODO, máximo potencial de ganancias.'
-                          : 'Ideal para probar y empezar a ganar.'}
-                      </p>
-                    </div>
-
-                    {plan.id === 'race-pass' && currentGp && (
-                    <div className="mb-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-                    <p className="text-blue-400 text-xs font-semibold text-center">
-                    ✓ Válido para: {currentGp.gp_name}
-                    </p>
-                    </div>
-                    )}
-                    
-                    <div className="mt-auto">
-                      <button
-                        onClick={() => handlePurchase(plan.id)}
-                        data-plan-id={plan.id} // ← Added here
-                        disabled={processingPlan === plan.id}
-                        className={`w-full py-4 rounded-xl font-bold text-lg active:scale-95 transition-all flex items-center justify-center gap-2 shadow-2xl ${
-                          plan.isPopular
-                            ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-black hover:brightness-110 animate-pulse'
-                            : 'bg-gradient-to-r from-gray-700 to-gray-600 text-white hover:from-gray-600 hover:to-gray-500'
-                        } ${processingPlan === plan.id ? 'opacity-60 cursor-wait' : ''}`}
-                      >
-                        {processingPlan === plan.id ? (
-                          <>
-                            <svg className="w-5 h-5 animate-spin" viewBox="0 0 24 24">
-                              <circle
-                                cx="12"
-                                cy="12"
-                                r="10"
-                                strokeWidth="4"
-                                className="opacity-25"
-                                stroke="currentColor"
-                                fill="none"
-                              />
-                              <path
-                                className="opacity-75"
-                                fill="currentColor"
-                                d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                              />
-                            </svg>
-                            Procesando...
-                          </>
-                        ) : plan.isPopular ? (
-                          '🔥 QUIERO EL SEASON PASS'
-                        ) : (
-                          `Obtener ${plan.nombre}`
-                        )}
-                        {!processingPlan && (
-                          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                            <path
-                              fillRule="evenodd"
-                              d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z"
-                              clipRule="evenodd"
-                            />
-                          </svg>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
+      {/* URGENCY BANNER - Only show if video is unlocked */}
+      {hasWatchedVideo && (
+          <div className="fixed top-8 left-0 w-full z-[55] bg-gradient-to-r from-red-600 to-red-500 text-white text-center py-2 px-4 overflow-hidden shadow-lg">
+          <div
+            className="absolute inset-0 opacity-20"
+            style={{
+              backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+            }}
+          />
+          <div className="relative z-10 flex items-center justify-center gap-2 text-sm font-bold">
+            <span>40% DE DESCUENTO EN TU PASE VIP</span>
           </div>
-        </section>
+        </div>
+      )}
 
-        {/* ───────── Free Play Section ───────── */}
-        <section className="py-12 sm:py-16 px-4 sm:px-6 bg-gradient-to-b from-neutral-950 to-neutral-900">
-          <div className="max-w-2xl mx-auto text-center">
-            <motion.div
-              initial={{ y: 20, opacity: 0 }}
-              whileInView={{ y: 0, opacity: 1 }}
-              transition={{ duration: 0.6 }}
-              viewport={{ once: true }}
-              className="space-y-6"
-            >
-              <h2 className="text-2xl sm:text-3xl font-bold text-white">
-                ¿No estás listo para competir?
-              </h2>
-              
-              <p className="text-gray-400 text-lg max-w-xl mx-auto">
-                Prueba nuestra experiencia gratuita y familiarízate con el juego antes de unirte al club VIP.
-              </p>
-              
-              <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                whileInView={{ scale: 1, opacity: 1 }}
-                transition={{ duration: 0.4, delay: 0.2 }}
-                viewport={{ once: true }}
-              >
-                <a
-                  href="/fantasy"
-                  className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-gray-700 to-gray-600 hover:from-gray-600 hover:to-gray-500 text-white font-bold rounded-xl text-lg shadow-xl transition-all transform hover:scale-105 active:scale-95"
-                >
-                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
-                  </svg>
-                  Jugar Gratis
-                </a>
-              </motion.div>
-              
-              <p className="text-gray-500 text-sm">
-                Sin tarjeta de crédito • Sin compromisos
-              </p>
-            </motion.div>
-          </div>
-        </section>
-
-        <div className="mt-12 text-center">
-          <a
-            href="https://t.me/+573009290499"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-3 px-8 py-4 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-2xl shadow-lg transition"
-          >
-            {/* Icono de Telegram */}
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="w-6 h-6"
-              fill="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path d="M12 0C5.371 0 0 5.371 0 12c0 6.628 5.371 12 12 12s12-5.372 12-12C24 5.371 18.629 0 12 0zm5.363 8.55l-1.482 7.06c-.112.54-.4.676-.81.423l-2.25-1.66-1.084 1.043c-.12.12-.22.22-.45.22l.162-2.283 4.152-3.758c.18-.16 0-.25-.28-.09l-5.13 3.227-2.21-.69c-.48-.15-.49-.48.1-.71l8.64-3.33c.4-.15.75.09.62.68z"/>
-            </svg>
-
-            <span>Dudas? Telegram Oficial</span>
-          </a>
+      {/* Background decorativo */}
+      <div className="min-h-screen bg-neutral-950 text-gray-200 font-sans">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div
+            className="absolute top-[-20%] left-[-10%] w-[50rem] h-[50rem]
+                       bg-[radial-gradient(circle_at_center,_rgba(251,146,60,0.15),transparent_40%)]
+                       animate-[spin_20s_linear_infinite]"
+          />
+          <div
+            className="absolute bottom-[-30%] right-[-20%] w-[60rem] h-[60rem]
+                       bg-[radial-gradient(circle_at_center,_rgba(239,68,68,0.15),transparent_45%)]
+                       animate-[spin_25s_linear_infinite_reverse]"
+          />
         </div>
 
-                {/* ─── Testimonial Section (Social Proof) ─── */}
-                <section className="relative py-12 px-4 sm:px-6 bg-gradient-to-b from-neutral-950 to-neutral-900 overflow-hidden">
-          {/* Background Elements */}
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(245,158,11,0.05),transparent_70%)]" />
-          <div className="absolute top-0 left-1/4 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl" />
-          <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-orange-500/5 rounded-full blur-3xl" />
-          
-          <div className="relative max-w-4xl mx-auto">
-            <motion.div
-              initial={{ y: 20, opacity: 0 }}
-              whileInView={{ y: 0, opacity: 1 }}
-              transition={{ duration: 0.6 }}
-              viewport={{ once: true }}
-              className="text-center"
-            >
-              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold mb-3 bg-gradient-to-r from-amber-400 via-orange-500 to-red-400 bg-clip-text text-transparent drop-shadow-lg">
-                Vive la F1 como nunca antes
-              </h2>
-              <p className="text-gray-300 text-lg lg:text-xl max-w-2xl mx-auto mb-12 leading-relaxed">
-                Latinoamérica ya vive la adrenalina de <strong className="text-amber-400">predecir,
-                sumar puntos y liderar el ranking</strong>
-              </p>
-
-              <div className="grid md:grid-cols-3 gap-6 lg:gap-8">
-                {/* Card 1 */}
-                <motion.div 
-                  className="group relative rounded-2xl border border-amber-500/30 bg-gradient-to-br from-neutral-800/80 to-neutral-900/60 p-6 backdrop-blur-sm hover:border-amber-500/50 transition-all duration-300 hover:transform hover:scale-105"
-                  initial={{ y: 20, opacity: 0 }}
-                  whileInView={{ y: 0, opacity: 1 }}
-                  transition={{ duration: 0.6, delay: 0.1 }}
-                  viewport={{ once: true }}
-                >
-                  {/* Glow Effect */}
-                  <div className="absolute -inset-0.5 bg-gradient-to-r from-amber-500/20 to-orange-500/20 rounded-2xl blur opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                  
-                  <span className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-500 to-amber-400 text-black text-xs font-bold px-4 py-1.5 rounded-full shadow-xl border border-amber-300">
-                    Colombia
-                  </span>
-                  
-                  <div className="relative">
-                    <div className="flex items-center gap-3 mb-4 pt-4">
-                      <div className="h-12 w-12 rounded-full bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center font-bold text-black shadow-lg">
-                        JC
-                      </div>
-                      <div>
-                        <p className="font-semibold text-white">Juan Carlos</p>
-                        <p className="text-sm text-gray-400 flex items-center gap-1">
-                          <span className="w-2 h-2 bg-green-400 rounded-full"></span>
-                          Medellín
-                        </p>
-                      </div>
-                    </div>
-                    <p className="text-gray-300 text-sm italic mb-4 leading-relaxed">
-                      "Nunca había vivido una carrera con tanta emoción."
-                    </p>
-                  </div>
-                </motion.div>
-
-                {/* Card 2 */}
-                <motion.div 
-                  className="group relative rounded-2xl border border-amber-500/30 bg-gradient-to-br from-neutral-800/80 to-neutral-900/60 p-6 backdrop-blur-sm hover:border-amber-500/50 transition-all duration-300 hover:transform hover:scale-105"
-                  initial={{ y: 20, opacity: 0 }}
-                  whileInView={{ y: 0, opacity: 1 }}
-                  transition={{ duration: 0.6, delay: 0.2 }}
-                  viewport={{ once: true }}
-                >
-                  {/* Glow Effect */}
-                  <div className="absolute -inset-0.5 bg-gradient-to-r from-amber-500/20 to-orange-500/20 rounded-2xl blur opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                  
-                  <span className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-500 to-amber-400 text-black text-xs font-bold px-4 py-1.5 rounded-full shadow-xl border border-amber-300">
-                    México
-                  </span>
-                  
-                  <div className="relative">
-                    <div className="flex items-center gap-3 mb-4 pt-4">
-                      <div className="h-12 w-12 rounded-full bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center font-bold text-black shadow-lg">
-                        MR
-                      </div>
-                      <div>
-                        <p className="font-semibold text-white">María Rodríguez</p>
-                        <p className="text-sm text-gray-400 flex items-center gap-1">
-                          <span className="w-2 h-2 bg-green-400 rounded-full"></span>
-                          Monterrey
-                        </p>
-                      </div>
-                    </div>
-                    <p className="text-gray-300 text-sm italic mb-4 leading-relaxed">
-                      "Competir contra otros y ver la tabla en vivo es
-                      adictivo"</p>
-                  </div>
-                </motion.div>
-
-                {/* Card 3 */}
-                <motion.div 
-                  className="group relative rounded-2xl border border-amber-500/30 bg-gradient-to-br from-neutral-800/80 to-neutral-900/60 p-6 backdrop-blur-sm hover:border-amber-500/50 transition-all duration-300 hover:transform hover:scale-105"
-                  initial={{ y: 20, opacity: 0 }}
-                  whileInView={{ y: 0, opacity: 1 }}
-                  transition={{ duration: 0.6, delay: 0.3 }}
-                  viewport={{ once: true }}
-                >
-                  {/* Glow Effect */}
-                  <div className="absolute -inset-0.5 bg-gradient-to-r from-amber-500/20 to-orange-500/20 rounded-2xl blur opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                  
-                  <span className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-500 to-amber-400 text-black text-xs font-bold px-4 py-1.5 rounded-full shadow-xl border border-amber-300">
-                    Argentina
-                  </span>
-                  
-                  <div className="relative">
-                    <div className="flex items-center gap-3 mb-4 pt-4">
-                      <div className="h-12 w-12 rounded-full bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center font-bold text-black shadow-lg">
-                        AL
-                      </div>
-                      <div>
-                        <p className="font-semibold text-white">Franco Suarez</p>
-                        <p className="text-sm text-gray-400 flex items-center gap-1">
-                          <span className="w-2 h-2 bg-green-400 rounded-full"></span>
-                          Buenos Aires
-                        </p>
-                      </div>
-                    </div>
-                    <p className="text-gray-300 text-sm italic mb-4 leading-relaxed">
-                      "Rompiendola, ese viaje es mio"
-                    </p>
-                  </div>
-                </motion.div>
-              </div>
-            </motion.div>
-          </div>
-        </section>
-
-        {/* ─── FAQ ─── */}
-        <section className="py-16 sm:py-20 px-4 sm:px-6 bg-neutral-950">
-          <div className="max-w-4xl mx-auto">
-            <motion.h2
-              className="text-center text-2xl sm:text-3xl font-black mb-10 bg-gradient-to-r from-amber-400 to-orange-500 bg-clip-text text-transparent"
-              initial={{ y: 20, opacity: 0 }}
-              whileInView={{ y: 0, opacity: 1 }}
-              transition={{ duration: 0.6 }}
-              viewport={{ once: true }}
-            >
-              Preguntas Frecuentes
-            </motion.h2>
-
-            <div className="space-y-6">
-              {/* ADDED: FAQ Item */}
-              <details className="group bg-neutral-900/60 p-6 rounded-xl ring-1 ring-white/5">
-                <summary className="flex cursor-pointer items-center justify-between font-medium text-white">
-                  <span>¿Cómo envío mis predicciones?</span>
-                  <svg
-                    className="w-5 h-5 transition-transform duration-200 group-open:rotate-180"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    viewBox="0 0 24 24"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                  </svg>
-                </summary>
-                <p className="mt-4 text-gray-300 text-sm">
-                  A través de nuestro panel web o app móvil. Solo selecciona tus pronósticos antes del inicio de cada sesión de clasificación.
-                </p>
-              </details>
+        <main className="relative z-10">
+          {/* HERO SECTION - Always visible */}
+          <section className="relative py-8 sm:py-12 lg:py-16 px-4 sm:px-6 overflow-hidden">
+            {/* Background Enhancement */}
+            <div className="absolute inset-0 bg-gradient-to-br from-red-900/10 via-transparent to-orange-900/10" />
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(255,107,107,0.1),transparent_50%)]" />
+            
+            <div className="relative max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8 items-start lg:items-center">
               
-              {/* ADDED: FAQ Item */}
-              <details className="group bg-neutral-900/60 p-6 rounded-xl ring-1 ring-white/5">
-                <summary className="flex cursor-pointer items-center justify-between font-medium text-white">
-                  <span>¿Contra quién compito?</span>
-                  <svg
-                    className="w-5 h-5 transition-transform duration-200 group-open:rotate-180"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    viewBox="0 0 24 24"
+              {/* First Column (Headline) */}
+              <div className="space-y-6 text-center lg:text-left">
+                {/* Social Proof Badge */}
+                <motion.div
+                  className="inline-flex items-center gap-2 bg-green-500/20 border border-green-400/40 rounded-full px-5 py-2.5 text-green-300 text-sm font-semibold shadow-lg backdrop-blur-sm"
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ duration: 0.5 }}
+                >
+                  <div className="relative w-2 h-2">
+                    <span className="absolute inset-0 bg-green-400 rounded-full animate-ping opacity-75" />
+                    <span className="relative block w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                  </div>
+                  +2,847 miembros VIP activos en Latinoamérica
+                </motion.div>
+
+                {/* Headline */}
+                <motion.h1
+                  className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black leading-[1.1] tracking-tight"
+                  initial={{ y: 30, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ duration: 0.7 }}
+                >
+                  <span className="block text-white drop-shadow-lg">
+                  Predice y Gana
+                  </span>
+                  <span className="block bg-clip-text text-transparent bg-gradient-to-r from-amber-300 via-orange-400 to-red-400 drop-shadow-lg">
+                  Un Viaje A La F1
+                  </span>
+                </motion.h1>
+
+                {/* COUNTDOWN - Only show if unlocked */}
+                {hasWatchedVideo && currentGp && (
+                  <motion.div
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ duration: 0.6 }}
+                    className="w-80 mx-auto sm:mx-0 rounded-2xl border border-white/15 bg-white/5 backdrop-blur-lg shadow-md px-4 py-3 flex flex-col gap-1"
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                  </svg>
-                </summary>
-                <p className="mt-4 text-gray-300 text-sm">
-                  Contra todos los miembros VIP. Hay rankings por carrera y ranking general de temporada.
-                </p>
-              </details>
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping" />
+                      <span className="text-xs font-semibold tracking-wide text-gray-200 truncate">
+                        {currentGp.gp_name}
+                      </span>
+                    </div>
 
-              <details className="group bg-neutral-900/60 p-6 rounded-xl ring-1 ring-white/5">
-                <summary className="flex cursor-pointer items-center justify-between font-medium text-white">
-                  <span>¿Qué es el Race Pass y el Season Pass?</span>
-                  <svg
-                    className="w-5 h-5 transition-transform duration-200 group-open:rotate-180"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    viewBox="0 0 24 24"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                  </svg>
-                </summary>
-                <p className="mt-4 text-gray-300 text-sm">
-                  El Race Pass te da acceso a un solo Gran Premio, mientras que el Season Pass te da acceso a toda la temporada 2025-2026, incluyendo todos los Grandes Premios y beneficios exclusivos.
-                </p>
-              </details>
+                    <div className="h-px w-full bg-white/10" />
 
-              <details className="group bg-neutral-900/60 p-6 rounded-xl ring-1 ring-white/5">
-                <summary className="flex cursor-pointer items-center justify-between font-medium text-white">
-                  <span>¿Cómo funcionan las predicciones?</span>
-                  <svg
-                    className="w-5 h-5 transition-transform duration-200 group-open:rotate-180"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    viewBox="0 0 24 24"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                  </svg>
-                </summary>
-                <p className="mt-4 text-gray-300 text-sm">
-                  Con tu Race Pass o Season Pass, recibes acceso a nuestro panel de predicciones donde puedes enviar tus pronósticos para cada carrera. Nuestro sistema te guía con datos y análisis para maximizar tus posibilidades de éxito.
-                </p>
-              </details>
-            </div>
-          </div>
-        </section>
-      </main>
-    </div>
+                    <div className="flex items-center justify-center gap-2">
+                      <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-300 inline-block min-w-[108px] text-center">
+                        {showQualy ? 'Clasificación en' : 'Carrera en'}
+                      </span>
 
-    
-{/*// ───────── Botón Telegram Flotante Soporte 24/7 ─────────//*/}
-<a
-  href="https://t.me/+573009290499"
-  target="_blank"
-  rel="noopener noreferrer"
-  title="Soporte 24/7"
-  aria-label="Soporte 24/7"
-  className="fixed bottom-32 right-4 z-50 bg-blue-500 hover:bg-blue-600 text-white p-4 rounded-full shadow-lg transition-all duration-300 flex items-center justify-center"
->
-  {/* Badge 24/7 */}
-  <span className="absolute -top-2 -right-2 bg-red-600 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-    24/7
-  </span>
+                      <div className="flex items-center gap-1 font-mono text-white">
+                        {[
+                          { v: (showQualy ? qualyCountdown : raceCountdown).days, l: 'd' },
+                          { v: (showQualy ? qualyCountdown : raceCountdown).hours, l: 'h' },
+                          { v: (showQualy ? qualyCountdown : raceCountdown).minutes, l: 'm' },
+                          { v: (showQualy ? qualyCountdown : raceCountdown).seconds, l: 's' },
+                        ].map((t, i) => (
+                          <React.Fragment key={t.l}>
+                            <span className="tabular-nums text-base font-bold">
+                              {String(t.v).padStart(2, '0')}
+                              <span className="text-[10px] ml-0.5 text-gray-400">{t.l}</span>
+                            </span>
+                            {i < 3 && <span className="text-base text-gray-500">:</span>}
+                          </React.Fragment>
+                        ))}
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </div>
 
-  {/* Icono de Telegram */}
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    className="w-6 h-6"
-    fill="currentColor"
-    viewBox="0 0 24 24"
+{/* Second Column (Video + CTA) */}
+<div className="flex flex-col items-center lg:items-start space-y-6">
+  {/* Video Progress - Show only when video is locked */}
+  {!hasWatchedVideo && <VideoProgressIndicator />}
+  
+  {/* Video */}
+  <motion.div
+    className="w-full max-w-md mx-auto lg:mx-0"
+    initial={{ y: 20, opacity: 0 }}
+    animate={{ y: 0, opacity: 1 }}
+    transition={{ duration: 0.7, delay: 0.1 }}
   >
-    <path d="M12 0C5.371 0 0 5.371 0 12c0 6.628 5.371 12 12 12s12-5.372 12-12C24 5.371 18.629 0 12 0zm5.363 8.55l-1.482 7.06c-.112.54-.4.676-.81.423l-2.25-1.66-1.084 1.043c-.12.12-.22.22-.45.22l.162-2.283 4.152-3.758c.18-.16 0-.25-.28-.09l-5.13 3.227-2.21-.69c-.48-.15-.49-.48.1-.71l8.64-3.33c.4-.15.75.09.62.68z"/>
-  </svg>
+    <VideoPlayer onWatchProgress={handleWatchProgress} /> 
+  </motion.div>
+  
+  {/* Show unlock button OR regular CTA */}
+  {!hasWatchedVideo ? (
+    <UnlockButton />
+  ) : (
+    <StickyAccessCTA />
+  )}
+</div>
+            </div>
+          </section>
 
-  {/* Badge Soporte */}
-  <span className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 bg-red-600 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-    Soporte
-  </span>
-</a>
-  </>
-);}
+          {/* REST OF CONTENT - Only show if video has been watched */}
+          {hasWatchedVideo && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.3 }}
+            >
+              {/* Premios VIP 2025 */}
+              <section className="relative py-16 sm:py-20 px-4 sm:px-6 bg-gradient-to-b from-neutral-900 to-neutral-950 overflow-hidden">
+                {/* Background Elements */}
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(245,158,11,0.08),transparent_70%)]" />
+                <div className="absolute top-0 left-1/3 w-96 h-96 bg-amber-500/8 rounded-full blur-3xl" />
+                <div className="absolute bottom-0 right-1/3 w-96 h-96 bg-orange-500/8 rounded-full blur-3xl" />
+                
+                <div className="relative max-w-6xl mx-auto">
+                  <div className="grid gap-6 lg:gap-8 md:grid-cols-1">
+                    {/* Prize Card 1 - Grand Prize */}
+                    <motion.div
+                      initial={{ y: 30, opacity: 0 }}
+                      whileInView={{ y: 0, opacity: 1 }}
+                      transition={{ duration: 0.6, delay: 0.1 }}
+                      viewport={{ once: true }}
+                      className="group relative rounded-2xl border border-amber-500/40 bg-gradient-to-br from-neutral-800/90 to-neutral-900/70 p-6 backdrop-blur-sm hover:border-amber-500/60 transition-all duration-300 hover:transform hover:scale-105"
+                    >
+                      {/* Glow Effect */}
+                      <div className="absolute -inset-0.5 bg-gradient-to-r from-amber-500/30 to-orange-500/30 rounded-2xl blur opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                      
+                      {/* Badge */}
+                      <span className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-red-600 to-red-500 text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-xl border border-red-400">
+                        🏆 Compite y gana
+                      </span>
+                      
+                      <div className="relative pt-4">
+                        <div className="text-center mb-6">
+                          <div className="text-3xl font-black text-amber-400 mb-2">Viaje VIP F1 2026</div>
+                          <div className="text-amber-300 text-sm font-semibold">Valor: $20,000+ USD</div>
+                        </div>
+                        
+                        <div className="space-y-3 mb-6">
+                          <div className="flex items-center gap-3 text-gray-300 text-sm">
+                            <span className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></span>
+                            <span><strong className="text-white">Top 2 del ranking anual</strong> ganan automáticamente</span>
+                          </div>
+                          <div className="flex items-center gap-3 text-gray-300 text-sm">
+                            <span className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></span>
+                            <span><strong className="text-white">1 ganador aleatorio</strong> entre todos los VIP</span>
+                          </div>
+                          <div className="flex items-center gap-3 text-gray-300 text-sm">
+                            <span className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></span>
+                            <span>Vuelos y estadía incluidos</span>
+                          </div>
+                        </div>
+                        
+                        <div className="bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30 rounded-lg p-3 text-center">
+                          <p className="text-amber-300 text-xs font-semibold">
+                            ✈️ 3 ganadores en total!
+                          </p>
+                        </div>
+                      </div>
+                    </motion.div>
+                  </div>
+                </div>
+
+                {/* Urgency element */}
+                <motion.div
+                  className="mt-8 text-center"
+                  initial={{ y: 20, opacity: 0 }}
+                  whileInView={{ y: 0, opacity: 1 }}
+                  transition={{ duration: 0.5, delay: 0.3 }}
+                  viewport={{ once: true }}
+                >
+                  <div className="inline-flex items-center gap-2 bg-red-600/20 border border-red-500/30 rounded-full px-4 py-2 text-red-400 text-sm font-medium">
+                    <span className="animate-ping w-2 h-2 bg-red-400 rounded-full"></span>
+                    Atención: Los cupos con descuento son limitados
+                  </div>
+                </motion.div>
+              </section>
+              
+              {/* How It Works Section */}
+              <section className="relative py-auto sm:py-20 px-4 sm:px-6 bg-gradient-to-b from-neutral-950 to-neutral-900 overflow-hidden">
+                {/* Background Elements */}
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(245,158,11,0.04),transparent_70%)]" />
+                <div className="absolute top-1/2 left-1/4 w-72 h-72 bg-amber-500/5 rounded-full blur-3xl" />
+                
+                <div className="relative max-w-4xl mx-auto">
+                  <motion.div
+                    className="text-center mb-12"
+                    initial={{ y: 20, opacity: 0 }}
+                    whileInView={{ y: 0, opacity: 1 }}
+                    transition={{ duration: 0.6 }}
+                    viewport={{ once: true }}
+                  >
+                    <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold mb-4 bg-gradient-to-r from-amber-400 via-orange-500 to-red-400 bg-clip-text text-transparent drop-shadow-lg">
+                      Compite en 4 Simples Pasos
+                    </h2>
+                  </motion.div>
+                  
+                  <div className="grid grid-cols-2 gap-6 md:gap-8 lg:grid-cols-4 text-center">
+                    {[
+                      { 
+                        icon: '📱', 
+                        title: 'Únete al VIP', 
+                        text: 'Elige tu plan y obtén acceso instantáneo a la plataforma.',
+                        color: 'from-blue-500/20 to-cyan-500/20',
+                        border: 'border-blue-500/30'
+                      },
+                      { 
+                        icon: '✍️', 
+                        title: 'Haz tus Predicciones', 
+                        text: 'Antes de cada carrera, envía tus pronósticos estratégicos.',
+                        color: 'from-purple-500/20 to-pink-500/20',
+                        border: 'border-purple-500/30'
+                      },
+                      { 
+                        icon: '🏁', 
+                        title: 'Suma Puntos', 
+                        text: 'Gana puntos según la precisión de tus predicciones.',
+                        color: 'from-green-500/20 to-emerald-500/20',
+                        border: 'border-green-500/30'
+                      },
+                      { 
+                        icon: '🏆', 
+                        title: 'Compite por un viaje a la F1', 
+                        text: 'Los mejores del ranking ganan un viaje a la F1 todo pago',
+                        color: 'from-amber-500/20 to-orange-500/20',
+                        border: 'border-amber-500/30'
+                      },
+                    ].map((item, index) => (
+                      <motion.div
+                        key={index}
+                        className={`group relative p-6 bg-gradient-to-br from-neutral-800/80 to-neutral-900/60 rounded-2xl border ${item.border} backdrop-blur-sm hover:border-opacity-60 transition-all duration-300 hover:transform hover:scale-105`}
+                        initial={{ y: 30, opacity: 0 }}
+                        whileInView={{ y: 0, opacity: 1 }}
+                        transition={{ duration: 0.5, delay: index * 0.1 }}
+                        viewport={{ once: true }}
+                      >
+                        {/* Glow Effect */}
+                        <div className={`absolute -inset-0.5 bg-gradient-to-r ${item.color} rounded-2xl blur opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
+                        
+                        {/* Step Number */}
+                        <span className="absolute -top-3 -left-3 w-8 h-8 bg-gradient-to-r from-amber-500 to-orange-500 text-black text-sm font-bold rounded-full flex items-center justify-center shadow-lg">
+                          {index + 1}
+                        </span>
+                        
+                        <div className="relative">
+                          <div className="text-5xl mb-4 transform group-hover:scale-110 transition-transform duration-300">
+                            {item.icon}
+                          </div>
+                          <h3 className="font-bold text-white mb-3 text-lg">{item.title}</h3>
+                          <p className="text-gray-300 text-sm leading-relaxed">
+                            {item.text}
+                          </p>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              </section>
+
+              {/* PredictionsTeaser */}
+              <PredictionsTeaser />
+              
+              {/* PLANES OPTIMIZADOS */}
+              <section id="planes" className="py-16 sm:py-20 px-4 sm:px-6 bg-gradient-to-b from-neutral-900 to-neutral-950">
+                <div className="max-w-5xl mx-auto">
+                  <motion.div
+                    initial={{ y: 20, opacity: 0 }}
+                    whileInView={{ y: 0, opacity: 1 }}
+                    transition={{ duration: .5, ease: 'easeOut' }}
+                    viewport={{ once: true }}
+                    className="text-center mb-10 sm:mb-14"
+                  >
+                    <h2 className="text-2xl sm:text-3xl md:text-4xl font-black bg-gradient-to-r from-amber-400 to-orange-500 bg-clip-text text-transparent">
+                      Elige Tu Pase de Acceso VIP
+                    </h2>
+                    <p className="mt-3 sm:mt-4 text-base sm:text-lg text-gray-400 max-w-2xl mx-auto">
+                      <strong className="text-white">Oferta por Tiempo Limitado:</strong> Ahorra hasta un 40% y asegura tu lugar.
+                    </p>
+                  </motion.div>
+
+                  {/* Countdown dinámico */}
+                  {currentGp && (
+                    <div className="relative group bg-gradient-to-b from-blue-800 to-sky-600 p-4 rounded-xl shadow-lg flex flex-col justify-between overflow-hidden mb-8">
+                      <div className="relative z-10">
+                        <div className="flex items-center gap-2 mb-2">
+                          <svg className="h-4 w-4 text-white/80" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+                          </svg>
+                          <h2 className="text-sm font-semibold text-white truncate">
+                            {currentGp.gp_name}
+                          </h2>
+                        </div>
+                        <div className="flex flex-col items-center my-2">
+                          <p className="text-[10px] uppercase text-white/70 mb-1">
+                            {showQualy ? 'Tiempo para Qualy' : 'Tiempo para Carrera'}
+                          </p>
+                          <AnimatePresence mode="wait">
+                            <motion.p
+                              key={showQualy ? 'qualy' : 'race'}
+                              className="font-mono text-2xl text-white font-bold"
+                              initial={{ opacity: 0, y: 5 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: -5 }}
+                              transition={{ duration: 0.3 }}
+                            >
+                              {formatCountdown(showQualy ? qualyCountdown : raceCountdown)}
+                            </motion.p>
+                          </AnimatePresence>
+                        </div>
+                        <div className="flex items-center justify-end gap-1 text-[10px] text-white/80">
+                          <svg className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4l2.828 2.829a1 1 0 101.414-1.414L11 10.586V6z" clipRule="evenodd" />
+                          </svg>
+                          <span>
+                            Carrera:{' '}
+                            {new Date(currentGp.race_time).toLocaleDateString('es-CO', {
+                              day: '2-digit',
+                              month: 'short',
+                              year: 'numeric',
+                            })}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Trust Indicators */}
+                  <div className="text-center mb-8">
+                    <div className="flex items-center justify-center gap-4 mb-4">
+                      <div className="flex items-center gap-1">
+                        {[...Array(5)].map((_, i) => (
+                          <svg key={i} className="w-5 h-5 text-yellow-400 fill-current" viewBox="0 0 24 24">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                          </svg>
+                        ))}
+                      </div>
+                      <span className="text-gray-400 text-sm">4.9/5 (2,847 usuarios)</span>
+                    </div>
+                    <p className="text-gray-500 text-sm">
+                      🔒 Pago seguro • 💳 Garantía de devolución
+                    </p>
+                  </div>
+
+                  {/* Pricing Cards */}
+                  <div className="flex flex-col md:grid md:grid-cols-2 gap-6 mt-auto">
+                    {planes.map((plan, i) => (
+                      <motion.div
+                        key={plan.id}
+                        initial={{ y: 30, opacity: 0 }}
+                        whileInView={{ y: 0, opacity: 1 }}
+                        transition={{ duration: 0.4, delay: i * 0.1, ease: 'easeOut' }}
+                        viewport={{ once: true, amount: 0.3 }}
+                        className={`relative p-6 sm:p-8 rounded-2xl ring-1 bg-neutral-900/60 backdrop-blur-lg transition-all duration-300 hover:ring-white/20 hover:scale-[1.03] ${
+                          plan.isPopular
+                            ? 'border-2 border-amber-500 ring-2 ring-amber-500/30'
+                            : 'border border-neutral-700'
+                        }`}
+                      >
+                        {plan.isPopular && (
+                          <>
+                            <div className="absolute top-0 right-4 -translate-y-1/2 px-3 py-1 bg-gradient-to-r from-amber-400 to-orange-500 text-black text-xs font-bold rounded-full uppercase tracking-wide shadow-lg">
+                              MÁS VALIOSO
+                            </div>
+                            <div className="absolute top-0 left-4 -translate-y-1/2 px-3 py-1 bg-red-600 text-white text-xs font-bold rounded-full uppercase tracking-wide shadow-lg">
+                              AHORRA 40%
+                            </div>
+                          </>
+                        )}
+
+                        <div className="flex flex-col h-full">
+                          <h3 className="text-xl sm:text-2xl font-bold text-white">{plan.nombre}</h3>
+
+                          <div className="my-5">
+                            <div className="flex items-baseline gap-2 mb-2">
+                              <span className="text-3xl sm:text-4xl font-black bg-gradient-to-r from-amber-300 via-orange-400 to-red-400 bg-clip-text text-transparent">
+                                {formatCOP(plan.precio)}
+                              </span>
+                              {plan.isPopular && (
+                                <span className="text-lg text-gray-500 line-through">
+                                  {formatCOP(Math.round(plan.precio * 1.66))}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-gray-400 text-xs sm:text-sm mt-1">
+                              {plan.periodo}
+                            </p>
+                          </div>
+
+                          <ul className="space-y-3 sm:space-y-4 mb-6 text-sm">
+                            {plan.beneficios.map((b) => (
+                              <li key={b} className="flex items-start gap-3 text-gray-300">
+                                <svg
+                                  className="w-5 h-5 flex-shrink-0 text-green-400 mt-0.5"
+                                  fill="currentColor"
+                                  viewBox="0 0 20 20"
+                                >
+                                  <path
+                                    fillRule="evenodd"
+                                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586l-2.293-2.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l4-4z"
+                                    clipRule="evenodd"
+                                  />
+                                </svg>
+                                <span
+                                  dangerouslySetInnerHTML={{
+                                    __html: b
+                                      .replace('Top 2 del ranking', '<strong>Top 2 del ranking</strong>')
+                                      .replace('3 ganadores aleatorios', '<strong>3 ganadores aleatorios</strong>'),
+                                  }}
+                                />
+                              </li>
+                            ))}
+                          </ul>
+
+                          <div className="mb-4 p-3 bg-green-500/10 border border-green-500/20 rounded-lg text-center">
+                            <p className="text-green-400 text-xs font-semibold">
+                              💡{' '}
+                              {plan.isPopular
+                                ? 'Acceso a TODO, máximo potencial de ganancias.'
+                                : 'Ideal para probar y empezar a ganar.'}
+                            </p>
+                          </div>
+
+                          {plan.id === 'race-pass' && currentGp && (
+                          <div className="mb-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                          <p className="text-blue-400 text-xs font-semibold text-center">
+                          ✓ Válido para: {currentGp.gp_name}
+                          </p>
+                          </div>
+                          )}
+                          
+                          <div className="mt-auto">
+                            <button
+                              onClick={() => handlePurchase(plan.id)}
+                              data-plan-id={plan.id}
+                              disabled={processingPlan === plan.id}
+                              className={`w-full py-4 rounded-xl font-bold text-lg active:scale-95 transition-all flex items-center justify-center gap-2 shadow-2xl ${
+                                plan.isPopular
+                                  ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-black hover:brightness-110 animate-pulse'
+                                  : 'bg-gradient-to-r from-gray-700 to-gray-600 text-white hover:from-gray-600 hover:to-gray-500'
+                              } ${processingPlan === plan.id ? 'opacity-60 cursor-wait' : ''}`}
+                            >
+                              {processingPlan === plan.id ? (
+                                <>
+                                  <svg className="w-5 h-5 animate-spin" viewBox="0 0 24 24">
+                                    <circle
+                                      cx="12"
+                                      cy="12"
+                                      r="10"
+                                      strokeWidth="4"
+                                      className="opacity-25"
+                                      stroke="currentColor"
+                                      fill="none"
+                                    />
+                                    <path
+                                      className="opacity-75"
+                                      fill="currentColor"
+                                      d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                                    />
+                                  </svg>
+                                  Procesando...
+                                </>
+                              ) : plan.isPopular ? (
+                                '🔥 QUIERO EL SEASON PASS'
+                              ) : (
+                                `Obtener ${plan.nombre}`
+                              )}
+                              {!processingPlan && (
+                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                  <path
+                                    fillRule="evenodd"
+                                    d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z"
+                                    clipRule="evenodd"
+                                  />
+                                </svg>
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              </section>
+              
+              {/* Free Play Section */}
+              <section className="py-12 sm:py-16 px-4 sm:px-6 bg-gradient-to-b from-neutral-950 to-neutral-900">
+                <div className="max-w-2xl mx-auto text-center">
+                  <motion.div
+                    initial={{ y: 20, opacity: 0 }}
+                    whileInView={{ y: 0, opacity: 1 }}
+                    transition={{ duration: 0.6 }}
+                    viewport={{ once: true }}
+                    className="space-y-6"
+                  >
+                    <h2 className="text-2xl sm:text-3xl font-bold text-white">
+                      ¿No estás listo para competir?
+                    </h2>
+                    
+                    <p className="text-gray-400 text-lg max-w-xl mx-auto">
+                      Prueba nuestra experiencia gratuita y familiarízate con el juego antes de unirte al club VIP.
+                    </p>
+                    
+                    <motion.div
+                      initial={{ scale: 0.9, opacity: 0 }}
+                      whileInView={{ scale: 1, opacity: 1 }}
+                      transition={{ duration: 0.4, delay: 0.2 }}
+                      viewport={{ once: true }}
+                    >
+                      <a
+                        href="/fantasy"
+                        className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-gray-700 to-gray-600 hover:from-gray-600 hover:to-gray-500 text-white font-bold rounded-xl text-lg shadow-xl transition-all transform hover:scale-105 active:scale-95"
+                      >
+                        <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                        </svg>
+                        Jugar Gratis
+                      </a>
+                    </motion.div>
+                    
+                    <p className="text-gray-500 text-sm">
+                      Sin tarjeta de crédito • Sin compromisos
+                    </p>
+                  </motion.div>
+                </div>
+              </section>
+
+              {/* Telegram Link */}
+              <div className="mt-12 text-center">
+                <a
+                  href="https://t.me/+573009290499"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-3 px-8 py-4 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-2xl shadow-lg transition"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="w-6 h-6"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M12 0C5.371 0 0 5.371 0 12c0 6.628 5.371 12 12 12s12-5.372 12-12C24 5.371 18.629 0 12 0zm5.363 8.55l-1.482 7.06c-.112.54-.4.676-.81.423l-2.25-1.66-1.084 1.043c-.12.12-.22.22-.45.22l.162-2.283 4.152-3.758c.18-.16 0-.25-.28-.09l-5.13 3.227-2.21-.69c-.48-.15-.49-.48.1-.71l8.64-3.33c.4-.15.75.09.62.68z"/>
+                  </svg>
+                  <span>Dudas? Telegram Oficial</span>
+                </a>
+              </div>
+
+              {/* Testimonial Section */}
+              <section className="relative py-12 px-4 sm:px-6 bg-gradient-to-b from-neutral-950 to-neutral-900 overflow-hidden">
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(245,158,11,0.05),transparent_70%)]" />
+                <div className="absolute top-0 left-1/4 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl" />
+                <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-orange-500/5 rounded-full blur-3xl" />
+                
+                <div className="relative max-w-4xl mx-auto">
+                  <motion.div
+                    initial={{ y: 20, opacity: 0 }}
+                    whileInView={{ y: 0, opacity: 1 }}
+                    transition={{ duration: 0.6 }}
+                    viewport={{ once: true }}
+                    className="text-center"
+                  >
+                    <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold mb-3 bg-gradient-to-r from-amber-400 via-orange-500 to-red-400 bg-clip-text text-transparent drop-shadow-lg">
+                      Vive la F1 como nunca antes
+                    </h2>
+                    <p className="text-gray-300 text-lg lg:text-xl max-w-2xl mx-auto mb-12 leading-relaxed">
+                      Latinoamérica ya vive la adrenalina de <strong className="text-amber-400">predecir,
+                      sumar puntos y liderar el ranking</strong>
+                    </p>
+
+                    <div className="grid md:grid-cols-3 gap-6 lg:gap-8">
+                      {[
+                        { name: 'Juan Carlos', location: 'Medellín', country: 'Colombia', initials: 'JC', quote: 'Nunca había vivido una carrera con tanta emoción.' },
+                        { name: 'María Rodríguez', location: 'Monterrey', country: 'México', initials: 'MR', quote: 'Competir contra otros y ver la tabla en vivo es adictivo' },
+                        { name: 'Franco Suarez', location: 'Buenos Aires', country: 'Argentina', initials: 'AL', quote: 'Rompiendola, ese viaje es mio' }
+                      ].map((testimonial, index) => (
+                        <motion.div 
+                          key={index}
+                          className="group relative rounded-2xl border border-amber-500/30 bg-gradient-to-br from-neutral-800/80 to-neutral-900/60 p-6 backdrop-blur-sm hover:border-amber-500/50 transition-all duration-300 hover:transform hover:scale-105"
+                          initial={{ y: 20, opacity: 0 }}
+                          whileInView={{ y: 0, opacity: 1 }}
+                          transition={{ duration: 0.6, delay: index * 0.1 }}
+                          viewport={{ once: true }}
+                        >
+                          <div className="absolute -inset-0.5 bg-gradient-to-r from-amber-500/20 to-orange-500/20 rounded-2xl blur opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                          
+                          <span className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-500 to-amber-400 text-black text-xs font-bold px-4 py-1.5 rounded-full shadow-xl border border-amber-300">
+                            {testimonial.country}
+                          </span>
+                          
+                          <div className="relative">
+                            <div className="flex items-center gap-3 mb-4 pt-4">
+                              <div className="h-12 w-12 rounded-full bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center font-bold text-black shadow-lg">
+                                {testimonial.initials}
+                              </div>
+                              <div>
+                                <p className="font-semibold text-white">{testimonial.name}</p>
+                                <p className="text-sm text-gray-400 flex items-center gap-1">
+                                  <span className="w-2 h-2 bg-green-400 rounded-full"></span>
+                                  {testimonial.location}
+                                </p>
+                              </div>
+                            </div>
+                            <p className="text-gray-300 text-sm italic mb-4 leading-relaxed">
+                              "{testimonial.quote}"
+                            </p>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
+                  </motion.div>
+                </div>
+              </section>
+
+              {/* FAQ */}
+              <section className="py-16 sm:py-20 px-4 sm:px-6 bg-neutral-950">
+                <div className="max-w-4xl mx-auto">
+                  <motion.h2
+                    className="text-center text-2xl sm:text-3xl font-black mb-10 bg-gradient-to-r from-amber-400 to-orange-500 bg-clip-text text-transparent"
+                    initial={{ y: 20, opacity: 0 }}
+                    whileInView={{ y: 0, opacity: 1 }}
+                    transition={{ duration: 0.6 }}
+                    viewport={{ once: true }}
+                  >
+                    Preguntas Frecuentes
+                  </motion.h2>
+
+                  <div className="space-y-6">
+                    {faqData.map((faq, index) => (
+                      <details key={index} className="group bg-neutral-900/60 p-6 rounded-xl ring-1 ring-white/5">
+                        <summary className="flex cursor-pointer items-center justify-between font-medium text-white">
+                          <span>{faq.q}</span>
+                          <svg
+                            className="w-5 h-5 transition-transform duration-200 group-open:rotate-180"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            viewBox="0 0 24 24"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </summary>
+                        <p className="mt-4 text-gray-300 text-sm">
+                          {faq.a}
+                        </p>
+                      </details>
+                    ))}
+
+                    {/* Additional FAQ items */}
+                    <details className="group bg-neutral-900/60 p-6 rounded-xl ring-1 ring-white/5">
+                      <summary className="flex cursor-pointer items-center justify-between font-medium text-white">
+                        <span>¿Cómo envío mis predicciones?</span>
+                        <svg
+                          className="w-5 h-5 transition-transform duration-200 group-open:rotate-180"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </summary>
+                      <p className="mt-4 text-gray-300 text-sm">
+                        A través de nuestro panel web o app móvil. Solo selecciona tus pronósticos antes del inicio de cada sesión de clasificación.
+                      </p>
+                    </details>
+                    
+                    <details className="group bg-neutral-900/60 p-6 rounded-xl ring-1 ring-white/5">
+                      <summary className="flex cursor-pointer items-center justify-between font-medium text-white">
+                        <span>¿Contra quién compito?</span>
+                        <svg
+                          className="w-5 h-5 transition-transform duration-200 group-open:rotate-180"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </summary>
+                      <p className="mt-4 text-gray-300 text-sm">
+                        Contra todos los miembros VIP. Hay rankings por carrera y ranking general de temporada.
+                      </p>
+                    </details>
+                  </div>
+                </div>
+              </section>
+            </motion.div>
+          )}
+        </main>
+      </div>
+
+      {/* Telegram Support Button - Only show if unlocked */}
+      {hasWatchedVideo && (
+        <a
+          href="https://t.me/+573009290499"
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Soporte 24/7"
+          aria-label="Soporte 24/7"
+          className="fixed bottom-32 right-4 z-50 bg-blue-500 hover:bg-blue-600 text-white p-4 rounded-full shadow-lg transition-all duration-300 flex items-center justify-center"
+        >
+          <span className="absolute -top-2 -right-2 bg-red-600 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+            24/7
+          </span>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="w-6 h-6"
+            fill="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path d="M12 0C5.371 0 0 5.371 0 12c0 6.628 5.371 12 12 12s12-5.372 12-12C24 5.371 18.629 0 12 0zm5.363 8.55l-1.482 7.06c-.112.54-.4.676-.81.423l-2.25-1.66-1.084 1.043c-.12.12-.22.22-.45.22l.162-2.283 4.152-3.758c.18-.16 0-.25-.28-.09l-5.13 3.227-2.21-.69c-.48-.15-.49-.48.1-.71l8.64-3.33c.4-.15.75.09.62.68z"/>
+          </svg>
+          <span className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 bg-red-600 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+            Soporte
+          </span>
+        </a>
+      )}
+    </>
+  );
+}
