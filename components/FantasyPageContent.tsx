@@ -926,7 +926,7 @@ const handleSubmit = async () => {
   const closeModal = () => {
         if (activeModal === 'share') {          // se ejecuta solo al cerrar el modal de éxito
           setActiveModal(null);                 // cierra el modal
-          router.push('/f1-fantasy-panel');     // redirige al panel
+          router.push('/fantasy-vip-info');     // redirige al panel
         } else {
           setActiveModal(null);                 // cierra cualquier otro modal
         }
