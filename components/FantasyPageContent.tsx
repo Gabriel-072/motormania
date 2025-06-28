@@ -924,15 +924,13 @@ const handleSubmit = async () => {
   };
 
   const closeModal = () => {
-        if (activeModal === 'share') {          // se ejecuta solo al cerrar el modal de éxito
-          setActiveModal(null);                 // cierra el modal
-          router.push('/fantasy-vip-info');     // redirige al panel
-        } else {
-          setActiveModal(null);                 // cierra cualquier otro modal
-        }
-        setActiveSelectionModal(null);
-        setErrors([]);
-      };
+    console.log('🔍 closeModal called, activeModal:', activeModal);
+    
+    // Only clear state - NO navigation
+    setActiveModal(null);
+    setActiveSelectionModal(null);
+    setErrors([]);
+  };
 
   const modalOrder = ['pole', 'gp', 'extras', 'micro', 'review'];
 
