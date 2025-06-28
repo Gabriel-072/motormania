@@ -2888,7 +2888,6 @@ const handleSubmit = async () => {
     exit={{ opacity: 0 }}
     transition={{ duration: 0.3 }}
     className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-    // REMOVED onClick={closeModal} from the backdrop to prevent accidental clicks
   >
     <motion.div
       variants={modalVariants}
@@ -2918,19 +2917,27 @@ const handleSubmit = async () => {
       </p>
 
       <button
-        onClick={() => {
-          console.log('🎉 Success modal button clicked - redirecting to VIP info');
+        type="button"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          
+          console.log('🎉 Vercel-safe navigation to VIP info');
+          
+          // Clear all modal states immediately
           setActiveModal(null);
           setActiveSelectionModal(null);
           setErrors([]);
-          // Use router.push directly here instead of relying on closeModal
-          router.push('/fantasy-vip-info');
+          
+          // Use window.location.href for Vercel reliability
+          // This bypasses all Next.js routing and Vercel optimizations
+          window.location.href = '/fantasy-vip-info';
         }}
         className="w-full px-4 py-2.5 bg-gray-800 text-white rounded-lg font-exo2
                    hover:bg-gray-700 hover:text-green-300 hover:shadow-[0_0_10px_rgba(74,222,128,0.5)]
                    transition-all duration-200 text-sm sm:text-base font-semibold"
       >
-        Cerrar
+        Gana un viaje a la F1
       </button>
     </motion.div>
   </motion.div>
