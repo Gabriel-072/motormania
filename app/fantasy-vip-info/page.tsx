@@ -561,7 +561,7 @@ const getTeamCarImage = (team: string) =>
           poster="/videos/vsl-cover.gif"
           crossOrigin="anonymous"
         >
-          <source src="/videos/fantasyvipvsl-val.mp4" type="video/mp4" />
+          <source src="/videos/fantasyvip-vsl-val.mp4" type="video/mp4" />
           <source src="/videos/fantasyvip-vsl.webm" type="video/webm" />
           <p>Su navegador no soporta videos HTML5. <a href="/videos/fantasyvipvsl.mp4">Descargar video</a>.</p>
         </video>
