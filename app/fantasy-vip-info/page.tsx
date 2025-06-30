@@ -562,8 +562,8 @@ const getTeamCarImage = (team: string) =>
           crossOrigin="anonymous"
         >
           <source src="/videos/fantasyvip-vsl-val.mp4" type="video/mp4" />
-          <source src="/videos/fantasyvip-vsl.webm" type="video/webm" />
-          <p>Su navegador no soporta videos HTML5. <a href="/videos/fantasyvipvsl.mp4">Descargar video</a>.</p>
+          <source src="/videos/fantasyvip-vsl-val.webm" type="video/webm" />
+          <p>Su navegador no soporta videos HTML5. <a href="/videos/fantasyvip-vsl-val.mp4">Descargar video</a>.</p>
         </video>
   
         {/* Loading/Error States */}
