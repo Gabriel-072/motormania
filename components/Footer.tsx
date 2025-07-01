@@ -1,13 +1,23 @@
 // 📁 components/Footer.tsx
+'use client';
+
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 export default function Footer() {
+
+  const pathname = usePathname();
+  if (pathname === '/mmc-go') return null;
+  if (pathname === '/giveaway/spain') return null;
+  if (pathname === '/fantasy-vip') return null;
+  if (pathname === '/fantasy-vip-info') return null;
+
   return (
     <footer className="bg-gray-950 text-gray-400 py-10 px-4 sm:px-8 border-t border-gray-800 text-sm font-exo2">
       <div className="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
 
         <p className="text-center sm:text-left">
-          © {new Date().getFullYear()} MotorMania Colombia&nbsp;SAS. Todos los derechos reservados.
+          © {new Date().getFullYear()} MotorManía. Todos los derechos reservados.
         </p>
 
         <div className="flex flex-wrap justify-center sm:justify-end gap-4 text-amber-500">

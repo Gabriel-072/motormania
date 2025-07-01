@@ -653,9 +653,6 @@ const getTeamCarImage = (team: string) =>
                 <p className="text-white font-bold text-lg mb-1">
                   🎬 REPRODUCIR VIDEO
                 </p>
-                <p className="text-amber-300 text-sm font-medium">
-                  Descubre cómo ganar un viaje a la F1
-                </p>
               </motion.div>
   
               {/* Animated Cursor Indicator */}
@@ -664,10 +661,6 @@ const getTeamCarImage = (team: string) =>
                 animate={{ opacity: [0.5, 1, 0.5] }}
                 transition={{ duration: 2, repeat: Infinity }}
               >
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M6.672 1.911a1 1 0 10-1.932.518l.259.966a1 1 0 001.932-.518l-.26-.966zM2.429 4.74a1 1 0 10-.517 1.932l.966.259a1 1 0 00.517-1.932l-.966-.26zm8.814-.569a1 1 0 00-1.415-1.414l-.707.707a1 1 0 101.415 1.414l.707-.707zm-7.071 7.072l.707-.707A1 1 0 003.465 9.12l-.708.707a1 1 0 001.415 1.415zm3.2-5.171a1 1 0 00-1.3 1.3l4 10a1 1 0 001.823.075l1.38-2.759 3.018 3.02a1 1 0 001.414-1.415l-3.019-3.02 2.76-1.379a1 1 0 00-.076-1.822l-10-4z" clipRule="evenodd" />
-                </svg>
-                <span>Haz clic para reproducir</span>
               </motion.div>
             </motion.div>
           )}
@@ -1148,8 +1141,8 @@ export default function FantasyVipLanding() {
   const handleWatchProgress = (percentage: number) => {
     setWatchPercentage(percentage);
     
-    // Show unlock button after 60% watched
-    if (percentage >= 60 && !showUnlockButton) {
+    // Show unlock button after 20% watched
+    if (percentage >= 20 && !showUnlockButton) {
       setShowUnlockButton(true);
       // Optional: Show a toast notification
       toast.success('🔓 ¡Video casi completo! Botón de acceso disponible', {
@@ -1158,8 +1151,8 @@ export default function FantasyVipLanding() {
       });
     }
     
-    // Auto-unlock at 85% watched  
-    if (percentage >= 85 && !hasWatchedVideo) {
+    // Auto-unlock at 50% watched  
+    if (percentage >= 50 && !hasWatchedVideo) {
       setHasWatchedVideo(true);
       toast.success('🎉 ¡Acceso desbloqueado! Bienvenido a la oferta VIP', {
         duration: 4000,
@@ -1418,9 +1411,9 @@ export default function FantasyVipLanding() {
         ></div>
       </div>
       <p className="text-amber-300 text-xs text-center">
-        {watchPercentage < 60 
-          ? `📊 ${60 - watchPercentage}% más para acceder a la oferta VIP` 
-          : watchPercentage < 85 
+        {watchPercentage < 20 
+          ? `📊 ${20 - watchPercentage}% más para acceder a la oferta VIP` 
+          : watchPercentage < 50 
             ? '🔓 ¡Ya puedes acceder! Haz clic abajo o sigue viendo'
             : '🎉 ¡Acceso completo desbloqueado!'
         }
@@ -1530,12 +1523,25 @@ export default function FantasyVipLanding() {
                   transition={{ duration: 0.7 }}
                 >
                   <span className="block text-white drop-shadow-lg">
-                  Predice y Gana
+                  Existe una forma secreta de ir a la F1 sin pagar.
                   </span>
                   <span className="block bg-clip-text text-transparent bg-gradient-to-r from-amber-300 via-orange-400 to-red-400 drop-shadow-lg">
-                  Un Viaje A La F1
+                  Esta activa ahora mismo!
                   </span>
                 </motion.h1>
+              
+                {/* ───────────── SUBHEADLINE ───────────── */}
+                <motion.h2
+                 className="mt-4 text-lg sm:text-xl md:text-2xl lg:text-3xl font-semibold leading-snug text-white/90"
+                 initial={{ y: 30, opacity: 0 }}
+                 animate={{ y: 0, opacity: 1 }}
+                 transition={{ duration: 0.8, delay: 0.15 }}
+                >
+                 Descubre en el video cómo fans comunes están consiguiendo acceso VIP a la F1 —
+                 sin invitaciones y sin gastar miles de dólares.
+                </motion.h2>
+
+              
 
                 {/* COUNTDOWN - Only show if unlocked */}
                 {hasWatchedVideo && currentGp && (
