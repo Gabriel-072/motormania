@@ -1659,7 +1659,7 @@ export default function FantasyVipLanding() {
           onClick={handleManualUnlock}
           className="bg-gradient-to-r from-amber-500 to-orange-500 text-black font-bold px-8 py-4 rounded-xl text-lg shadow-xl hover:brightness-110 transition-all transform hover:scale-105 active:scale-95 animate-pulse"
         >
-          🔓 ACCEDER A LA OFERTA VIP (40% OFF)
+          🔓 DESBLOQUEAR CONTENIDO
         </button>
         <p className="text-gray-400 text-xs mt-2">
           O continúa viendo para desbloqueo automático al 85%
