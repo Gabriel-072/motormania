@@ -1,5 +1,3 @@
-// 📁 app/api/webhooks/bold-vip/route.ts
-
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
@@ -12,7 +10,7 @@ const sb = createClient(
 
 const BOLD_SECRET = process.env.BOLD_WEBHOOK_SECRET_KEY!;
 
-/* ---------------------------- Verify signature --------------------------- */
+/* ---------------------------- Verify Signature --------------------------- */
 function verifyBold(sig: string, raw: string): boolean {
   const bodyB64 = Buffer.from(raw).toString('base64');
   const expected = crypto
@@ -34,7 +32,6 @@ export async function POST(req: NextRequest) {
   const raw = await req.text();
   const sig = req.headers.get('x-bold-signature') ?? '';
 
-  console.log('🎯 Bold webhook received');
   console.log('🎯 Bold VIP webhook received');
   console.log('📦 Raw body:', raw.substring(0, 200)); // First 200 chars
 
@@ -56,7 +53,7 @@ export async function POST(req: NextRequest) {
   try {
     const data = evt.data;
     const orderId = data.metadata?.reference || data.order_id || data.external_reference;
-    
+
     if (!orderId) {
       console.error('❌ No order ID in webhook');
       return NextResponse.json({ ok: true, error: 'No order ID' });
@@ -120,75 +117,213 @@ export async function POST(req: NextRequest) {
       console.error('❌ Error upserting vip_entry:', entryError);
     }
 
-// In the webhook handler, after getting the transaction:
+    // Get user data from clerk_users for accurate information
+    const { data: clerkUser } = await sb
+      .from('clerk_users')
+      .select('full_name, email')
+      .eq('clerk_id', transaction.user_id)
+      .single();
 
-// Get user data from clerk_users for accurate information
-const { data: clerkUser } = await sb
-  .from('clerk_users')
-  .select('full_name, email')
-  .eq('clerk_id', transaction.user_id)
-  .single();
+    const displayName = clerkUser?.full_name || transaction.full_name || 'Sin nombre';
+    const displayEmail = clerkUser?.email || transaction.email || 'No email';
 
-const displayName = clerkUser?.full_name || transaction.full_name || 'Sin nombre';
-const displayEmail = clerkUser?.email || transaction.email || 'No email';
+    // Create/Update vip_users
+    const entryTxId = crypto.randomUUID();
+    const activePlan = transaction.plan_id;
 
-// Create/Update vip_users
-const entryTxId = crypto.randomUUID();
-const activePlan = transaction.plan_id;
+    // Calculate proper expiration based on plan type
+    let planExpiresAt;
+    let racePassGp = null;
 
-// Calculate proper expiration based on plan type
-let planExpiresAt;
-let racePassGp = null;
+    if (transaction.plan_id === 'race-pass' && transaction.selected_gp) {
+      // Get the race date for the selected GP
+      const { data: gpData } = await sb
+        .from('gp_schedule')
+        .select('race_time')
+        .eq('gp_name', transaction.selected_gp)
+        .single();
 
-if (transaction.plan_id === 'race-pass' && transaction.selected_gp) {
-  // Get the race date for the selected GP
-  const { data: gpData } = await sb
-    .from('gp_schedule')
-    .select('race_time')
-    .eq('gp_name', transaction.selected_gp)
-    .single();
-  
-  if (gpData) {
-    // Race pass expires 4 hours after the race ends
-    const raceDate = new Date(gpData.race_time);
-    planExpiresAt = new Date(raceDate.getTime() + 4 * 60 * 60 * 1000).toISOString(); // +4 hours
-    racePassGp = transaction.selected_gp; // Set the GP name
-  } else {
-    // Fallback: 30 days if GP not found
-    planExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-  }
-} else if (transaction.plan_id === 'season-pass') {
-  planExpiresAt = new Date('2026-12-31').toISOString();
-  racePassGp = null; // Season pass has access to all GPs
-} else {
-  // Default fallback
-  planExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-}
+      if (gpData) {
+        // Race pass expires 4 hours after the race ends
+        const raceDate = new Date(gpData.race_time);
+        planExpiresAt = new Date(raceDate.getTime() + 4 * 60 * 60 * 1000).toISOString(); // +4 hours
+        racePassGp = transaction.selected_gp; // Set the GP name
+      } else {
+        // Fallback: 30 days if GP not found
+        planExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+      }
+    } else if (transaction.plan_id === 'season-pass') {
+      planExpiresAt = new Date('2026-12-31').toISOString();
+      racePassGp = null; // Season pass has access to all GPs
+    } else {
+      // Default fallback
+      planExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    }
 
-const { error: userError } = await sb
-  .from('vip_users')
-  .upsert(
-    {
-      id: transaction.user_id,
-      entry_tx_id: entryTxId,
-      joined_at: transaction.paid_at,
-      full_name: displayName,
-      email: displayEmail,
-      active_plan: activePlan,
-      plan_expires_at: planExpiresAt,
-      race_pass_gp: racePassGp // Now properly set!
-    },
-    { onConflict: 'id' }
-  );
+    const { error: userError } = await sb
+      .from('vip_users')
+      .upsert(
+        {
+          id: transaction.user_id,
+          entry_tx_id: entryTxId,
+          joined_at: transaction.paid_at,
+          full_name: displayName,
+          email: displayEmail,
+          active_plan: activePlan,
+          plan_expires_at: planExpiresAt,
+          race_pass_gp: racePassGp
+        },
+        { onConflict: 'id' }
+      );
 
-if (userError) {
-  console.error('❌ Error upserting vip_user:', userError);
-}
+    if (userError) {
+      console.error('❌ Error upserting vip_user:', userError);
+    }
 
-    return NextResponse.json({ 
+    // 🎯 FACEBOOK PURCHASE TRACKING (CAPI)
+    try {
+      if (displayEmail && displayEmail !== 'No email') {
+        const purchaseEventId = crypto.randomUUID();
+
+        // Hash user data for privacy (required by Facebook)
+        const hashedEmail = crypto
+          .createHash('sha256')
+          .update(displayEmail.toLowerCase().trim())
+          .digest('hex');
+
+        const hashedName = displayName !== 'Sin nombre'
+          ? crypto.createHash('sha256').update(displayName.toLowerCase().trim()).digest('hex')
+          : undefined;
+
+        // Get client IP and user agent from request headers
+        const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0] ||
+                         req.headers.get('x-real-ip') ||
+                         req.headers.get('cf-connecting-ip');
+        const userAgent = req.headers.get('user-agent');
+
+        const capiPayload = {
+          data: [{
+            event_name: 'Purchase',
+            event_id: purchaseEventId,
+            event_time: Math.floor(Date.now() / 1000),
+            event_source_url: `${process.env.NEXT_PUBLIC_SITE_URL}/fantasy-vip-info`,
+            action_source: 'website',
+            user_data: {
+              em: [hashedEmail], // Array of hashed emails
+              fn: hashedName ? [hashedName] : undefined, // Array of hashed first names
+              client_ip_address: clientIp,
+              client_user_agent: userAgent,
+              fbc: undefined, // Facebook click ID (not available in webhook)
+              fbp: undefined, // Facebook browser ID (not available in webhook)
+            },
+            custom_data: {
+              content_ids: [transaction.plan_id],
+              content_type: 'product',
+              content_name: transaction.plan_id === 'season-pass' ? 'Season Pass' : 'Race Pass',
+              value: (data.amount?.total || transaction.amount_cop) / 1000, // Convert to thousands
+              currency: 'COP',
+              num_items: 1,
+              order_id: transaction.order_id,
+              payment_method: 'bold_checkout',
+              // Additional custom parameters
+              plan_type: transaction.plan_id,
+              selected_gp: transaction.selected_gp || undefined,
+              conversion_source: 'webhook'
+            }
+          }],
+          access_token: process.env.FB_ACCESS_TOKEN
+        };
+
+        // Send to Facebook Conversions API
+        const fbResponse = await fetch(
+          `https://graph.facebook.com/v18.0/${process.env.FB_PIXEL_ID}/events`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(capiPayload)
+          }
+        );
+
+        if (fbResponse.ok) {
+          const fbResult = await fbResponse.json();
+          console.log('✅ Facebook Purchase tracked via CAPI:', {
+            event_id: purchaseEventId,
+            order_id: transaction.order_id,
+            fb_result: fbResult
+          });
+
+          // Log the response for debugging
+          if (fbResult.events_received !== 1) {
+            console.warn('⚠️ Facebook CAPI warning:', fbResult);
+          }
+        } else {
+          const error = await fbResponse.text();
+          console.error('❌ Facebook CAPI error:', {
+            status: fbResponse.status,
+            error: error,
+            order_id: transaction.order_id
+          });
+        }
+
+        // 🎯 ALSO TRACK COMPLETE REGISTRATION EVENT
+        const registrationEventId = crypto.randomUUID();
+        const registrationPayload = {
+          data: [{
+            event_name: 'CompleteRegistration',
+            event_id: registrationEventId,
+            event_time: Math.floor(Date.now() / 1000),
+            event_source_url: `${process.env.NEXT_PUBLIC_SITE_URL}/fantasy-vip-success`,
+            action_source: 'website',
+            user_data: {
+              em: [hashedEmail],
+              fn: hashedName ? [hashedName] : undefined,
+              client_ip_address: clientIp,
+              client_user_agent: userAgent,
+            },
+            custom_data: {
+              content_category: 'vip_membership',
+              content_name: transaction.plan_id,
+              value: (data.amount?.total || transaction.amount_cop) / 1000,
+              currency: 'COP',
+              registration_method: 'purchase_completion',
+              plan_type: transaction.plan_id
+            }
+          }],
+          access_token: process.env.FB_ACCESS_TOKEN
+        };
+
+        // Send Complete Registration event
+        const regResponse = await fetch(
+          `https://graph.facebook.com/v18.0/${process.env.FB_PIXEL_ID}/events`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(registrationPayload)
+          }
+        );
+
+        if (regResponse.ok) {
+          console.log('✅ Facebook CompleteRegistration tracked via CAPI');
+        } else {
+          console.error('❌ Facebook CompleteRegistration CAPI error:', await regResponse.text());
+        }
+      } else {
+        console.warn('⚠️ Skipping Facebook tracking - no valid email found for order:', transaction.order_id);
+      }
+    } catch (fbError) {
+      console.error('❌ Facebook tracking error (non-critical):', fbError);
+      // Don't fail the webhook for tracking errors
+    }
+
+    return NextResponse.json({
       ok: true,
       processed: true,
-      transaction_id: result.transaction_id
+      transaction_id: result.transaction_id,
+      facebook_tracking: 'completed' // Confirm tracking was attempted
     });
 
   } catch (err) {
