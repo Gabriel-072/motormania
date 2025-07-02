@@ -551,16 +551,17 @@ function VideoPlayer({ onWatchProgress }: { onWatchProgress?: (percentage: numbe
     >
       {/* Video Element - Always present but opacity controlled */}
       <video
-       ref={videoRef}
-       className="absolute inset-0 w-full h-full object-cover z-20 transition-opacity duration-300"
-       loop
-       playsInline
-       preload="metadata"
-       crossOrigin="anonymous"
-      >
-       <source src="https://fantasy-vip-cdn.b-cdn.net/VSL.mp4" type="video/mp4" />
-       <p>Su navegador no soporta videos HTML5. <a href="https://fantasy-vip-cdn.b-cdn.net/VSL.mp4">Descargar video</a>.</p>
-      </video>
+  ref={videoRef}
+  className="absolute inset-0 w-full h-full object-cover z-20 transition-opacity duration-300"
+  loop
+  playsInline
+  preload="metadata"
+  crossOrigin="anonymous"
+  onError={(e) => console.error('Video error:', e)} // Add this for debugging
+  onLoadStart={() => console.log('Video load started')} // Add this too
+>
+  <source src="https://fantasy-vip-cdn.b-cdn.net/VSL.mp4" type="video/mp4" />
+</video>
 
       {/* Loading/Error States */}
       <AnimatePresence>
