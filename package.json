@@ -21,6 +21,7 @@
     "@headlessui/react": "^2.2.4",
     "@heroicons/react": "^2.2.0",
     "@hotjar/browser": "^1.0.9",
+    "@microsoft/clarity": "^1.0.0",
     "@radix-ui/react-slot": "^1.2.0",
     "@react-email/render": "^1.0.5",
     "@supabase/supabase-js": "^2.49.1",

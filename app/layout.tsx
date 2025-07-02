@@ -12,6 +12,7 @@ import RegistrationTracker from "@/components/RegistrationTracker";
 import Footer from "@/components/Footer";
 import { Suspense } from "react";
 import HotjarInit from '@/components/HotjarInit';
+import ClarityInit from '@/components/ClarityInit';
 import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from "@vercel/speed-insights/next"
 
@@ -68,6 +69,8 @@ export default function RootLayout({
             },
           }}
         >
+              <ClarityInit />
+
           {/* Single Facebook Pixel initialization */}
           <PixelTracker />
           <Suspense fallback={null}>
