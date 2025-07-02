@@ -1,5 +1,5 @@
 // ──────────────────────────────────────────────────────────────────────────────
-// COMPONENT: BoldCheckoutModal.tsx — MotorManía Colombia
+// COMPONENT: BoldCheckoutModal.tsx — MotorManía
 // Modal personalizado para abrir el Embedded Checkout de Bold
 // ──────────────────────────────────────────────────────────────────────────────
 

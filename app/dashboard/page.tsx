@@ -701,7 +701,7 @@ export default function DashboardPage() {
                   <p className="text-xs text-gray-400 mt-2">Escanea para verificar</p>
                 </div>
                 <p className="text-center text-gray-500 text-[10px] mt-3 relative z-10">
-                  &copy; {new Date().getFullYear()} MotorManía Colombia
+                  &copy; {new Date().getFullYear()} MotorManía
                 </p>
               </div>
               <motion.button

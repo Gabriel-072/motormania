@@ -6,8 +6,8 @@ import { checkInternalKey } from '@/lib/checkInternalKey';
 const resend = new Resend(process.env.RESEND_API_KEY!);
 const appUrl      = process.env.NEXT_PUBLIC_SITE_URL!;
 const appName     = "MotorManía";
-const fromEmail   = `MotorMania <noreply@motormaniacolombia.com>`;
-const supportEmail= "soporte@motormaniacolombia.com";
+const fromEmail   = `MotorMania <noreply@motormania.app>`;
+const supportEmail= "soporte@motormania.app";
 
 export async function POST(req: NextRequest) {
   // 🔐 Validación con clave interna

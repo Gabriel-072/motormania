@@ -44,7 +44,7 @@ export function EmailTemplate({ numbers, userName, unsubscribeLink }: EmailTempl
         {/* CTA Dashboard */}
         <div style={{ textAlign: "center", marginBottom: "40px" }}>
           <a
-            href="https://motormaniacolombia.com/dashboard"
+            href="https://motormania.app/dashboard"
             style={{
               backgroundColor: "#F59E0B",
               color: "#1F2937",
@@ -91,7 +91,7 @@ export function EmailTemplate({ numbers, userName, unsubscribeLink }: EmailTempl
           </p>
           <div style={{ textAlign: "center" }}>
             <a
-              href="https://motormaniacolombia.com/mmc-go"
+              href="https://motormania.app/mmc-go"
               style={{
                 backgroundColor: "#3B82F6",
                 color: "#FFFFFF",
@@ -109,8 +109,7 @@ export function EmailTemplate({ numbers, userName, unsubscribeLink }: EmailTempl
         {/* Footer */}
         <div style={{ borderTop: "1px solid #374151", paddingTop: "20px", color: "#D1D5DB", fontSize: "12px", textAlign: "center" }}>
           <p style={{ margin: "0 0 8px" }}>
-            MotorMania SAS <br />
-            Bogotá D.C., Colombia
+            MotorMania <br />
           </p>
           <p style={{ margin: "0 0 8px" }}>
     <br />
@@ -147,9 +146,6 @@ Ver tus números en el dashboard:
 https://motormania.app/dashboard
 
 —
-MotorMania SAs
-Bogotá D.C., Colombia
-Certificado de existencia y representación legal 12345
-Autorizado mediante resolución 1234 de 2023
+MotorMania
   `;
 }

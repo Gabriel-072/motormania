@@ -549,29 +549,17 @@ function VideoPlayer({ onWatchProgress }: { onWatchProgress?: (percentage: numbe
       onMouseLeave={handleMouseLeave}
       onClick={togglePlay}
     >
-      {/* Poster/Loading Background - Only show when not started */}
-      <div
-        className={`absolute inset-0 bg-center bg-cover z-10 pointer-events-none transition-opacity duration-500 ${
-          showPoster ? 'opacity-100' : 'opacity-0'
-        }`}
-        style={{ backgroundImage: "url('/videos/vsl-cover.gif')" }}
-      />
-
       {/* Video Element - Always present but opacity controlled */}
       <video
-        ref={videoRef}
-        className={`absolute inset-0 w-full h-full object-cover z-20 transition-opacity duration-300 ${
-          hasStarted ? 'opacity-100' : 'opacity-50'
-        }`}
-        loop
-        playsInline
-        preload="metadata"
-        poster="/videos/vsl-cover.gif"
-        crossOrigin="anonymous"
+       ref={videoRef}
+       className="absolute inset-0 w-full h-full object-cover z-20 transition-opacity duration-300"
+       loop
+       playsInline
+       preload="metadata"
+       crossOrigin="anonymous"
       >
-        <source src="/videos/fantasyvip-vsl-val.mp4" type="video/mp4" />
-        <source src="/videos/fantasyvip-vsl-val.webm" type="video/webm" />
-        <p>Su navegador no soporta videos HTML5. <a href="/videos/fantasyvip-vsl-val.mp4">Descargar video</a>.</p>
+       <source src="https://fantasy-vip-cdn.b-cdn.net/VSL.mp4" type="video/mp4" />
+       <p>Su navegador no soporta videos HTML5. <a href="https://fantasy-vip-cdn.b-cdn.net/VSL.mp4">Descargar video</a>.</p>
       </video>
 
       {/* Loading/Error States */}

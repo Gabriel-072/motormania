@@ -77,7 +77,7 @@ export function PredictionEmailTemplate({ predictions, userName, unsubscribeLink
         </p>
         <div style={{ textAlign: 'center', marginBottom: '40px' }}>
           <a
-            href="https://motormania.co/fantasy"
+            href="https://motormania.app/fantasy"
             style={{
               backgroundColor: '#F59E0B',
               color: '#1F2937',
@@ -94,12 +94,8 @@ export function PredictionEmailTemplate({ predictions, userName, unsubscribeLink
         </div>
         <div style={{ borderTop: '1px solid #374151', paddingTop: '20px', color: '#D1D5DB', fontSize: '12px', textAlign: 'center' }}>
           <p style={{ margin: '0 0 8px' }}>
-            MotorMania SAS - NIT 900.123.456-7<br />
-            Carrera 15 #88-64, Bogotá D.C., Colombia
-          </p>
-          <p style={{ margin: '0 0 8px' }}>
-            Certificado de existencia y representación legal 12345<br />
-            Autorizado mediante resolución 1234 de 2023
+            MotorManía<br />
+            Bogotá D.C., Colombia
           </p>
           {unsubscribeLink && (
             <p style={{ margin: '0' }}>
@@ -131,12 +127,6 @@ Race (GP):
 3. ${predictions.gp3 || 'No seleccionado'}
 
 ¡Compite por premios! Los 3 mejores por carrera y los 3 mejores de la temporada ganan recompensas exclusivas.
-Ver clasificación: https://motormania.co/fantasy
-
-Información legal:
-MotorMania SAS - NIT 900.123.456-7
-Carrera 15 #88-64, Bogotá D.C., Colombia
-Certificado de existencia y representación legal 12345
-Autorizado mediante resolución 1234 de 2023
+Ver clasificación: https://motormania.app/fantasy
   `;
 }

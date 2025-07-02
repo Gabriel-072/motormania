@@ -37,12 +37,12 @@ export async function POST(request: NextRequest) {
             Piloto del Día: ${predictions.driver_of_the_day || '–'}
           </p>
         </div>
-        <a href="https://www.instagram.com/motormaniacolombia/"
+        <a href="https://www.instagram.com/motormania.app/"
            style="display:block; text-align:center; background:#E1306C; color:#fff; padding:14px; text-decoration:none; border-radius:5px; font-size:16px; font-weight:bold;">
           🌟 Síguenos en Instagram
         </a>
         <footer style="margin-top:30px; font-size:12px; color:#999; text-align:center; border-top:1px solid #eee; padding-top:15px;">
-          MotorManía Colombia | Bogotá D.C. | <a href="mailto:soporte@motormaniacolombia.com" style="color:#999;">soporte@motormaniacolombia.com</a>
+          MotorManía | Bogotá D.C. | <a href="mailto:soporte@motormania.app" style="color:#999;">soporte@motormania.app</a>
         </footer>
       </div>
     `;
@@ -55,12 +55,12 @@ Qualifying: ${predictions.pole1 || '–'}, ${predictions.pole2 || '–'}, ${pred
 Race: ${predictions.gp1 || '–'}, ${predictions.gp2 || '–'}, ${predictions.gp3 || '–'}
 Extras: Pit Stop: ${predictions.fastest_pit_stop_team || '–'} · Vuelta Rápida: ${predictions.fastest_lap_driver || '–'} · Piloto del Día: ${predictions.driver_of_the_day || '–'}
 
-🌟 Síguenos en Instagram: https://www.instagram.com/motormaniacolombia/
+🌟 Síguenos en Instagram: https://www.instagram.com/motormania.app/
     `;
 
     // ——— Envío del email ——————————————————————————————
     const { data, error } = await resend.emails.send({
-      from: 'MotorMania <noreply@motormaniacolombia.com>',
+      from: 'MotorMania <noreply@motormania.app>',
       to: [userEmail],
       subject: `¡Tus Predicciones para el ${gpName} han sido enviadas!`,
       html,

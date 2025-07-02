@@ -5,11 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth }                      from '@clerk/nextjs/server';
 import crypto                        from 'crypto';
 
-/* ───────── ENV ACTUALES ─────────
- * NEXT_PUBLIC_BOLD_BUTTON_KEY  → pública, la usa el frontend
- * BOLD_SECRET_KEY              → **private key**  (la usamos aquí)
- * NEXT_PUBLIC_SITE_URL         → https://motormaniacolombia.com
- */
+
 const BOLD_SECRET_KEY = process.env.BOLD_SECRET_KEY!;
 const SITE_URL        = process.env.NEXT_PUBLIC_SITE_URL!;
 

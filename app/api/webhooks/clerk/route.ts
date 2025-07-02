@@ -10,7 +10,7 @@ const CLERK_WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET!;
 const APP_URL = process.env.NEXT_PUBLIC_SITE_URL!;
 const INTERNAL_KEY = process.env.INTERNAL_API_KEY!;
 const INITIAL_FREE_NUMBERS_COUNT = 5;
-const SUPPORT_EMAIL = "soporte@motormaniacolombia.com";
+const SUPPORT_EMAIL = "soporte@motormania.app";
 const RESEND_API_KEY = process.env.RESEND_API_KEY!;           // ← Añadido
 
 // Instancia Resend

@@ -42,8 +42,6 @@ export async function POST(req: NextRequest) {
   const allowedDomains = [
     'https://motormania.app',
     'https://www.motormania.app',
-    'https://www.motormaniacolombia.com',
-    'https://motormaniacolombia.com',
     'http://localhost:3000',
     'https://mmc.ngrok.app',
   ];

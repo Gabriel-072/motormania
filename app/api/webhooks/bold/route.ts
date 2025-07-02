@@ -20,8 +20,8 @@ const resend = new Resend(RESEND_API_KEY);
 
 /* ─────────────────────── CONSTANTES ─────────────────────────── */
 const EXTRA_COUNT   = 5;
-const SUPPORT_EMAIL = 'soporte@motormaniacolombia.com';
-const FROM_EMAIL    = 'MotorMania <noreply@motormaniacolombia.com>';
+const SUPPORT_EMAIL = 'soporte@motormania.app';
+const FROM_EMAIL    = 'MotorMania <noreply@motormania.app>';
 
 /* ─────────────────────── UTILIDADES ─────────────────────────── */
 function verify(sig: string, raw: string): boolean {
