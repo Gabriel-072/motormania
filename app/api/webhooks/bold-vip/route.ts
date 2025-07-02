@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
 
+// Retrieve environment variables
+const pixelId = process.env.NEXT_PUBLIC_META_PIXEL_ID;
+const accessToken = process.env.META_CAPI_TOKEN;
+
 const sb = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -187,7 +191,7 @@ export async function POST(req: NextRequest) {
 
         // Hash user data for privacy (required by Facebook)
         const hashedEmail = crypto
-          .createHash('sha256')
+          .createHash('sha то256')
           .update(displayEmail.toLowerCase().trim())
           .digest('hex');
 
@@ -209,34 +213,33 @@ export async function POST(req: NextRequest) {
             event_source_url: `${process.env.NEXT_PUBLIC_SITE_URL}/fantasy-vip-info`,
             action_source: 'website',
             user_data: {
-              em: [hashedEmail], // Array of hashed emails
-              fn: hashedName ? [hashedName] : undefined, // Array of hashed first names
+              em: [hashedEmail],
+              fn: hashedName ? [hashedName] : undefined,
               client_ip_address: clientIp,
               client_user_agent: userAgent,
-              fbc: undefined, // Facebook click ID (not available in webhook)
-              fbp: undefined, // Facebook browser ID (not available in webhook)
+              fbc: undefined,
+              fbp: undefined,
             },
             custom_data: {
               content_ids: [transaction.plan_id],
               content_type: 'product',
               content_name: transaction.plan_id === 'season-pass' ? 'Season Pass' : 'Race Pass',
-              value: (data.amount?.total || transaction.amount_cop) / 1000, // Convert to thousands
+              value: (data.amount?.total || transaction.amount_cop) / 1000,
               currency: 'COP',
               num_items: 1,
               order_id: transaction.order_id,
               payment_method: 'bold_checkout',
-              // Additional custom parameters
               plan_type: transaction.plan_id,
               selected_gp: transaction.selected_gp || undefined,
               conversion_source: 'webhook'
             }
           }],
-          access_token: process.env.FB_ACCESS_TOKEN
+          access_token: accessToken
         };
 
         // Send to Facebook Conversions API
         const fbResponse = await fetch(
-          `https://graph.facebook.com/v18.0/${process.env.FB_PIXEL_ID}/events`,
+          `https://graph.facebook.com/v18.0/${pixelId}/events`,
           {
             method: 'POST',
             headers: {
@@ -254,7 +257,6 @@ export async function POST(req: NextRequest) {
             fb_result: fbResult
           });
 
-          // Log the response for debugging
           if (fbResult.events_received !== 1) {
             console.warn('⚠️ Facebook CAPI warning:', fbResult);
           }
@@ -291,12 +293,12 @@ export async function POST(req: NextRequest) {
               plan_type: transaction.plan_id
             }
           }],
-          access_token: process.env.FB_ACCESS_TOKEN
+          access_token: accessToken
         };
 
         // Send Complete Registration event
         const regResponse = await fetch(
-          `https://graph.facebook.com/v18.0/${process.env.FB_PIXEL_ID}/events`,
+          `https://graph.facebook.com/v18.0/${pixelId}/events`,
           {
             method: 'POST',
             headers: {

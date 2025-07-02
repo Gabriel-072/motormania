@@ -20,6 +20,8 @@ import { openBoldCheckout } from '@/lib/bold';
 import MovingBarFantasy from '@/components/MovingBarFantasy';
 import LoadingAnimation from '@/components/LoadingAnimation';
 import StickyAccessCTA from '@/components/StickyAccessCTA';
+import { useVideoAnalytics } from '@/hooks/useVideoAnalytics';
+
 
 /* ──────────────────────────────────────────────────────────
    0. SUPABASE (para el teaser de resultados y el countdown)
@@ -148,6 +150,8 @@ function VideoPlayer({ onWatchProgress }: { onWatchProgress?: (percentage: numbe
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [loadingTimeout, setLoadingTimeout] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
+  const { trackVideoProgress } = useVideoAnalytics();
+
 
   // Auto-hide controls timer
   const controlsTimeoutRef = useRef<number | null>(null);
@@ -262,15 +266,18 @@ function VideoPlayer({ onWatchProgress }: { onWatchProgress?: (percentage: numbe
         const currentTime = video.currentTime;
         const progress = (currentTime / video.duration) * 100;
         const watchPercentage = Math.floor(progress);
-
+     
         setCurrentTime(currentTime);
         setProgress(progress);
-
+     
+        // Track analytics
+        trackVideoProgress(watchPercentage);
+     
         if (onWatchProgress) {
           onWatchProgress(watchPercentage);
         }
       }
-    };
+     };
 
     const handleVolumeChangeEvent = () => {
       setIsMuted(video.muted || video.volume === 0);
