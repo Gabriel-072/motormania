@@ -574,7 +574,7 @@ export default function FantasyVipLanding() {
     {
       id: 'race-pass',
       nombre: 'Race Pass',
-      precio: 20_000,
+      precio: 2_000,
       periodo: 'por carrera',
       beneficios: [
         'Predicciones VIP para 1 GP',
