@@ -654,17 +654,17 @@ export default function FantasyVipLanding() {
   // ============================================================================
   const handleWatchProgress = (percentage: number) => {
     setWatchPercentage(percentage);
-
+  
     // Track video milestones (25%, 50%, 75%, 100%)
     const milestones = [25, 50, 75, 100];
     const currentMilestone = milestones.find(m =>
       percentage >= m && !videoEngagementTracked.has(m)
     );
-
+  
     if (currentMilestone) {
       // Update tracked milestones
       setVideoEngagementTracked(prev => new Set([...prev, currentMilestone]));
-
+  
       // Track video engagement
       const eventId = generateEventId();
       trackFBEvent('ViewContent', {
@@ -677,7 +677,7 @@ export default function FantasyVipLanding() {
         },
         event_id: eventId
       });
-
+  
       // Send CAPI backup for important milestones
       if ([50, 100].includes(currentMilestone)) {
         fetch('/api/fb-track', {
@@ -695,11 +695,11 @@ export default function FantasyVipLanding() {
         }).catch(err => console.error('CAPI video tracking error:', err));
       }
     }
-
+  
     // Show unlock button after 20% watched - TRACK AS LEAD
-    if (percentage >= 20 && !showUnlockButton) {
+    if (percentage >= 20 && !showUnlockButton && !hasWatchedVideo) {
       setShowUnlockButton(true);
-
+  
       // 🎯 TRACK LEAD - User shows genuine engagement and purchase intent
       const leadEventId = generateEventId();
       trackFBEvent('Lead', {
@@ -713,7 +713,7 @@ export default function FantasyVipLanding() {
         },
         event_id: leadEventId
       });
-
+  
       // Send CAPI backup for this important lead event
       fetch('/api/fb-track', {
         method: 'POST',
@@ -729,17 +729,21 @@ export default function FantasyVipLanding() {
           }
         })
       }).catch(err => console.error('CAPI Lead tracking error:', err));
-
+  
       toast.success('🔓 ¡Video casi completo! Botón de acceso disponible', {
         duration: 3000,
         position: 'bottom-center'
       });
     }
-
+  
     // Auto-unlock at 50% watched
     if (percentage >= 50 && !hasWatchedVideo) {
       setHasWatchedVideo(true);
-
+      
+      // 🔑 PERSIST UNLOCK STATE - THIS IS THE NEW PART
+      localStorage.setItem('vip_content_unlocked', 'true');
+      localStorage.setItem('vip_unlock_timestamp', Date.now().toString());
+  
       // Track content unlock (different from Lead - this is content access)
       trackFBEvent('ViewContent', {
         params: {
@@ -750,7 +754,7 @@ export default function FantasyVipLanding() {
           video_percentage: 50
         }
       });
-
+  
       toast.success('🎉 ¡Acceso desbloqueado! Bienvenido a la oferta VIP', {
         duration: 4000,
         position: 'bottom-center'
@@ -763,7 +767,11 @@ export default function FantasyVipLanding() {
   // ============================================================================
   const handleManualUnlock = () => {
     setHasWatchedVideo(true);
-
+    
+    // 🔑 PERSIST UNLOCK STATE - THIS IS THE NEW PART
+    localStorage.setItem('vip_content_unlocked', 'true');
+    localStorage.setItem('vip_unlock_timestamp', Date.now().toString());
+  
     // Track manual unlock as a higher-intent lead action
     const eventId = generateEventId();
     trackFBEvent('ViewContent', {
@@ -777,7 +785,7 @@ export default function FantasyVipLanding() {
       },
       event_id: eventId
     });
-
+  
     // Send CAPI for this conversion action
     fetch('/api/fb-track', {
       method: 'POST',
@@ -794,8 +802,8 @@ export default function FantasyVipLanding() {
         }
       })
     }).catch(err => console.error('CAPI manual unlock error:', err));
-
-    toast.success('🎉 ¡Acceso desbloqueado! Bienvenido a la oferta VIP', {
+  
+    toast.success('🎉 ¡Acceso desbloqueado!', {
       duration: 4000,
       position: 'bottom-center'
     });
@@ -1028,6 +1036,15 @@ export default function FantasyVipLanding() {
       return () => clearTimeout(timer);
     }
   }, [isSignedIn, user]);
+
+  useEffect(() => {
+    // Check if user has already unlocked content on page load
+    const hasUnlocked = localStorage.getItem('vip_content_unlocked') === 'true';
+    if (hasUnlocked) {
+      setHasWatchedVideo(true);
+      setShowUnlockButton(false); // Don't show unlock button if already unlocked
+    }
+  }, []);
 
   /* ───────── Cargar calendario de GPs ───────── */
   useEffect(() => {
