@@ -1,13 +1,24 @@
-// components/PixelTracker.tsx
-'use client';
+// ============================================================================
+// 2. UPDATED /components/PixelTracker.tsx - Enhanced version
+// ============================================================================
 
+'use client';
 import Script from 'next/script';
 
 export default function PixelTracker() {
   return (
     <>
-      {/* Meta Pixel Code */}
-      <Script id="fb-pixel-init" strategy="afterInteractive">
+      {/* Meta Pixel Code - Enhanced */}
+      <Script 
+        id="fb-pixel-init" 
+        strategy="afterInteractive"
+        onLoad={() => {
+          console.log('✅ Facebook Pixel loaded successfully');
+        }}
+        onError={(e) => {
+          console.error('❌ Facebook Pixel failed to load:', e);
+        }}
+      >
         {`
           !function(f,b,e,v,n,t,s)
           {if(f.fbq)return;n=f.fbq=function(){n.callMethod ?
@@ -17,14 +28,16 @@ export default function PixelTracker() {
           t.src=v;s=b.getElementsByTagName(e)[0];
           s.parentNode.insertBefore(t,s)}(window, document,'script',
           'https://connect.facebook.net/en_US/fbevents.js');
+          
           if (!window.fbq.initialized) {
             fbq('init', '1232963721021743');
             fbq('track', 'PageView');
             window.fbq.initialized = true;
+            console.log('🎯 Facebook Pixel initialized with ID: 1232963721021743');
           }
         `}
       </Script>
-
+      
       <noscript>
         <img
           height="1"
