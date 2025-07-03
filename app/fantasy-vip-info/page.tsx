@@ -128,16 +128,18 @@ const getTeamCarImage = (team: string) =>
    ║ 1. REPLACEMENT VIDEO PLAYER    ║
    ╚════════════════════════════════╝ */
    function VideoPlayer({ onWatchProgress }: { onWatchProgress?: (percentage: number) => void }) {
-    const containerRef      = useRef<HTMLDivElement>(null);
-    const videoRef          = useRef<HTMLVideoElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const videoRef     = useRef<HTMLVideoElement>(null);
   
-    const [isPlaying,    setIsPlaying]    = useState(false);
-    const [hasStarted,   setHasStarted]   = useState(false);
-    const [isMuted,      setIsMuted]      = useState(true);
-    const [showUnmuteCTA,setShowUnmuteCTA]= useState(false);
-    const [isFullscreen, setIsFullscreen] = useState(false);
+    const [isPlaying,     setIsPlaying]     = useState(false);
+    const [hasStarted,    setHasStarted]    = useState(false);
+    const [isMuted,       setIsMuted]       = useState(true);
+    const [showUnmuteCTA, setShowUnmuteCTA] = useState(false);
+    const [isFullscreen,  setIsFullscreen]  = useState(false);
   
-    // 1️⃣ Init video on mount
+    // ─────────────────────────────────────────────
+    // 1️⃣ Initialize video
+    // ─────────────────────────────────────────────
     useEffect(() => {
       const v = videoRef.current;
       if (!v) return;
@@ -145,32 +147,38 @@ const getTeamCarImage = (team: string) =>
       v.volume = 0.8;
     }, []);
   
-    // 2️⃣ Track progress if needed
+    // ─────────────────────────────────────────────
+    // 2️⃣ Track progress analytics
+    // ─────────────────────────────────────────────
     useEffect(() => {
       const v = videoRef.current;
       if (!v || !onWatchProgress) return;
-      const onTime = () => {
+      const handler = () => {
         onWatchProgress(Math.floor((v.currentTime / v.duration) * 100));
       };
-      v.addEventListener('timeupdate', onTime);
-      return () => v.removeEventListener('timeupdate', onTime);
+      v.addEventListener('timeupdate', handler);
+      return () => v.removeEventListener('timeupdate', handler);
     }, [onWatchProgress]);
   
-    // 3️⃣ Sync fullscreen state
+    // ─────────────────────────────────────────────
+    // 3️⃣ Sync fullscreen state across browsers
+    // ─────────────────────────────────────────────
     useEffect(() => {
-      const handler = () => {
-        const fs = !!(document.fullscreenElement || (document as any).webkitFullscreenElement);
-        setIsFullscreen(fs);
+      const doc: any = document;
+      const onFsChange = () => {
+        setIsFullscreen(!!(doc.fullscreenElement || doc.webkitFullscreenElement));
       };
-      document.addEventListener('fullscreenchange', handler);
-      document.addEventListener('webkitfullscreenchange', handler);
+      document.addEventListener('fullscreenchange', onFsChange);
+      document.addEventListener('webkitfullscreenchange', onFsChange);
       return () => {
-        document.removeEventListener('fullscreenchange', handler);
-        document.removeEventListener('webkitfullscreenchange', handler);
+        document.removeEventListener('fullscreenchange', onFsChange);
+        document.removeEventListener('webkitfullscreenchange', onFsChange);
       };
     }, []);
   
+    // ─────────────────────────────────────────────
     // 4️⃣ Play / Pause
+    // ─────────────────────────────────────────────
     const togglePlay = (e?: React.SyntheticEvent) => {
       e?.stopPropagation();
       const v = videoRef.current;
@@ -186,7 +194,9 @@ const getTeamCarImage = (team: string) =>
       }
     };
   
+    // ─────────────────────────────────────────────
     // 5️⃣ Mute / Unmute
+    // ─────────────────────────────────────────────
     const toggleMute = (e?: React.SyntheticEvent) => {
       e?.stopPropagation();
       const v = videoRef.current;
@@ -195,18 +205,29 @@ const getTeamCarImage = (team: string) =>
       setIsMuted(v.muted);
     };
   
-    // 6️⃣ Fullscreen toggle with vendor prefixes
+    // ─────────────────────────────────────────────
+    // 6️⃣ Fullscreen toggle with vendor fallbacks
+    // ─────────────────────────────────────────────
     const toggleFullscreen = (e: React.SyntheticEvent) => {
       e.stopPropagation();
       const c = containerRef.current;
-      if (!c) return;
+      const v = videoRef.current;
       const doc: any = document;
+  
       if (!(doc.fullscreenElement || doc.webkitFullscreenElement)) {
-        if (c.requestFullscreen) c.requestFullscreen();
-        else if ((c as any).webkitRequestFullscreen) (c as any).webkitRequestFullscreen();
+        if (c?.requestFullscreen) {
+          c.requestFullscreen();
+        } else if (c && (c as any).webkitRequestFullscreen) {
+          (c as any).webkitRequestFullscreen();
+        } else if (v && (v as any).webkitEnterFullscreen) {
+          (v as any).webkitEnterFullscreen();
+        }
       } else {
-        if (doc.exitFullscreen) doc.exitFullscreen();
-        else if (doc.webkitExitFullscreen) doc.webkitExitFullscreen();
+        if (doc.exitFullscreen) {
+          doc.exitFullscreen();
+        } else if (doc.webkitExitFullscreen) {
+          doc.webkitExitFullscreen();
+        }
       }
     };
   
@@ -226,18 +247,18 @@ const getTeamCarImage = (team: string) =>
           <source src="https://fantasy-vip-cdn.b-cdn.net/VSL.mp4" type="video/mp4" />
         </video>
   
-        {/* INITIAL PLAY CTA */}
+        {/* Initial Play CTA */}
         {!hasStarted && (
           <button
             onClick={togglePlay}
-            className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 text-white text-2xl font-bold"
+            className="absolute inset-0 flex items-center justify-center bg-black/80 text-white text-2xl font-bold"
             aria-label="Reproducir video"
           >
             ▶️ Reproducir Video
           </button>
         )}
   
-        {/* UNMUTE CTA */}
+        {/* Unmute CTA */}
         {showUnmuteCTA && (
           <button
             onClick={(e) => { toggleMute(e); setShowUnmuteCTA(false); }}
@@ -248,7 +269,7 @@ const getTeamCarImage = (team: string) =>
           </button>
         )}
   
-        {/* PLAY/PAUSE BUTTON */}
+        {/* Play/Pause Button */}
         <button
           onClick={togglePlay}
           className="absolute bottom-4 left-4 bg-black/50 px-3 py-2 rounded-full text-white"
@@ -257,7 +278,7 @@ const getTeamCarImage = (team: string) =>
           {isPlaying ? '❚❚' : '▶'}
         </button>
   
-        {/* FULLSCREEN BUTTON */}
+        {/* Fullscreen Button */}
         <button
           onClick={toggleFullscreen}
           className="absolute bottom-4 right-4 bg-black/50 px-3 py-2 rounded-full text-white"
