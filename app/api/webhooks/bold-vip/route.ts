@@ -184,19 +184,28 @@ export async function POST(req: NextRequest) {
       console.error('❌ Error upserting vip_user:', userError);
     }
 
-    // 🎯 FACEBOOK PURCHASE TRACKING (CAPI)
+    // 🎯 ENHANCED FACEBOOK PURCHASE TRACKING (CAPI)
+    let purchaseEventId: string | undefined;
+    let registrationEventId: string | undefined; 
+    let subscribeEventId: string | undefined;
+
     try {
       if (displayEmail && displayEmail !== 'No email') {
-        const purchaseEventId = crypto.randomUUID();
+        purchaseEventId = crypto.randomUUID();
 
         // Hash user data for privacy (required by Facebook)
         const hashedEmail = crypto
-          .createHash('sha то256')
+          .createHash('sha256')
           .update(displayEmail.toLowerCase().trim())
           .digest('hex');
 
-        const hashedName = displayName !== 'Sin nombre'
-          ? crypto.createHash('sha256').update(displayName.toLowerCase().trim()).digest('hex')
+        // Split name for better hashing
+        const nameParts = displayName.toLowerCase().trim().split(' ');
+        const hashedFirstName = nameParts[0] && displayName !== 'Sin nombre'
+          ? crypto.createHash('sha256').update(nameParts[0]).digest('hex')
+          : undefined;
+        const hashedLastName = nameParts[1] && displayName !== 'Sin nombre'
+          ? crypto.createHash('sha256').update(nameParts.slice(1).join(' ')).digest('hex')
           : undefined;
 
         // Get client IP and user agent from request headers
@@ -205,6 +214,7 @@ export async function POST(req: NextRequest) {
                          req.headers.get('cf-connecting-ip');
         const userAgent = req.headers.get('user-agent');
 
+        // ENHANCED PURCHASE EVENT with better parameters
         const capiPayload = {
           data: [{
             event_name: 'Purchase',
@@ -214,24 +224,31 @@ export async function POST(req: NextRequest) {
             action_source: 'website',
             user_data: {
               em: [hashedEmail],
-              fn: hashedName ? [hashedName] : undefined,
+              fn: hashedFirstName ? [hashedFirstName] : undefined,
+              ln: hashedLastName ? [hashedLastName] : undefined,
               client_ip_address: clientIp,
               client_user_agent: userAgent,
-              fbc: undefined,
+              fbc: undefined, // These will be filled by frontend
               fbp: undefined,
             },
             custom_data: {
               content_ids: [transaction.plan_id],
               content_type: 'product',
+              content_category: 'vip_membership',
               content_name: transaction.plan_id === 'season-pass' ? 'Season Pass' : 'Race Pass',
               value: (data.amount?.total || transaction.amount_cop) / 1000,
               currency: 'COP',
               num_items: 1,
+              transaction_id: boldPaymentId,
               order_id: transaction.order_id,
               payment_method: 'bold_checkout',
-              plan_type: transaction.plan_id,
+              purchase_type: transaction.plan_id === 'season-pass' ? 'premium_annual' : 'entry_single',
+              discount_applied: transaction.plan_id === 'season-pass' ? 'yes' : 'no',
+              discount_amount: transaction.plan_id === 'season-pass' ? ((data.amount?.total || transaction.amount_cop) * 0.4) / 1000 : 0,
+              predicted_ltv: transaction.plan_id === 'season-pass' ? 300 : 150,
               selected_gp: transaction.selected_gp || undefined,
-              conversion_source: 'webhook'
+              conversion_source: 'webhook_completion',
+              funnel_stage: 'purchase_completed'
             }
           }],
           access_token: accessToken
@@ -251,10 +268,13 @@ export async function POST(req: NextRequest) {
 
         if (fbResponse.ok) {
           const fbResult = await fbResponse.json();
-          console.log('✅ Facebook Purchase tracked via CAPI:', {
+          console.log('✅ Enhanced Facebook Purchase tracked via CAPI:', {
             event_id: purchaseEventId,
             order_id: transaction.order_id,
-            fb_result: fbResult
+            plan_id: transaction.plan_id,
+            value: (data.amount?.total || transaction.amount_cop) / 1000,
+            events_received: fbResult.events_received,
+            fb_trace_id: fbResult.fbtrace_id
           });
 
           if (fbResult.events_received !== 1) {
@@ -269,8 +289,8 @@ export async function POST(req: NextRequest) {
           });
         }
 
-        // 🎯 ALSO TRACK COMPLETE REGISTRATION EVENT
-        const registrationEventId = crypto.randomUUID();
+        // 🎯 ENHANCED COMPLETE REGISTRATION EVENT
+        registrationEventId = crypto.randomUUID();
         const registrationPayload = {
           data: [{
             event_name: 'CompleteRegistration',
@@ -280,17 +300,22 @@ export async function POST(req: NextRequest) {
             action_source: 'website',
             user_data: {
               em: [hashedEmail],
-              fn: hashedName ? [hashedName] : undefined,
+              fn: hashedFirstName ? [hashedFirstName] : undefined,
+              ln: hashedLastName ? [hashedLastName] : undefined,
               client_ip_address: clientIp,
               client_user_agent: userAgent,
             },
             custom_data: {
-              content_category: 'vip_membership',
-              content_name: transaction.plan_id,
+              content_category: 'vip_user_registration',
+              content_name: `User Registration Completed for ${transaction.plan_id}`,
+              content_ids: [transaction.plan_id],
               value: (data.amount?.total || transaction.amount_cop) / 1000,
               currency: 'COP',
               registration_method: 'purchase_completion',
-              plan_type: transaction.plan_id
+              registration_source: 'payment_success',
+              user_type: 'new_vip_member',
+              plan_type: transaction.plan_id,
+              predicted_ltv: transaction.plan_id === 'season-pass' ? 300 : 150
             }
           }],
           access_token: accessToken
@@ -309,10 +334,72 @@ export async function POST(req: NextRequest) {
         );
 
         if (regResponse.ok) {
-          console.log('✅ Facebook CompleteRegistration tracked via CAPI');
+          const regResult = await regResponse.json();
+          console.log('✅ Enhanced Facebook CompleteRegistration tracked via CAPI:', {
+            event_id: registrationEventId,
+            events_received: regResult.events_received,
+            fb_trace_id: regResult.fbtrace_id
+          });
         } else {
-          console.error('❌ Facebook CompleteRegistration CAPI error:', await regResponse.text());
+          const regError = await regResponse.text();
+          console.error('❌ Facebook CompleteRegistration CAPI error:', {
+            status: regResponse.status,
+            error: regError
+          });
         }
+
+        // 🎯 ADD SUBSCRIBE EVENT FOR VIP MEMBERSHIP
+        subscribeEventId = crypto.randomUUID();
+        const subscribePayload = {
+          data: [{
+            event_name: 'Subscribe',
+            event_id: subscribeEventId,
+            event_time: Math.floor(Date.now() / 1000),
+            event_source_url: `${process.env.NEXT_PUBLIC_SITE_URL}/fantasy-vip-success`,
+            action_source: 'website',
+            user_data: {
+              em: [hashedEmail],
+              fn: hashedFirstName ? [hashedFirstName] : undefined,
+              ln: hashedLastName ? [hashedLastName] : undefined,
+              client_ip_address: clientIp,
+              client_user_agent: userAgent,
+            },
+            custom_data: {
+              content_category: 'vip_membership',
+              content_name: `VIP ${transaction.plan_id} Subscription`,
+              content_ids: [transaction.plan_id],
+              value: (data.amount?.total || transaction.amount_cop) / 1000,
+              currency: 'COP',
+              subscription_type: transaction.plan_id,
+              subscription_duration: transaction.plan_id === 'season-pass' ? 'annual' : 'single_event',
+              predicted_ltv: transaction.plan_id === 'season-pass' ? 300 : 150
+            }
+          }],
+          access_token: accessToken
+        };
+
+        // Send Subscribe event
+        const subResponse = await fetch(
+          `https://graph.facebook.com/v18.0/${pixelId}/events`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(subscribePayload)
+          }
+        );
+
+        if (subResponse.ok) {
+          const subResult = await subResponse.json();
+          console.log('✅ Facebook Subscribe event tracked via CAPI:', {
+            event_id: subscribeEventId,
+            events_received: subResult.events_received
+          });
+        } else {
+          console.error('❌ Facebook Subscribe CAPI error:', await subResponse.text());
+        }
+
       } else {
         console.warn('⚠️ Skipping Facebook tracking - no valid email found for order:', transaction.order_id);
       }
@@ -325,7 +412,19 @@ export async function POST(req: NextRequest) {
       ok: true,
       processed: true,
       transaction_id: result.transaction_id,
-      facebook_tracking: 'completed' // Confirm tracking was attempted
+      user_id: transaction.user_id,
+      plan_id: transaction.plan_id,
+      amount_cop: data.amount?.total || transaction.amount_cop,
+      facebook_tracking: {
+        purchase: purchaseEventId ? 'completed' : 'skipped',
+        registration: registrationEventId ? 'completed' : 'skipped',
+        subscribe: subscribeEventId ? 'completed' : 'skipped'
+      },
+      tracking_events: {
+        purchase_event_id: purchaseEventId,
+        registration_event_id: registrationEventId,
+        subscribe_event_id: subscribeEventId
+      }
     });
 
   } catch (err) {
