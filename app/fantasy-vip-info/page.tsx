@@ -125,687 +125,149 @@ const getTeamCarImage = (team: string) =>
   `/images/cars/${team.trim().replace(/\s+/g, '-').toLowerCase()}.png`;
 
 /* ╔════════════════════════════════╗
-   ║ 1. ENHANCED VIDEO PLAYER       ║
+   ║ 1. REPLACEMENT VIDEO PLAYER    ║
    ╚════════════════════════════════╝ */
-function VideoPlayer({ onWatchProgress }: { onWatchProgress?: (percentage: number) => void }) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const volumeControlRef = useRef<HTMLDivElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null); // Fixed: Corrected the typo from "useRef Ref = useRef"
-
-  const [isPlaying, setIsPlaying] = useState(false);
-  const isUpdatingVolumeRef = useRef(false);
-  const [isMuted, setIsMuted] = useState(false); // Start unmuted for better UX
-  const [volume, setVolume] = useState(0.8);
-  const [playbackRate, setPlaybackRate] = useState(1);
-  const [progress, setProgress] = useState(0);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
-  const [hasError, setHasError] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
-  const [showVolumeControl, setShowVolumeControl] = useState(false);
-  const [showControls, setShowControls] = useState(false);
-  const [hasStarted, setHasStarted] = useState(false);
-  const [isBuffering, setIsBuffering] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [loadingTimeout, setLoadingTimeout] = useState(false);
-  const [retryCount, setRetryCount] = useState(0);
-  const { trackVideoProgress } = useVideoAnalytics();
-
-
-  // Auto-hide controls timer
-  const controlsTimeoutRef = useRef<number | null>(null);
-  const loadingTimeoutRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
-  // Format time for display
-  const formatTime = (time: number) => {
-    const minutes = Math.floor(time / 60);
-    const seconds = Math.floor(time % 60);
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-  };
-
-  // Handle mouse movement to show/hide controls
-  const handleMouseMove = () => {
-    setShowControls(true);
-    if (controlsTimeoutRef.current) {
-      window.clearTimeout(controlsTimeoutRef.current);
-    }
-    controlsTimeoutRef.current = window.setTimeout(() => {
-      if (isPlaying) {
-        setShowControls(false);
-      }
-    }, 3000);
-  };
-
-  // Handle mouse leave
-  const handleMouseLeave = () => {
-    if (controlsTimeoutRef.current) {
-      window.clearTimeout(controlsTimeoutRef.current);
-    }
-    controlsTimeoutRef.current = window.setTimeout(() => {
-      if (isPlaying) {
-        setShowControls(false);
-      }
-    }, 1000);
-  };
-
-  useEffect(() => {
-    if (!isMounted) return;
-    const video = videoRef.current;
-    if (!video) return;
-
-    const handleLoadStart = () => {
-      console.log('Video load start');
-      setIsLoading(true);
-      setHasError(false);
-      setLoadingTimeout(false);
-
-      if (loadingTimeoutRef.current) {
-        window.clearTimeout(loadingTimeoutRef.current);
-      }
-
-      loadingTimeoutRef.current = window.setTimeout(() => {
-        console.log('Loading timeout reached, video might be stuck');
-        setLoadingTimeout(true);
-      }, 15000);
-    };
-
-    const handleLoadedMetadata = () => {
-      console.log('Video metadata loaded, duration:', video.duration);
-      setDuration(video.duration);
-    };
-
-    const handleWaiting = () => {
-      console.log('Video waiting/buffering');
-      setIsBuffering(true);
-    };
-
-    const handleCanPlay = () => {
-      console.log('Video can play');
-      setIsLoading(false);
-      setIsBuffering(false);
-      setHasError(false);
-      setLoadingTimeout(false);
-
-      if (loadingTimeoutRef.current) {
-        window.clearTimeout(loadingTimeoutRef.current);
-        loadingTimeoutRef.current = null;
-      }
-    };
-
-    const handleCanPlayThrough = () => {
-      console.log('Video can play through');
-      setIsLoading(false);
-      setIsBuffering(false);
-      setLoadingTimeout(false);
-
-      if (loadingTimeoutRef.current) {
-        window.clearTimeout(loadingTimeoutRef.current);
-        loadingTimeoutRef.current = null;
-      }
-    };
-
-    const handlePlay = () => {
-      console.log('Video started playing');
-      setIsPlaying(true);
-      setHasStarted(true);
-    };
-
-    const handlePause = () => {
-      console.log('Video paused');
-      setIsPlaying(false);
-      setShowControls(true);
-    };
-
-    const handleTimeUpdate = () => {
-      if (video.duration) {
-        const currentTime = video.currentTime;
-        const progress = (currentTime / video.duration) * 100;
-        const watchPercentage = Math.floor(progress);
-     
-        setCurrentTime(currentTime);
-        setProgress(progress);
-     
-        // Track analytics
-        trackVideoProgress(watchPercentage);
-     
-        if (onWatchProgress) {
-          onWatchProgress(watchPercentage);
-        }
-      }
-     };
-
-    const handleVolumeChangeEvent = () => {
-      setIsMuted(video.muted || video.volume === 0);
-      setVolume(video.volume);
-    };
-
-    const handleError = (e: Event) => {
-      const error = e.target as HTMLVideoElement;
-      console.error('Video error details:', {
-        error: error?.error,
-        networkState: error?.networkState,
-        readyState: error?.readyState,
-        currentSrc: error?.currentSrc
-      });
-      setIsLoading(false);
-      setIsBuffering(false);
-      setHasError(true);
-      setLoadingTimeout(false);
-
-      if (loadingTimeoutRef.current) {
-        window.clearTimeout(loadingTimeoutRef.current);
-        loadingTimeoutRef.current = null;
-      }
-    };
-
-    const handleEnded = () => {
-      console.log('Video ended');
-      setIsPlaying(false);
-      setShowControls(true);
-    };
-
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-
-    // Add event listeners
-    video.addEventListener('loadstart', handleLoadStart);
-    video.addEventListener('loadedmetadata', handleLoadedMetadata);
-    video.addEventListener('waiting', handleWaiting);
-    video.addEventListener('canplay', handleCanPlay);
-    video.addEventListener('canplaythrough', handleCanPlayThrough);
-    video.addEventListener('play', handlePlay);
-    video.addEventListener('pause', handlePause);
-    video.addEventListener('timeupdate', handleTimeUpdate);
-    video.addEventListener('volumechange', handleVolumeChangeEvent);
-    video.addEventListener('error', handleError);
-    video.addEventListener('ended', handleEnded);
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-
-    // Initialize video settings
-    video.muted = false; // Start unmuted
-    video.volume = volume;
-
-    console.log('Video initialization:', {
-      src: video.currentSrc || 'No source yet',
-      readyState: video.readyState,
-      networkState: video.networkState,
-      muted: video.muted
-    });
-
-    return () => {
-      video.removeEventListener('loadstart', handleLoadStart);
-      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
-      video.removeEventListener('waiting', handleWaiting);
-      video.removeEventListener('canplay', handleCanPlay);
-      video.removeEventListener('canplaythrough', handleCanPlayThrough);
-      video.removeEventListener('play', handlePlay);
-      video.removeEventListener('pause', handlePause);
-      video.removeEventListener('timeupdate', handleTimeUpdate);
-      video.removeEventListener('volumechange', handleVolumeChangeEvent);
-      video.removeEventListener('error', handleError);
-      video.removeEventListener('ended', handleEnded);
-      document.removeEventListener('fullscreenchange', handleFullscreenChange);
-
-      if (controlsTimeoutRef.current) {
-        window.clearTimeout(controlsTimeoutRef.current);
-      }
-
-      if (loadingTimeoutRef.current) {
-        window.clearTimeout(loadingTimeoutRef.current);
-      }
-    };
-  }, [isMounted, volume, onWatchProgress]);
-
-  const togglePlay = async () => {
-    console.log('Toggle play clicked');
-    if (hasError) return;
-    const video = videoRef.current;
-    if (!video) return;
-
-    try {
-      if (video.paused) {
-        console.log('Playing video...');
-        // Ensure video is unmuted when playing for the first time
-        if (!hasStarted) {
-          video.muted = false;
-          video.volume = volume;
-          setIsMuted(false);
-        }
-        await video.play();
+   function VideoPlayer({ onWatchProgress }: { onWatchProgress?: (percentage: number) => void }) {
+    const containerRef      = useRef<HTMLDivElement>(null);
+    const videoRef          = useRef<HTMLVideoElement>(null);
+  
+    const [isPlaying,    setIsPlaying]    = useState(false);
+    const [hasStarted,   setHasStarted]   = useState(false);
+    const [isMuted,      setIsMuted]      = useState(true);
+    const [showUnmuteCTA,setShowUnmuteCTA]= useState(false);
+    const [isFullscreen, setIsFullscreen] = useState(false);
+  
+    // 1️⃣ Init video on mount
+    useEffect(() => {
+      const v = videoRef.current;
+      if (!v) return;
+      v.muted  = true;
+      v.volume = 0.8;
+    }, []);
+  
+    // 2️⃣ Track progress if needed
+    useEffect(() => {
+      const v = videoRef.current;
+      if (!v || !onWatchProgress) return;
+      const onTime = () => {
+        onWatchProgress(Math.floor((v.currentTime / v.duration) * 100));
+      };
+      v.addEventListener('timeupdate', onTime);
+      return () => v.removeEventListener('timeupdate', onTime);
+    }, [onWatchProgress]);
+  
+    // 3️⃣ Sync fullscreen state
+    useEffect(() => {
+      const handler = () => {
+        const fs = !!(document.fullscreenElement || (document as any).webkitFullscreenElement);
+        setIsFullscreen(fs);
+      };
+      document.addEventListener('fullscreenchange', handler);
+      document.addEventListener('webkitfullscreenchange', handler);
+      return () => {
+        document.removeEventListener('fullscreenchange', handler);
+        document.removeEventListener('webkitfullscreenchange', handler);
+      };
+    }, []);
+  
+    // 4️⃣ Play / Pause
+    const togglePlay = (e?: React.SyntheticEvent) => {
+      e?.stopPropagation();
+      const v = videoRef.current;
+      if (!v) return;
+      if (v.paused) {
+        v.play();
+        setIsPlaying(true);
+        setHasStarted(true);
+        if (v.muted) setShowUnmuteCTA(true);
       } else {
-        console.log('Pausing video...');
-        video.pause();
+        v.pause();
+        setIsPlaying(false);
       }
-    } catch (error) {
-      console.error('Error toggling play:', error);
-      setHasError(true);
-    }
-  };
-
-  const toggleMute = () => {
-    const video = videoRef.current;
-    if (video) {
-      // Prevent event handler from interfering
-      isUpdatingVolumeRef.current = true;
-
-      const newMutedState = !isMuted;
-
-      // Update video properties
-      video.muted = newMutedState;
-
-      // If unmuting and volume was 0, set it to default
-      if (!newMutedState && video.volume === 0) {
-        video.volume = 0.8;
-        setVolume(0.8);
-      }
-
-      // Update our state
-      setIsMuted(newMutedState);
-
-      // Re-enable event handler after a short delay
-      setTimeout(() => {
-        isUpdatingVolumeRef.current = false;
-      }, 100);
-
-      // If unmuting and video hasn't started, restart the video
-      if (!newMutedState && !hasStarted) {
-        video.currentTime = 0;
-        video.play().catch(console.error);
-      }
-
-      console.log('Mute toggled:', newMutedState, 'Volume:', video.volume);
-    }
-  };
-
-  const handleVolumeChangeInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newVolume = parseFloat(e.target.value);
-    const video = videoRef.current;
-    if (video) {
-      // Prevent event handler from interfering
-      isUpdatingVolumeRef.current = true;
-
-      const wasZeroVolume = video.volume === 0;
-
-      // Update video properties
-      video.volume = newVolume;
-      video.muted = newVolume === 0;
-
-      // Update our state
-      setVolume(newVolume);
-      setIsMuted(newVolume === 0);
-
-      // Re-enable event handler after a short delay
-      setTimeout(() => {
-        isUpdatingVolumeRef.current = false;
-      }, 100);
-
-      // If increasing volume from 0 and video hasn't started, restart
-      if (newVolume > 0 && wasZeroVolume && !hasStarted) {
-        video.currentTime = 0;
-        video.play().catch(console.error);
-      }
-    }
-  };
-
-  const changePlaybackRate = (rate: number) => {
-    if (hasError) return;
-    const video = videoRef.current;
-    if (video) {
-      video.playbackRate = rate;
-      setPlaybackRate(rate);
-    }
-  };
-
-  const toggleFullscreen = async () => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    try {
-      if (!document.fullscreenElement) {
-        await container.requestFullscreen();
+    };
+  
+    // 5️⃣ Mute / Unmute
+    const toggleMute = (e?: React.SyntheticEvent) => {
+      e?.stopPropagation();
+      const v = videoRef.current;
+      if (!v) return;
+      v.muted = !v.muted;
+      setIsMuted(v.muted);
+    };
+  
+    // 6️⃣ Fullscreen toggle with vendor prefixes
+    const toggleFullscreen = (e: React.SyntheticEvent) => {
+      e.stopPropagation();
+      const c = containerRef.current;
+      if (!c) return;
+      const doc: any = document;
+      if (!(doc.fullscreenElement || doc.webkitFullscreenElement)) {
+        if (c.requestFullscreen) c.requestFullscreen();
+        else if ((c as any).webkitRequestFullscreen) (c as any).webkitRequestFullscreen();
       } else {
-        await document.exitFullscreen();
-      }
-    } catch (error) {
-      console.error('Fullscreen error:', error);
-    }
-  };
-
-  const retryVideo = () => {
-    const newRetryCount = retryCount + 1;
-    console.log(`Retry attempt ${newRetryCount}`);
-
-    setHasError(false);
-    setIsLoading(true);
-    setHasStarted(false);
-    setLoadingTimeout(false);
-    setRetryCount(newRetryCount);
-
-    if (loadingTimeoutRef.current) {
-      window.clearTimeout(loadingTimeoutRef.current);
-    }
-
-    const video = videoRef.current;
-    if (video) {
-      video.load();
-    }
-  };
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (!videoRef.current) return;
-
-      switch (e.code) {
-        case 'Space':
-          e.preventDefault();
-          togglePlay();
-          break;
-        case 'KeyM':
-          e.preventDefault();
-          toggleMute();
-          break;
-        case 'KeyF':
-          e.preventDefault();
-          toggleFullscreen();
-          break;
+        if (doc.exitFullscreen) doc.exitFullscreen();
+        else if (doc.webkitExitFullscreen) doc.webkitExitFullscreen();
       }
     };
-
-    if (showControls || !isPlaying) {
-      document.addEventListener('keydown', handleKeyDown);
-    }
-
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [showControls, isPlaying]);
-
-  if (!isMounted) {
+  
     return (
-      <div className="w-full max-w-md aspect-video bg-black/30 rounded-2xl flex items-center justify-center mx-auto">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-amber-500 border-t-transparent"></div>
+      <div
+        ref={containerRef}
+        className="relative w-full max-w-md aspect-video mx-auto bg-black rounded-lg overflow-hidden"
+        onClick={togglePlay}
+      >
+        <video
+          ref={videoRef}
+          className="w-full h-full object-cover"
+          loop
+          playsInline
+          preload="metadata"
+        >
+          <source src="https://fantasy-vip-cdn.b-cdn.net/VSL.mp4" type="video/mp4" />
+        </video>
+  
+        {/* INITIAL PLAY CTA */}
+        {!hasStarted && (
+          <button
+            onClick={togglePlay}
+            className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 text-white text-2xl font-bold"
+            aria-label="Reproducir video"
+          >
+            ▶️ Reproducir Video
+          </button>
+        )}
+  
+        {/* UNMUTE CTA */}
+        {showUnmuteCTA && (
+          <button
+            onClick={(e) => { toggleMute(e); setShowUnmuteCTA(false); }}
+            className="absolute inset-0 flex items-center justify-center bg-black/70 text-white text-lg font-semibold"
+            aria-label="Activar sonido"
+          >
+            🔊 Activar sonido
+          </button>
+        )}
+  
+        {/* PLAY/PAUSE BUTTON */}
+        <button
+          onClick={togglePlay}
+          className="absolute bottom-4 left-4 bg-black/50 px-3 py-2 rounded-full text-white"
+          aria-label={isPlaying ? 'Pausar' : 'Reproducir'}
+        >
+          {isPlaying ? '❚❚' : '▶'}
+        </button>
+  
+        {/* FULLSCREEN BUTTON */}
+        <button
+          onClick={toggleFullscreen}
+          className="absolute bottom-4 right-4 bg-black/50 px-3 py-2 rounded-full text-white"
+          aria-label={isFullscreen ? 'Salir pantalla completa' : 'Pantalla completa'}
+        >
+          {isFullscreen ? '🡽' : '🡾'}
+        </button>
       </div>
     );
   }
-
-  // Simpler visibility logic - always show overlay until user starts playing
-  const showPoster = !hasStarted && isLoading;
-  const showVideo = true; // Always show video element for proper loading
-  const showPlayOverlay = !hasStarted; // Show overlay until user clicks play
-
-  return (
-    <div
-      ref={containerRef}
-      className={`relative w-full max-w-md aspect-video rounded-xl overflow-hidden shadow-2xl bg-black mx-auto cursor-pointer ${
-        isFullscreen ? 'max-w-none aspect-auto' : ''
-      }`}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-      onClick={togglePlay}
-    >
-      {/* Video Element - Always present but opacity controlled */}
-      <video
-  ref={videoRef}
-  className="absolute inset-0 w-full h-full object-cover z-20 transition-opacity duration-300"
-  loop
-  playsInline
-  preload="metadata"
-  crossOrigin="anonymous"
-  onError={(e) => console.error('Video error:', e)} // Add this for debugging
-  onLoadStart={() => console.log('Video load started')} // Add this too
->
-  <source src="https://fantasy-vip-cdn.b-cdn.net/VSL.mp4" type="video/mp4" />
-</video>
-
-      {/* Loading/Error States */}
-      <AnimatePresence>
-        {(isLoading || hasError || isBuffering || loadingTimeout) && (
-          <motion.div
-            className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-md z-30"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            {hasError || loadingTimeout ? (
-              <div className="text-center p-6">
-                <ExclamationTriangleIcon className="h-16 w-16 text-amber-500 mx-auto mb-4" />
-                <p className="text-white font-medium mb-2">
-                  {loadingTimeout ? 'Tiempo de Carga Agotado' : 'Error de Video'}
-                </p>
-                <p className="text-gray-300 text-sm mb-4">
-                  {loadingTimeout
-                    ? 'El video está tardando mucho en cargar. Verifica tu conexión.'
-                    : 'No se pudo cargar el video. Verifica tu conexión e inténtalo de nuevo.'
-                  }
-                </p>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    retryVideo();
-                  }}
-                  className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black rounded-lg font-bold transition-colors active:scale-95"
-                >
-                  Reintentar
-                </button>
-              </div>
-            ) : (
-              <div className="text-center p-6">
-                <div className="animate-spin rounded-full h-12 w-12 border-4 border-amber-500 border-t-transparent mx-auto mb-4"></div>
-                <p className="text-white font-medium">
-                  {isBuffering ? 'Cargando...' : 'Preparando Video...'}
-                </p>
-              </div>
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Play Button Overlay - Show when video is ready but not playing */}
-      <AnimatePresence>
-        {showPlayOverlay && (
-          <motion.div
-            className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 backdrop-blur-[2px] z-25"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            {/* Pulsing Play Button */}
-            <motion.button
-              onClick={(e) => {
-                e.stopPropagation();
-                togglePlay();
-              }}
-              className="w-20 h-20 rounded-full bg-amber-500/90 flex items-center justify-center transition-all duration-300 transform hover:scale-110 hover:bg-amber-500 active:scale-100 shadow-2xl animate-pulse"
-              aria-label="Reproducir video"
-              animate={{
-                scale: [1, 1.05, 1],
-                boxShadow: [
-                  "0 0 0 0 rgba(245, 158, 11, 0.4)",
-                  "0 0 0 20px rgba(245, 158, 11, 0)",
-                  "0 0 0 0 rgba(245, 158, 11, 0)"
-                ]
-              }}
-              transition={{
-                duration: 2,
-                repeat: Infinity,
-                ease: "easeInOut"
-              }}
-            >
-              <PlayIcon className="h-8 w-8 text-black ml-1" />
-            </motion.button>
-
-            {/* Call to Action Text */}
-            <motion.div
-              className="mt-4 text-center"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5 }}
-            >
-              <p className="text-white font-bold text-lg mb-1">
-                🎬 REPRODUCIR VIDEO
-              </p>
-            </motion.div>
-
-            {/* Animated Cursor Indicator */}
-            <motion.div
-              className="absolute bottom-4 right-4 flex items-center gap-2 text-white/80 text-sm"
-              animate={{ opacity: [0.5, 1, 0.5] }}
-              transition={{ duration: 2, repeat: Infinity }}
-            >
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Video Controls */}
-      <AnimatePresence>
-        {(showControls || !isPlaying) && !isLoading && !hasError && !loadingTimeout && hasStarted && (
-          <motion.div
-            className="absolute inset-x-0 bottom-0 z-30 bg-gradient-to-t from-black/90 via-black/60 to-transparent pt-16"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            transition={{ duration: 0.2 }}
-          >
-            <div className="px-4 pb-4">
-              {/* Progress Bar */}
-              <div className="mb-4">
-                <div className="w-full h-2 bg-white/20 rounded-full">
-                  <div
-                    className="h-full bg-gradient-to-r from-amber-400 to-orange-500 rounded-full relative transition-all duration-150"
-                    style={{ width: `${progress}%` }}
-                  >
-                    <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 w-4 h-4 bg-amber-500 rounded-full shadow-lg"></div>
-                  </div>
-                </div>
-
-                <div className="flex justify-between mt-1 text-xs text-gray-300">
-                  <span>{formatTime(currentTime)}</span>
-                  <span>{formatTime(duration)}</span>
-                </div>
-              </div>
-
-              {/* Controls Row */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      togglePlay();
-                    }}
-                    className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-                    aria-label={isPlaying ? 'Pausar' : 'Reproducir'}
-                  >
-                    {isPlaying ? (
-                      <PauseIcon className="h-6 w-6 text-white" />
-                    ) : (
-                      <PlayIcon className="h-6 w-6 text-white" />
-                    )}
-                  </button>
-
-                  <div
-                    className="relative flex items-center"
-                    onMouseEnter={() => setShowVolumeControl(true)}
-                    onMouseLeave={() => setShowVolumeControl(false)}
-                  >
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleMute();
-                      }}
-                      className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-                      aria-label={isMuted ? 'Activar Sonido' : 'Silenciar'}
-                    >
-                      {isMuted ? (
-                        <SpeakerXMarkIcon className="h-6 w-6 text-white" />
-                      ) : (
-                        <SpeakerWaveIcon className="h-6 w-6 text-white" />
-                      )}
-                    </button>
-
-                    <AnimatePresence>
-                      {showVolumeControl && (
-                        <motion.div
-                          ref={volumeControlRef}
-                          initial={{ opacity: 0, width: 0 }}
-                          animate={{ opacity: 1, width: 80 }}
-                          exit={{ opacity: 0, width: 0 }}
-                          className="overflow-hidden ml-2"
-                        >
-                          <input
-                            type="range"
-                            min="0"
-                            max="1"
-                            step="0.05"
-                            value={isMuted ? 0 : volume}
-                            onChange={handleVolumeChangeInput}
-                            onClick={(e) => e.stopPropagation()}
-                            className="w-full h-1 bg-white/30 rounded-lg appearance-none cursor-pointer accent-amber-500"
-                            aria-label="Control de volumen"
-                          />
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1 bg-black/30 backdrop-blur-sm rounded-lg p-1">
-                    <ForwardIcon className="h-4 w-4 text-gray-300 mx-1" />
-                    {[1, 1.25].map((rate) => (
-                      <button
-                        key={rate}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          changePlaybackRate(rate);
-                        }}
-                        className={`px-2 py-1 rounded-md text-xs font-bold transition-colors ${
-                          playbackRate === rate
-                            ? 'bg-amber-500 text-black'
-                            : 'text-white hover:bg-white/20'
-                        }`}
-                        aria-label={`Velocidad ${rate}x`}
-                      >
-                        {rate}x
-                      </button>
-                    ))}
-                  </div>
-
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleFullscreen();
-                    }}
-                    className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-                    aria-label={isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'}
-                  >
-                    <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      {isFullscreen ? (
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 9V4.5M9 9H4.5M9 9L3.5 3.5M15 9h4.5M15 9V4.5M15 9l5.5-5.5M9 15v4.5M9 15H4.5M9 15l-5.5 5.5M15 15h4.5M15 15v4.5m0-4.5l5.5 5.5" />
-                      ) : (
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l6 6m10-6v4m0-4h-4m4 0l-6 6M4 16v4m0 0h4m-4 0l6-6m10 6l-6-6m6 6v-4m0 4h-4" />
-                      )}
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <div className="sr-only">
-        <p>Atajos de teclado: Espacio (reproducir/pausar), M (silenciar), F (pantalla completa)</p>
-      </div>
-    </div>
-  );
-}
 
 /* ╔════════════════════════════════╗
    ║ 2. MINI-PANEL "PREDICE …"      ║
