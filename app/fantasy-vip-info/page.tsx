@@ -1381,6 +1381,7 @@ export default function FantasyVipLanding() {
                     Esta activa ahora mismo!
                   </span>
                 </motion.h1>
+                
   
                 {/* Subheadline */}
                 <motion.h2
