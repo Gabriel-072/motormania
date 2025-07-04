@@ -559,6 +559,7 @@ export default function FantasyVipLanding() {
   const [watchPercentage, setWatchPercentage] = useState(0);
   const [videoEngagementTracked, setVideoEngagementTracked] = useState(new Set<number>());
   const [planViewsTracked, setPlanViewsTracked] = useState(new Set<string>());
+  const { trackVideoProgress, trackVipEvent, sessionId } = useVideoAnalytics();
 
   // Countdown states
   const [gpSchedule, setGpSchedule] = useState<GpSchedule[]>([]);
@@ -672,146 +673,141 @@ export default function FantasyVipLanding() {
   }, [user]);
 
   // 2. Enhanced Video Engagement Tracking - USING CUSTOM EVENTS
-  const handleWatchProgress = (percentage: number) => {
-    setWatchPercentage(percentage);
+const handleWatchProgress = (percentage: number) => {
+  setWatchPercentage(percentage);
 
-    // Track video milestones with CUSTOM event names (NOT ViewContent)
-    const milestones = [
-      { percent: 25, eventName: 'VIP_VideoEngagement_25' },
-      { percent: 50, eventName: 'VIP_VideoEngagement_50' },
-      { percent: 75, eventName: 'VIP_VideoEngagement_75' },
-      { percent: 100, eventName: 'VIP_VideoEngagement_Complete' }
-    ];
+  // 🎯 STEP 1: Track Analytics (Database) - THIS WAS MISSING!
+  // This sends data to your analytics API and Supabase
+  trackVideoProgress(percentage, {
+    page_type: 'vip_landing',
+    video_source: 'vsl',
+    user_type: isSignedIn ? 'authenticated' : 'anonymous',
+    session_id: sessionId,
+    timestamp: Date.now()
+  });
 
-    const currentMilestone = milestones.find(m =>
-      percentage >= m.percent && !videoEngagementTracked.has(m.percent)
-    );
+  // 🎯 STEP 2: Track Facebook Events (Meta Pixel & CAPI)
+  const milestones = [
+    { percent: 25, eventName: 'VIP_VideoEngagement_25' },
+    { percent: 50, eventName: 'VIP_VideoEngagement_50' },
+    { percent: 75, eventName: 'VIP_VideoEngagement_75' },
+    { percent: 100, eventName: 'VIP_VideoEngagement_Complete' }
+  ];
 
-    if (currentMilestone) {
-      setVideoEngagementTracked(prev => new Set([...prev, currentMilestone.percent]));
+  const currentMilestone = milestones.find(m =>
+    percentage >= m.percent && !videoEngagementTracked.has(m.percent)
+  );
 
-      const eventId = generateEventId();
-      
-      // Use CUSTOM event name, not ViewContent
-      trackFBEvent(currentMilestone.eventName, {
-        params: {
-          content_type: 'video',
-          content_category: 'vsl_engagement',
-          content_name: 'Fantasy VIP Video Sales Letter',
-          content_ids: ['vip_vsl_2025'],
-          video_title: 'Fantasy VIP Access Reveal',
-          video_length: 300,
-          video_percentage: currentMilestone.percent,
-          engagement_level: currentMilestone.percent >= 75 ? 'high' : currentMilestone.percent >= 50 ? 'medium' : 'low',
-          value: 0,
-          currency: 'COP'
-        },
-        event_id: eventId
-      });
+  if (currentMilestone) {
+    setVideoEngagementTracked(prev => new Set([...prev, currentMilestone.percent]));
 
-      // Enhanced CAPI for important milestones
-      if ([50, 75, 100].includes(currentMilestone.percent)) {
-        fetch('/api/fb-track', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            event_name: currentMilestone.eventName,
-            event_id: eventId,
-            event_source_url: window.location.href,
-            user_data: getUserData(user),
-            custom_data: {
-              content_type: 'video',
-              content_category: 'vsl_engagement',
-              video_percentage: currentMilestone.percent,
-              engagement_level: currentMilestone.percent >= 75 ? 'high' : 'medium'
-            }
-          })
-        }).catch(err => console.error('CAPI video tracking error:', err));
-      }
-    }
+    const eventId = generateEventId();
+    
+    // Track Facebook custom event
+    trackFBEvent(currentMilestone.eventName, {
+      params: {
+        content_type: 'video',
+        content_category: 'vsl_engagement',
+        content_name: 'Fantasy VIP Video Sales Letter',
+        content_ids: ['vip_vsl_2025'],
+        video_title: 'Fantasy VIP Access Reveal',
+        video_length: 300,
+        video_percentage: currentMilestone.percent,
+        engagement_level: currentMilestone.percent >= 75 ? 'high' : currentMilestone.percent >= 50 ? 'medium' : 'low',
+        value: 0,
+        currency: 'COP'
+      },
+      event_id: eventId
+    });
+  }
 
-    // Lead event at 20% (Lead is appropriate here)
-    if (percentage >= 20 && !showUnlockButton && !hasWatchedVideo) {
-      setShowUnlockButton(true);
+  // 🎯 STEP 3: Lead Qualification at 20%
+  if (percentage >= 20 && !showUnlockButton && !hasWatchedVideo) {
+    setShowUnlockButton(true);
 
-      const leadEventId = generateEventId();
-      trackFBEvent('Lead', {
-        params: {
-          content_category: 'qualified_video_lead',
-          content_name: 'VIP Access Qualified Lead - 20% Video Engagement',
-          content_type: 'video_qualification',
-          lead_type: 'video_qualified',
-          qualification_method: 'video_engagement_threshold',
-          video_percentage: 20,
-          lead_quality: 'medium',
-          predicted_ltv: 100,
-          currency: 'COP',
-          source: 'vsl_engagement'
-        },
-        event_id: leadEventId
-      });
+    // Track VIP event for analytics
+    trackVipEvent('lead_qualification', {
+      video_percentage: 20,
+      qualification_method: 'video_engagement_threshold',
+      lead_quality: 'medium'
+    });
 
-      fetch('/api/fb-track', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          event_name: 'Lead',
-          event_id: leadEventId,
-          event_source_url: window.location.href,
-          user_data: getUserData(user),
-          custom_data: {
-            content_category: 'qualified_video_lead',
-            lead_type: 'video_qualified',
-            qualification_method: 'video_engagement_threshold',
-            video_percentage: 20,
-            predicted_ltv: 100,
-            currency: 'COP'
-          }
-        })
-      }).catch(err => console.error('CAPI Lead tracking error:', err));
+    // Track Facebook Lead event
+    const leadEventId = generateEventId();
+    trackFBEvent('Lead', {
+      params: {
+        content_category: 'qualified_video_lead',
+        content_name: 'VIP Access Qualified Lead - 20% Video Engagement',
+        content_type: 'video_qualification',
+        lead_type: 'video_qualified',
+        qualification_method: 'video_engagement_threshold',
+        video_percentage: 20,
+        lead_quality: 'medium',
+        predicted_ltv: 100,
+        currency: 'COP',
+        source: 'vsl_engagement'
+      },
+      event_id: leadEventId
+    });
 
-      toast.success('🔓 ¡Video casi completo! Acceso disponible', {
-        duration: 3000,
-        position: 'bottom-center'
-      });
-    }
+    toast.success('🔓 ¡Video casi completo! Acceso disponible', {
+      duration: 3000,
+      position: 'bottom-center'
+    });
+  }
 
-    // Content unlock - CUSTOM event (NOT ViewContent)
-    if (percentage >= 50 && !hasWatchedVideo) {
-      setHasWatchedVideo(true);
-      localStorage.setItem('vip_content_unlocked', 'true');
-      localStorage.setItem('vip_unlock_timestamp', Date.now().toString());
+  // 🎯 STEP 4: Content Unlock at 50%
+  if (percentage >= 50 && !hasWatchedVideo) {
+    setHasWatchedVideo(true);
+    localStorage.setItem('vip_content_unlocked', 'true');
+    localStorage.setItem('vip_unlock_timestamp', Date.now().toString());
 
-      const unlockEventId = generateEventId();
-      trackFBEvent('VIP_ContentUnlock_Auto', {
-        params: {
-          content_category: 'sales_page_access',
-          content_name: 'VIP Sales Page Auto Unlocked at 50%',
-          content_type: 'gated_content',
-          content_ids: ['vip_sales_access'],
-          unlock_method: 'automatic_video_threshold',
-          unlock_trigger: 'video_50_percent',
-          video_percentage: 50,
-          user_intent_level: 'high',
-          value: 150,
-          currency: 'COP'
-        },
-        event_id: unlockEventId
-      });
+    // Track VIP event for analytics
+    trackVipEvent('content_unlock', {
+      video_percentage: 50,
+      unlock_method: 'automatic_video_threshold',
+      user_intent_level: 'high'
+    });
 
-      toast.success('🎉 ¡Acceso desbloqueado! Bienvenido a la oferta VIP', {
-        duration: 4000,
-        position: 'bottom-center'
-      });
-    }
-  };
+    // Track Facebook custom event
+    const unlockEventId = generateEventId();
+    trackFBEvent('VIP_ContentUnlock_Auto', {
+      params: {
+        content_category: 'sales_page_access',
+        content_name: 'VIP Sales Page Auto Unlocked at 50%',
+        content_type: 'gated_content',
+        content_ids: ['vip_sales_access'],
+        unlock_method: 'automatic_video_threshold',
+        unlock_trigger: 'video_50_percent',
+        video_percentage: 50,
+        user_intent_level: 'high',
+        value: 150,
+        currency: 'COP'
+      },
+      event_id: unlockEventId
+    });
+
+    toast.success('🎉 ¡Acceso desbloqueado! Bienvenido a la oferta VIP', {
+      duration: 4000,
+      position: 'bottom-center'
+    });
+  }
+};
 
   // 3. Manual Unlock - CUSTOM EVENT
   const handleManualUnlock = () => {
     setHasWatchedVideo(true);
     localStorage.setItem('vip_content_unlocked', 'true');
     localStorage.setItem('vip_unlock_timestamp', Date.now().toString());
-
+  
+    // Track VIP event for analytics
+    trackVipEvent('content_unlock', {
+      video_percentage: watchPercentage,
+      unlock_method: 'manual_button_click',
+      user_intent_level: 'very_high'
+    });
+  
+    // Track Facebook custom event
     const eventId = generateEventId();
     trackFBEvent('VIP_ContentUnlock_Manual', {
       params: {
@@ -829,26 +825,7 @@ export default function FantasyVipLanding() {
       },
       event_id: eventId
     });
-
-    fetch('/api/fb-track', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        event_name: 'VIP_ContentUnlock_Manual',
-        event_id: eventId,
-        event_source_url: window.location.href,
-        user_data: getUserData(user),
-        custom_data: {
-          content_category: 'sales_page_access',
-          unlock_method: 'manual_button_click',
-          video_percentage: watchPercentage,
-          user_intent_level: 'very_high',
-          value: 180,
-          currency: 'COP'
-        }
-      })
-    }).catch(err => console.error('CAPI manual unlock error:', err));
-
+  
     toast.success('🎉 ¡Acceso desbloqueado!', {
       duration: 4000,
       position: 'bottom-center'
@@ -858,9 +835,18 @@ export default function FantasyVipLanding() {
   // 4. Plan View Tracking - CUSTOM EVENT (NOT ViewContent)
   const handlePlanView = (planId: string, planPrice: number, planName: string) => {
     if (planViewsTracked.has(planId)) return;
-
+  
     setPlanViewsTracked(prev => new Set([...prev, planId]));
-
+  
+    // Track VIP event for analytics
+    trackVipEvent('plan_view', {
+      plan_id: planId,
+      plan_name: planName,
+      plan_price: planPrice,
+      action: 'plan_card_viewed'
+    });
+  
+    // Track Facebook custom event
     const eventId = generateEventId();
     trackFBEvent('VIP_PlanView', {
       params: {
@@ -877,26 +863,6 @@ export default function FantasyVipLanding() {
       },
       event_id: eventId
     });
-
-    // CAPI backup for plan views
-    fetch('/api/fb-track', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        event_name: 'VIP_PlanView',
-        event_id: eventId,
-        event_source_url: window.location.href,
-        user_data: getUserData(user),
-        custom_data: {
-          content_type: 'product',
-          content_category: 'vip_membership_plan',
-          content_ids: [planId],
-          value: planPrice / 1000,
-          currency: 'COP',
-          predicted_ltv: planId === 'season-pass' ? 300 : 150
-        }
-      })
-    }).catch(err => console.error('CAPI plan view error:', err));
   };
 
   // 5. Enhanced Purchase Function - InitiateCheckout is correct
@@ -904,10 +870,18 @@ export default function FantasyVipLanding() {
     console.log('🛒 handlePurchase invocado para:', planId);
     const plan = planes.find(p => p.id === planId);
     if (!plan) return;
-
-    // Track InitiateCheckout immediately
+  
+    // Track VIP event for analytics
+    trackVipEvent('checkout_initiated', {
+      plan_id: planId,
+      plan_name: plan.nombre,
+      plan_price: plan.precio,
+      action: 'purchase_button_clicked'
+    });
+  
+    // 🎯 TRACK INITIATE CHECKOUT IMMEDIATELY
     const eventId = generateEventId();
-
+  
     trackFBEvent('InitiateCheckout', {
       params: {
         content_type: 'product',
@@ -1381,7 +1355,7 @@ export default function FantasyVipLanding() {
                     Esta activa ahora mismo!
                   </span>
                 </motion.h1>
-                
+
   
                 {/* Subheadline */}
                 <motion.h2
