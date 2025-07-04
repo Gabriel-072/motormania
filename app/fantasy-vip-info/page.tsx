@@ -289,7 +289,7 @@ function VideoPlayer({ onWatchProgress }: { onWatchProgress?: (percentage: numbe
         playsInline
         preload="metadata"
       >
-        <source src="https://fantasy-vip-cdn.b-cdn.net/VSL.mp4" type="video/mp4" />
+        <source src="https://fantasy-vip-cdn.b-cdn.net/VSL-Short.mp4" type="video/mp4" />
       </video>
 
       {/* Initial Play CTA */}
