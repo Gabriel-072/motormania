@@ -1730,14 +1730,14 @@ const handleWatchProgress = (percentage: number) => {
   
                           <div className="my-5">
                             <div className="flex items-baseline gap-2 mb-2">
-                              <span className="text-3xl sm:text-4xl font-black bg-gradient-to-r from-amber-300 via-orange-400 to-red-400 bg-clip-text text-transparent">
-                                {formatCOP(plan.precio)}
-                              </span>
-                              {plan.isPopular && (
-                                <span className="text-lg text-gray-500 line-through">
-                                  {formatCOP(Math.round(plan.precio * 1.66))}
-                                </span>
-                              )}
+                            <span className="text-3xl sm:text-4xl font-black bg-gradient-to-r from-amber-300 via-orange-400 to-red-400 bg-clip-text text-transparent">
+  {plan.id === 'race-pass' ? '$5 USD' : '$50 USD'}
+</span>
+{plan.isPopular && (
+  <span className="text-lg text-gray-500 line-through">
+    $83 USD
+  </span>
+)}
                             </div>
                             <p className="text-gray-400 text-xs sm:text-sm mt-1">
                               {plan.periodo}
