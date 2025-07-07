@@ -17,7 +17,7 @@ const CURRENCY    = 'COP';
 
 const PLANS: Record<string, { price: number; name: string }> = {
   'race-pass'  : { price:  20_000, name: 'Race Pass'   },
-  'season-pass': { price: 200_000, name: 'Season Pass' }
+  'season-pass': { price: 80_000, name: 'Season Pass' }
 };
 
 export async function POST(req: NextRequest) {

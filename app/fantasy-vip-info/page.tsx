@@ -1,4 +1,4 @@
-// /app/fantasy-vip-info/page.tsx - ENHANCED PART 1: IMPORTS, CONFIGURATION & TYPES
+// /app/fantasy-vip-info/page.tsx - PART 1: IMPORTS, CONFIGURATION & TYPES
 'use client';
 
 import React, { useState, useEffect, useRef, Suspense } from 'react';
@@ -194,7 +194,7 @@ type GpSchedule = {
 };
 
 // ============================================================================
-// ENHANCED VIDEO PLAYER COMPONENT - PREMIUM UI
+// ENHANCED VIDEO PLAYER COMPONENT - PREMIUM UI (NO UNLOCK LOGIC)
 // ============================================================================
 function VideoPlayer({ onWatchProgress }: { onWatchProgress?: (percentage: number) => void }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -469,9 +469,7 @@ export default function FantasyVipLanding() {
   const [processingPlan, setProcessingPlan] = useState<string | null>(null);
   const [showSignModal, setShowSignModal] = useState(false);
   
-  // Video & tracking states
-  const [hasWatchedVideo, setHasWatchedVideo] = useState(false);
-  const [showUnlockButton, setShowUnlockButton] = useState(false);
+  // Video & tracking states (simplified - no unlock logic)
   const [watchPercentage, setWatchPercentage] = useState(0);
   const [videoEngagementTracked, setVideoEngagementTracked] = useState(new Set<number>());
   const [planViewsTracked, setPlanViewsTracked] = useState(new Set<string>());
@@ -489,15 +487,6 @@ export default function FantasyVipLanding() {
   // ============================================================================
   useEffect(() => {
     setIsMounted(true);
-    
-    // Check for existing unlock state only on client
-    if (typeof window !== 'undefined') {
-      const hasUnlocked = localStorage.getItem('vip_content_unlocked') === 'true';
-      if (hasUnlocked) {
-        setHasWatchedVideo(true);
-        setShowUnlockButton(false);
-      }
-    }
   }, []);
 
   // ============================================================================
@@ -658,7 +647,7 @@ export default function FantasyVipLanding() {
   // ENHANCED HANDLER FUNCTIONS
   // ============================================================================
 
-  // Enhanced Video Engagement Tracking
+  // Enhanced Video Engagement Tracking (simplified - no unlock logic)
   const handleWatchProgress = (percentage: number) => {
     if (!isMounted) return;
     
@@ -708,8 +697,8 @@ export default function FantasyVipLanding() {
     }
 
     // Lead Qualification at 20%
-    if (percentage >= 20 && !showUnlockButton && !hasWatchedVideo) {
-      setShowUnlockButton(true);
+    if (percentage >= 20 && !videoEngagementTracked.has(20)) {
+      setVideoEngagementTracked(prev => new Set([...prev, 20]));
 
       trackVipEvent('lead_qualification', {
         video_percentage: 20,
@@ -733,87 +722,7 @@ export default function FantasyVipLanding() {
         },
         event_id: leadEventId
       });
-
-      toast.success('🔓 ¡Video casi completo! Acceso disponible', {
-        duration: 3000,
-        position: 'bottom-center'
-      });
     }
-
-    // Content Unlock at 50%
-    if (percentage >= 50 && !hasWatchedVideo) {
-      setHasWatchedVideo(true);
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('vip_content_unlocked', 'true');
-        localStorage.setItem('vip_unlock_timestamp', Date.now().toString());
-      }
-
-      trackVipEvent('content_unlock', {
-        video_percentage: 50,
-        unlock_method: 'automatic_video_threshold',
-        user_intent_level: 'high'
-      });
-
-      const unlockEventId = generateEventId();
-      trackFBEvent('VIP_ContentUnlock_Auto', {
-        params: {
-          content_category: 'sales_page_access_enhanced',
-          content_name: 'VIP Sales Page Auto Unlocked at 50% Enhanced',
-          content_type: 'gated_content',
-          content_ids: ['vip_sales_access_enhanced'],
-          unlock_method: 'automatic_video_threshold',
-          unlock_trigger: 'video_50_percent',
-          video_percentage: 50,
-          user_intent_level: 'high',
-          value: 150,
-          currency: 'COP'
-        },
-        event_id: unlockEventId
-      });
-
-      toast.success('🎉 ¡Acceso desbloqueado! Descubre cómo convertir tu conocimiento en resultados', {
-        duration: 4000,
-        position: 'bottom-center'
-      });
-    }
-  };
-
-  // Enhanced Manual Unlock
-  const handleManualUnlock = () => {
-    setHasWatchedVideo(true);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('vip_content_unlocked', 'true');
-      localStorage.setItem('vip_unlock_timestamp', Date.now().toString());
-    }
-  
-    trackVipEvent('content_unlock', {
-      video_percentage: watchPercentage,
-      unlock_method: 'manual_button_click',
-      user_intent_level: 'very_high'
-    });
-  
-    const eventId = generateEventId();
-    trackFBEvent('VIP_ContentUnlock_Manual', {
-      params: {
-        content_category: 'sales_page_access_enhanced',
-        content_name: 'VIP Sales Page Manual Button Unlock Enhanced',
-        content_type: 'gated_content',
-        content_ids: ['vip_sales_access_enhanced'],
-        unlock_method: 'manual_button_click',
-        unlock_trigger: 'user_initiated',
-        video_percentage: watchPercentage,
-        user_intent_level: 'very_high',
-        engagement_quality: 'premium',
-        value: 180,
-        currency: 'COP'
-      },
-      event_id: eventId
-    });
-  
-    toast.success('🎉 ¡Acceso desbloqueado! Ahora puedes ver toda la propuesta VIP', {
-      duration: 4000,
-      position: 'bottom-center'
-    });
   };
 
   // Enhanced Plan View Tracking
@@ -1227,69 +1136,9 @@ export default function FantasyVipLanding() {
     };
   }, [gpSchedule.length, isMounted]);
 
-// ============================================================================
-  // FIXED UI COMPONENTS - NO PROBLEMATIC ANIMATIONS
   // ============================================================================
-
-  // Fixed Progress indicator component
-  const VideoProgressIndicator = () => (
-    <div className="mb-6 bg-gradient-to-br from-black/90 to-black/80 backdrop-blur-xl border border-amber-500/30 rounded-2xl p-6 max-w-md mx-auto shadow-2xl">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 bg-amber-400 rounded-full animate-pulse"></div>
-          <span className="text-amber-300 text-sm font-bold tracking-wide">PROGRESO DEL VIDEO</span>
-        </div>
-        <span className="text-amber-300 text-lg font-black bg-amber-400/10 px-3 py-1 rounded-full border border-amber-400/20">
-          {watchPercentage}%
-        </span>
-      </div>
-      
-      <div className="relative w-full bg-gray-800 rounded-full h-3 mb-4 overflow-hidden shadow-inner">
-        <div className="absolute inset-0 bg-gradient-to-r from-gray-700 to-gray-600 rounded-full"></div>
-        <div
-          className="absolute top-0 left-0 h-full bg-gradient-to-r from-amber-400 via-orange-500 to-red-500 rounded-full shadow-lg transition-all duration-500"
-          style={{ width: `${watchPercentage}%` }}
-        />
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent rounded-full"></div>
-      </div>
-      
-      <div className="text-center">
-        <p className="text-amber-300 text-sm font-medium leading-relaxed">
-          {watchPercentage < 20
-            ? `🎯 ${20 - watchPercentage}% más para descubrir el secreto que cambiará todo`
-            : watchPercentage < 50
-              ? '🔓 ¡Ya puedes acceder! Haz clic abajo o sigue viendo'
-              : '🎉 ¡Acceso completo desbloqueado! Ahora puedes ver toda la propuesta VIP'
-          }
-        </p>
-      </div>
-    </div>
-  );
-
-  // Fixed Unlock button component
-  const UnlockButton = () => {
-    if (!showUnlockButton) return null;
-
-    return (
-      <div className="mt-8 text-center">
-        <button
-          onClick={handleManualUnlock}
-          className="relative overflow-hidden bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 text-black font-black px-10 py-5 rounded-2xl text-lg shadow-2xl transition-all duration-300 hover:brightness-110 hover:scale-105 active:scale-95 group"
-        >
-          <div className="absolute inset-0 bg-gradient-to-r from-amber-400 via-orange-400 to-red-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-          <div className="relative flex items-center gap-3">
-            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M18,8A2,2 0 0,1 20,10V20A2,2 0 0,1 18,22H6A2,2 0 0,1 4,20V10A2,2 0 0,1 6,8H7V6A5,5 0 0,1 12,1A5,5 0 0,1 17,6V8H18M12,3A3,3 0 0,0 9,6V8H15V6A3,3 0 0,0 12,3Z"/>
-            </svg>
-            DESBLOQUEAR CONTENIDO VIP
-          </div>
-        </button>
-        <p className="text-gray-400 text-xs mt-3 font-medium">
-          O continúa viendo para desbloqueo automático al 50%
-        </p>
-      </div>
-    );
-  };
+  // FIXED UI COMPONENTS
+  // ============================================================================
 
   // Fixed ROI Section Component
   const ROISection = () => {
@@ -1355,7 +1204,7 @@ export default function FantasyVipLanding() {
               <ul className="space-y-3 text-amber-200 font-medium">
                 <li>Boletas 1 GP: $500-2,000</li>
                 <li>Viaje F1 completo: $20,000+</li>
-                <li className="text-xl font-bold text-amber-300 bg-amber-500/10 py-2 px-4 rounded-xl border border-amber-500/20">Tu Season Pass: $50</li>
+                <li className="text-xl font-bold text-amber-300 bg-amber-500/10 py-2 px-4 rounded-xl border border-amber-500/20">Tu Season Pass: $20</li>
               </ul>
             </div>
           </div>
@@ -1772,7 +1621,7 @@ const MemberSuccessSection = () => (
       <MovingBarFantasy />
   
       {/* Enhanced Urgency Banner */}
-      {hasWatchedVideo && (
+      {(
         <motion.div 
           initial={{ y: -100 }}
           animate={{ y: 0 }}
@@ -1844,18 +1693,13 @@ const MemberSuccessSection = () => (
                 <span className="text-green-400 font-bold">premios en efectivo</span>.
               </h2>
 
-              {/* Video Progress - Show only when video is locked */}
-              {!hasWatchedVideo && <VideoProgressIndicator />}
-
               {/* Video */}
               <div className="w-full max-w-lg mx-auto mb-8">
                 <VideoPlayer onWatchProgress={handleWatchProgress} />
               </div>
 
               {/* Show unlock button OR regular CTA */}
-              {!hasWatchedVideo ? (
-                <UnlockButton />
-              ) : (
+              {(
                 <div className="mb-8">
                   <StickyAccessCTA />
                 </div>
@@ -1890,7 +1734,7 @@ const MemberSuccessSection = () => (
               </div>
 
               {/* Countdown - Only show if unlocked */}
-              {hasWatchedVideo && currentGp && (
+              {currentGp && (
                 <div className="w-full max-w-sm mx-auto rounded-3xl border border-white/20 bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl shadow-2xl px-6 py-4 flex flex-col gap-2">
                   <div className="flex items-center justify-center gap-3">
                     <div className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
@@ -1929,7 +1773,7 @@ const MemberSuccessSection = () => (
           </section>
   
           {/* REST OF CONTENT - Only show if video has been watched */}
-          {hasWatchedVideo && (
+          {(
             <div>
               {/* Enhanced Sections */}
               <ROISection />
@@ -2059,7 +1903,7 @@ const MemberSuccessSection = () => (
                       <div
                         key={plan.id}
                         ref={(el) => {
-                          if (el && hasWatchedVideo) {
+                          if (el) {
                             const observer = new IntersectionObserver(
                               ([entry]) => {
                                 if (entry.isIntersecting) {
@@ -2078,7 +1922,6 @@ const MemberSuccessSection = () => (
                             : 'from-neutral-900/60 to-neutral-800/60 border border-neutral-700/60 shadow-xl'
                         }`}
                         onMouseEnter={() => {
-                          if (hasWatchedVideo) {
                             trackFBEvent('VIP_PlanHover', {
                               params: {
                                 content_type: 'product',
@@ -2089,7 +1932,6 @@ const MemberSuccessSection = () => (
                                 action: 'plan_hover'
                               }
                             });
-                          }
                         }}
                       >
                         {plan.isPopular && (
@@ -2327,7 +2169,7 @@ const MemberSuccessSection = () => (
       </div>
   
       {/* Enhanced Telegram Support Button */}
-      {hasWatchedVideo && (
+      {(
         <motion.a
           href="https://t.me/+573009290499"
           target="_blank"
@@ -2558,4 +2400,3 @@ function PredictionsTeaser() {
     </section>
   );
 }
-
