@@ -520,8 +520,8 @@ export default function FantasyVipLanding() {
     {
       id: 'season-pass',
       nombre: 'Season Pass',
-      precio: 200_000,
-      precioUSD: 50,
+      precio: 80_000,
+      precioUSD: 20,
       periodo: 'temporada completa',
       beneficios: [
         'Acceso VIP a todos los 24 GPs de 2025',
@@ -1329,7 +1329,7 @@ export default function FantasyVipLanding() {
                 <span className="text-3xl">💰</span>
               </div>
               <h3 className="text-2xl font-bold text-blue-300 mb-4">Tu Inversión</h3>
-              <div className="text-5xl font-black text-white mb-3">$50 USD</div>
+              <div className="text-5xl font-black text-white mb-3">$20 USD</div>
               <p className="text-blue-200 font-medium">Temporada completa</p>
             </div>
 
