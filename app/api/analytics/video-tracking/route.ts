@@ -1,6 +1,6 @@
 // ============================================================================
-// FILE 1: /app/api/analytics/video-tracking/route.ts
-// FIXED - Proper TypeScript Types
+// FILE 2: /app/api/analytics/video-tracking/route.ts
+// ALIGNED with Enhanced VSL Player Events
 // ============================================================================
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -300,10 +300,17 @@ export async function POST(req: NextRequest) {
         };
         break;
 
+      // Handle all other VIP events from your enhanced player
+      case 'VIP_VideoResume':
+      case 'VIP_VideoPause':
+      case 'VIP_StickyButton_Shown':
+      case 'VIP_DeepScroll':
+      case 'VIP_ROI_Section_View':
+      case 'VIP_PaymentModal_Open':
       default:
         // Handle custom events
         analyticsData = {
-          event_type: eventType.toLowerCase(),
+          event_type: eventType.toLowerCase().replace('vip_', ''),
           video_percentage: (eventData.video_percentage as number) || 0,
           event_data: eventData
         };

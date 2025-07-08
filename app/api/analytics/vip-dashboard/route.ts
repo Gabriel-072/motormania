@@ -1,6 +1,6 @@
 // ============================================================================
-// FILE 2: /app/api/analytics/vip-dashboard/route.ts  
-// FIXED - Proper TypeScript Types
+// /app/api/analytics/vip-dashboard/route.ts  
+// FINAL FIXED VERSION - TypeScript Safe
 // ============================================================================
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -106,12 +106,35 @@ interface Insights {
   fullscreenEngagementImpact: boolean;
 }
 
+// Type guard to check if data is a valid object
+function isValidDashboardData(data: unknown): data is Record<string, any> {
+  return data !== null && typeof data === 'object' && !Array.isArray(data);
+}
+
+// Safe property getter with type checking
+function safeGet(obj: unknown, key: string, defaultValue: any = null): any {
+  if (isValidDashboardData(obj) && key in obj) {
+    return obj[key];
+  }
+  return defaultValue;
+}
+
+// Safe array getter
+function safeGetArray(obj: unknown, key: string, defaultValue: any[] = []): any[] {
+  const value = safeGet(obj, key, defaultValue);
+  return Array.isArray(value) ? value : defaultValue;
+}
+
+// Safe number conversion
+function safeNumber(value: unknown, defaultValue: number = 0): number {
+  const num = Number(value);
+  return isNaN(num) ? defaultValue : num;
+}
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const days = parseInt(searchParams.get('days') || '7');
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - days);
 
     // Use the Supabase function we created
     const { data, error } = await supabase
@@ -125,10 +148,8 @@ export async function GET(req: NextRequest) {
       }, { status: 500 });
     }
 
-    // Type assertion with proper checking
-    const dashboardData = data as Record<string, any>;
-    
-    if (!dashboardData) {
+    // If no data or invalid data, return default structure
+    if (!isValidDashboardData(data)) {
       return NextResponse.json({
         totalSessions: 0,
         funnel: [],
@@ -184,23 +205,29 @@ export async function GET(req: NextRequest) {
       });
     }
 
+    // Now TypeScript knows data is a valid object
+    const dashboardData = data as Record<string, any>;
+
     // Safely extract data with proper type checking
-    const totalSessions = Number(dashboardData.totalSessions) || 0;
-    const funnel = Array.isArray(dashboardData.funnel) ? dashboardData.funnel : [];
-    const dailyStats = Array.isArray(dashboardData.dailyStats) ? dashboardData.dailyStats : [];
-    const vipConversions = dashboardData.vipConversions || {};
-    const eventStats = dashboardData.eventStats || {};
-    const dropoffPoints = Array.isArray(dashboardData.dropoffPoints) ? dashboardData.dropoffPoints : [];
+    const totalSessions = safeNumber(safeGet(dashboardData, 'totalSessions'), 0);
+    const funnel = safeGetArray(dashboardData, 'funnel', []);
+    const dailyStats = safeGetArray(dashboardData, 'dailyStats', []);
+    const vipConversions = safeGet(dashboardData, 'vipConversions', {});
+    const vipStatsData = safeGet(dashboardData, 'vipStats', {});
+    const eventStatsData = safeGet(dashboardData, 'eventStats', {});
+    const funnelInsightsData = safeGet(dashboardData, 'funnelInsights', {});
+    const insightsData = safeGet(dashboardData, 'insights', {});
+    const dropoffPoints = safeGetArray(dashboardData, 'dropoffPoints', []);
 
     // Calculate daily stats with proper typing
-    const dailyStatsArray = dailyStats.map((item: any) => ({
-      date: String(item.date || ''),
-      sessions: Number(item.sessions) || 0,
-      users: Number(item.users) || 0,
-      events: Number(item.events) || 0,
-      videoStarts: Number(item.videoStarts) || 0,
-      completions: Number(item.completions) || 0,
-      avgEventsPerSession: Number(item.avgEventsPerSession) || 0
+    const dailyStatsArray: DailyStats[] = dailyStats.map((item: any) => ({
+      date: String(safeGet(item, 'date', '')),
+      sessions: safeNumber(safeGet(item, 'sessions'), 0),
+      users: safeNumber(safeGet(item, 'users'), 0),
+      events: safeNumber(safeGet(item, 'events'), 0),
+      videoStarts: safeNumber(safeGet(item, 'videoStarts'), 0),
+      completions: safeNumber(safeGet(item, 'completions'), 0),
+      avgEventsPerSession: safeNumber(safeGet(item, 'avgEventsPerSession'), 0)
     }));
 
     // Find best performing day with null safety
@@ -212,11 +239,11 @@ export async function GET(req: NextRequest) {
     // Find worst dropoff point with null safety
     const worstDropoffPoint = dropoffPoints.length > 0 
       ? dropoffPoints.reduce((worst: DropoffPoint | null, point: any) => {
-          const typedPoint = {
-            from: Number(point.from) || 0,
-            to: Number(point.to) || 0,
-            dropoff: Number(point.dropoff) || 0,
-            dropoffRate: Number(point.dropoffRate) || 0
+          const typedPoint: DropoffPoint = {
+            from: safeNumber(safeGet(point, 'from'), 0),
+            to: safeNumber(safeGet(point, 'to'), 0),
+            dropoff: safeNumber(safeGet(point, 'dropoff'), 0),
+            dropoffRate: safeNumber(safeGet(point, 'dropoffRate'), 0)
           };
           return !worst || typedPoint.dropoffRate > worst.dropoffRate ? typedPoint : worst;
         }, null)
@@ -225,66 +252,66 @@ export async function GET(req: NextRequest) {
     const response: DashboardData = {
       totalSessions,
       funnel: funnel.map((f: any) => ({
-        percentage: Number(f.percentage) || 0,
-        sessions: Number(f.sessions) || 0,
-        conversionRate: Number(f.conversionRate) || 0
+        percentage: safeNumber(safeGet(f, 'percentage'), 0),
+        sessions: safeNumber(safeGet(f, 'sessions'), 0),
+        conversionRate: safeNumber(safeGet(f, 'conversionRate'), 0)
       })),
       dailyStats: dailyStatsArray,
       dropoffPoints: dropoffPoints.map((d: any) => ({
-        from: Number(d.from) || 0,
-        to: Number(d.to) || 0,
-        dropoff: Number(d.dropoff) || 0,
-        dropoffRate: Number(d.dropoffRate) || 0
+        from: safeNumber(safeGet(d, 'from'), 0),
+        to: safeNumber(safeGet(d, 'to'), 0),
+        dropoff: safeNumber(safeGet(d, 'dropoff'), 0),
+        dropoffRate: safeNumber(safeGet(d, 'dropoffRate'), 0)
       })),
       vipConversions: {
-        totalPurchases: Number(vipConversions.totalPurchases) || 0,
-        conversionRate: Number(vipConversions.conversionRate) || 0,
-        revenue: Number(vipConversions.revenue) || 0,
-        seasonPassPurchases: Number(vipConversions.seasonPassPurchases) || 0,
-        racePassPurchases: Number(vipConversions.racePassPurchases) || 0,
-        averageOrderValue: Number(vipConversions.averageOrderValue) || 0
+        totalPurchases: safeNumber(safeGet(vipConversions, 'totalPurchases'), 0),
+        conversionRate: safeNumber(safeGet(vipConversions, 'conversionRate'), 0),
+        revenue: safeNumber(safeGet(vipConversions, 'revenue'), 0),
+        seasonPassPurchases: safeNumber(safeGet(vipConversions, 'seasonPassPurchases'), 0),
+        racePassPurchases: safeNumber(safeGet(vipConversions, 'racePassPurchases'), 0),
+        averageOrderValue: safeNumber(safeGet(vipConversions, 'averageOrderValue'), 0)
       },
       vipStats: {
-        totalVipUsers: Number(dashboardData.vipStats?.totalVipUsers) || 0,
-        activeSeasonPass: Number(dashboardData.vipStats?.activeSeasonPass) || 0,
-        activeRacePass: Number(dashboardData.vipStats?.activeRacePass) || 0,
-        newVipUsers: Number(dashboardData.vipStats?.newVipUsers) || 0
+        totalVipUsers: safeNumber(safeGet(vipStatsData, 'totalVipUsers'), 0),
+        activeSeasonPass: safeNumber(safeGet(vipStatsData, 'activeSeasonPass'), 0),
+        activeRacePass: safeNumber(safeGet(vipStatsData, 'activeRacePass'), 0),
+        newVipUsers: safeNumber(safeGet(vipStatsData, 'newVipUsers'), 0)
       },
       eventStats: {
-        videoLoads: Number(eventStats.videoLoads) || 0,
-        videoStarts: Number(eventStats.videoStarts) || 0,
-        leadQualifications: Number(eventStats.leadQualifications) || 0,
-        contentUnlocks: Number(eventStats.contentUnlocks) || 0,
-        videoCompletions: Number(eventStats.videoCompletions) || 0,
-        accederClicks: Number(eventStats.accederClicks) || 0,
-        stickyButtonClicks: Number(eventStats.stickyButtonClicks) || 0,
-        planViews: Number(eventStats.planViews) || 0,
-        planHovers: Number(eventStats.planHovers) || 0,
-        audioEngagements: Number(eventStats.audioEngagements) || 0,
-        fullscreenEngagements: Number(eventStats.fullscreenEngagements) || 0
+        videoLoads: safeNumber(safeGet(eventStatsData, 'videoLoads'), 0),
+        videoStarts: safeNumber(safeGet(eventStatsData, 'videoStarts'), 0),
+        leadQualifications: safeNumber(safeGet(eventStatsData, 'leadQualifications'), 0),
+        contentUnlocks: safeNumber(safeGet(eventStatsData, 'contentUnlocks'), 0),
+        videoCompletions: safeNumber(safeGet(eventStatsData, 'videoCompletions'), 0),
+        accederClicks: safeNumber(safeGet(eventStatsData, 'accederClicks'), 0),
+        stickyButtonClicks: safeNumber(safeGet(eventStatsData, 'stickyButtonClicks'), 0),
+        planViews: safeNumber(safeGet(eventStatsData, 'planViews'), 0),
+        planHovers: safeNumber(safeGet(eventStatsData, 'planHovers'), 0),
+        audioEngagements: safeNumber(safeGet(eventStatsData, 'audioEngagements'), 0),
+        fullscreenEngagements: safeNumber(safeGet(eventStatsData, 'fullscreenEngagements'), 0)
       },
       funnelInsights: {
-        loadToStart: Number(dashboardData.funnelInsights?.loadToStart) || 0,
-        startToQuarter: Number(dashboardData.funnelInsights?.startToQuarter) || 0,
-        quarterToHalf: Number(dashboardData.funnelInsights?.quarterToHalf) || 0,
-        halfToComplete: Number(dashboardData.funnelInsights?.halfToComplete) || 0,
-        leadConversionRate: Number(dashboardData.funnelInsights?.leadConversionRate) || 0,
-        unlockConversionRate: Number(dashboardData.funnelInsights?.unlockConversionRate) || 0,
-        completionRate: Number(dashboardData.funnelInsights?.completionRate) || 0,
-        audioEngagementRate: Number(dashboardData.funnelInsights?.audioEngagementRate) || 0,
-        fullscreenEngagementRate: Number(dashboardData.funnelInsights?.fullscreenEngagementRate) || 0
+        loadToStart: safeNumber(safeGet(funnelInsightsData, 'loadToStart'), 0),
+        startToQuarter: safeNumber(safeGet(funnelInsightsData, 'startToQuarter'), 0),
+        quarterToHalf: safeNumber(safeGet(funnelInsightsData, 'quarterToHalf'), 0),
+        halfToComplete: safeNumber(safeGet(funnelInsightsData, 'halfToComplete'), 0),
+        leadConversionRate: safeNumber(safeGet(funnelInsightsData, 'leadConversionRate'), 0),
+        unlockConversionRate: safeNumber(safeGet(funnelInsightsData, 'unlockConversionRate'), 0),
+        completionRate: safeNumber(safeGet(funnelInsightsData, 'completionRate'), 0),
+        audioEngagementRate: safeNumber(safeGet(funnelInsightsData, 'audioEngagementRate'), 0),
+        fullscreenEngagementRate: safeNumber(safeGet(funnelInsightsData, 'fullscreenEngagementRate'), 0)
       },
-      revenuePerSession: Number(dashboardData.revenuePerSession) || 0,
-      revenuePerUser: Number(dashboardData.revenuePerUser) || 0,
+      revenuePerSession: safeNumber(safeGet(dashboardData, 'revenuePerSession'), 0),
+      revenuePerUser: safeNumber(safeGet(dashboardData, 'revenuePerUser'), 0),
       insights: {
         bestPerformingDay: topPerformingDay ? {
           date: topPerformingDay.date,
           sessions: topPerformingDay.sessions
         } : null,
         worstDropoffPoint,
-        averageSessionLength: Number(dashboardData.insights?.averageSessionLength) || 0,
-        audioEngagementImpact: Boolean(dashboardData.insights?.audioEngagementImpact),
-        fullscreenEngagementImpact: Boolean(dashboardData.insights?.fullscreenEngagementImpact)
+        averageSessionLength: safeNumber(safeGet(insightsData, 'averageSessionLength'), 0),
+        audioEngagementImpact: Boolean(safeGet(insightsData, 'audioEngagementImpact', false)),
+        fullscreenEngagementImpact: Boolean(safeGet(insightsData, 'fullscreenEngagementImpact', false))
       }
     };
 

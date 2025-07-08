@@ -16,7 +16,6 @@ import {
   Filler,
 } from 'chart.js';
 
-// Register Chart.js components
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -50,6 +49,7 @@ interface ChartData {
   }>;
 }
 
+// ALIGNED with your enhanced VSL tracking
 interface EnhancedAnalyticsData {
   totalSessions: number;
   funnel: Array<{
@@ -61,8 +61,10 @@ interface EnhancedAnalyticsData {
     date: string;
     sessions: number;
     users: number;
-    views: number;
-    avgViewsPerSession: number;
+    events: number;
+    videoStarts: number;
+    completions: number;
+    avgEventsPerSession: number;
   }>;
   dropoffPoints: Array<{
     from: number;
@@ -84,26 +86,33 @@ interface EnhancedAnalyticsData {
     activeRacePass: number;
     newVipUsers: number;
   };
+  // ALIGNED event stats with your tracking
   eventStats: {
-    contentUnlocks: number;
+    videoLoads: number;
+    videoStarts: number;
     leadQualifications: number;
+    contentUnlocks: number;
+    videoCompletions: number;
+    accederClicks: number;
+    stickyButtonClicks: number;
     planViews: number;
-    checkoutInitiations: number;
+    planHovers: number;
+    audioEngagements: number;
+    fullscreenEngagements: number;
   };
   funnelInsights: {
+    loadToStart: number;
+    startToQuarter: number;
+    quarterToHalf: number;
+    halfToComplete: number;
     leadConversionRate: number;
     unlockConversionRate: number;
     completionRate: number;
-    startToLead: number;
-    leadToUnlock: number;
-    unlockToComplete: number;
+    audioEngagementRate: number;
+    fullscreenEngagementRate: number;
   };
   revenuePerSession: number;
   revenuePerUser: number;
-  topDays: Array<{
-    date: string;
-    sessions: number;
-  }>;
   insights: {
     bestPerformingDay: {
       date: string;
@@ -115,6 +124,8 @@ interface EnhancedAnalyticsData {
       dropoffRate: number;
     } | null;
     averageSessionLength: number;
+    audioEngagementImpact: boolean;
+    fullscreenEngagementImpact: boolean;
   };
 }
 
@@ -421,7 +432,6 @@ const fetchWithRetry = async (url: string, retries = 3): Promise<Response> => {
         headers: {
           'Content-Type': 'application/json',
         },
-        // Add cache control for real-time data
         cache: 'no-store'
       });
       if (response.ok) return response;
@@ -454,6 +464,7 @@ export default function VideoAnalyticsDashboard() {
     setError(null);
     
     try {
+      // ALIGNED with your new endpoint
       const response = await fetchWithRetry(`/api/analytics/vip-dashboard?days=${days}`);
       const result = await response.json();
       
@@ -498,7 +509,7 @@ export default function VideoAnalyticsDashboard() {
     return {
       labels: data.funnel.map(f => `${f.percentage}%`),
       datasets: [{
-        label: 'Active Users',
+        label: 'Usuarios Activos',
         data: data.funnel.map(f => f.sessions),
         backgroundColor: 'rgba(168, 85, 247, 0.1)',
         borderColor: '#a855f7',
@@ -519,7 +530,7 @@ export default function VideoAnalyticsDashboard() {
     return {
       labels: data.funnel.map(f => `${f.percentage}%`),
       datasets: [{
-        label: 'Conversion Rate (%)',
+        label: 'Tasa de Conversión (%)',
         data: data.funnel.map(f => f.conversionRate),
         backgroundColor: data.funnel.map((_, index) => {
           const colors = [
@@ -547,7 +558,7 @@ export default function VideoAnalyticsDashboard() {
       }),
       datasets: [
         {
-          label: 'Sessions',
+          label: 'Sesiones',
           data: data.dailyStats.map(d => d.sessions),
           backgroundColor: 'rgba(168, 85, 247, 0.1)',
           borderColor: '#a855f7',
@@ -560,7 +571,7 @@ export default function VideoAnalyticsDashboard() {
           pointRadius: 5,
         },
         {
-          label: 'Users',
+          label: 'Usuarios',
           data: data.dailyStats.map(d => d.users),
           backgroundColor: 'rgba(34, 197, 94, 0.1)',
           borderColor: '#22c55e',
@@ -622,9 +633,9 @@ export default function VideoAnalyticsDashboard() {
           </div>
           <div className="space-y-2">
             <p className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
-              Loading Analytics
+              Cargando Analytics VIP
             </p>
-            <p className="text-white/60">Processing {days} days of data</p>
+            <p className="text-white/60">Procesando {days} días de datos de video</p>
             <div className="flex items-center justify-center space-x-1">
               <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce"></div>
               <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
@@ -642,14 +653,14 @@ export default function VideoAnalyticsDashboard() {
         <div className="text-center space-y-6 max-w-md mx-auto p-6">
           <div className="text-8xl animate-bounce">⚠️</div>
           <div className="space-y-2">
-            <p className="text-2xl font-bold text-red-400">System Error</p>
-            <p className="text-white/60">{error || 'Could not load analytics data'}</p>
+            <p className="text-2xl font-bold text-red-400">Error del Sistema</p>
+            <p className="text-white/60">{error || 'No se pudieron cargar los datos de analytics'}</p>
           </div>
           <button 
             onClick={() => fetchAnalytics()}
             className="px-8 py-4 bg-gradient-to-r from-red-500 to-orange-500 text-white rounded-2xl font-semibold hover:from-red-600 hover:to-orange-600 transform hover:scale-105 transition-all duration-300 shadow-2xl shadow-red-500/25"
           >
-            🔄 Retry Loading
+            🔄 Reintentar Carga
           </button>
         </div>
       </div>
@@ -669,23 +680,23 @@ export default function VideoAnalyticsDashboard() {
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-6 lg:space-y-0">
               <div className="space-y-3">
                 <h1 className="text-4xl lg:text-5xl font-black bg-gradient-to-r from-purple-400 via-blue-400 to-emerald-400 bg-clip-text text-transparent">
-                  VIP Analytics Command Center
+                  Centro de Comando VIP Analytics
                 </h1>
                 <p className="text-xl text-white/70 font-light">
-                  Real-time engagement intelligence & conversion analytics
+                  Inteligencia en tiempo real de engagement y analytics de conversión
                 </p>
                 <div className="flex flex-wrap items-center gap-6 text-sm">
                   <div className="flex items-center gap-2 bg-white/5 px-3 py-1 rounded-full border border-white/10">
                     <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
-                    <span className="text-white/80">{data.totalSessions.toLocaleString()} sessions</span>
+                    <span className="text-white/80">{data.totalSessions.toLocaleString()} sesiones VSL</span>
                   </div>
                   <div className="flex items-center gap-2 bg-white/5 px-3 py-1 rounded-full border border-white/10">
                     <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse"></div>
-                    <span className="text-white/80">{data.vipConversions.totalPurchases} VIP conversions</span>
+                    <span className="text-white/80">{data.vipConversions.totalPurchases} conversiones VIP</span>
                   </div>
                   <div className="flex items-center gap-2 bg-white/5 px-3 py-1 rounded-full border border-white/10">
                     <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div>
-                    <span className="text-white/80">{formatCurrency(data.vipConversions.revenue)} revenue</span>
+                    <span className="text-white/80">{formatCurrency(data.vipConversions.revenue)} ingresos</span>
                   </div>
                 </div>
               </div>
@@ -696,10 +707,10 @@ export default function VideoAnalyticsDashboard() {
                   onChange={(e) => setDays(Number(e.target.value))}
                   className="bg-white/5 border border-white/20 text-white px-6 py-3 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all backdrop-blur-sm hover:bg-white/10"
                 >
-                  <option value={1}>Last 24 hours</option>
-                  <option value={7}>Last 7 days</option>
-                  <option value={30}>Last 30 days</option>
-                  <option value={90}>Last 90 days</option>
+                  <option value={1}>Últimas 24 horas</option>
+                  <option value={7}>Últimos 7 días</option>
+                  <option value={30}>Últimos 30 días</option>
+                  <option value={90}>Últimos 90 días</option>
                 </select>
                 <button
                   onClick={() => fetchAnalytics(true)}
@@ -707,7 +718,7 @@ export default function VideoAnalyticsDashboard() {
                   className="bg-gradient-to-r from-purple-500 to-blue-500 text-white px-6 py-3 rounded-xl font-semibold hover:from-purple-600 hover:to-blue-600 transform hover:scale-105 transition-all duration-300 shadow-lg shadow-purple-500/25 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <span className={refreshing ? "animate-spin" : ""}>🔄</span>
-                  {refreshing ? 'Refreshing...' : 'Refresh'}
+                  {refreshing ? 'Actualizando...' : 'Actualizar'}
                 </button>
               </div>
             </div>
@@ -715,39 +726,39 @@ export default function VideoAnalyticsDashboard() {
         </div>
 
         <div className="relative max-w-7xl mx-auto px-6 py-8 space-y-8">
-          {/* Metric Cards */}
+          {/* ALIGNED Video Engagement Metrics */}
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
             <MetricCard 
-              title="Total Sessions"
+              title="Sesiones VSL"
               value={data.totalSessions}
-              subtitle={`Last ${days} days`}
-              icon="📊"
+              subtitle={`Últimos ${days} días`}
+              icon="📹"
               gradient="from-blue-600 to-blue-800"
               trend={12.5}
               animate={mounted}
             />
             <MetricCard 
-              title="Lead Qualification"
+              title="Calificación de Leads"
               value={`${data.funnelInsights.leadConversionRate.toFixed(1)}%`}
-              subtitle="20% video milestone"
+              subtitle="Milestone 20% del video"
               icon="🎯"
               gradient="from-amber-600 to-amber-800"
               trend={8.3}
               animate={mounted}
             />
             <MetricCard 
-              title="Content Unlock"
+              title="Engagement Alto"
               value={`${data.funnelInsights.unlockConversionRate.toFixed(1)}%`}
-              subtitle="50% video milestone"
-              icon="🔓"
+              subtitle="Milestone 50% del video"
+              icon="🔥"
               gradient="from-emerald-600 to-emerald-800"
               trend={-2.1}
               animate={mounted}
             />
             <MetricCard 
-              title="Completion Rate"
+              title="Video Completado"
               value={`${data.funnelInsights.completionRate.toFixed(1)}%`}
-              subtitle="Full video watched"
+              subtitle="Video visto completo"
               icon="✅"
               gradient="from-purple-600 to-purple-800"
               trend={5.7}
@@ -755,39 +766,39 @@ export default function VideoAnalyticsDashboard() {
             />
           </div>
 
-          {/* Revenue Metrics */}
+          {/* ALIGNED Revenue Metrics */}
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
             <MetricCard 
-              title="VIP Conversion"
+              title="Conversión VIP"
               value={`${data.vipConversions.conversionRate.toFixed(2)}%`}
-              subtitle={`${data.vipConversions.totalPurchases} purchases`}
+              subtitle={`${data.vipConversions.totalPurchases} compras`}
               icon="💎"
               gradient="from-emerald-600 to-teal-800"
               trend={15.2}
               animate={mounted}
             />
             <MetricCard 
-              title="Total Revenue"
+              title="Ingresos Totales"
               value={formatCurrency(data.vipConversions.revenue)}
-              subtitle={`Last ${days} days`}
+              subtitle={`Últimos ${days} días`}
               icon="💰"
               gradient="from-pink-600 to-rose-800"
               trend={22.8}
               animate={mounted}
             />
             <MetricCard 
-              title="Revenue/Session"
+              title="Ingreso/Sesión"
               value={formatCurrency(data.revenuePerSession)}
-              subtitle="Average value"
+              subtitle="Valor promedio"
               icon="📈"
               gradient="from-indigo-600 to-purple-800"
               trend={-3.4}
               animate={mounted}
             />
             <MetricCard 
-              title="Average Order"
+              title="Ticket Promedio"
               value={formatCurrency(data.vipConversions.averageOrderValue)}
-              subtitle="AOV per purchase"
+              subtitle="AOV por compra"
               icon="🎪"
               gradient="from-orange-600 to-red-800"
               trend={7.9}
@@ -795,23 +806,23 @@ export default function VideoAnalyticsDashboard() {
             />
           </div>
 
-          {/* Charts Row 1 */}
+          {/* ALIGNED Charts Row 1 */}
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-            <ChartContainer title="🎯 User Retention Funnel" subtitle="Progressive engagement milestones">
+            <ChartContainer title="🎯 Funnel de Retención VSL" subtitle="Milestones progresivos de engagement">
               <FunnelChart data={funnelChart} options={chartOptions} />
               <div className="mt-6 grid grid-cols-2 gap-4">
                 <div className="bg-gradient-to-r from-amber-500/10 to-amber-500/5 p-4 rounded-xl border border-amber-500/20">
-                  <p className="text-amber-400 font-bold text-sm">20% Threshold</p>
-                  <p className="text-white/80 text-xs">Lead qualification</p>
+                  <p className="text-amber-400 font-bold text-sm">Milestone 20%</p>
+                  <p className="text-white/80 text-xs">Calificación de leads</p>
                 </div>
                 <div className="bg-gradient-to-r from-emerald-500/10 to-emerald-500/5 p-4 rounded-xl border border-emerald-500/20">
-                  <p className="text-emerald-400 font-bold text-sm">50% Threshold</p>
-                  <p className="text-white/80 text-xs">Content unlock</p>
+                  <p className="text-emerald-400 font-bold text-sm">Milestone 50%</p>
+                  <p className="text-white/80 text-xs">Engagement alto</p>
                 </div>
               </div>
             </ChartContainer>
             
-            <ChartContainer title="📊 Conversion Performance" subtitle="Stage-by-stage conversion rates">
+            <ChartContainer title="📊 Performance de Conversión" subtitle="Tasas de conversión por etapa">
               <ConversionChart data={conversionChart} options={chartOptions} />
             </ChartContainer>
           </div>
@@ -819,12 +830,12 @@ export default function VideoAnalyticsDashboard() {
           {/* Charts Row 2 */}
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
             <div className="xl:col-span-2">
-              <ChartContainer title="📅 Daily Performance Trends" subtitle="Sessions and users over time">
+              <ChartContainer title="📅 Tendencias de Performance Diaria" subtitle="Sesiones y usuarios en el tiempo">
                 <DailyChart data={dailyChart} options={chartOptions} />
               </ChartContainer>
             </div>
             
-            <ChartContainer title="🎯 VIP Plan Distribution" subtitle="Purchase preferences">
+            <ChartContainer title="🎯 Distribución de Planes VIP" subtitle="Preferencias de compra">
               <div className="h-64 flex items-center justify-center">
                 <Doughnut 
                   data={planDistributionChart} 
@@ -859,35 +870,69 @@ export default function VideoAnalyticsDashboard() {
             </ChartContainer>
           </div>
 
-          {/* Event Statistics */}
-          <ChartContainer title="🚀 VIP Event Statistics" subtitle="Key engagement milestones" fullWidth>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          {/* ALIGNED Event Statistics - Your Enhanced VSL Events */}
+          <ChartContainer title="🚀 Estadísticas de Eventos VIP" subtitle="Milestones clave de engagement" fullWidth>
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
+              <div className="text-center group hover:scale-105 transition-transform duration-300">
+                <div className="text-4xl font-black text-blue-400 mb-2">{data.eventStats.videoLoads}</div>
+                <p className="text-white/80 font-medium">Video Loads</p>
+                <p className="text-blue-300/60 text-xs">Página visitada</p>
+              </div>
+              <div className="text-center group hover:scale-105 transition-transform duration-300">
+                <div className="text-4xl font-black text-green-400 mb-2">{data.eventStats.videoStarts}</div>
+                <p className="text-white/80 font-medium">Video Starts</p>
+                <p className="text-green-300/60 text-xs">Primer play</p>
+              </div>
               <div className="text-center group hover:scale-105 transition-transform duration-300">
                 <div className="text-4xl font-black text-amber-400 mb-2">{data.eventStats.leadQualifications}</div>
-                <p className="text-white/80 font-medium">Qualified Leads</p>
+                <p className="text-white/80 font-medium">Leads Calificados</p>
                 <p className="text-amber-300/60 text-xs">20% milestone</p>
               </div>
               <div className="text-center group hover:scale-105 transition-transform duration-300">
-                <div className="text-4xl font-black text-emerald-400 mb-2">{data.eventStats.contentUnlocks}</div>
-                <p className="text-white/80 font-medium">Content Unlocked</p>
-                <p className="text-emerald-300/60 text-xs">50% milestone</p>
+                <div className="text-4xl font-black text-purple-400 mb-2">{data.eventStats.accederClicks}</div>
+                <p className="text-white/80 font-medium">Clicks ACCEDER</p>
+                <p className="text-purple-300/60 text-xs">CTA principal</p>
               </div>
               <div className="text-center group hover:scale-105 transition-transform duration-300">
-                <div className="text-4xl font-black text-blue-400 mb-2">{data.eventStats.planViews}</div>
+                <div className="text-4xl font-black text-pink-400 mb-2">{data.eventStats.stickyButtonClicks}</div>
+                <p className="text-white/80 font-medium">Sticky Button</p>
+                <p className="text-pink-300/60 text-xs">CTA persistente</p>
+              </div>
+              <div className="text-center group hover:scale-105 transition-transform duration-300">
+                <div className="text-4xl font-black text-cyan-400 mb-2">{data.eventStats.planViews}</div>
                 <p className="text-white/80 font-medium">Plan Views</p>
-                <p className="text-blue-300/60 text-xs">Plan interest</p>
+                <p className="text-cyan-300/60 text-xs">Interés en planes</p>
+              </div>
+            </div>
+            
+            {/* Additional Enhanced Events Row */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-8 pt-8 border-t border-white/10">
+              <div className="text-center group hover:scale-105 transition-transform duration-300">
+                <div className="text-4xl font-black text-orange-400 mb-2">{data.eventStats.audioEngagements}</div>
+                <p className="text-white/80 font-medium">Audio ON</p>
+                <p className="text-orange-300/60 text-xs">Unmute events</p>
               </div>
               <div className="text-center group hover:scale-105 transition-transform duration-300">
-                <div className="text-4xl font-black text-purple-400 mb-2">{data.eventStats.checkoutInitiations}</div>
-                <p className="text-white/80 font-medium">Checkouts Started</p>
-                <p className="text-purple-300/60 text-xs">Purchase intent</p>
+                <div className="text-4xl font-black text-indigo-400 mb-2">{data.eventStats.fullscreenEngagements}</div>
+                <p className="text-white/80 font-medium">Fullscreen</p>
+                <p className="text-indigo-300/60 text-xs">Immersión total</p>
+              </div>
+              <div className="text-center group hover:scale-105 transition-transform duration-300">
+                <div className="text-4xl font-black text-teal-400 mb-2">{data.eventStats.planHovers}</div>
+                <p className="text-white/80 font-medium">Plan Hovers</p>
+                <p className="text-teal-300/60 text-xs">Micro-engagement</p>
+              </div>
+              <div className="text-center group hover:scale-105 transition-transform duration-300">
+                <div className="text-4xl font-black text-rose-400 mb-2">{data.eventStats.videoCompletions}</div>
+                <p className="text-white/80 font-medium">Completions</p>
+                <p className="text-rose-300/60 text-xs">100% visto</p>
               </div>
             </div>
           </ChartContainer>
 
           {/* Analysis Row */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <ChartContainer title="⚠️ Critical Drop-off Analysis" subtitle="Optimization opportunities">
+            <ChartContainer title="⚠️ Análisis Crítico de Drop-off" subtitle="Oportunidades de optimización">
               {data.dropoffPoints && data.dropoffPoints.length > 0 ? (
                 <div className="space-y-4">
                   {data.dropoffPoints
@@ -908,7 +953,7 @@ export default function VideoAnalyticsDashboard() {
                             {point.from}% → {point.to}%
                           </p>
                           <p className="text-white/60 text-sm">
-                            {point.dropoffRate.toFixed(1)}% drop-off rate
+                            {point.dropoffRate.toFixed(1)}% tasa de abandono
                           </p>
                         </div>
                       </div>
@@ -916,7 +961,7 @@ export default function VideoAnalyticsDashboard() {
                         <p className="text-3xl font-black text-red-400">
                           -{point.dropoff}
                         </p>
-                        <p className="text-white/60 text-sm">users lost</p>
+                        <p className="text-white/60 text-sm">usuarios perdidos</p>
                       </div>
                     </div>
                   ))}
@@ -924,58 +969,75 @@ export default function VideoAnalyticsDashboard() {
               ) : (
                 <div className="text-center py-12 text-white/60">
                   <div className="text-6xl mb-4 opacity-50">📊</div>
-                  <p>Insufficient data for analysis</p>
+                  <p>Datos insuficientes para análisis</p>
                 </div>
               )}
             </ChartContainer>
 
-            <ChartContainer title="💡 Performance Insights" subtitle="Key metrics and trends">
+            <ChartContainer title="💡 Insights de Performance" subtitle="Métricas clave y tendencias">
               <div className="space-y-4">
                 <div className="p-4 bg-gradient-to-r from-emerald-500/10 to-emerald-500/5 rounded-xl border border-emerald-500/20">
                   <h4 className="font-bold text-emerald-400 mb-2 flex items-center gap-2">
-                    🏆 Best Performing Day
+                    🏆 Mejor Día Performance
                   </h4>
                   {data.insights.bestPerformingDay ? (
                     <div>
-                      <p className="text-white font-medium">{new Date(data.insights.bestPerformingDay.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
-                      <p className="text-emerald-300/80 text-sm">{data.insights.bestPerformingDay.sessions.toLocaleString()} sessions</p>
+                      <p className="text-white font-medium">{new Date(data.insights.bestPerformingDay.date).toLocaleDateString('es-ES', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+                      <p className="text-emerald-300/80 text-sm">{data.insights.bestPerformingDay.sessions.toLocaleString()} sesiones</p>
                     </div>
                   ) : (
-                    <p className="text-white/60">Analyzing performance...</p>
+                    <p className="text-white/60">Analizando performance...</p>
                   )}
                 </div>
                 
                 <div className="p-4 bg-gradient-to-r from-red-500/10 to-red-500/5 rounded-xl border border-red-500/20">
                   <h4 className="font-bold text-red-400 mb-2 flex items-center gap-2">
-                    📉 Biggest Drop-off Point
+                    📉 Mayor Punto de Drop-off
                   </h4>
                   {data.insights.worstDropoffPoint ? (
                     <div>
                       <p className="text-white font-medium">{data.insights.worstDropoffPoint.from}% → {data.insights.worstDropoffPoint.to}%</p>
-                      <p className="text-red-300/80 text-sm">{data.insights.worstDropoffPoint.dropoffRate.toFixed(1)}% abandonment rate</p>
+                      <p className="text-red-300/80 text-sm">{data.insights.worstDropoffPoint.dropoffRate.toFixed(1)}% tasa de abandono</p>
                     </div>
                   ) : (
-                    <p className="text-white/60">No critical drop-offs detected</p>
+                    <p className="text-white/60">No se detectaron drop-offs críticos</p>
                   )}
                 </div>
                 
                 <div className="p-4 bg-gradient-to-r from-blue-500/10 to-blue-500/5 rounded-xl border border-blue-500/20">
                   <h4 className="font-bold text-blue-400 mb-2 flex items-center gap-2">
-                    ⏱️ Average Engagement
+                    ⏱️ Engagement Promedio
                   </h4>
                   <p className="text-white font-medium">{data.insights.averageSessionLength.toFixed(1)}%</p>
-                  <p className="text-blue-300/80 text-sm">Average video completion</p>
+                  <p className="text-blue-300/80 text-sm">Completitud promedio de video</p>
+                </div>
+
+                {/* ALIGNED Audio & Fullscreen Impact */}
+                <div className="p-4 bg-gradient-to-r from-purple-500/10 to-purple-500/5 rounded-xl border border-purple-500/20">
+                  <h4 className="font-bold text-purple-400 mb-2 flex items-center gap-2">
+                    🔊 Engagement Mejorado
+                  </h4>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-white/80">Audio ON Rate:</span>
+                      <span className="text-purple-300 font-bold">{data.funnelInsights.audioEngagementRate.toFixed(1)}%</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-white/80">Fullscreen Rate:</span>
+                      <span className="text-purple-300 font-bold">{data.funnelInsights.fullscreenEngagementRate.toFixed(1)}%</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </ChartContainer>
           </div>
 
-          {/* Optimization Recommendations */}
-          <ChartContainer title="🚀 AI-Powered Optimization Recommendations" subtitle="Data-driven actionable insights" fullWidth>
+          {/* ALIGNED Optimization Recommendations */}
+          <ChartContainer title="🚀 Recomendaciones de Optimización con IA" subtitle="Insights accionables basados en datos" fullWidth>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               <div className="space-y-4">
                 <h3 className="font-bold text-purple-400 mb-4 flex items-center gap-2 text-lg">
-                  📊 Video Funnel Optimization
+                  📹 Optimización del Funnel VSL
                 </h3>
                 <div className="space-y-3">
                   <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-all">
@@ -985,12 +1047,12 @@ export default function VideoAnalyticsDashboard() {
                     <div>
                       <p className="text-white font-medium">
                         {data.funnelInsights.leadConversionRate >= 60 ? 
-                          'Excellent lead qualification performance' : 
-                          'Optimize opening hook for better lead capture'
+                          'Excelente performance de calificación de leads' : 
+                          'Optimizar hook de apertura para mejor captura de leads'
                         }
                       </p>
                       <p className="text-white/60 text-sm">
-                        Current: {data.funnelInsights.leadConversionRate.toFixed(1)}% at 20% mark
+                        Actual: {data.funnelInsights.leadConversionRate.toFixed(1)}% en milestone 20%
                       </p>
                     </div>
                   </div>
@@ -1002,12 +1064,12 @@ export default function VideoAnalyticsDashboard() {
                     <div>
                       <p className="text-white font-medium">
                         {data.funnelInsights.unlockConversionRate >= 35 ? 
-                          'Strong content unlock engagement' : 
-                          'Enhance value proposition at mid-video'
+                          'Fuerte engagement de alto valor' : 
+                          'Mejorar propuesta de valor en medio del video'
                         }
                       </p>
                       <p className="text-white/60 text-sm">
-                        Current: {data.funnelInsights.unlockConversionRate.toFixed(1)}% at 50% mark
+                        Actual: {data.funnelInsights.unlockConversionRate.toFixed(1)}% en milestone 50%
                       </p>
                     </div>
                   </div>
@@ -1019,12 +1081,30 @@ export default function VideoAnalyticsDashboard() {
                     <div>
                       <p className="text-white font-medium">
                         {data.funnelInsights.completionRate >= 15 ? 
-                          'Good video completion rate' : 
-                          'Consider video length optimization'
+                          'Buena tasa de completitud de video' : 
+                          'Considerar optimización de duración del video'
                         }
                       </p>
                       <p className="text-white/60 text-sm">
-                        Current: {data.funnelInsights.completionRate.toFixed(1)}% completion rate
+                        Actual: {data.funnelInsights.completionRate.toFixed(1)}% tasa de completitud
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* ALIGNED Audio & Fullscreen Insights */}
+                  <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-all">
+                    <span className={`text-lg ${data.funnelInsights.audioEngagementRate >= 30 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                      🔊
+                    </span>
+                    <div>
+                      <p className="text-white font-medium">
+                        {data.funnelInsights.audioEngagementRate >= 30 ? 
+                          'Excelente engagement de audio' : 
+                          'Mejorar CTAs para activar audio'
+                        }
+                      </p>
+                      <p className="text-white/60 text-sm">
+                        Actual: {data.funnelInsights.audioEngagementRate.toFixed(1)}% activan audio
                       </p>
                     </div>
                   </div>
@@ -1033,7 +1113,7 @@ export default function VideoAnalyticsDashboard() {
               
               <div className="space-y-4">
                 <h3 className="font-bold text-emerald-400 mb-4 flex items-center gap-2 text-lg">
-                  💰 Revenue Optimization
+                  💰 Optimización de Ingresos
                 </h3>
                 <div className="space-y-3">
                   <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-all">
@@ -1042,12 +1122,12 @@ export default function VideoAnalyticsDashboard() {
                     </span>
                     <div>
                       <p className="text-white font-medium">
-                        VIP conversion rate: {data.vipConversions.conversionRate.toFixed(2)}%
+                        Tasa de conversión VIP: {data.vipConversions.conversionRate.toFixed(2)}%
                       </p>
                       <p className="text-white/60 text-sm">
                         {data.vipConversions.conversionRate < 2 ? 
-                          'Test pricing strategies and urgency tactics' : 
-                          'Excellent conversion performance'
+                          'Probar estrategias de precios y tácticas de urgencia' : 
+                          'Excelente performance de conversión'
                         }
                       </p>
                     </div>
@@ -1057,10 +1137,10 @@ export default function VideoAnalyticsDashboard() {
                     <span className="text-lg text-purple-400">🎯</span>
                     <div>
                       <p className="text-white font-medium">
-                        Season Pass dominance: {((data.vipConversions.seasonPassPurchases / (data.vipConversions.totalPurchases || 1)) * 100).toFixed(0)}%
+                        Dominancia Season Pass: {((data.vipConversions.seasonPassPurchases / (data.vipConversions.totalPurchases || 1)) * 100).toFixed(0)}%
                       </p>
                       <p className="text-white/60 text-sm">
-                        Strong preference for premium offering
+                        Fuerte preferencia por la oferta premium
                       </p>
                     </div>
                   </div>
@@ -1071,12 +1151,12 @@ export default function VideoAnalyticsDashboard() {
                     </span>
                     <div>
                       <p className="text-white font-medium">
-                        Revenue per session: {formatCurrency(data.revenuePerSession)}
+                        Ingreso por sesión: {formatCurrency(data.revenuePerSession)}
                       </p>
                       <p className="text-white/60 text-sm">
                         {data.revenuePerSession < 500 ? 
-                          'Opportunity to increase perceived value' : 
-                          'Strong monetization efficiency'
+                          'Oportunidad de incrementar valor percibido' : 
+                          'Fuerte eficiencia de monetización'
                         }
                       </p>
                     </div>
@@ -1086,10 +1166,23 @@ export default function VideoAnalyticsDashboard() {
                     <span className="text-lg text-blue-400">🔥</span>
                     <div>
                       <p className="text-white font-medium">
-                        Peak performance window identified
+                        Ventana de performance pico identificada
                       </p>
                       <p className="text-white/60 text-sm">
-                        Schedule campaigns during high-engagement periods
+                        Programar campañas durante períodos de alto engagement
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* ALIGNED CTA Performance */}
+                  <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-all">
+                    <span className="text-lg text-cyan-400">🎪</span>
+                    <div>
+                      <p className="text-white font-medium">
+                        Performance de CTAs: ACCEDER vs Sticky
+                      </p>
+                      <p className="text-white/60 text-sm">
+                        ACCEDER: {data.eventStats.accederClicks} | Sticky: {data.eventStats.stickyButtonClicks}
                       </p>
                     </div>
                   </div>
@@ -1102,10 +1195,10 @@ export default function VideoAnalyticsDashboard() {
           <div className="text-center py-8 border-t border-white/10">
             <div className="space-y-2">
               <p className="text-white/60 font-medium">
-                🚀 Advanced Analytics Dashboard • Real-time Intelligence Platform
+                🚀 Dashboard de Analytics Avanzado • Plataforma de Inteligencia en Tiempo Real
               </p>
               <p className="text-white/40 text-sm">
-                Last updated: {new Date().toLocaleString('en-US', { 
+                Última actualización: {new Date().toLocaleString('es-ES', { 
                   weekday: 'long', 
                   year: 'numeric', 
                   month: 'long', 
@@ -1115,11 +1208,11 @@ export default function VideoAnalyticsDashboard() {
                 })}
               </p>
               <div className="flex items-center justify-center gap-4 mt-4 text-xs text-white/30">
-                <span>🔗 Facebook Pixel Integration</span>
+                <span>🔗 Integración Facebook Pixel</span>
                 <span>•</span>
-                <span>📊 Real-time Data Processing</span>
+                <span>📊 Procesamiento de Datos en Tiempo Real</span>
                 <span>•</span>
-                <span>🎯 AI-Powered Insights</span>
+                <span>🎯 Insights Potenciados por IA</span>
               </div>
             </div>
           </div>

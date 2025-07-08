@@ -1,6 +1,6 @@
 // ============================================================================
-// FILE 3: Updated useVideoAnalytics Hook - ALIGNED with Enhanced Player
-// /hooks/useVideoAnalytics.ts
+// FILE 1: /hooks/useVideoAnalytics.ts
+// ALIGNED with Enhanced VSL Player
 // ============================================================================
 
 import { useUser } from '@clerk/nextjs';
