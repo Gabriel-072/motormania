@@ -1,4 +1,4 @@
-// /app/fantasy-vip-info/page.tsx - PART 1: IMPORTS, CONFIGURATION & TYPES
+// /app/fantasy-vip-info/page.tsx - PART 1: IMPORTS, CONFIGURATION & ENHANCED VIDEO PLAYER
 'use client';
 
 import React, { useState, useEffect, useRef, Suspense } from 'react';
@@ -194,13 +194,13 @@ type GpSchedule = {
 };
 
 // ============================================================================
-// ENHANCED VIDEO PLAYER COMPONENT - PREMIUM UI (NO UNLOCK LOGIC)
+// ENHANCED VIDEO PLAYER COMPONENT WITH COMPREHENSIVE TRACKING
 // ============================================================================
 function VideoPlayer({ onWatchProgress }: { onWatchProgress?: (percentage: number) => void }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  // Add hydration safety
+  // Enhanced state management
   const [isMounted, setIsMounted] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
@@ -209,43 +209,165 @@ function VideoPlayer({ onWatchProgress }: { onWatchProgress?: (percentage: numbe
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
+  
+  // Enhanced tracking state
+  const [videoSessionId] = useState(() => `video_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
+  const [watchStartTime, setWatchStartTime] = useState<number | null>(null);
+  const [totalWatchTime, setTotalWatchTime] = useState(0);
+  const [engagementEvents, setEngagementEvents] = useState(new Set<string>());
+  const [lastProgressUpdate, setLastProgressUpdate] = useState(0);
+  const [playCount, setPlayCount] = useState(0);
+  const [pauseCount, setPauseCount] = useState(0);
+  const [seekCount, setSeekCount] = useState(0);
+  const [muteToggles, setMuteToggles] = useState(0);
 
   // Handle hydration
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
-  // Initialize video
+  // Initialize video with enhanced tracking
   useEffect(() => {
     if (!isMounted) return;
     const v = videoRef.current;
     if (!v) return;
+    
     v.muted = true;
     v.volume = 0.8;
     
-    const handleLoadedMetadata = () => setDuration(v.duration);
-    const handleTimeUpdate = () => setProgress(v.currentTime);
+    const handleLoadedMetadata = () => {
+      setDuration(v.duration);
+      
+      // Track video load
+      trackFBEvent('VIP_VideoLoad', {
+        params: {
+          content_type: 'video',
+          content_category: 'vsl_video_performance',
+          content_name: 'Fantasy VIP VSL Enhanced',
+          video_duration: v.duration,
+          video_session_id: videoSessionId,
+          video_quality: 'auto',
+          video_source: 'cdn_bunny',
+          page_type: 'vip_landing'
+        }
+      });
+    };
+    
+    const handleTimeUpdate = () => {
+      setProgress(v.currentTime);
+      
+      // Update total watch time if playing
+      if (!v.paused && watchStartTime) {
+        const now = Date.now();
+        const sessionTime = (now - watchStartTime) / 1000;
+        setTotalWatchTime(prev => prev + (sessionTime / 10)); // Approximate increment
+      }
+    };
+
+    const handleSeeked = () => {
+      setSeekCount(prev => prev + 1);
+      
+      // Track significant seeks (>5 seconds)
+      const seekAmount = Math.abs(v.currentTime - lastProgressUpdate);
+      if (seekAmount > 5) {
+        trackFBEvent('VIP_VideoSeek', {
+          params: {
+            content_type: 'video',
+            content_category: 'vsl_engagement',
+            video_session_id: videoSessionId,
+            seek_from: lastProgressUpdate,
+            seek_to: v.currentTime,
+            seek_amount: seekAmount,
+            seek_direction: v.currentTime > lastProgressUpdate ? 'forward' : 'backward'
+          }
+        });
+      }
+      setLastProgressUpdate(v.currentTime);
+    };
+
+    const handleVolumeChange = () => {
+      if (v.muted !== isMuted) {
+        setMuteToggles(prev => prev + 1);
+      }
+    };
     
     v.addEventListener('loadedmetadata', handleLoadedMetadata);
     v.addEventListener('timeupdate', handleTimeUpdate);
+    v.addEventListener('seeked', handleSeeked);
+    v.addEventListener('volumechange', handleVolumeChange);
     
     return () => {
       v.removeEventListener('loadedmetadata', handleLoadedMetadata);
       v.removeEventListener('timeupdate', handleTimeUpdate);
+      v.removeEventListener('seeked', handleSeeked);
+      v.removeEventListener('volumechange', handleVolumeChange);
     };
-  }, [isMounted]);
+  }, [isMounted, videoSessionId, lastProgressUpdate, isMuted, watchStartTime]);
 
-  // Track progress analytics
+  // Enhanced progress tracking with detailed analytics
   useEffect(() => {
-    if (!isMounted) return;
+    if (!isMounted || !duration) return;
     const v = videoRef.current;
     if (!v || !onWatchProgress) return;
-    const handler = () => {
-      onWatchProgress(Math.floor((v.currentTime / v.duration) * 100));
-    };
-    v.addEventListener('timeupdate', handler);
-    return () => v.removeEventListener('timeupdate', handler);
-  }, [onWatchProgress, isMounted]);
+    
+    const currentPercentage = Math.floor((v.currentTime / v.duration) * 100);
+    onWatchProgress(currentPercentage);
+
+    // Track detailed engagement milestones
+    const detailedMilestones = [10, 20, 30, 40, 50, 60, 70, 80, 90, 95, 100];
+    
+    detailedMilestones.forEach(milestone => {
+      const eventKey = `milestone_${milestone}`;
+      if (currentPercentage >= milestone && !engagementEvents.has(eventKey)) {
+        setEngagementEvents(prev => new Set([...prev, eventKey]));
+        
+        // Track granular progress for better attribution
+        trackFBEvent('VIP_VideoProgress_Detailed', {
+          params: {
+            content_type: 'video',
+            content_category: 'vsl_detailed_engagement',
+            content_name: 'Fantasy VIP VSL Milestone',
+            video_session_id: videoSessionId,
+            video_percentage: milestone,
+            watch_time_seconds: totalWatchTime,
+            play_count: playCount,
+            pause_count: pauseCount,
+            seek_count: seekCount,
+            mute_toggles: muteToggles,
+            engagement_quality: milestone >= 80 ? 'high' : milestone >= 50 ? 'medium' : 'low',
+            user_behavior: {
+              replay_likelihood: playCount > 1 ? 'high' : 'low',
+              engagement_pattern: pauseCount > 3 ? 'deliberate' : 'passive',
+              audio_preference: muteToggles > 0 ? 'audio_enabled' : 'silent_viewer'
+            }
+          }
+        });
+
+        // Special events for attribution optimization
+        if (milestone === 25) {
+          trackFBEvent('VIP_VideoQuarter', {
+            params: {
+              content_category: 'video_attribution_checkpoint',
+              video_session_id: videoSessionId,
+              engagement_level: 'qualified_viewer',
+              attribution_value: 'medium'
+            }
+          });
+        }
+        
+        if (milestone === 75) {
+          trackFBEvent('VIP_VideoMostly_Complete', {
+            params: {
+              content_category: 'video_attribution_checkpoint',
+              video_session_id: videoSessionId,
+              engagement_level: 'highly_engaged_viewer',
+              attribution_value: 'high'
+            }
+          });
+        }
+      }
+    });
+  }, [progress, duration, onWatchProgress, isMounted, totalWatchTime, playCount, pauseCount, seekCount, muteToggles, videoSessionId, engagementEvents]);
 
   // Sync fullscreen state across browsers
   useEffect(() => {
@@ -253,6 +375,19 @@ function VideoPlayer({ onWatchProgress }: { onWatchProgress?: (percentage: numbe
     const doc: any = document;
     const onFsChange = () => {
       setIsFullscreen(!!(doc.fullscreenElement || doc.webkitFullscreenElement));
+      
+      // Track fullscreen events
+      const isEntering = !!(doc.fullscreenElement || doc.webkitFullscreenElement);
+      trackFBEvent('VIP_VideoFullscreen', {
+        params: {
+          content_type: 'video',
+          content_category: 'vsl_interaction',
+          video_session_id: videoSessionId,
+          action: isEntering ? 'enter_fullscreen' : 'exit_fullscreen',
+          video_percentage: Math.floor((progress / duration) * 100),
+          engagement_level: 'high_intent'
+        }
+      });
     };
     document.addEventListener('fullscreenchange', onFsChange);
     document.addEventListener('webkitfullscreenchange', onFsChange);
@@ -260,34 +395,97 @@ function VideoPlayer({ onWatchProgress }: { onWatchProgress?: (percentage: numbe
       document.removeEventListener('fullscreenchange', onFsChange);
       document.removeEventListener('webkitfullscreenchange', onFsChange);
     };
-  }, [isMounted]);
+  }, [isMounted, videoSessionId, progress, duration]);
 
-  // Play / Pause
+  // Enhanced Play / Pause with detailed tracking
   const togglePlay = (e?: React.SyntheticEvent) => {
     e?.stopPropagation();
     const v = videoRef.current;
     if (!v) return;
+    
     if (v.paused) {
       v.play();
       setIsPlaying(true);
-      setHasStarted(true);
+      setPlayCount(prev => prev + 1);
+      setWatchStartTime(Date.now());
+      
+      if (!hasStarted) {
+        setHasStarted(true);
+        
+        // Enhanced video start tracking
+        trackFBEvent('VIP_VideoStart', {
+          params: {
+            content_type: 'video',
+            content_category: 'vsl_engagement',
+            content_name: 'Fantasy VIP Video Sales Letter',
+            video_session_id: videoSessionId,
+            video_duration: duration,
+            start_method: 'user_click',
+            device_type: /Mobile|Android|iPhone|iPad/.test(navigator.userAgent) ? 'mobile' : 'desktop',
+            connection_type: (navigator as any).connection?.effectiveType || 'unknown'
+          }
+        });
+      } else {
+        // Track resume events
+        trackFBEvent('VIP_VideoResume', {
+          params: {
+            content_type: 'video',
+            content_category: 'vsl_engagement',
+            video_session_id: videoSessionId,
+            resume_position: v.currentTime,
+            resume_percentage: Math.floor((v.currentTime / duration) * 100),
+            total_pauses: pauseCount
+          }
+        });
+      }
+      
       if (v.muted) setShowUnmuteCTA(true);
     } else {
       v.pause();
       setIsPlaying(false);
+      setPauseCount(prev => prev + 1);
+      setWatchStartTime(null);
+      
+      // Enhanced pause tracking
+      trackFBEvent('VIP_VideoPause', {
+        params: {
+          content_type: 'video',
+          content_category: 'vsl_engagement',
+          video_session_id: videoSessionId,
+          pause_position: v.currentTime,
+          pause_percentage: Math.floor((v.currentTime / duration) * 100),
+          watch_time_this_session: totalWatchTime,
+          pause_reason: 'user_initiated'
+        }
+      });
     }
   };
 
-  // Mute / Unmute
+  // Enhanced Mute / Unmute with tracking
   const toggleMute = (e?: React.SyntheticEvent) => {
     e?.stopPropagation();
     const v = videoRef.current;
     if (!v) return;
+    
+    const wasUnmuted = !v.muted;
     v.muted = !v.muted;
     setIsMuted(v.muted);
+    
+    // Track audio engagement - critical for attribution
+    trackFBEvent('VIP_VideoAudio', {
+      params: {
+        content_type: 'video',
+        content_category: 'vsl_audio_engagement',
+        video_session_id: videoSessionId,
+        action: v.muted ? 'muted' : 'unmuted',
+        video_percentage: Math.floor((progress / duration) * 100),
+        audio_engagement_value: !v.muted ? 'high' : 'low',
+        user_intent: !v.muted ? 'engaged_listening' : 'visual_only'
+      }
+    });
   };
 
-  // Fullscreen toggle with vendor fallbacks
+  // Enhanced Fullscreen toggle with vendor fallbacks
   const toggleFullscreen = (e: React.SyntheticEvent) => {
     e.stopPropagation();
     const c = containerRef.current;
@@ -772,12 +970,64 @@ export default function FantasyVipLanding() {
     }
   };
 
-  // Enhanced Purchase Function
+  // Enhanced ACCEDER Button Tracking
+  const handleAccederClick = (buttonLocation: string) => {
+    const eventId = generateEventId();
+    
+    trackFBEvent('VIP_AccederButton_Click', {
+      params: {
+        content_type: 'button',
+        content_category: 'cta_interaction_enhanced',
+        content_name: 'ACCEDER Button Click Enhanced',
+        button_location: buttonLocation,
+        button_text: 'ACCEDER',
+        destination: 'pricing_section',
+        click_intent: 'high_purchase_intent',
+        funnel_stage: 'consideration',
+        user_action: 'navigate_to_pricing'
+      },
+      event_id: eventId
+    });
+
+    // Scroll to pricing section smoothly
+    const planesSection = document.getElementById('planes');
+    if (planesSection) {
+      planesSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
+  // Enhanced Sticky Button Tracking
+  const handleStickyButtonClick = () => {
+    const scrollPosition = window.pageYOffset;
+    const eventId = generateEventId();
+    
+    trackFBEvent('VIP_StickyButton_Click', {
+      params: {
+        content_type: 'button',
+        content_category: 'sticky_cta_enhanced',
+        content_name: 'Sticky CTA Button Click Enhanced',
+        button_position: 'sticky_bottom',
+        button_text: 'ASEGURAR MI LUGAR VIP',
+        destination: 'pricing_section',
+        scroll_position: scrollPosition,
+        engagement_level: 'high_intent',
+        user_behavior: 'persistent_interest',
+        funnel_stage: 'decision'
+      },
+      event_id: eventId
+    });
+
+    // Navigate to pricing
+    handleAccederClick('sticky_button');
+  };
+
+  // Enhanced Purchase Function with FIXED InitiateCheckout timing
   const handlePurchase = async (planId: Plan['id']) => {
     console.log('🛒 handlePurchase invocado para:', planId);
     const plan = planes.find(p => p.id === planId);
     if (!plan) return;
   
+    // FIRST: Track purchase intent (button click)
     trackVipEvent('checkout_initiated', {
       plan_id: planId,
       plan_name: plan.nombre,
@@ -785,51 +1035,6 @@ export default function FantasyVipLanding() {
       action: 'purchase_button_clicked'
     });
   
-    const eventId = generateEventId();
-  
-    trackFBEvent('InitiateCheckout', {
-      params: {
-        content_type: 'product',
-        content_category: 'vip_membership_enhanced',
-        content_name: plan.nombre,
-        content_ids: [planId],
-        value: plan.precio / 1000,
-        currency: 'COP',
-        num_items: 1,
-        predicted_ltv: planId === 'season-pass' ? 300 : 150,
-        checkout_step: 1,
-        payment_method_types: ['credit_card', 'debit_card', 'bank_transfer'],
-        product_type: planId === 'season-pass' ? 'premium_annual' : 'entry_single',
-        discount_applied: planId === 'season-pass' ? 'yes' : 'no',
-        discount_percentage: planId === 'season-pass' ? 40 : 0,
-        offer_type: 'limited_time_discount',
-        funnel_stage: 'checkout_initiation'
-      },
-      event_id: eventId
-    });
-
-    // Send CAPI backup immediately
-    if (typeof window !== 'undefined') {
-      fetch('/api/fb-track', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          event_name: 'InitiateCheckout',
-          event_id: eventId,
-          event_source_url: window.location.href,
-          user_data: getUserData(user),
-          custom_data: {
-            content_ids: [planId],
-            content_category: 'vip_membership_enhanced',
-            value: plan.precio / 1000,
-            currency: 'COP',
-            predicted_ltv: planId === 'season-pass' ? 300 : 150,
-            discount_percentage: planId === 'season-pass' ? 40 : 0
-          }
-        })
-      }).catch(err => console.error('CAPI InitiateCheckout error:', err));
-    }
-
     // Auth check - REGISTRATION REQUIRED LEAD TRACKING
     if (!isSignedIn || !user) {
       const leadEventId = generateEventId();
@@ -854,7 +1059,7 @@ export default function FantasyVipLanding() {
       // Store intent for post-auth tracking
       if (typeof window !== 'undefined') {
         sessionStorage.setItem('pendingVipPlan', planId);
-        sessionStorage.setItem('pendingVipEventId', eventId);
+        sessionStorage.setItem('pendingVipEventId', leadEventId);
       }
 
       clerk.openSignIn({
@@ -904,22 +1109,6 @@ export default function FantasyVipLanding() {
 
       const { orderId, amount, redirectionUrl, integritySignature } = await res.json();
 
-      // Track Payment Modal Open
-      const paymentEventId = generateEventId();
-      trackFBEvent('VIP_PaymentModal_Open', {
-        params: {
-          content_type: 'product',
-          content_category: 'vip_membership_enhanced',
-          content_ids: [planId],
-          value: plan.precio / 1000,
-          currency: 'COP',
-          checkout_step: 2,
-          modal_type: 'bold_checkout',
-          payment_provider: 'bold'
-        },
-        event_id: paymentEventId
-      });
-
       // Configuración para Bold Checkout
       const config = {
         apiKey,
@@ -936,6 +1125,68 @@ export default function FantasyVipLanding() {
           fullName: user.fullName ?? '',
         }),
       };
+
+      // CORRECTLY TIMED: InitiateCheckout fires ONLY when payment modal actually opens
+      const eventId = generateEventId();
+      
+      trackFBEvent('InitiateCheckout', {
+        params: {
+          content_type: 'product',
+          content_category: 'vip_membership_enhanced',
+          content_name: plan.nombre,
+          content_ids: [planId],
+          value: plan.precio / 1000,
+          currency: 'COP',
+          num_items: 1,
+          predicted_ltv: planId === 'season-pass' ? 300 : 150,
+          checkout_step: 1,
+          payment_method_types: ['credit_card', 'debit_card', 'bank_transfer'],
+          product_type: planId === 'season-pass' ? 'premium_annual' : 'entry_single',
+          discount_applied: planId === 'season-pass' ? 'yes' : 'no',
+          discount_percentage: planId === 'season-pass' ? 40 : 0,
+          offer_type: 'limited_time_discount',
+          funnel_stage: 'checkout_initiation'
+        },
+        event_id: eventId
+      });
+
+      // Send CAPI backup immediately
+      if (typeof window !== 'undefined') {
+        fetch('/api/fb-track', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            event_name: 'InitiateCheckout',
+            event_id: eventId,
+            event_source_url: window.location.href,
+            user_data: getUserData(user),
+            custom_data: {
+              content_ids: [planId],
+              content_category: 'vip_membership_enhanced',
+              value: plan.precio / 1000,
+              currency: 'COP',
+              predicted_ltv: planId === 'season-pass' ? 300 : 150,
+              discount_percentage: planId === 'season-pass' ? 40 : 0
+            }
+          })
+        }).catch(err => console.error('CAPI InitiateCheckout error:', err));
+      }
+
+      // Track Payment Modal Open
+      const paymentEventId = generateEventId();
+      trackFBEvent('VIP_PaymentModal_Open', {
+        params: {
+          content_type: 'product',
+          content_category: 'vip_membership_enhanced',
+          content_ids: [planId],
+          value: plan.precio / 1000,
+          currency: 'COP',
+          checkout_step: 2,
+          modal_type: 'bold_checkout',
+          payment_provider: 'bold'
+        },
+        event_id: paymentEventId
+      });
 
       // Abrir Bold Checkout
       openBoldCheckout({
@@ -1026,7 +1277,7 @@ export default function FantasyVipLanding() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, [isMounted]);
   
-  // Sticky button observer
+  // Sticky button observer with enhanced tracking
   useEffect(() => {
     if (!isMounted) return;
     
@@ -1035,7 +1286,24 @@ export default function FantasyVipLanding() {
       if (!planesEl) return;
       
       const observer = new IntersectionObserver(
-        ([entry]) => setShowSticky(!entry.isIntersecting),
+        ([entry]) => {
+          const isVisible = entry.isIntersecting;
+          setShowSticky(!isVisible);
+          
+          // Track sticky button visibility
+          if (!isVisible && typeof window !== 'undefined' && !sessionStorage.getItem('sticky_shown_tracked')) {
+            sessionStorage.setItem('sticky_shown_tracked', 'true');
+            
+            trackFBEvent('VIP_StickyButton_Shown', {
+              params: {
+                content_category: 'sticky_cta_visibility',
+                content_name: 'Sticky Button Became Visible',
+                engagement_trigger: 'pricing_section_scrolled_past',
+                user_intent: 'continued_engagement'
+              }
+            });
+          }
+        },
         { rootMargin: '0px 0px -100px 0px' }
       );
       observer.observe(planesEl);
@@ -1433,146 +1701,7 @@ const MemberSuccessSection = () => (
   </section>
 );
 
-             {/* NEW: Random Winner Section - ADD THIS */}
-
-             <section className="py-20 px-4 sm:px-6 bg-gradient-to-b from-neutral-950 via-purple-950/20 to-black relative overflow-hidden">
-                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(147,51,234,0.15),transparent_60%)]"></div>
-                <div className="absolute top-0 left-1/3 w-96 h-96 bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-full blur-3xl"></div>
-                <div className="absolute bottom-0 right-1/3 w-96 h-96 bg-gradient-to-r from-indigo-500/10 to-purple-500/10 rounded-full blur-3xl"></div>
-                
-                <div className="max-w-5xl mx-auto relative">
-                  <div className="text-center mb-16">
-                    <h2 className="text-3xl sm:text-4xl md:text-5xl font-black mb-6 bg-gradient-to-r from-purple-400 via-pink-500 to-red-400 bg-clip-text text-transparent drop-shadow-2xl">
-                      ¿NO SOS EL MEJOR? NO IMPORTA
-                    </h2>
-                    <p className="text-xl text-gray-300 font-medium mb-4">
-                      Tenés la misma oportunidad que cualquiera de ganar
-                    </p>
-                    <div className="inline-flex items-center gap-3 bg-gradient-to-r from-purple-600/20 to-pink-600/20 border border-purple-500/40 rounded-2xl px-6 py-3 text-purple-300 text-lg font-bold backdrop-blur-lg shadow-xl">
-                      <span className="text-2xl">🎲</span>
-                      <span>1 ganador ALEATORIO entre TODOS los miembros VIP</span>
-                    </div>
-                  </div>
-
-                  {/* Winner Distribution */}
-                  <div className="grid md:grid-cols-3 gap-6 mb-16">
-                    {/* Top 2 Winners */}
-                    <div className="md:col-span-2 p-8 bg-gradient-to-br from-amber-900/40 to-yellow-900/40 rounded-3xl border border-amber-500/30 backdrop-blur-lg shadow-2xl">
-                      <div className="flex items-center gap-4 mb-6">
-                        <div className="w-16 h-16 bg-gradient-to-r from-amber-500 to-yellow-500 rounded-2xl flex items-center justify-center shadow-xl">
-                          <span className="text-3xl">🏆</span>
-                        </div>
-                        <div>
-                          <h3 className="text-2xl font-black text-amber-300">Top 2 del Ranking</h3>
-                          <p className="text-amber-200 font-medium">Los mejores prediciendo van directo</p>
-                        </div>
-                      </div>
-                      <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4">
-                        <p className="text-amber-200 font-bold text-center">
-                          💪 Para los expertos que dominan las predicciones
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Random Winner */}
-                    <div className="p-8 bg-gradient-to-br from-purple-900/40 to-pink-900/40 rounded-3xl border border-purple-500/30 backdrop-blur-lg shadow-2xl relative overflow-hidden">
-                      <div className="absolute -top-3 -right-3 bg-gradient-to-r from-green-500 to-emerald-400 text-black text-sm font-black px-3 py-1.5 rounded-full shadow-xl transform rotate-12">
-                        TU OPORTUNIDAD
-                      </div>
-                      
-                      <div className="flex items-center gap-3 mb-6">
-                        <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-xl">
-                          <span className="text-3xl">🎲</span>
-                        </div>
-                        <div>
-                          <h3 className="text-xl font-black text-purple-300">Ganador Aleatorio</h3>
-                          <p className="text-purple-200 font-medium text-sm">Cualquier miembro VIP</p>
-                        </div>
-                      </div>
-                      <div className="bg-purple-500/10 border border-purple-500/20 rounded-xl p-4">
-                        <p className="text-purple-200 font-bold text-center text-sm">
-                          🍀 Solo tenés que ser miembro VIP
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Your Odds */}
-                  <div className="bg-gradient-to-br from-green-900/30 to-emerald-900/30 border border-green-500/40 rounded-3xl p-8 backdrop-blur-lg shadow-2xl mb-12">
-                    <div className="text-center">
-                      <h3 className="text-2xl font-black text-green-300 mb-4 flex items-center justify-center gap-3">
-                        <span className="text-3xl">📊</span>
-                        TUS PROBABILIDADES ACTUALES
-                      </h3>
-                      
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                        <div className="text-center">
-                          <div className="text-4xl font-black text-white mb-2">1 en 2,847</div>
-                          <p className="text-green-200 font-semibold">Probabilidad actual</p>
-                        </div>
-                        
-                        <div className="text-center">
-                          <div className="text-4xl font-black text-green-400 mb-2">0.035%</div>
-                          <p className="text-green-200 font-semibold">Chance matemática</p>
-                        </div>
-                        
-                        <div className="text-center">
-                          <div className="text-4xl font-black text-amber-400 mb-2">$20,000+</div>
-                          <p className="text-green-200 font-semibold">Valor del premio</p>
-                        </div>
-                      </div>
-
-                      <div className="mt-6 p-4 bg-green-500/10 border border-green-500/20 rounded-2xl">
-                        <p className="text-green-300 font-bold text-lg">
-                          ⚠️ <strong>Cada nuevo miembro VIP reduce tus probabilidades</strong>
-                        </p>
-                        <p className="text-green-200 text-sm mt-2">
-                          Entrá ahora mientras las probabilidades están a tu favor
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Comparison with other competitions */}
-                  <div className="grid md:grid-cols-2 gap-8">
-                    <div className="p-6 bg-gradient-to-br from-red-900/30 to-red-800/30 border border-red-500/30 rounded-2xl backdrop-blur-lg">
-                      <h4 className="text-xl font-bold text-red-400 mb-4 flex items-center gap-2">
-                        <span>❌</span>
-                        Otras competencias
-                      </h4>
-                      <ul className="space-y-2 text-red-200 text-sm">
-                        <li>• Lotería nacional: 1 en 14,000,000</li>
-                        <li>• Baloto: 1 en 15,401,568</li>
-                        <li>• Concursos de TV: 1 en 500,000+</li>
-                        <li>• Sorteos de marcas: 1 en 100,000+</li>
-                      </ul>
-                    </div>
-
-                    <div className="p-6 bg-gradient-to-br from-green-900/30 to-emerald-800/30 border border-green-500/30 rounded-2xl backdrop-blur-lg">
-                      <h4 className="text-xl font-bold text-green-400 mb-4 flex items-center gap-2">
-                        <span>✅</span>
-                        Fantasy VIP
-                      </h4>
-                      <ul className="space-y-2 text-green-200 text-sm">
-                        <li>• Solo 1 en 2,847 (y bajando)</li>
-                        <li>• Premio garantizado: $20,000+ USD</li>
-                        <li>• Basado en tu conocimiento, no suerte</li>
-                        <li>• Comunidad exclusiva de expertos</li>
-                      </ul>
-                    </div>
-                  </div>
-
-                  {/* Call to Action */}
-                  <div className="text-center mt-12">
-                    <div className="inline-flex items-center gap-3 bg-gradient-to-r from-purple-600/20 to-pink-600/20 border border-purple-500/30 rounded-2xl px-8 py-4 text-purple-300 text-xl font-bold backdrop-blur-lg shadow-xl">
-                      <div className="w-4 h-4 bg-purple-400 rounded-full animate-pulse"></div>
-                      Mientras menos miembros VIP, mejores son tus probabilidades
-                    </div>
-                  </div>
-                </div>
-              </section>
-
-  // ============================================================================
+// ============================================================================
   // EARLY RETURN CHECK - MOVED TO END AFTER ALL HOOKS
   // ============================================================================
   
@@ -1698,12 +1827,25 @@ const MemberSuccessSection = () => (
                 <VideoPlayer onWatchProgress={handleWatchProgress} />
               </div>
 
-              {/* Show unlock button OR regular CTA */}
-              {(
-                <div className="mb-8">
-                  <StickyAccessCTA />
-                </div>
-              )}
+              {/* Enhanced ACCEDER Button - Add this here */}
+              <div className="mb-8">
+                <button
+                  onClick={() => handleAccederClick('hero_section')}
+                  className="inline-flex items-center gap-4 px-10 py-5 bg-gradient-to-r from-amber-500 to-orange-500 text-black font-black rounded-2xl text-xl shadow-2xl transition-all transform hover:scale-105 active:scale-95"
+                  data-track="acceder-button"
+                  data-location="hero"
+                >
+                  <span className="text-2xl">🎯</span>
+                  ACCEDER A PREDICCIONES VIP
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path
+                      fillRule="evenodd"
+                      d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </button>
+              </div>
 
               {/* Pain Point Bullets */}
               <div className="bg-gradient-to-br from-red-900/30 to-red-800/20 border border-red-500/40 rounded-2xl p-6 text-left backdrop-blur-lg shadow-2xl mb-8 max-w-3xl mx-auto">
@@ -1778,7 +1920,7 @@ const MemberSuccessSection = () => (
               {/* Enhanced Sections */}
               <ROISection />
 
-              {/* NEW: Random Winner Section - ADD THIS */}
+              {/* NEW: Random Winner Section */}
               <section className="py-20 px-4 sm:px-6 bg-gradient-to-b from-neutral-950 via-purple-950/20 to-black relative overflow-hidden">
                 <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(147,51,234,0.15),transparent_60%)]"></div>
                 <div className="absolute top-0 left-1/3 w-96 h-96 bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-full blur-3xl"></div>
@@ -1840,9 +1982,81 @@ const MemberSuccessSection = () => (
                       </div>
                     </div>
                   </div>
+
+                  {/* Your Odds */}
+                  <div className="bg-gradient-to-br from-green-900/30 to-emerald-900/30 border border-green-500/40 rounded-3xl p-8 backdrop-blur-lg shadow-2xl mb-12">
+                    <div className="text-center">
+                      <h3 className="text-2xl font-black text-green-300 mb-4 flex items-center justify-center gap-3">
+                        <span className="text-3xl">📊</span>
+                        TUS PROBABILIDADES ACTUALES
+                      </h3>
+                      
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                        <div className="text-center">
+                          <div className="text-4xl font-black text-white mb-2">1 en 2,847</div>
+                          <p className="text-green-200 font-semibold">Probabilidad actual</p>
+                        </div>
+                        
+                        <div className="text-center">
+                          <div className="text-4xl font-black text-green-400 mb-2">0.035%</div>
+                          <p className="text-green-200 font-semibold">Chance matemática</p>
+                        </div>
+                        
+                        <div className="text-center">
+                          <div className="text-4xl font-black text-amber-400 mb-2">$20,000+</div>
+                          <p className="text-green-200 font-semibold">Valor del premio</p>
+                        </div>
+                      </div>
+
+                      <div className="mt-6 p-4 bg-green-500/10 border border-green-500/20 rounded-2xl">
+                        <p className="text-green-300 font-bold text-lg">
+                          ⚠️ <strong>Cada nuevo miembro VIP reduce tus probabilidades</strong>
+                        </p>
+                        <p className="text-green-200 text-sm mt-2">
+                          Entrá ahora mientras las probabilidades están a tu favor
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Comparison with other competitions */}
+                  <div className="grid md:grid-cols-2 gap-8">
+                    <div className="p-6 bg-gradient-to-br from-red-900/30 to-red-800/30 border border-red-500/30 rounded-2xl backdrop-blur-lg">
+                      <h4 className="text-xl font-bold text-red-400 mb-4 flex items-center gap-2">
+                        <span>❌</span>
+                        Otras competencias
+                      </h4>
+                      <ul className="space-y-2 text-red-200 text-sm">
+                        <li>• Lotería nacional: 1 en 14,000,000</li>
+                        <li>• Baloto: 1 en 15,401,568</li>
+                        <li>• Concursos de TV: 1 en 500,000+</li>
+                        <li>• Sorteos de marcas: 1 en 100,000+</li>
+                      </ul>
+                    </div>
+
+                    <div className="p-6 bg-gradient-to-br from-green-900/30 to-emerald-800/30 border border-green-500/30 rounded-2xl backdrop-blur-lg">
+                      <h4 className="text-xl font-bold text-green-400 mb-4 flex items-center gap-2">
+                        <span>✅</span>
+                        Fantasy VIP
+                      </h4>
+                      <ul className="space-y-2 text-green-200 text-sm">
+                        <li>• Solo 1 en 2,847 (y bajando)</li>
+                        <li>• Premio garantizado: $20,000+ USD</li>
+                        <li>• Basado en tu conocimiento, no suerte</li>
+                        <li>• Comunidad exclusiva de expertos</li>
+                      </ul>
+                    </div>
+                  </div>
+
+                  {/* Call to Action */}
+                  <div className="text-center mt-12">
+                    <div className="inline-flex items-center gap-3 bg-gradient-to-r from-purple-600/20 to-pink-600/20 border border-purple-500/30 rounded-2xl px-8 py-4 text-purple-300 text-xl font-bold backdrop-blur-lg shadow-xl">
+                      <div className="w-4 h-4 bg-purple-400 rounded-full animate-pulse"></div>
+                      Mientras menos miembros VIP, mejores son tus probabilidades
+                    </div>
+                  </div>
                 </div>
               </section>
-
 
               <DecisionFrameworkSection />
               <Why2025Section />
@@ -1863,6 +2077,19 @@ const MemberSuccessSection = () => (
                     <p className="text-xl text-gray-400 max-w-3xl mx-auto font-medium">
                       <strong className="text-white">Oferta por Tiempo Limitado:</strong> Aprovechá el descuento y asegurá tu lugar.
                     </p>
+                  </div>
+
+                  {/* Enhanced ACCEDER Button in Pricing */}
+                  <div className="text-center mb-12">
+                    <button
+                      onClick={() => handleAccederClick('pricing_section')}
+                      className="inline-flex items-center gap-3 bg-gradient-to-r from-green-600/20 to-emerald-600/20 border border-green-500/40 rounded-2xl px-8 py-4 text-green-400 text-lg font-bold backdrop-blur-lg shadow-xl hover:scale-105 transition-all duration-300"
+                      data-track="acceder-button"
+                      data-location="pricing"
+                    >
+                      <span className="text-xl">🎯</span>
+                      VER OPCIONES VIP DISPONIBLES
+                    </button>
                   </div>
   
                   {/* Trust Indicators */}
@@ -2148,13 +2375,15 @@ const MemberSuccessSection = () => (
                     </p>
 
                     <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
-                      <a
-                        href="#planes"
+                      <button
+                        onClick={() => handleAccederClick('final_cta')}
                         className="inline-flex items-center gap-4 px-10 py-5 bg-gradient-to-r from-amber-500 to-orange-500 text-black font-black rounded-2xl text-xl shadow-2xl transition-all transform hover:scale-105 active:scale-95"
+                        data-track="acceder-button"
+                        data-location="final_cta"
                       >
                         <span className="text-2xl">🏁</span>
                         ASEGURAR MI LUGAR VIP
-                      </a>
+                      </button>
                       
                       <p className="text-gray-500 font-medium">
                         O seguí gritando desde el sofá...
@@ -2167,6 +2396,37 @@ const MemberSuccessSection = () => (
           )}
         </main>
       </div>
+
+      {/* Enhanced Sticky CTA Button */}
+      {showSticky && (
+        <motion.div
+          initial={{ y: 100 }}
+          animate={{ y: 0 }}
+          exit={{ y: 100 }}
+          className="fixed bottom-0 left-0 right-0 z-40 bg-gradient-to-r from-amber-500 to-orange-500 p-4 shadow-2xl backdrop-blur-lg border-t border-amber-400/30"
+        >
+          <div className="max-w-4xl mx-auto flex items-center justify-between">
+            <div className="flex-1 text-center lg:text-left">
+              <p className="text-black font-black text-lg mb-1">
+                ¡Tu conocimiento vale más de lo que pensás!
+              </p>
+              <p className="text-black/80 text-sm font-semibold">
+                Convertí tu pasión en resultados reales
+              </p>
+            </div>
+            <button
+              onClick={handleStickyButtonClick}
+              className="bg-black text-amber-400 px-6 py-3 rounded-xl font-black text-lg hover:bg-black/90 transition-all shadow-xl hover:scale-105 active:scale-95 ml-4"
+              data-track="sticky-button"
+            >
+              <span className="flex items-center gap-2">
+                <span className="text-xl">🏁</span>
+                ASEGURAR MI LUGAR VIP
+              </span>
+            </button>
+          </div>
+        </motion.div>
+      )}
   
       {/* Enhanced Telegram Support Button */}
       {(

@@ -1,5 +1,5 @@
 // ============================================================================
-// FILE 3: Enhanced useVideoAnalytics Hook
+// FILE 3: Updated useVideoAnalytics Hook - ALIGNED with Enhanced Player
 // /hooks/useVideoAnalytics.ts
 // ============================================================================
 
@@ -9,51 +9,33 @@ import { useCallback, useRef } from 'react';
 export function useVideoAnalytics() {
   const { user } = useUser();
   const sessionId = useRef<string>('');
-  const trackedPercentages = useRef<Set<number>>(new Set());
 
-  // Generate session ID once
+  // Generate session ID once - aligned with your video player
   if (!sessionId.current) {
-    sessionId.current = `vip_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    sessionId.current = `video_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
 
+  // Track video progress - ALIGNED with your enhanced player events
   const trackVideoProgress = useCallback(async (percentage: number, metadata: any = {}) => {
-    const roundedPercentage = Math.floor(percentage);
-    
-    // Track key milestones: 10, 20, 30, 40, 50, 60, 70, 80, 90, 100
-    const milestones = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
-    const milestone = milestones.find(m => 
-      roundedPercentage >= m && !trackedPercentages.current.has(m)
-    );
-
-    if (!milestone) return;
-
-    trackedPercentages.current.add(milestone);
-
     try {
-      const response = await fetch('/api/analytics/video', {
+      const response = await fetch('/api/analytics/video-tracking', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          sessionId: sessionId.current,
-          videoPercentage: milestone,
-          pageUrl: window.location.pathname,
-          eventType: 'video_progress',
-          metadata: {
-            ...metadata,
-            milestone: milestone,
-            browser: navigator.userAgent,
-            screen: `${window.screen.width}x${window.screen.height}`,
-            viewport: `${window.innerWidth}x${window.innerHeight}`,
-            referrer: document.referrer,
-            timestamp: Date.now()
-          }
+          videoSessionId: sessionId.current,
+          eventType: 'VIP_VideoProgress_Detailed',
+          eventData: {
+            video_percentage: percentage,
+            ...metadata
+          },
+          pageType: 'vip_landing_enhanced',
+          timestamp: Date.now()
         })
       });
 
-      const result = await response.json();
-      
       if (!response.ok) {
-        console.error('Video tracking failed:', result);
+        const error = await response.json();
+        console.error('Video progress tracking failed:', error);
       }
 
     } catch (error) {
@@ -61,22 +43,18 @@ export function useVideoAnalytics() {
     }
   }, []);
 
-  // Track specific VIP events
+  // Track VIP events - ALIGNED with your enhanced tracking
   const trackVipEvent = useCallback(async (eventType: string, eventData: any = {}) => {
     try {
-      await fetch('/api/analytics/video', {
+      await fetch('/api/analytics/video-tracking', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          sessionId: sessionId.current,
-          videoPercentage: eventData.videoPercentage || 0,
-          pageUrl: window.location.pathname,
-          eventType: eventType,
-          metadata: {
-            ...eventData,
-            timestamp: Date.now(),
-            event_source: 'vip_action'
-          }
+          videoSessionId: sessionId.current,
+          eventType: `VIP_${eventType}`,
+          eventData,
+          pageType: 'vip_landing_enhanced',
+          timestamp: Date.now()
         })
       });
     } catch (error) {

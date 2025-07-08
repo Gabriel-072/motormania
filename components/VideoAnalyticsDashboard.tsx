@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useMemo, memo } from 'react';
+import React, { useEffect, useState, useMemo, memo, useCallback } from 'react';
 import { Line, Bar, Doughnut } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -16,6 +16,7 @@ import {
   Filler,
 } from 'chart.js';
 
+// Register Chart.js components
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -104,8 +105,15 @@ interface EnhancedAnalyticsData {
     sessions: number;
   }>;
   insights: {
-    bestPerformingDay: any;
-    worstDropoffPoint: any;
+    bestPerformingDay: {
+      date: string;
+      sessions: number;
+    } | null;
+    worstDropoffPoint: {
+      from: number;
+      to: number;
+      dropoffRate: number;
+    } | null;
     averageSessionLength: number;
   };
 }
@@ -130,36 +138,44 @@ const formatCurrency = (amount: number) => {
 };
 
 const MetricCard = memo(({ title, value, subtitle, icon, gradient, trend, animate = true }: MetricCardProps) => {
-  const [displayValue, setDisplayValue] = useState(typeof value === 'number' ? (animate ? 0 : value) : value);
+  const [displayValue, setDisplayValue] = useState<number | string>(
+    typeof value === 'number' ? (animate ? 0 : value) : value
+  );
 
   useEffect(() => {
-    if (!animate || typeof value !== 'number') return;
+    if (!animate || typeof value !== 'number') {
+      setDisplayValue(value);
+      return;
+    }
     
     const timer = setTimeout(() => {
       const increment = value / 50;
+      let currentValue = 0;
+      
       const interval = setInterval(() => {
-        setDisplayValue((prev: number | string) => {
-          const prevNum = typeof prev === 'number' ? prev : 0;
-          if (prevNum >= value) {
-            clearInterval(interval);
-            return value;
-          }
-          return Math.min(prevNum + increment, value);
-        });
+        currentValue += increment;
+        if (currentValue >= value) {
+          setDisplayValue(value);
+          clearInterval(interval);
+        } else {
+          setDisplayValue(currentValue);
+        }
       }, 20);
+      
       return () => clearInterval(interval);
     }, Math.random() * 500);
+    
     return () => clearTimeout(timer);
   }, [value, animate]);
 
-  const formatDisplayValue = () => {
+  const formatDisplayValue = useCallback(() => {
     if (typeof value === 'string') return value;
     if (typeof displayValue === 'number') {
       if (displayValue % 1 !== 0) return displayValue.toFixed(1);
       return Math.floor(displayValue).toLocaleString();
     }
     return displayValue;
-  };
+  }, [value, displayValue]);
 
   return (
     <div className={`group relative overflow-hidden rounded-2xl bg-gradient-to-br ${gradient} p-6 border border-white/10 backdrop-blur-sm hover:border-white/20 transition-all duration-500 hover:scale-105 hover:shadow-2xl hover:shadow-purple-500/20`}>
@@ -217,6 +233,10 @@ ChartContainer.displayName = 'ChartContainer';
 const createChartOptions = () => ({
   responsive: true,
   maintainAspectRatio: false,
+  interaction: {
+    intersect: false,
+    mode: 'index' as const,
+  },
   plugins: {
     legend: {
       labels: {
@@ -225,7 +245,9 @@ const createChartOptions = () => ({
           size: 12, 
           family: "'Inter', sans-serif", 
           weight: 'normal' as const
-        }
+        },
+        usePointStyle: true,
+        padding: 20
       }
     },
     tooltip: {
@@ -237,23 +259,49 @@ const createChartOptions = () => ({
       cornerRadius: 12,
       displayColors: true,
       titleFont: { size: 14, weight: 'bold' as const },
-      bodyFont: { size: 13, weight: 'normal' as const }
+      bodyFont: { size: 13, weight: 'normal' as const },
+      padding: 12
     }
   },
   scales: {
     x: {
       ticks: { 
         color: '#94a3b8', 
-        font: { size: 11, family: "'Inter', sans-serif" } 
+        font: { size: 11, family: "'Inter', sans-serif" },
+        maxTicksLimit: 10
       },
-      grid: { color: 'rgba(148, 163, 184, 0.1)' }
+      grid: { 
+        color: 'rgba(148, 163, 184, 0.1)',
+        drawBorder: false
+      }
     },
     y: {
       ticks: { 
         color: '#94a3b8', 
-        font: { size: 11, family: "'Inter', sans-serif" } 
+        font: { size: 11, family: "'Inter', sans-serif" },
+        callback: function(value: any) {
+          if (typeof value === 'number') {
+            return value >= 1000 ? `${(value / 1000).toFixed(1)}K` : value.toString();
+          }
+          return value;
+        }
       },
-      grid: { color: 'rgba(148, 163, 184, 0.1)' }
+      grid: { 
+        color: 'rgba(148, 163, 184, 0.1)',
+        drawBorder: false
+      },
+      beginAtZero: true
+    }
+  },
+  elements: {
+    point: {
+      radius: 4,
+      hoverRadius: 8,
+      borderWidth: 2
+    },
+    line: {
+      borderJoinStyle: 'round' as const,
+      borderCapStyle: 'round' as const
     }
   }
 });
@@ -279,12 +327,12 @@ class DashboardErrorBoundary extends React.Component<
     if (this.state.hasError) {
       return (
         <div className="min-h-screen bg-gradient-to-br from-slate-950 via-red-950 to-slate-950 flex items-center justify-center">
-          <div className="text-center space-y-6">
+          <div className="text-center space-y-6 max-w-md mx-auto p-6">
             <div className="text-8xl">💥</div>
             <div className="space-y-2">
               <p className="text-2xl font-bold text-red-400">Dashboard Error</p>
               <p className="text-white/60">Something went wrong with the dashboard</p>
-              <p className="text-red-300 text-sm font-mono">{this.state.error?.message}</p>
+              <p className="text-red-300 text-sm font-mono break-words">{this.state.error?.message}</p>
             </div>
             <button 
               onClick={() => window.location.reload()}
@@ -301,34 +349,48 @@ class DashboardErrorBoundary extends React.Component<
   }
 }
 
-const ChartLoader = () => (
+const ChartLoader = memo(() => (
   <div className="h-80 flex items-center justify-center">
     <div className="space-y-4 text-center">
       <div className="w-16 h-16 border-4 border-purple-500/20 rounded-full animate-spin border-t-purple-500"></div>
       <p className="text-white/60">Loading chart...</p>
     </div>
   </div>
-);
+));
+
+ChartLoader.displayName = 'ChartLoader';
 
 const FunnelChart = memo(({ data, options }: { data: ChartData | null; options: any }) => {
   if (!data || !data.datasets || data.datasets.length === 0) {
     return <ChartLoader />;
   }
-  return <Line data={data} options={options} />;
+  return (
+    <div className="h-80">
+      <Line data={data} options={options} />
+    </div>
+  );
 });
 
 const ConversionChart = memo(({ data, options }: { data: ChartData | null; options: any }) => {
   if (!data || !data.datasets || data.datasets.length === 0) {
     return <ChartLoader />;
   }
-  return <Bar data={data} options={options} />;
+  return (
+    <div className="h-80">
+      <Bar data={data} options={options} />
+    </div>
+  );
 });
 
 const DailyChart = memo(({ data, options }: { data: ChartData | null; options: any }) => {
   if (!data || !data.datasets || data.datasets.length === 0) {
     return <ChartLoader />;
   }
-  return <Line data={data} options={options} />;
+  return (
+    <div className="h-80">
+      <Line data={data} options={options} />
+    </div>
+  );
 });
 
 FunnelChart.displayName = 'FunnelChart';
@@ -345,7 +407,8 @@ const validateAnalyticsData = (data: any): data is EnhancedAnalyticsData => {
     'vipConversions',
     'vipStats',
     'eventStats',
-    'funnelInsights'
+    'funnelInsights',
+    'insights'
   ];
   
   return requiredFields.every(field => field in data);
@@ -354,7 +417,13 @@ const validateAnalyticsData = (data: any): data is EnhancedAnalyticsData => {
 const fetchWithRetry = async (url: string, retries = 3): Promise<Response> => {
   for (let i = 0; i < retries; i++) {
     try {
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        // Add cache control for real-time data
+        cache: 'no-store'
+      });
       if (response.ok) return response;
       if (response.status >= 400 && response.status < 500) {
         throw new Error(`Client error: ${response.status}`);
@@ -369,50 +438,117 @@ const fetchWithRetry = async (url: string, retries = 3): Promise<Response> => {
 };
 
 export default function VideoAnalyticsDashboard() {
-    const [data, setData] = useState<EnhancedAnalyticsData | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [days, setDays] = useState(7);
-    const [error, setError] = useState<string | null>(null);
-    const [mounted, setMounted] = useState(false);
-  
-    useEffect(() => {
-      setMounted(true);
-      fetchAnalytics();
-    }, [days]);
-  
-    const fetchAnalytics = async () => {
+  const [data, setData] = useState<EnhancedAnalyticsData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [days, setDays] = useState(7);
+  const [error, setError] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchAnalytics = useCallback(async (isRefresh = false) => {
+    if (isRefresh) {
+      setRefreshing(true);
+    } else {
       setLoading(true);
-      setError(null);
-      try {
-        const response = await fetchWithRetry(`/api/analytics/dashboard?days=${days}`);
-        const result = await response.json();
-        
-        if (result.error) {
-          throw new Error(result.error);
-        }
-        
-        if (!validateAnalyticsData(result)) {
-          throw new Error('Invalid data structure received from API');
-        }
-        
-        setData(result);
-      } catch (error) {
-        console.error('Failed to fetch analytics:', error);
-        setError(error instanceof Error ? error.message : 'Unknown error occurred');
-      } finally {
-        setLoading(false);
+    }
+    setError(null);
+    
+    try {
+      const response = await fetchWithRetry(`/api/analytics/vip-dashboard?days=${days}`);
+      const result = await response.json();
+      
+      if (result.error) {
+        throw new Error(result.error);
       }
+      
+      if (!validateAnalyticsData(result)) {
+        throw new Error('Invalid data structure received from API');
+      }
+      
+      setData(result);
+    } catch (error) {
+      console.error('Failed to fetch analytics:', error);
+      setError(error instanceof Error ? error.message : 'Unknown error occurred');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [days]);
+
+  useEffect(() => {
+    setMounted(true);
+    fetchAnalytics();
+  }, [fetchAnalytics]);
+
+  // Auto-refresh every 5 minutes
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!loading && !refreshing) {
+        fetchAnalytics(true);
+      }
+    }, 5 * 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, [loading, refreshing, fetchAnalytics]);
+
+  const chartOptions = useMemo(() => createChartOptions(), []);
+
+  const funnelChart = useMemo(() => {
+    if (!data?.funnel || data.funnel.length === 0) return null;
+    return {
+      labels: data.funnel.map(f => `${f.percentage}%`),
+      datasets: [{
+        label: 'Active Users',
+        data: data.funnel.map(f => f.sessions),
+        backgroundColor: 'rgba(168, 85, 247, 0.1)',
+        borderColor: '#a855f7',
+        borderWidth: 3,
+        fill: true,
+        tension: 0.4,
+        pointBackgroundColor: '#a855f7',
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2,
+        pointRadius: 6,
+        pointHoverRadius: 8,
+      }]
     };
-  
-    const chartOptions = useMemo(() => createChartOptions(), []);
-  
-    const funnelChart = useMemo(() => {
-      if (!data?.funnel) return null;
-      return {
-        labels: data.funnel.map(f => `${f.percentage}%`),
-        datasets: [{
-          label: 'Active Users',
-          data: data.funnel.map(f => f.sessions),
+  }, [data?.funnel]);
+
+  const conversionChart = useMemo(() => {
+    if (!data?.funnel || data.funnel.length === 0) return null;
+    return {
+      labels: data.funnel.map(f => `${f.percentage}%`),
+      datasets: [{
+        label: 'Conversion Rate (%)',
+        data: data.funnel.map(f => f.conversionRate),
+        backgroundColor: data.funnel.map((_, index) => {
+          const colors = [
+            'rgba(34, 197, 94, 0.8)',
+            'rgba(168, 85, 247, 0.8)',
+            'rgba(59, 130, 246, 0.8)',
+            'rgba(245, 158, 11, 0.8)',
+            'rgba(239, 68, 68, 0.8)',
+            'rgba(6, 182, 212, 0.8)',
+          ];
+          return colors[index % colors.length];
+        }),
+        borderRadius: 8,
+        borderSkipped: false,
+      }]
+    };
+  }, [data?.funnel]);
+
+  const dailyChart = useMemo(() => {
+    if (!data?.dailyStats || data.dailyStats.length === 0) return null;
+    return {
+      labels: data.dailyStats.map(d => {
+        const date = new Date(d.date);
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      }),
+      datasets: [
+        {
+          label: 'Sessions',
+          data: data.dailyStats.map(d => d.sessions),
           backgroundColor: 'rgba(168, 85, 247, 0.1)',
           borderColor: '#a855f7',
           borderWidth: 3,
@@ -421,100 +557,34 @@ export default function VideoAnalyticsDashboard() {
           pointBackgroundColor: '#a855f7',
           pointBorderColor: '#fff',
           pointBorderWidth: 2,
-          pointRadius: 6,
-          pointHoverRadius: 8,
-        }]
-      };
-    }, [data?.funnel]);
-  
-    const conversionChart = useMemo(() => {
-      if (!data?.funnel) return null;
-      return {
-        labels: data.funnel.map(f => `${f.percentage}%`),
-        datasets: [{
-          label: 'Conversion Rate (%)',
-          data: data.funnel.map(f => f.conversionRate),
-          backgroundColor: data.funnel.map((_, index) => {
-            const colors = [
-              'rgba(34, 197, 94, 0.8)',
-              'rgba(168, 85, 247, 0.8)',
-              'rgba(59, 130, 246, 0.8)',
-              'rgba(245, 158, 11, 0.8)',
-              'rgba(239, 68, 68, 0.8)',
-              'rgba(6, 182, 212, 0.8)',
-            ];
-            return colors[index % colors.length];
-          }),
-          borderRadius: 8,
-          borderSkipped: false,
-        }]
-      };
-    }, [data?.funnel]);
-  
-    const dailyChart = useMemo(() => {
-      if (!data?.dailyStats) return null;
-      return {
-        labels: data.dailyStats.map(d => {
-          const date = new Date(d.date);
-          return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        }),
-        datasets: [
-          {
-            label: 'Sessions',
-            data: data.dailyStats.map(d => d.sessions),
-            backgroundColor: 'rgba(168, 85, 247, 0.1)',
-            borderColor: '#a855f7',
-            borderWidth: 3,
-            fill: true,
-            tension: 0.4,
-            pointBackgroundColor: '#a855f7',
-            pointBorderColor: '#fff',
-            pointBorderWidth: 2,
-            pointRadius: 5,
-          },
-          {
-            label: 'Users',
-            data: data.dailyStats.map(d => d.users),
-            backgroundColor: 'rgba(34, 197, 94, 0.1)',
-            borderColor: '#22c55e',
-            borderWidth: 3,
-            fill: false,
-            tension: 0.4,
-            pointBackgroundColor: '#22c55e',
-            pointBorderColor: '#fff',
-            pointBorderWidth: 2,
-            pointRadius: 5,
-          }
-        ]
-      };
-    }, [data?.dailyStats]);
-  
-    const planDistributionChart = useMemo(() => {
-      if (!data?.vipConversions || (data.vipConversions.seasonPassPurchases === 0 && data.vipConversions.racePassPurchases === 0)) {
-        return {
-          labels: ['Season Pass', 'Race Pass'],
-          datasets: [{
-            data: [1, 1],
-            backgroundColor: [
-              'rgba(168, 85, 247, 0.3)',
-              'rgba(59, 130, 246, 0.3)'
-            ],
-            borderColor: [
-              '#a855f7',
-              '#3b82f6'
-            ],
-            borderWidth: 2,
-          }]
-        };
-      }
-      
+          pointRadius: 5,
+        },
+        {
+          label: 'Users',
+          data: data.dailyStats.map(d => d.users),
+          backgroundColor: 'rgba(34, 197, 94, 0.1)',
+          borderColor: '#22c55e',
+          borderWidth: 3,
+          fill: false,
+          tension: 0.4,
+          pointBackgroundColor: '#22c55e',
+          pointBorderColor: '#fff',
+          pointBorderWidth: 2,
+          pointRadius: 5,
+        }
+      ]
+    };
+  }, [data?.dailyStats]);
+
+  const planDistributionChart = useMemo(() => {
+    if (!data?.vipConversions || (data.vipConversions.seasonPassPurchases === 0 && data.vipConversions.racePassPurchases === 0)) {
       return {
         labels: ['Season Pass', 'Race Pass'],
         datasets: [{
-          data: [data.vipConversions.seasonPassPurchases, data.vipConversions.racePassPurchases],
+          data: [1, 1],
           backgroundColor: [
-            'rgba(168, 85, 247, 0.8)',
-            'rgba(59, 130, 246, 0.8)'
+            'rgba(168, 85, 247, 0.3)',
+            'rgba(59, 130, 246, 0.3)'
           ],
           borderColor: [
             '#a855f7',
@@ -523,192 +593,212 @@ export default function VideoAnalyticsDashboard() {
           borderWidth: 2,
         }]
       };
-    }, [data?.vipConversions]);
-  
-    if (loading) {
-      return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950 to-slate-950 flex items-center justify-center">
-          <div className="text-center space-y-6">
-            <div className="relative">
-              <div className="w-20 h-20 border-4 border-purple-500/20 rounded-full animate-spin border-t-purple-500"></div>
-              <div className="w-16 h-16 border-4 border-blue-500/20 rounded-full animate-spin border-t-blue-500 absolute top-2 left-2 animate-reverse-spin"></div>
-            </div>
-            <div className="space-y-2">
-              <p className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
-                Loading Analytics
-              </p>
-              <p className="text-white/60">Processing {days} days of data</p>
-              <div className="flex items-center justify-center space-x-1">
-                <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce"></div>
-                <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      );
     }
-  
-    if (error || !data) {
-      return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-950 via-red-950 to-slate-950 flex items-center justify-center">
-          <div className="text-center space-y-6">
-            <div className="text-8xl animate-bounce">⚠️</div>
-            <div className="space-y-2">
-              <p className="text-2xl font-bold text-red-400">System Error</p>
-              <p className="text-white/60">{error || 'Could not load analytics data'}</p>
-            </div>
-            <button 
-              onClick={fetchAnalytics}
-              className="px-8 py-4 bg-gradient-to-r from-red-500 to-orange-500 text-white rounded-2xl font-semibold hover:from-red-600 hover:to-orange-600 transform hover:scale-105 transition-all duration-300 shadow-2xl shadow-red-500/25"
-            >
-              🔄 Retry Loading
-            </button>
-          </div>
-        </div>
-      );
-    }
-  
+    
+    return {
+      labels: ['Season Pass', 'Race Pass'],
+      datasets: [{
+        data: [data.vipConversions.seasonPassPurchases, data.vipConversions.racePassPurchases],
+        backgroundColor: [
+          'rgba(168, 85, 247, 0.8)',
+          'rgba(59, 130, 246, 0.8)'
+        ],
+        borderColor: [
+          '#a855f7',
+          '#3b82f6'
+        ],
+        borderWidth: 2,
+      }]
+    };
+  }, [data?.vipConversions]);
+
+  if (loading) {
     return (
-      <DashboardErrorBoundary>
-        <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950 to-slate-950 text-white font-inter overflow-x-hidden">
-          <div className="fixed inset-0 overflow-hidden pointer-events-none">
-            <div className="absolute -top-1/2 -left-1/2 w-full h-full bg-gradient-to-br from-purple-500/5 to-transparent animate-pulse"></div>
-            <div className="absolute -bottom-1/2 -right-1/2 w-full h-full bg-gradient-to-tl from-blue-500/5 to-transparent animate-pulse" style={{animationDelay: '1s'}}></div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950 to-slate-950 flex items-center justify-center">
+        <div className="text-center space-y-6">
+          <div className="relative">
+            <div className="w-20 h-20 border-4 border-purple-500/20 rounded-full animate-spin border-t-purple-500"></div>
+            <div className="w-16 h-16 border-4 border-blue-500/20 rounded-full animate-spin border-t-blue-500 absolute top-2 left-2" style={{animationDirection: 'reverse'}}></div>
           </div>
-  
-          <div className="relative bg-gradient-to-r from-slate-900/80 to-purple-900/80 border-b border-white/10 backdrop-blur-xl shadow-2xl">
-            <div className="max-w-7xl mx-auto px-6 py-8">
-              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-6 lg:space-y-0">
-                <div className="space-y-3">
-                  <h1 className="text-5xl font-black bg-gradient-to-r from-purple-400 via-blue-400 to-emerald-400 bg-clip-text text-transparent">
-                    VIP Analytics Command Center
-                  </h1>
-                  <p className="text-xl text-white/70 font-light">
-                    Real-time engagement intelligence & conversion analytics
-                  </p>
-                  <div className="flex flex-wrap items-center gap-6 text-sm">
-                    <div className="flex items-center gap-2 bg-white/5 px-3 py-1 rounded-full border border-white/10">
-                      <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
-                      <span className="text-white/80">{data.totalSessions.toLocaleString()} sessions</span>
-                    </div>
-                    <div className="flex items-center gap-2 bg-white/5 px-3 py-1 rounded-full border border-white/10">
-                      <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse"></div>
-                      <span className="text-white/80">{data.vipConversions.totalPurchases} VIP conversions</span>
-                    </div>
-                    <div className="flex items-center gap-2 bg-white/5 px-3 py-1 rounded-full border border-white/10">
-                      <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div>
-                      <span className="text-white/80">{formatCurrency(data.vipConversions.revenue)} revenue</span>
-                    </div>
+          <div className="space-y-2">
+            <p className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
+              Loading Analytics
+            </p>
+            <p className="text-white/60">Processing {days} days of data</p>
+            <div className="flex items-center justify-center space-x-1">
+              <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce"></div>
+              <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+              <div className="w-2 h-2 bg-emerald-500 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-red-950 to-slate-950 flex items-center justify-center">
+        <div className="text-center space-y-6 max-w-md mx-auto p-6">
+          <div className="text-8xl animate-bounce">⚠️</div>
+          <div className="space-y-2">
+            <p className="text-2xl font-bold text-red-400">System Error</p>
+            <p className="text-white/60">{error || 'Could not load analytics data'}</p>
+          </div>
+          <button 
+            onClick={() => fetchAnalytics()}
+            className="px-8 py-4 bg-gradient-to-r from-red-500 to-orange-500 text-white rounded-2xl font-semibold hover:from-red-600 hover:to-orange-600 transform hover:scale-105 transition-all duration-300 shadow-2xl shadow-red-500/25"
+          >
+            🔄 Retry Loading
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <DashboardErrorBoundary>
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950 to-slate-950 text-white font-sans overflow-x-hidden">
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-1/2 -left-1/2 w-full h-full bg-gradient-to-br from-purple-500/5 to-transparent animate-pulse"></div>
+          <div className="absolute -bottom-1/2 -right-1/2 w-full h-full bg-gradient-to-tl from-blue-500/5 to-transparent animate-pulse" style={{animationDelay: '1s'}}></div>
+        </div>
+
+        <div className="relative bg-gradient-to-r from-slate-900/80 to-purple-900/80 border-b border-white/10 backdrop-blur-xl shadow-2xl">
+          <div className="max-w-7xl mx-auto px-6 py-8">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-6 lg:space-y-0">
+              <div className="space-y-3">
+                <h1 className="text-4xl lg:text-5xl font-black bg-gradient-to-r from-purple-400 via-blue-400 to-emerald-400 bg-clip-text text-transparent">
+                  VIP Analytics Command Center
+                </h1>
+                <p className="text-xl text-white/70 font-light">
+                  Real-time engagement intelligence & conversion analytics
+                </p>
+                <div className="flex flex-wrap items-center gap-6 text-sm">
+                  <div className="flex items-center gap-2 bg-white/5 px-3 py-1 rounded-full border border-white/10">
+                    <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
+                    <span className="text-white/80">{data.totalSessions.toLocaleString()} sessions</span>
+                  </div>
+                  <div className="flex items-center gap-2 bg-white/5 px-3 py-1 rounded-full border border-white/10">
+                    <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse"></div>
+                    <span className="text-white/80">{data.vipConversions.totalPurchases} VIP conversions</span>
+                  </div>
+                  <div className="flex items-center gap-2 bg-white/5 px-3 py-1 rounded-full border border-white/10">
+                    <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div>
+                    <span className="text-white/80">{formatCurrency(data.vipConversions.revenue)} revenue</span>
                   </div>
                 </div>
-                
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <select 
-                    value={days} 
-                    onChange={(e) => setDays(Number(e.target.value))}
-                    className="bg-white/5 border border-white/20 text-white px-6 py-3 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all backdrop-blur-sm hover:bg-white/10"
-                  >
-                    <option value={1}>Last 24 hours</option>
-                    <option value={7}>Last 7 days</option>
-                    <option value={30}>Last 30 days</option>
-                    <option value={90}>Last 90 days</option>
-                  </select>
-                  <button
-                    onClick={fetchAnalytics}
-                    className="bg-gradient-to-r from-purple-500 to-blue-500 text-white px-6 py-3 rounded-xl font-semibold hover:from-purple-600 hover:to-blue-600 transform hover:scale-105 transition-all duration-300 shadow-lg shadow-purple-500/25 flex items-center gap-2"
-                  >
-                    <span className="animate-spin">🔄</span>
-                    Refresh
-                  </button>
-                </div>
+              </div>
+              
+              <div className="flex flex-col sm:flex-row gap-4">
+                <select 
+                  value={days} 
+                  onChange={(e) => setDays(Number(e.target.value))}
+                  className="bg-white/5 border border-white/20 text-white px-6 py-3 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all backdrop-blur-sm hover:bg-white/10"
+                >
+                  <option value={1}>Last 24 hours</option>
+                  <option value={7}>Last 7 days</option>
+                  <option value={30}>Last 30 days</option>
+                  <option value={90}>Last 90 days</option>
+                </select>
+                <button
+                  onClick={() => fetchAnalytics(true)}
+                  disabled={refreshing}
+                  className="bg-gradient-to-r from-purple-500 to-blue-500 text-white px-6 py-3 rounded-xl font-semibold hover:from-purple-600 hover:to-blue-600 transform hover:scale-105 transition-all duration-300 shadow-lg shadow-purple-500/25 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <span className={refreshing ? "animate-spin" : ""}>🔄</span>
+                  {refreshing ? 'Refreshing...' : 'Refresh'}
+                </button>
               </div>
             </div>
           </div>
-  
-          <div className="relative max-w-7xl mx-auto px-6 py-8 space-y-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-              <MetricCard 
-                title="Total Sessions"
-                value={data.totalSessions}
-                subtitle={`Last ${days} days`}
-                icon="📊"
-                gradient="from-blue-600 to-blue-800"
-                trend={12.5}
-                animate={mounted}
-              />
-              <MetricCard 
-                title="Lead Qualification"
-                value={`${data.funnelInsights.leadConversionRate.toFixed(1)}%`}
-                subtitle="20% video milestone"
-                icon="🎯"
-                gradient="from-amber-600 to-amber-800"
-                trend={8.3}
-                animate={mounted}
-              />
-              <MetricCard 
-                title="Content Unlock"
-                value={`${data.funnelInsights.unlockConversionRate.toFixed(1)}%`}
-                subtitle="50% video milestone"
-                icon="🔓"
-                gradient="from-emerald-600 to-emerald-800"
-                trend={-2.1}
-                animate={mounted}
-              />
-              <MetricCard 
-                title="Completion Rate"
-                value={`${data.funnelInsights.completionRate.toFixed(1)}%`}
-                subtitle="Full video watched"
-                icon="✅"
-                gradient="from-purple-600 to-purple-800"
-                trend={5.7}
-                animate={mounted}
-              />
-            </div>
-  
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-              <MetricCard 
-                title="VIP Conversion"
-                value={`${data.vipConversions.conversionRate.toFixed(2)}%`}
-                subtitle={`${data.vipConversions.totalPurchases} purchases`}
-                icon="💎"
-                gradient="from-emerald-600 to-teal-800"
-                trend={15.2}
-                animate={mounted}
-              />
-              <MetricCard 
-                title="Total Revenue"
-                value={formatCurrency(data.vipConversions.revenue)}
-                subtitle={`Last ${days} days`}
-                icon="💰"
-                gradient="from-pink-600 to-rose-800"
-                trend={22.8}
-                animate={mounted}
-              />
-              <MetricCard 
-                title="Revenue/Session"
-                value={formatCurrency(data.revenuePerSession)}
-                subtitle="Average value"
-                icon="📈"
-                gradient="from-indigo-600 to-purple-800"
-                trend={-3.4}
-                animate={mounted}
-              />
-              <MetricCard 
-                title="Average Order"
-                value={formatCurrency(data.vipConversions.averageOrderValue)}
-                subtitle="AOV per purchase"
-                icon="🎪"
-                gradient="from-orange-600 to-red-800"
-                trend={7.9}
-                animate={mounted}
-              />
-            </div>
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+        </div>
+
+        <div className="relative max-w-7xl mx-auto px-6 py-8 space-y-8">
+          {/* Metric Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+            <MetricCard 
+              title="Total Sessions"
+              value={data.totalSessions}
+              subtitle={`Last ${days} days`}
+              icon="📊"
+              gradient="from-blue-600 to-blue-800"
+              trend={12.5}
+              animate={mounted}
+            />
+            <MetricCard 
+              title="Lead Qualification"
+              value={`${data.funnelInsights.leadConversionRate.toFixed(1)}%`}
+              subtitle="20% video milestone"
+              icon="🎯"
+              gradient="from-amber-600 to-amber-800"
+              trend={8.3}
+              animate={mounted}
+            />
+            <MetricCard 
+              title="Content Unlock"
+              value={`${data.funnelInsights.unlockConversionRate.toFixed(1)}%`}
+              subtitle="50% video milestone"
+              icon="🔓"
+              gradient="from-emerald-600 to-emerald-800"
+              trend={-2.1}
+              animate={mounted}
+            />
+            <MetricCard 
+              title="Completion Rate"
+              value={`${data.funnelInsights.completionRate.toFixed(1)}%`}
+              subtitle="Full video watched"
+              icon="✅"
+              gradient="from-purple-600 to-purple-800"
+              trend={5.7}
+              animate={mounted}
+            />
+          </div>
+
+          {/* Revenue Metrics */}
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+            <MetricCard 
+              title="VIP Conversion"
+              value={`${data.vipConversions.conversionRate.toFixed(2)}%`}
+              subtitle={`${data.vipConversions.totalPurchases} purchases`}
+              icon="💎"
+              gradient="from-emerald-600 to-teal-800"
+              trend={15.2}
+              animate={mounted}
+            />
+            <MetricCard 
+              title="Total Revenue"
+              value={formatCurrency(data.vipConversions.revenue)}
+              subtitle={`Last ${days} days`}
+              icon="💰"
+              gradient="from-pink-600 to-rose-800"
+              trend={22.8}
+              animate={mounted}
+            />
+            <MetricCard 
+              title="Revenue/Session"
+              value={formatCurrency(data.revenuePerSession)}
+              subtitle="Average value"
+              icon="📈"
+              gradient="from-indigo-600 to-purple-800"
+              trend={-3.4}
+              animate={mounted}
+            />
+            <MetricCard 
+              title="Average Order"
+              value={formatCurrency(data.vipConversions.averageOrderValue)}
+              subtitle="AOV per purchase"
+              icon="🎪"
+              gradient="from-orange-600 to-red-800"
+              trend={7.9}
+              animate={mounted}
+            />
+          </div>
+
+          {/* Charts Row 1 */}
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
             <ChartContainer title="🎯 User Retention Funnel" subtitle="Progressive engagement milestones">
-              <div className="h-80">
-                <FunnelChart data={funnelChart} options={chartOptions} />
-              </div>
+              <FunnelChart data={funnelChart} options={chartOptions} />
               <div className="mt-6 grid grid-cols-2 gap-4">
                 <div className="bg-gradient-to-r from-amber-500/10 to-amber-500/5 p-4 rounded-xl border border-amber-500/20">
                   <p className="text-amber-400 font-bold text-sm">20% Threshold</p>
@@ -720,21 +810,20 @@ export default function VideoAnalyticsDashboard() {
                 </div>
               </div>
             </ChartContainer>
+            
             <ChartContainer title="📊 Conversion Performance" subtitle="Stage-by-stage conversion rates">
-              <div className="h-80">
-                <ConversionChart data={conversionChart} options={chartOptions} />
-              </div>
+              <ConversionChart data={conversionChart} options={chartOptions} />
             </ChartContainer>
           </div>
 
+          {/* Charts Row 2 */}
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
             <div className="xl:col-span-2">
               <ChartContainer title="📅 Daily Performance Trends" subtitle="Sessions and users over time">
-                <div className="h-80">
-                  <DailyChart data={dailyChart} options={chartOptions} />
-                </div>
+                <DailyChart data={dailyChart} options={chartOptions} />
               </ChartContainer>
             </div>
+            
             <ChartContainer title="🎯 VIP Plan Distribution" subtitle="Purchase preferences">
               <div className="h-64 flex items-center justify-center">
                 <Doughnut 
@@ -748,14 +837,16 @@ export default function VideoAnalyticsDashboard() {
                         position: 'bottom' as const,
                         labels: {
                           color: '#e2e8f0',
-                          font: { size: 12, weight: 'normal' as const }
+                          font: { size: 12, weight: 'normal' as const },
+                          usePointStyle: true,
+                          padding: 20
                         }
                       }
                     }
                   }} 
                 />
               </div>
-              <div className="space-y-3">
+              <div className="mt-4 space-y-3">
                 <div className="flex justify-between items-center p-3 bg-white/5 rounded-lg">
                   <span className="text-purple-400 font-medium">Season Pass</span>
                   <span className="font-bold text-white">{data.vipConversions.seasonPassPurchases}</span>
@@ -768,6 +859,7 @@ export default function VideoAnalyticsDashboard() {
             </ChartContainer>
           </div>
 
+          {/* Event Statistics */}
           <ChartContainer title="🚀 VIP Event Statistics" subtitle="Key engagement milestones" fullWidth>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
               <div className="text-center group hover:scale-105 transition-transform duration-300">
@@ -793,9 +885,10 @@ export default function VideoAnalyticsDashboard() {
             </div>
           </ChartContainer>
 
+          {/* Analysis Row */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <ChartContainer title="⚠️ Critical Drop-off Analysis" subtitle="Optimization opportunities">
-              {data.dropoffPoints.length > 0 ? (
+              {data.dropoffPoints && data.dropoffPoints.length > 0 ? (
                 <div className="space-y-4">
                   {data.dropoffPoints
                     .sort((a, b) => b.dropoffRate - a.dropoffRate)
@@ -851,6 +944,7 @@ export default function VideoAnalyticsDashboard() {
                     <p className="text-white/60">Analyzing performance...</p>
                   )}
                 </div>
+                
                 <div className="p-4 bg-gradient-to-r from-red-500/10 to-red-500/5 rounded-xl border border-red-500/20">
                   <h4 className="font-bold text-red-400 mb-2 flex items-center gap-2">
                     📉 Biggest Drop-off Point
@@ -864,6 +958,7 @@ export default function VideoAnalyticsDashboard() {
                     <p className="text-white/60">No critical drop-offs detected</p>
                   )}
                 </div>
+                
                 <div className="p-4 bg-gradient-to-r from-blue-500/10 to-blue-500/5 rounded-xl border border-blue-500/20">
                   <h4 className="font-bold text-blue-400 mb-2 flex items-center gap-2">
                     ⏱️ Average Engagement
@@ -875,6 +970,7 @@ export default function VideoAnalyticsDashboard() {
             </ChartContainer>
           </div>
 
+          {/* Optimization Recommendations */}
           <ChartContainer title="🚀 AI-Powered Optimization Recommendations" subtitle="Data-driven actionable insights" fullWidth>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               <div className="space-y-4">
@@ -898,6 +994,7 @@ export default function VideoAnalyticsDashboard() {
                       </p>
                     </div>
                   </div>
+                  
                   <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-all">
                     <span className={`text-lg ${data.funnelInsights.unlockConversionRate >= 35 ? 'text-emerald-400' : 'text-orange-400'}`}>
                       {data.funnelInsights.unlockConversionRate >= 35 ? '✅' : '🔧'}
@@ -914,6 +1011,7 @@ export default function VideoAnalyticsDashboard() {
                       </p>
                     </div>
                   </div>
+                  
                   <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-all">
                     <span className={`text-lg ${data.funnelInsights.completionRate >= 15 ? 'text-emerald-400' : 'text-red-400'}`}>
                       {data.funnelInsights.completionRate >= 15 ? '📈' : '⏱️'}
@@ -932,6 +1030,7 @@ export default function VideoAnalyticsDashboard() {
                   </div>
                 </div>
               </div>
+              
               <div className="space-y-4">
                 <h3 className="font-bold text-emerald-400 mb-4 flex items-center gap-2 text-lg">
                   💰 Revenue Optimization
@@ -953,6 +1052,7 @@ export default function VideoAnalyticsDashboard() {
                       </p>
                     </div>
                   </div>
+                  
                   <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-all">
                     <span className="text-lg text-purple-400">🎯</span>
                     <div>
@@ -964,6 +1064,7 @@ export default function VideoAnalyticsDashboard() {
                       </p>
                     </div>
                   </div>
+                  
                   <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-all">
                     <span className={`text-lg ${data.revenuePerSession >= 500 ? 'text-emerald-400' : 'text-amber-400'}`}>
                       📊
@@ -980,6 +1081,7 @@ export default function VideoAnalyticsDashboard() {
                       </p>
                     </div>
                   </div>
+                  
                   <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-all">
                     <span className="text-lg text-blue-400">🔥</span>
                     <div>
@@ -996,6 +1098,7 @@ export default function VideoAnalyticsDashboard() {
             </div>
           </ChartContainer>
 
+          {/* Footer */}
           <div className="text-center py-8 border-t border-white/10">
             <div className="space-y-2">
               <p className="text-white/60 font-medium">
@@ -1021,20 +1124,6 @@ export default function VideoAnalyticsDashboard() {
             </div>
           </div>
         </div>
-
-        <style jsx>{`
-          @keyframes reverse-spin {
-            from {
-              transform: rotate(360deg);
-            }
-            to {
-              transform: rotate(0deg);
-            }
-          }
-          .animate-reverse-spin {
-            animation: reverse-spin 1s linear infinite;
-          }
-        `}</style>
       </div>
     </DashboardErrorBoundary>
   );
