@@ -194,7 +194,7 @@ type GpSchedule = {
 };
 
 // ============================================================================
-// ENHANCED VIDEO PLAYER COMPONENT WITH COMPREHENSIVE TRACKING
+// ENHANCED VIDEO PLAYER COMPONENT WITH COMPREHENSIVE TRACKING AND BULLETPROOF UNMUTE CTA
 // ============================================================================
 function VideoPlayer({ onWatchProgress }: { onWatchProgress?: (percentage: number) => void }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -209,7 +209,7 @@ function VideoPlayer({ onWatchProgress }: { onWatchProgress?: (percentage: numbe
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
-  
+
   // Enhanced tracking state
   const [videoSessionId] = useState(() => `video_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
   const [watchStartTime, setWatchStartTime] = useState<number | null>(null);
@@ -226,19 +226,17 @@ function VideoPlayer({ onWatchProgress }: { onWatchProgress?: (percentage: numbe
     setIsMounted(true);
   }, []);
 
-  // Initialize video with enhanced tracking
+  // Initialize video with enhanced tracking and volume change handling
   useEffect(() => {
     if (!isMounted) return;
     const v = videoRef.current;
     if (!v) return;
-    
+
     v.muted = true;
     v.volume = 0.8;
-    
+
     const handleLoadedMetadata = () => {
       setDuration(v.duration);
-      
-      // Track video load
       trackFBEvent('VIP_VideoLoad', {
         params: {
           content_type: 'video',
@@ -248,26 +246,22 @@ function VideoPlayer({ onWatchProgress }: { onWatchProgress?: (percentage: numbe
           video_session_id: videoSessionId,
           video_quality: 'auto',
           video_source: 'cdn_bunny',
-          page_type: 'vip_landing'
-        }
+          page_type: 'vip_landing',
+        },
       });
     };
-    
+
     const handleTimeUpdate = () => {
       setProgress(v.currentTime);
-      
-      // Update total watch time if playing
       if (!v.paused && watchStartTime) {
         const now = Date.now();
         const sessionTime = (now - watchStartTime) / 1000;
-        setTotalWatchTime(prev => prev + (sessionTime / 10)); // Approximate increment
+        setTotalWatchTime((prev) => prev + sessionTime / 10); // Approximate increment
       }
     };
 
     const handleSeeked = () => {
-      setSeekCount(prev => prev + 1);
-      
-      // Track significant seeks (>5 seconds)
+      setSeekCount((prev) => prev + 1);
       const seekAmount = Math.abs(v.currentTime - lastProgressUpdate);
       if (seekAmount > 5) {
         trackFBEvent('VIP_VideoSeek', {
@@ -278,50 +272,50 @@ function VideoPlayer({ onWatchProgress }: { onWatchProgress?: (percentage: numbe
             seek_from: lastProgressUpdate,
             seek_to: v.currentTime,
             seek_amount: seekAmount,
-            seek_direction: v.currentTime > lastProgressUpdate ? 'forward' : 'backward'
-          }
+            seek_direction: v.currentTime > lastProgressUpdate ? 'forward' : 'backward',
+          },
         });
       }
       setLastProgressUpdate(v.currentTime);
     };
 
     const handleVolumeChange = () => {
-      if (v.muted !== isMuted) {
-        setMuteToggles(prev => prev + 1);
+      setIsMuted(v.muted);
+      if (!v.muted) {
+        setShowUnmuteCTA(false); // Hide CTA when unmuted
       }
+      setMuteToggles((prev) => prev + 1);
     };
-    
+
     v.addEventListener('loadedmetadata', handleLoadedMetadata);
     v.addEventListener('timeupdate', handleTimeUpdate);
     v.addEventListener('seeked', handleSeeked);
     v.addEventListener('volumechange', handleVolumeChange);
-    
+
     return () => {
       v.removeEventListener('loadedmetadata', handleLoadedMetadata);
       v.removeEventListener('timeupdate', handleTimeUpdate);
       v.removeEventListener('seeked', handleSeeked);
       v.removeEventListener('volumechange', handleVolumeChange);
     };
-  }, [isMounted, videoSessionId, lastProgressUpdate, isMuted, watchStartTime]);
+  }, [isMounted, videoSessionId, lastProgressUpdate, watchStartTime]);
 
   // Enhanced progress tracking with detailed analytics
   useEffect(() => {
     if (!isMounted || !duration) return;
     const v = videoRef.current;
     if (!v || !onWatchProgress) return;
-    
+
     const currentPercentage = Math.floor((v.currentTime / v.duration) * 100);
     onWatchProgress(currentPercentage);
 
-    // Track detailed engagement milestones
     const detailedMilestones = [10, 20, 30, 40, 50, 60, 70, 80, 90, 95, 100];
-    
-    detailedMilestones.forEach(milestone => {
+
+    detailedMilestones.forEach((milestone) => {
       const eventKey = `milestone_${milestone}`;
       if (currentPercentage >= milestone && !engagementEvents.has(eventKey)) {
-        setEngagementEvents(prev => new Set([...prev, eventKey]));
-        
-        // Track granular progress for better attribution
+        setEngagementEvents((prev) => new Set([...prev, eventKey]));
+
         trackFBEvent('VIP_VideoProgress_Detailed', {
           params: {
             content_type: 'video',
@@ -338,31 +332,30 @@ function VideoPlayer({ onWatchProgress }: { onWatchProgress?: (percentage: numbe
             user_behavior: {
               replay_likelihood: playCount > 1 ? 'high' : 'low',
               engagement_pattern: pauseCount > 3 ? 'deliberate' : 'passive',
-              audio_preference: muteToggles > 0 ? 'audio_enabled' : 'silent_viewer'
-            }
-          }
+              audio_preference: muteToggles > 0 ? 'audio_enabled' : 'silent_viewer',
+            },
+          },
         });
 
-        // Special events for attribution optimization
         if (milestone === 25) {
           trackFBEvent('VIP_VideoQuarter', {
             params: {
               content_category: 'video_attribution_checkpoint',
               video_session_id: videoSessionId,
               engagement_level: 'qualified_viewer',
-              attribution_value: 'medium'
-            }
+              attribution_value: 'medium',
+            },
           });
         }
-        
+
         if (milestone === 75) {
           trackFBEvent('VIP_VideoMostly_Complete', {
             params: {
               content_category: 'video_attribution_checkpoint',
               video_session_id: videoSessionId,
               engagement_level: 'highly_engaged_viewer',
-              attribution_value: 'high'
-            }
+              attribution_value: 'high',
+            },
           });
         }
       }
@@ -375,8 +368,6 @@ function VideoPlayer({ onWatchProgress }: { onWatchProgress?: (percentage: numbe
     const doc: any = document;
     const onFsChange = () => {
       setIsFullscreen(!!(doc.fullscreenElement || doc.webkitFullscreenElement));
-      
-      // Track fullscreen events
       const isEntering = !!(doc.fullscreenElement || doc.webkitFullscreenElement);
       trackFBEvent('VIP_VideoFullscreen', {
         params: {
@@ -385,8 +376,8 @@ function VideoPlayer({ onWatchProgress }: { onWatchProgress?: (percentage: numbe
           video_session_id: videoSessionId,
           action: isEntering ? 'enter_fullscreen' : 'exit_fullscreen',
           video_percentage: Math.floor((progress / duration) * 100),
-          engagement_level: 'high_intent'
-        }
+          engagement_level: 'high_intent',
+        },
       });
     };
     document.addEventListener('fullscreenchange', onFsChange);
@@ -402,17 +393,15 @@ function VideoPlayer({ onWatchProgress }: { onWatchProgress?: (percentage: numbe
     e?.stopPropagation();
     const v = videoRef.current;
     if (!v) return;
-    
+
     if (v.paused) {
       v.play();
       setIsPlaying(true);
-      setPlayCount(prev => prev + 1);
+      setPlayCount((prev) => prev + 1);
       setWatchStartTime(Date.now());
-      
+
       if (!hasStarted) {
         setHasStarted(true);
-        
-        // Enhanced video start tracking
         trackFBEvent('VIP_VideoStart', {
           params: {
             content_type: 'video',
@@ -422,11 +411,10 @@ function VideoPlayer({ onWatchProgress }: { onWatchProgress?: (percentage: numbe
             video_duration: duration,
             start_method: 'user_click',
             device_type: /Mobile|Android|iPhone|iPad/.test(navigator.userAgent) ? 'mobile' : 'desktop',
-            connection_type: (navigator as any).connection?.effectiveType || 'unknown'
-          }
+            connection_type: (navigator as any).connection?.effectiveType || 'unknown',
+          },
         });
       } else {
-        // Track resume events
         trackFBEvent('VIP_VideoResume', {
           params: {
             content_type: 'video',
@@ -434,19 +422,17 @@ function VideoPlayer({ onWatchProgress }: { onWatchProgress?: (percentage: numbe
             video_session_id: videoSessionId,
             resume_position: v.currentTime,
             resume_percentage: Math.floor((v.currentTime / duration) * 100),
-            total_pauses: pauseCount
-          }
+            total_pauses: pauseCount,
+          },
         });
       }
-      
+
       if (v.muted) setShowUnmuteCTA(true);
     } else {
       v.pause();
       setIsPlaying(false);
-      setPauseCount(prev => prev + 1);
+      setPauseCount((prev) => prev + 1);
       setWatchStartTime(null);
-      
-      // Enhanced pause tracking
       trackFBEvent('VIP_VideoPause', {
         params: {
           content_type: 'video',
@@ -455,23 +441,24 @@ function VideoPlayer({ onWatchProgress }: { onWatchProgress?: (percentage: numbe
           pause_position: v.currentTime,
           pause_percentage: Math.floor((v.currentTime / duration) * 100),
           watch_time_this_session: totalWatchTime,
-          pause_reason: 'user_initiated'
-        }
+          pause_reason: 'user_initiated',
+        },
       });
     }
   };
 
-  // Enhanced Mute / Unmute with tracking
+  // Enhanced Mute / Unmute with volume enforcement and tracking
   const toggleMute = (e?: React.SyntheticEvent) => {
     e?.stopPropagation();
     const v = videoRef.current;
     if (!v) return;
-    
-    const wasUnmuted = !v.muted;
+
     v.muted = !v.muted;
+    if (!v.muted) {
+      v.volume = 1; // Ensure volume is set when unmuting
+    }
     setIsMuted(v.muted);
-    
-    // Track audio engagement - critical for attribution
+
     trackFBEvent('VIP_VideoAudio', {
       params: {
         content_type: 'video',
@@ -480,8 +467,8 @@ function VideoPlayer({ onWatchProgress }: { onWatchProgress?: (percentage: numbe
         action: v.muted ? 'muted' : 'unmuted',
         video_percentage: Math.floor((progress / duration) * 100),
         audio_engagement_value: !v.muted ? 'high' : 'low',
-        user_intent: !v.muted ? 'engaged_listening' : 'visual_only'
-      }
+        user_intent: !v.muted ? 'engaged_listening' : 'visual_only',
+      },
     });
   };
 
@@ -548,7 +535,7 @@ function VideoPlayer({ onWatchProgress }: { onWatchProgress?: (percentage: numbe
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-black/40 flex flex-col items-center justify-center text-white">
           <div className="bg-gradient-to-r from-amber-500 to-orange-500 rounded-full p-6 shadow-2xl mb-4 transform transition-transform group-hover:scale-110">
             <svg className="w-12 h-12 text-black" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M8 5v14l11-7z"/>
+              <path d="M8 5v14l11-7z" />
             </svg>
           </div>
           <h3 className="text-xl font-bold mb-2 text-center">🎯 Descubre el Secreto</h3>
@@ -556,15 +543,18 @@ function VideoPlayer({ onWatchProgress }: { onWatchProgress?: (percentage: numbe
         </div>
       )}
 
-      {/* Enhanced Unmute CTA */}
+      {/* Enhanced Unmute CTA with z-index and pointer-events */}
       {showUnmuteCTA && (
-        <div 
-          onClick={(e) => { toggleMute(e); setShowUnmuteCTA(false); }}
-          className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/70 to-black/40 flex flex-col items-center justify-center text-white cursor-pointer"
+        <div
+          onClick={(e) => {
+            toggleMute(e);
+            setShowUnmuteCTA(false);
+          }}
+          className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/70 to-black/40 flex flex-col items-center justify-center text-white cursor-pointer z-10 pointer-events-auto"
         >
           <div className="bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full p-4 shadow-2xl mb-3 animate-pulse">
             <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0014 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+              <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0014 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z" />
             </svg>
           </div>
           <p className="text-lg font-semibold">🔊 Activar Audio</p>
@@ -574,7 +564,7 @@ function VideoPlayer({ onWatchProgress }: { onWatchProgress?: (percentage: numbe
 
       {/* Enhanced Progress Bar */}
       <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/50">
-        <div 
+        <div
           className="h-full bg-gradient-to-r from-amber-400 to-orange-500 transition-all duration-300"
           style={{ width: `${progressPercent}%` }}
         />
@@ -590,18 +580,19 @@ function VideoPlayer({ onWatchProgress }: { onWatchProgress?: (percentage: numbe
         >
           {isPlaying ? (
             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+              <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
             </svg>
           ) : (
             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M8 5v14l11-7z"/>
+              <path d="M8 5v14l11-7z" />
             </svg>
           )}
         </button>
 
         {/* Time Display */}
         <div className="text-white text-xs font-mono bg-black/70 backdrop-blur-sm px-2 py-1 rounded border border-white/20">
-          {Math.floor(progress / 60)}:{String(Math.floor(progress % 60)).padStart(2, '0')} / {Math.floor(duration / 60)}:{String(Math.floor(duration % 60)).padStart(2, '0')}
+          {Math.floor(progress / 60)}:{String(Math.floor(progress % 60)).padStart(2, '0')} /{' '}
+          {Math.floor(duration / 60)}:{String(Math.floor(duration % 60)).padStart(2, '0')}
         </div>
 
         {/* Mute/Volume & Fullscreen */}
@@ -613,11 +604,11 @@ function VideoPlayer({ onWatchProgress }: { onWatchProgress?: (percentage: numbe
           >
             {isMuted ? (
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M16.5 12A4.5 4.5 0 0014 7.97v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51A8.796 8.796 0 0021 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06a8.99 8.99 0 003.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>
+                <path d="M16.5 12A4.5 4.5 0 0014 7.97v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51A8.796 8.796 0 0021 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06a8.99 8.99 0 003.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z" />
               </svg>
             ) : (
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0014 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+                <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0014 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z" />
               </svg>
             )}
           </button>
@@ -629,11 +620,11 @@ function VideoPlayer({ onWatchProgress }: { onWatchProgress?: (percentage: numbe
           >
             {isFullscreen ? (
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/>
+                <path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z" />
               </svg>
             ) : (
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
+                <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z" />
               </svg>
             )}
           </button>
@@ -654,6 +645,7 @@ export default function FantasyVipLanding() {
   const router = useRouter();
   const { isSignedIn, user } = useUser();
   const pendingPlanRef = useRef<string | null>(null);
+  const heroButtonRef = useRef<HTMLButtonElement>(null);
 
   // ============================================================================
   // HYDRATION SAFETY - FIRST STATE
@@ -663,7 +655,6 @@ export default function FantasyVipLanding() {
   // ============================================================================
   // ENHANCED STATE MANAGEMENT - ALL STATE HOOKS
   // ============================================================================
-  const [showSticky, setShowSticky] = useState(true);
   const [processingPlan, setProcessingPlan] = useState<string | null>(null);
   const [showSignModal, setShowSignModal] = useState(false);
   
@@ -1277,43 +1268,6 @@ export default function FantasyVipLanding() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, [isMounted]);
   
-  // Sticky button observer with enhanced tracking
-  useEffect(() => {
-    if (!isMounted) return;
-    
-    const timer = setTimeout(() => {
-      const planesEl = document.getElementById('planes');
-      if (!planesEl) return;
-      
-      const observer = new IntersectionObserver(
-        ([entry]) => {
-          const isVisible = entry.isIntersecting;
-          setShowSticky(!isVisible);
-          
-          // Track sticky button visibility
-          if (!isVisible && typeof window !== 'undefined' && !sessionStorage.getItem('sticky_shown_tracked')) {
-            sessionStorage.setItem('sticky_shown_tracked', 'true');
-            
-            trackFBEvent('VIP_StickyButton_Shown', {
-              params: {
-                content_category: 'sticky_cta_visibility',
-                content_name: 'Sticky Button Became Visible',
-                engagement_trigger: 'pricing_section_scrolled_past',
-                user_intent: 'continued_engagement'
-              }
-            });
-          }
-        },
-        { rootMargin: '0px 0px -100px 0px' }
-      );
-      observer.observe(planesEl);
-      
-      return () => observer.disconnect();
-    }, 100);
-  
-    return () => clearTimeout(timer);
-  }, [isMounted]);
-  
   // Load GP schedule
   useEffect(() => {
     if (!isMounted) return;
@@ -1830,13 +1784,13 @@ const MemberSuccessSection = () => (
               {/* Enhanced ACCEDER Button - Add this here */}
               <div className="mb-8">
                 <button
+                  ref={heroButtonRef}
                   onClick={() => handleAccederClick('hero_section')}
                   className="inline-flex items-center gap-4 px-10 py-5 bg-gradient-to-r from-amber-500 to-orange-500 text-black font-black rounded-2xl text-xl shadow-2xl transition-all transform hover:scale-105 active:scale-95"
                   data-track="acceder-button"
                   data-location="hero"
                 >
-                  <span className="text-2xl">🎯</span>
-                  ACCEDER A PREDICCIONES VIP
+                  ACTIVAR DRS
                   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                     <path
                       fillRule="evenodd"
@@ -1929,10 +1883,10 @@ const MemberSuccessSection = () => (
                 <div className="max-w-5xl mx-auto relative">
                   <div className="text-center mb-16">
                     <h2 className="text-3xl sm:text-4xl md:text-5xl font-black mb-6 bg-gradient-to-r from-purple-400 via-pink-500 to-red-400 bg-clip-text text-transparent drop-shadow-2xl">
-                      ¿NO ERES EL MEJOR? NO IMPORTA
+                      ¿NO SOS EL MEJOR? NO IMPORTA
                     </h2>
                     <p className="text-xl text-gray-300 font-medium mb-4">
-                      Tienes la misma oportunidad que cualquiera de ganar
+                      Tenés la misma oportunidad que cualquiera de ganar
                     </p>
                     <div className="inline-flex items-center gap-3 bg-gradient-to-r from-purple-600/20 to-pink-600/20 border border-purple-500/40 rounded-2xl px-6 py-3 text-purple-300 text-lg font-bold backdrop-blur-lg shadow-xl">
                       <span className="text-2xl">🎲</span>
@@ -1977,7 +1931,7 @@ const MemberSuccessSection = () => (
                       </div>
                       <div className="bg-purple-500/10 border border-purple-500/20 rounded-xl p-4">
                         <p className="text-purple-200 font-bold text-center text-sm">
-                          🍀 Solo tienes que ser miembro VIP
+                          🍀 Solo tenés que ser miembro VIP
                         </p>
                       </div>
                     </div>
@@ -2061,7 +2015,6 @@ const MemberSuccessSection = () => (
               <DecisionFrameworkSection />
               <Why2025Section />
               <MemberSuccessSection />
-
               {/* PredictionsTeaser */}
               <PredictionsTeaser />
 
@@ -2077,19 +2030,6 @@ const MemberSuccessSection = () => (
                     <p className="text-xl text-gray-400 max-w-3xl mx-auto font-medium">
                       <strong className="text-white">Oferta por Tiempo Limitado:</strong> Aprovechá el descuento y asegurá tu lugar.
                     </p>
-                  </div>
-
-                  {/* Enhanced ACCEDER Button in Pricing */}
-                  <div className="text-center mb-12">
-                    <button
-                      onClick={() => handleAccederClick('pricing_section')}
-                      className="inline-flex items-center gap-3 bg-gradient-to-r from-green-600/20 to-emerald-600/20 border border-green-500/40 rounded-2xl px-8 py-4 text-green-400 text-lg font-bold backdrop-blur-lg shadow-xl hover:scale-105 transition-all duration-300"
-                      data-track="acceder-button"
-                      data-location="pricing"
-                    >
-                      <span className="text-xl">🎯</span>
-                      VER OPCIONES VIP DISPONIBLES
-                    </button>
                   </div>
   
                   {/* Trust Indicators */}
@@ -2307,8 +2247,8 @@ const MemberSuccessSection = () => (
                 </div>
               </section>
 
-              {/* FAQ - No animations */}
-              <section className="py-20 px-4 sm:px-6 bg-gradient-to-b from-black to-neutral-950">
+{/* FAQ - No animations */}
+<section className="py-20 px-4 sm:px-6 bg-gradient-to-b from-black to-neutral-950">
                 <div className="max-w-4xl mx-auto">
                   <h2 className="text-center text-3xl sm:text-4xl font-black mb-16 bg-gradient-to-r from-amber-400 to-orange-500 bg-clip-text text-transparent">
                     Preguntas Frecuentes
@@ -2396,38 +2336,10 @@ const MemberSuccessSection = () => (
           )}
         </main>
       </div>
-
-      {/* Enhanced Sticky CTA Button */}
-      {showSticky && (
-        <motion.div
-          initial={{ y: 100 }}
-          animate={{ y: 0 }}
-          exit={{ y: 100 }}
-          className="fixed bottom-0 left-0 right-0 z-40 bg-gradient-to-r from-amber-500 to-orange-500 p-4 shadow-2xl backdrop-blur-lg border-t border-amber-400/30"
-        >
-          <div className="max-w-4xl mx-auto flex items-center justify-between">
-            <div className="flex-1 text-center lg:text-left">
-              <p className="text-black font-black text-lg mb-1">
-                ¡Tu conocimiento vale más de lo que pensás!
-              </p>
-              <p className="text-black/80 text-sm font-semibold">
-                Convertí tu pasión en resultados reales
-              </p>
-            </div>
-            <button
-              onClick={handleStickyButtonClick}
-              className="bg-black text-amber-400 px-6 py-3 rounded-xl font-black text-lg hover:bg-black/90 transition-all shadow-xl hover:scale-105 active:scale-95 ml-4"
-              data-track="sticky-button"
-            >
-              <span className="flex items-center gap-2">
-                <span className="text-xl">🏁</span>
-                ASEGURAR MI LUGAR VIP
-              </span>
-            </button>
-          </div>
-        </motion.div>
-      )}
   
+      {/* Use Original StickyAccessCTA Component */}
+      <StickyAccessCTA heroButtonRef={heroButtonRef} />
+
       {/* Enhanced Telegram Support Button */}
       {(
         <motion.a
