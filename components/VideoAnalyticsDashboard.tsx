@@ -1,3 +1,5 @@
+///components/VideoAnalyticsDashboard.tsx
+
 'use client';
 
 import React, { useEffect, useState, useMemo, memo, useCallback } from 'react';
