@@ -1400,21 +1400,8 @@ export default function FantasyVipLanding() {
                 <span className="text-3xl">💰</span>
               </div>
               <h3 className="text-2xl font-bold text-blue-300 mb-4">Tu Inversión</h3>
-              <div className="text-5xl font-black text-white mb-3">$20 USD</div>
-              <p className="text-blue-200 font-medium">Temporada completa</p>
-            </div>
-
-            {/* Potential Returns */}
-            <div className="text-center p-8 bg-gradient-to-br from-green-900/60 via-green-800/40 to-green-900/60 rounded-3xl border border-green-500/30 backdrop-blur-lg shadow-2xl hover:scale-105 transition-all duration-300">
-              <div className="w-16 h-16 bg-green-500 rounded-2xl flex items-center justify-center mx-auto mb-4 hover:rotate-12 transition-transform duration-300">
-                <span className="text-3xl">🎯</span>
-              </div>
-              <h3 className="text-2xl font-bold text-green-300 mb-4">Retorno Potencial</h3>
-              <ul className="space-y-3 text-green-200 font-medium">
-                <li><strong className="text-green-300">Viaje F1 2026:</strong> $20,000+</li>
-                <li><strong className="text-green-300">ROI:</strong> 40,000%</li>
-                <li><strong className="text-green-300">Experiencia:</strong> No tiene precio</li>
-              </ul>
+              <div className="text-5xl font-black text-white mb-3">$5 USD</div>
+              <p className="text-blue-200 font-medium">Por GP</p>
             </div>
 
             {/* Comparison */}
@@ -1424,8 +1411,8 @@ export default function FantasyVipLanding() {
               </div>
               <h3 className="text-2xl font-bold text-amber-300 mb-4">Comparación Real</h3>
               <ul className="space-y-3 text-amber-200 font-medium">
-                <li>Boletas 1 GP: $500-2,000</li>
-                <li>Viaje F1 completo: $20,000+</li>
+                <li>Entradas 1 GP: $500-$3000</li>
+                <li>Viaje completo: $15,000+</li>
                 <li className="text-xl font-bold text-amber-300 bg-amber-500/10 py-2 px-4 rounded-xl border border-amber-500/20">Tu Season Pass: $20</li>
               </ul>
             </div>
@@ -1510,151 +1497,6 @@ export default function FantasyVipLanding() {
     </section>
   );
 
-// Fixed Why 2025 Section - NO MOTION COMPONENTS
-const Why2025Section = () => (
-  <section className="py-20 px-4 sm:px-6 bg-gradient-to-b from-neutral-900 via-neutral-950 to-black relative overflow-hidden">
-    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(59,130,246,0.1),transparent_60%)]"></div>
-    
-    <div className="max-w-5xl mx-auto relative">
-      <div className="text-center mb-16">
-        <h2 className="text-3xl sm:text-4xl md:text-5xl font-black mb-6 bg-gradient-to-r from-red-400 via-orange-500 to-amber-400 bg-clip-text text-transparent drop-shadow-2xl">
-          POR QUÉ 2025 ES EL AÑO DEFINITIVO PARA ENTRAR
-        </h2>
-        <p className="text-xl text-gray-300 font-medium">
-          Nunca vas a tener una oportunidad como esta
-        </p>
-      </div>
-
-      <div className="grid md:grid-cols-3 gap-8">
-        {/* Transition Season */}
-        <div className="p-8 bg-gradient-to-br from-blue-900/60 via-blue-800/40 to-blue-900/60 rounded-3xl border border-blue-500/30 backdrop-blur-lg shadow-2xl group hover:scale-105 transition-all duration-300">
-          <div className="text-center mb-6">
-            <div className="w-16 h-16 bg-blue-500 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:rotate-12 transition-transform duration-300">
-              <span className="text-3xl">🔄</span>
-            </div>
-            <h3 className="text-2xl font-bold text-blue-300">TEMPORADA DE TRANSICIÓN</h3>
-          </div>
-          <ul className="space-y-3 text-blue-200 font-medium">
-            <li>• Cambios reglamentarios en 2026</li>
-            <li>• Última oportunidad con el reglamento actual</li>
-            <li>• Tus años de conocimiento nunca fueron tan valiosos</li>
-          </ul>
-        </div>
-
-        {/* Mature Platform */}
-        <div className="p-8 bg-gradient-to-br from-green-900/60 via-green-800/40 to-green-900/60 rounded-3xl border border-green-500/30 backdrop-blur-lg shadow-2xl group hover:scale-105 transition-all duration-300">
-          <div className="text-center mb-6">
-            <div className="w-16 h-16 bg-green-500 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:rotate-12 transition-transform duration-300">
-              <span className="text-3xl">🛠️</span>
-            </div>
-            <h3 className="text-2xl font-bold text-green-300">PLATAFORMA MADURA</h3>
-          </div>
-          <ul className="space-y-3 text-green-200 font-medium">
-            <li>• Sistema probado y comprobado</li>
-            <li>• Algoritmos refinados</li>
-            <li>• Comunidad establecida de expertos</li>
-          </ul>
-        </div>
-
-        {/* Manageable Competition */}
-        <div className="p-8 bg-gradient-to-br from-amber-900/60 via-amber-800/40 to-amber-900/60 rounded-3xl border border-amber-500/30 backdrop-blur-lg shadow-2xl group hover:scale-105 transition-all duration-300">
-          <div className="text-center mb-6">
-            <div className="w-16 h-16 bg-amber-500 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:rotate-12 transition-transform duration-300">
-              <span className="text-3xl">🎯</span>
-            </div>
-            <h3 className="text-2xl font-bold text-amber-300">COMPETENCIA MANEJABLE</h3>
-          </div>
-          <ul className="space-y-3 text-amber-200 font-medium">
-            <li>• Solo 2,847 miembros VIP activos</li>
-            <li>• Menos del 0,001% de los aficionados globales</li>
-            <li>• Tus posibilidades nunca fueron mejores</li>
-          </ul>
-        </div>
-      </div>
-    </div>
-  </section>
-);
-
-// Fixed Member Success Stories Section - NO MOTION COMPONENTS
-const MemberSuccessSection = () => (
-  <section className="py-20 px-4 sm:px-6 bg-gradient-to-b from-black via-neutral-950 to-neutral-900 relative overflow-hidden">
-    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(34,197,94,0.1),transparent_50%)]"></div>
-    
-    <div className="max-w-5xl mx-auto relative">
-      <div className="text-center mb-16">
-        <h2 className="text-3xl sm:text-4xl md:text-5xl font-black mb-6 bg-gradient-to-r from-amber-400 via-orange-500 to-red-400 bg-clip-text text-transparent drop-shadow-2xl">
-          MIRÁ QUIÉN YA ESTÁ CONVIRTIENDO CONOCIMIENTO EN RESULTADOS
-        </h2>
-        <p className="text-xl text-gray-300 font-medium">
-          <strong className="text-amber-400">+2,847 miembros VIP activos</strong> ya descubrieron cómo transformar su conocimiento en resultados
-        </p>
-      </div>
-
-      <div className="grid md:grid-cols-2 gap-10 mb-16">
-        {/* Current Leaderboard */}
-        <div className="p-8 bg-gradient-to-br from-amber-900/60 via-amber-800/40 to-amber-900/60 rounded-3xl border border-amber-500/30 backdrop-blur-lg shadow-2xl">
-          <h3 className="text-2xl font-bold text-amber-300 mb-8 text-center flex items-center justify-center gap-3">
-            <span className="text-3xl">🏆</span>
-            Tabla de Posiciones Actual
-          </h3>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-4 bg-gradient-to-r from-yellow-500/20 to-yellow-400/20 rounded-2xl border border-yellow-400/30">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-gradient-to-r from-yellow-500 to-yellow-400 rounded-full flex items-center justify-center text-black font-black text-lg shadow-lg">1</div>
-                <span className="text-white font-bold text-lg">Zaira Ramirez</span>
-              </div>
-              <span className="text-amber-300 font-black text-lg">114 puntos</span>
-            </div>
-            <div className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-500/20 to-gray-400/20 rounded-2xl border border-gray-400/30">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-gradient-to-r from-gray-500 to-gray-400 rounded-full flex items-center justify-center text-black font-black text-lg shadow-lg">2</div>
-                <span className="text-white font-bold text-lg">Cs Villamizar</span>
-              </div>
-              <span className="text-gray-300 font-black text-lg">110 puntos</span>
-            </div>
-            <div className="flex items-center justify-between p-4 bg-gradient-to-r from-orange-500/20 to-orange-400/20 rounded-2xl border border-orange-400/30">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-orange-400 rounded-full flex items-center justify-center text-black font-black text-lg shadow-lg">3</div>
-                <span className="text-white font-bold text-lg">Adelaida Benito</span>
-              </div>
-              <span className="text-orange-300 font-black text-lg">91 puntos</span>
-            </div>
-          </div>
-        </div>
-
-{/* Top Earners */}
-<div className="p-8 bg-gradient-to-br from-green-900/60 via-green-800/40 to-green-900/60 rounded-3xl border border-green-500/30 backdrop-blur-lg shadow-2xl">
-          <h3 className="text-2xl font-bold text-green-300 mb-8 text-center flex items-center justify-center gap-3">
-            <span className="text-3xl">💰</span>
-            Destructores 2025
-          </h3>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-4 bg-gradient-to-r from-green-500/20 to-green-400/20 rounded-2xl border border-green-400/30">
-              <span className="text-white font-bold text-lg">Yuki Tsunoda</span>
-              <span className="text-green-300 font-black text-lg">$2,050,000</span>
-            </div>
-            <div className="flex items-center justify-between p-4 bg-gradient-to-r from-green-500/15 to-green-400/15 rounded-2xl border border-green-400/20">
-              <span className="text-white font-bold text-lg">Jack Doohan</span>
-              <span className="text-green-300 font-black text-lg">$1,514,000</span>
-            </div>
-            <div className="flex items-center justify-between p-4 bg-gradient-to-r from-green-500/10 to-green-400/10 rounded-2xl border border-green-400/15">
-              <span className="text-white font-bold text-lg">Lando Norris</span>
-              <span className="text-green-300 font-black text-lg">$1,240,000</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="text-center">
-        <div className="inline-flex items-center gap-3 bg-gradient-to-r from-blue-600/20 to-cyan-600/20 border border-blue-500/30 rounded-2xl px-8 py-4 text-blue-400 text-xl font-bold backdrop-blur-lg shadow-xl">
-          <div className="w-4 h-4 bg-blue-400 rounded-full animate-pulse"></div>
-          No es suerte. Es pura habilidad.
-        </div>
-      </div>
-    </div>
-  </section>
-);
-
 // ============================================================================
   // EARLY RETURN CHECK - MOVED TO END AFTER ALL HOOKS
   // ============================================================================
@@ -1713,7 +1555,7 @@ const MemberSuccessSection = () => (
           <div className="absolute inset-0 bg-gradient-to-r from-red-400/20 to-orange-400/20"></div>
           <div className="relative z-10 flex items-center justify-center gap-3 text-sm font-black">
             <span className="animate-pulse">⚡</span>
-            <span>OFERTA LIMITADA: 40% DE DESCUENTO EN TU PASE VIP</span>
+            <span>40% DE DESCUENTO EN TU PASE VIP</span>
             <span className="animate-pulse">⚡</span>
           </div>
         </motion.div>
@@ -1747,33 +1589,21 @@ const MemberSuccessSection = () => (
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(255,107,107,0.15),transparent_50%)]" />
   
             <div className="relative max-w-4xl mx-auto text-center">
-              {/* Social Proof Badge */}
-              <div className="inline-flex items-center gap-3 bg-gradient-to-r from-green-500/20 to-emerald-500/20 border border-green-400/40 rounded-2xl px-6 py-3 text-green-300 text-sm font-bold shadow-2xl backdrop-blur-lg mb-8">
-                <div className="relative w-3 h-3">
-                  <span className="absolute inset-0 bg-green-400 rounded-full animate-ping opacity-75" />
-                  <span className="relative block w-3 h-3 bg-green-400 rounded-full animate-pulse" />
-                </div>
-                La comunidad de apasionados por la F1 más grande!
-              </div>
-  
-              {/* Main Headline */}
+     
+                     {/* Main Headline */}
               <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black leading-tight tracking-tight mb-6">
-                <span className="block text-red-400 text-xl sm:text-2xl lg:text-3xl font-bold mb-3 drop-shadow-lg">
-                  ¿Ya te diste cuenta que sabés más de F1 que el 90% de las personas...
+                <span className="block bg-clip-text text-transparent bg-gradient-to-r from-amber-300 via-orange-400 to-red-400 drop-shadow-lg text-3xl sm:text-4xl lg:text-5xl">
+                  Convierte tu pasión por la F1 en un viaje,
                 </span>
                 <span className="block text-white text-2xl sm:text-3xl lg:text-4xl font-black mb-3 drop-shadow-lg">
-                  pero nunca has sido recompensado por eso?
+                  con todos los gastos pagos
                 </span>
-                <span className="block bg-clip-text text-transparent bg-gradient-to-r from-amber-300 via-orange-400 to-red-400 drop-shadow-lg text-3xl sm:text-4xl lg:text-5xl">
-                  Esto se acaba HOY.
-                </span>
+
               </h1>
 
               {/* Subheadline */}
               <h2 className="text-lg sm:text-xl md:text-2xl font-semibold leading-snug text-white/90 mb-8 max-w-4xl mx-auto">
-                Mientras otros "gritan" y sufren en el sofá, descubre en el video cómo fans comunes están convirtiendo su conocimiento en{' '}
-                <span className="text-amber-400 font-bold">viajes VIP a la F1</span> y{' '}
-                <span className="text-green-400 font-bold">premios en efectivo</span>.
+              Mientras otros pagan miles, tú podrías ser uno de los 3 que convierta su conocimiento de F1 en el viaje de su vida{' '}
               </h2>
 
               {/* Video */}
@@ -1829,7 +1659,7 @@ const MemberSuccessSection = () => (
                 </p>
               </div>
 
-              {/* Countdown - Only show if unlocked */}
+              {/* Countdown */}
               {currentGp && (
                 <div className="w-full max-w-sm mx-auto rounded-3xl border border-white/20 bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl shadow-2xl px-6 py-4 flex flex-col gap-2">
                   <div className="flex items-center justify-center gap-3">
@@ -1883,11 +1713,8 @@ const MemberSuccessSection = () => (
                 <div className="max-w-5xl mx-auto relative">
                   <div className="text-center mb-16">
                     <h2 className="text-3xl sm:text-4xl md:text-5xl font-black mb-6 bg-gradient-to-r from-purple-400 via-pink-500 to-red-400 bg-clip-text text-transparent drop-shadow-2xl">
-                      ¿NO SOS EL MEJOR? NO IMPORTA
+                      ¿NO FUISTE EL MEJOR? NO IMPORTA
                     </h2>
-                    <p className="text-xl text-gray-300 font-medium mb-4">
-                      Tenés la misma oportunidad que cualquiera de ganar
-                    </p>
                     <div className="inline-flex items-center gap-3 bg-gradient-to-r from-purple-600/20 to-pink-600/20 border border-purple-500/40 rounded-2xl px-6 py-3 text-purple-300 text-lg font-bold backdrop-blur-lg shadow-xl">
                       <span className="text-2xl">🎲</span>
                       <span>1 ganador ALEATORIO entre TODOS los miembros VIP</span>
@@ -1904,21 +1731,18 @@ const MemberSuccessSection = () => (
                         </div>
                         <div>
                           <h3 className="text-2xl font-black text-amber-300">Top 2 del Ranking</h3>
-                          <p className="text-amber-200 font-medium">Los mejores prediciendo van directo</p>
+                          <p className="text-amber-200 font-medium">Los 2 mejores puntajes van directo</p>
                         </div>
                       </div>
                       <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4">
                         <p className="text-amber-200 font-bold text-center">
-                          💪 Para los expertos que dominan las predicciones
+                          💪 Para los que dominan las predicciones
                         </p>
                       </div>
                     </div>
 
                     {/* Random Winner */}
                     <div className="p-8 bg-gradient-to-br from-purple-900/40 to-pink-900/40 rounded-3xl border border-purple-500/30 backdrop-blur-lg shadow-2xl relative overflow-hidden">
-                      <div className="absolute -top-3 -right-3 bg-gradient-to-r from-green-500 to-emerald-400 text-black text-sm font-black px-3 py-1.5 rounded-full shadow-xl transform rotate-12">
-                        TU OPORTUNIDAD
-                      </div>
                       
                       <div className="flex items-center gap-3 mb-6">
                         <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-xl">
@@ -1931,91 +1755,15 @@ const MemberSuccessSection = () => (
                       </div>
                       <div className="bg-purple-500/10 border border-purple-500/20 rounded-xl p-4">
                         <p className="text-purple-200 font-bold text-center text-sm">
-                          🍀 Solo tenés que ser miembro VIP
+                          🍀 Solo tienes que ser miembro VIP
                         </p>
                       </div>
-                    </div>
-                  </div>
-
-                  {/* Your Odds */}
-                  <div className="bg-gradient-to-br from-green-900/30 to-emerald-900/30 border border-green-500/40 rounded-3xl p-8 backdrop-blur-lg shadow-2xl mb-12">
-                    <div className="text-center">
-                      <h3 className="text-2xl font-black text-green-300 mb-4 flex items-center justify-center gap-3">
-                        <span className="text-3xl">📊</span>
-                        TUS PROBABILIDADES ACTUALES
-                      </h3>
-                      
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                        <div className="text-center">
-                          <div className="text-4xl font-black text-white mb-2">1 en 2,847</div>
-                          <p className="text-green-200 font-semibold">Probabilidad actual</p>
-                        </div>
-                        
-                        <div className="text-center">
-                          <div className="text-4xl font-black text-green-400 mb-2">0.035%</div>
-                          <p className="text-green-200 font-semibold">Chance matemática</p>
-                        </div>
-                        
-                        <div className="text-center">
-                          <div className="text-4xl font-black text-amber-400 mb-2">$20,000+</div>
-                          <p className="text-green-200 font-semibold">Valor del premio</p>
-                        </div>
-                      </div>
-
-                      <div className="mt-6 p-4 bg-green-500/10 border border-green-500/20 rounded-2xl">
-                        <p className="text-green-300 font-bold text-lg">
-                          ⚠️ <strong>Cada nuevo miembro VIP reduce tus probabilidades</strong>
-                        </p>
-                        <p className="text-green-200 text-sm mt-2">
-                          Entrá ahora mientras las probabilidades están a tu favor
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Comparison with other competitions */}
-                  <div className="grid md:grid-cols-2 gap-8">
-                    <div className="p-6 bg-gradient-to-br from-red-900/30 to-red-800/30 border border-red-500/30 rounded-2xl backdrop-blur-lg">
-                      <h4 className="text-xl font-bold text-red-400 mb-4 flex items-center gap-2">
-                        <span>❌</span>
-                        Otras competencias
-                      </h4>
-                      <ul className="space-y-2 text-red-200 text-sm">
-                        <li>• Lotería nacional: 1 en 14,000,000</li>
-                        <li>• Baloto: 1 en 15,401,568</li>
-                        <li>• Concursos de TV: 1 en 500,000+</li>
-                        <li>• Sorteos de marcas: 1 en 100,000+</li>
-                      </ul>
-                    </div>
-
-                    <div className="p-6 bg-gradient-to-br from-green-900/30 to-emerald-800/30 border border-green-500/30 rounded-2xl backdrop-blur-lg">
-                      <h4 className="text-xl font-bold text-green-400 mb-4 flex items-center gap-2">
-                        <span>✅</span>
-                        Fantasy VIP
-                      </h4>
-                      <ul className="space-y-2 text-green-200 text-sm">
-                        <li>• Solo 1 en 2,847 (y bajando)</li>
-                        <li>• Premio garantizado: $20,000+ USD</li>
-                        <li>• Basado en tu conocimiento, no suerte</li>
-                        <li>• Comunidad exclusiva de expertos</li>
-                      </ul>
-                    </div>
-                  </div>
-
-                  {/* Call to Action */}
-                  <div className="text-center mt-12">
-                    <div className="inline-flex items-center gap-3 bg-gradient-to-r from-purple-600/20 to-pink-600/20 border border-purple-500/30 rounded-2xl px-8 py-4 text-purple-300 text-xl font-bold backdrop-blur-lg shadow-xl">
-                      <div className="w-4 h-4 bg-purple-400 rounded-full animate-pulse"></div>
-                      Mientras menos miembros VIP, mejores son tus probabilidades
                     </div>
                   </div>
                 </div>
               </section>
 
               <DecisionFrameworkSection />
-              <Why2025Section />
-              <MemberSuccessSection />
-              {/* PredictionsTeaser */}
               <PredictionsTeaser />
 
               {/* CORRECTED PRICING PLANS - No problematic animations */}
@@ -2296,39 +2044,6 @@ const MemberSuccessSection = () => (
                         ¡Absolutamente! Hay 3 ganadores para 2026: los 2 mejores del ranking anual van automáticamente, y 1 ganador aleatorio entre todos los miembros VIP. Valor del viaje: $20,000+ USD incluyendo vuelos, hotel y entradas VIP.
                       </p>
                     </details>
-                  </div>
-                </div>
-              </section>
-
-              {/* Final CTA Section */}
-              <section className="py-20 px-4 sm:px-6 bg-gradient-to-b from-neutral-950 via-black to-neutral-900 relative overflow-hidden">
-                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(245,158,11,0.15),transparent_70%)]"></div>
-                
-                <div className="max-w-5xl mx-auto text-center relative">
-                  <div className="space-y-10">
-                    <h2 className="text-3xl sm:text-4xl md:text-5xl font-black bg-gradient-to-r from-red-400 via-orange-500 to-amber-400 bg-clip-text text-transparent mb-6">
-                      La grilla de largada de tu nueva vida financiera está formada.
-                    </h2>
-                    
-                    <p className="text-2xl text-white font-bold">
-                      ¿Vas a largar o te vas a quedar viendo desde casa?
-                    </p>
-
-                    <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
-                      <button
-                        onClick={() => handleAccederClick('final_cta')}
-                        className="inline-flex items-center gap-4 px-10 py-5 bg-gradient-to-r from-amber-500 to-orange-500 text-black font-black rounded-2xl text-xl shadow-2xl transition-all transform hover:scale-105 active:scale-95"
-                        data-track="acceder-button"
-                        data-location="final_cta"
-                      >
-                        <span className="text-2xl">🏁</span>
-                        ASEGURAR MI LUGAR VIP
-                      </button>
-                      
-                      <p className="text-gray-500 font-medium">
-                        O seguí gritando desde el sofá...
-                      </p>
-                    </div>
                   </div>
                 </div>
               </section>
