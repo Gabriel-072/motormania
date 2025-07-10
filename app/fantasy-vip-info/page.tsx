@@ -1851,11 +1851,8 @@ export default function FantasyVipLanding() {
                       >
                         {plan.isPopular && (
                           <>
-                            <div className="absolute top-0 right-6 -translate-y-1/2 px-4 py-2 bg-gradient-to-r from-amber-400 to-orange-500 text-black text-sm font-black rounded-full uppercase tracking-wide shadow-2xl">
-                              PARA VERDADEROS CONOCEDORES
-                            </div>
-                            <div className="absolute top-0 left-6 -translate-y-1/2 px-4 py-2 bg-gradient-to-r from-red-600 to-red-500 text-white text-sm font-black rounded-full uppercase tracking-wide shadow-2xl">
-                              AHORRA 40%
+                            <div className="absolute top-0 left-0 -translate-y-1/2 px-4 py-2 bg-gradient-to-r from-red-600 to-red-500 text-white text-sm font-black rounded-full uppercase tracking-wide shadow-2xl">
+                              + PROBABILIDADES DE GANAR
                             </div>
                           </>
                         )}

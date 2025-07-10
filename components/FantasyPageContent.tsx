@@ -251,12 +251,7 @@ export default function Fantasy({ triggerSignInModal }: FantasyProps) {
     }
   }, [isLoaded]);
 
-  //Lego promo modal
-  useEffect(() => {
-    // Solo una vez, 2 s después de montar
-    const timer = setTimeout(() => setShowPromoModal(true), 2000);
-    return () => clearTimeout(timer);
-  }, []);
+
 
  // SECTION: Fetch Data Function
  const fetchData = useCallback(async () => {
@@ -2436,93 +2431,6 @@ const handleSubmit = async () => {
              </div>
            </div>
            
-             {/* --- Leveled-Up Lego MODAL --- */}
-<Transition appear show={showPromoModal} as={Fragment}>
-  <Dialog as="div" className="relative z-50 font-exo2" onClose={() => setShowPromoModal(false)}>
-    {/* Backdrop - slightly darker, more blur */}
-    <Transition.Child
-      as={Fragment}
-      enter="ease-out duration-300"
-      enterFrom="opacity-0"
-      enterTo="opacity-100"
-      leave="ease-in duration-200"
-      leaveFrom="opacity-100"
-      leaveTo="opacity-0"
-    >
-      <div className="fixed inset-0 bg-slate-900/75 backdrop-blur-md" />
-    </Transition.Child>
-
-    {/* Modal Panel Container */}
-    <div className="fixed inset-0 flex items-center justify-center p-4 sm:p-6">
-      <Transition.Child
-        as={Fragment}
-        enter="ease-out duration-300" // Original good, could try spring-like if desired, e.g., transition-[transform,opacity]
-        enterFrom="opacity-0 scale-90" // Start slightly smaller for a more dynamic pop
-        enterTo="opacity-100 scale-100"
-        leave="ease-in duration-200"
-        leaveFrom="opacity-100 scale-100"
-        leaveTo="opacity-0 scale-95"
-      >
-        <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl {/* More rounded */}
-                               bg-gradient-to-br from-slate-800 via-slate-900 to-black {/* Richer dark gradient */}
-                               p-6 sm:p-8 {/* Generous padding */}
-                               text-center text-white shadow-2xl {/* Stronger shadow */}
-                               ring-1 ring-white/10 {/* Subtle border highlight */}
-                              ">
-          {/* Optional: Close Button for accessibility and common UX pattern */}
-          <button
-            type="button"
-            onClick={() => setShowPromoModal(false)}
-            className="absolute top-4 right-4 text-gray-400 hover:text-gray-200 transition-colors duration-150
-                       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 rounded-full p-1"
-            aria-label="Cerrar modal"
-          >
-            <XMarkIcon className="h-6 w-6" />
-          </button>
-
-          <Dialog.Title className="text-xl sm:text-2xl font-bold text-slate-100 mb-3">
-            🚀 ¡Envía tus predicciones!
-          </Dialog.Title>
-
-          {/* Using Dialog.Description for semantic correctness */}
-          <Dialog.Description className="text-sm sm:text-base text-slate-300 leading-relaxed mb-6">
-          Gana un <span className="text-amber-400 font-semibold">Lego McLaren P1</span>.
-          </Dialog.Description>
-
-          <div className="w-full flex justify-center mb-8"> {/* More margin below image */}
-            <Image
-              src="/lego-mclaren.png" // Ensure this path is correct
-              alt="Lego McLaren P1"
-              width={250} // Slightly larger image
-              height={140} // Adjust height proportionally
-              className="rounded-lg shadow-xl object-contain" // shadow-xl for image too
-            />
-          </div>
-
-          <button
-  onClick={() => {
-    // Cierra el promo-modal…
-    setShowPromoModal(false);
-
-    // …y, si aún no hay progreso, lanza de inmediato el Paso 1
-    if (!submitted && progress === 0 && currentGp && (isQualyAllowed || isRaceAllowed)) {
-      setTimeout(() => openModal('pole'), 250); // sincrónico con el fade-out del modal
-    }
-  }}
-  className="w-full px-5 py-3 bg-amber-500 text-slate-900 font-bold text-base rounded-lg
-             hover:bg-amber-400 hover:shadow-md
-             active:bg-amber-600 active:scale-[0.98]
-             focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2
-             focus-visible:ring-amber-300 focus-visible:ring-offset-slate-900
-             transition-all duration-150 ease-in-out"
->
-  ¡Entendido!
-</button>
-        </Dialog.Panel>
-      </Transition.Child>
-    </div>
-  </Dialog>
-</Transition>
 
 {/* --- STICKY PREDICT BUTTON (MOBILE ONLY) --- */}
 <AnimatePresence>
