@@ -826,7 +826,7 @@ export default function MotorsportNewsArticle() {
                       <div>
                         <div className={`font-semibold text-sm sm:text-base transition-colors duration-300 ${
                           darkMode ? 'text-gray-200' : 'text-gray-700'
-                        }`}>Gabriel Torres</div>
+                        }`}>Juan Martin Torres</div>
                         <div className={`text-xs sm:text-sm transition-colors duration-300 ${
                           darkMode ? 'text-gray-400' : 'text-gray-500'
                         }`}>F1 Correspondent & Motorsport Analyst</div>
