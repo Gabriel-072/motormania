@@ -533,7 +533,7 @@ export default function MotorsportNewsArticle() {
             >
               <div className="max-w-lg mx-auto">
                 <Link 
-                  href="/fantasy-vip-info" 
+                  href="/investigacion-rn365" 
                   className={`block w-full px-4 sm:px-6 py-3 sm:py-4 text-center text-sm sm:text-base font-bold rounded-xl sm:rounded-2xl shadow-xl sm:shadow-2xl transition-all active:scale-95 transform hover:scale-105 ${
                     darkMode 
                       ? 'bg-red-600 text-white hover:bg-red-700' 
@@ -603,15 +603,11 @@ export default function MotorsportNewsArticle() {
                 <div className="mb-8 sm:mb-16">
                   <div className="w-full h-48 sm:h-80 md:h-[500px] rounded-lg sm:rounded-2xl mb-3 sm:mb-6 relative overflow-hidden shadow-xl sm:shadow-2xl">
                     <img 
-                      src="/images/f1-hero-main.jpg" 
+                      src="/images/advertorial/f1-hero-main.jpg" 
                       alt="F1 strategic operations and passionate fans"
                       className="w-full h-full object-cover"
                     />
                     <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center">
-                      <div className="text-center px-4 text-white">
-                        <div className="text-2xl sm:text-4xl mb-2 sm:mb-4">🏎️</div>
-                        <div className="text-base sm:text-xl max-w-xs sm:max-w-md font-semibold">La intensidad y precisión de la Fórmula 1 inspira a millones</div>
-                      </div>
                     </div>
                   </div>
                   <p className="text-xs sm:text-sm text-gray-500 italic text-center px-2">
@@ -918,7 +914,7 @@ export default function MotorsportNewsArticle() {
                   <p className={`text-lg sm:text-2xl italic leading-relaxed mb-4 sm:mb-6 transition-colors duration-300 ${
                     darkMode ? 'text-gray-300' : 'text-gray-700'
                   }`}>
-                    "Crecí soñando con estar en el paddock de F1, pero para alguien como yo - clase media de Medellín - eso parecía imposible. Creé MotorManía porque creo que la pasión por este deporte no debería estar limitada por tu código postal o cuenta bancaria. Quería dar a otros fanáticos la oportunidad real de vivir la F1 desde adentro, algo que sin esta plataforma sería solo un sueño inalcanzable."
+                    "Creamos MotorManía porque creemos que la pasión por este deporte no debería estar limitada por tu código postal o cuenta bancaria. Queremos dar a otros fanáticos la oportunidad real de vivir la F1 desde adentro, algo que sin esta plataforma sería solo un sueño inalcanzable."
                   </p>
                   <div className={`text-sm sm:text-base font-medium transition-colors duration-300 ${
                     darkMode ? 'text-gray-400' : 'text-gray-600'
@@ -931,15 +927,11 @@ export default function MotorsportNewsArticle() {
                 <div className="mb-8 sm:mb-16">
                   <div className="w-full h-48 sm:h-80 md:h-[400px] rounded-lg sm:rounded-2xl mb-3 sm:mb-6 relative overflow-hidden shadow-xl sm:shadow-2xl">
                     <img 
-                      src="/images/f1-vip-paddock.jpg" 
+                      src="/images/advertorial/f1-vip-paddock.jpg" 
                       alt="VIP paddock experience at F1 Grand Prix"
                       className="w-full h-full object-cover"
                     />
                     <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center">
-                      <div className="text-center px-4 text-white">
-                        <div className="text-2xl sm:text-4xl mb-2 sm:mb-4">🏁</div>
-                        <div className="text-base sm:text-xl font-semibold">Experiencia VIP en el paddock</div>
-                      </div>
                     </div>
                   </div>
                   <p className={`text-xs sm:text-sm italic text-center px-2 transition-colors duration-300 ${
@@ -1072,7 +1064,7 @@ export default function MotorsportNewsArticle() {
                   
                   <div className="text-center">
                     <Link 
-                      href="/fantasy-vip-info" 
+                      href="/investigacion-rn365" 
                       className="block w-full bg-red-600 text-white px-6 sm:px-12 py-4 sm:py-6 text-lg sm:text-xl font-bold rounded-xl sm:rounded-2xl hover:bg-red-700 transition-all active:scale-95 shadow-xl sm:shadow-2xl mb-4 sm:mb-8"
                     >
                       RECLAMAR PASE DE ESTRATEGA - COMPETIR POR $1,000 USD →
@@ -1160,7 +1152,7 @@ export default function MotorsportNewsArticle() {
                   <div className="group cursor-pointer">
                     <div className="w-full h-24 sm:h-32 rounded-lg sm:rounded-xl mb-3 sm:mb-4 overflow-hidden relative group-hover:scale-105 transition-transform">
                       <img 
-                        src="/images/f1-digital-era.jpg" 
+                        src="/images/advertorial/f1-digital-era.jpg" 
                         alt="F1 in the digital era"
                         className="w-full h-full object-cover"
                       />
@@ -1179,7 +1171,7 @@ export default function MotorsportNewsArticle() {
                   <div className="group cursor-pointer">
                     <div className="w-full h-24 sm:h-32 rounded-lg sm:rounded-xl mb-3 sm:mb-4 overflow-hidden relative group-hover:scale-105 transition-transform">
                       <img 
-                        src="/images/predictions-latam.jpg" 
+                        src="/images/advertorial/predictions-latam.jpg" 
                         alt="Sports predictions in Latin America"
                         className="w-full h-full object-cover"
                       />
@@ -1198,7 +1190,7 @@ export default function MotorsportNewsArticle() {
                   <div className="group cursor-pointer sm:col-span-2 lg:col-span-1">
                     <div className="w-full h-24 sm:h-32 rounded-lg sm:rounded-xl mb-3 sm:mb-4 overflow-hidden relative group-hover:scale-105 transition-transform">
                       <img 
-                        src="/images/fan-participation.jpg" 
+                        src="/images/advertorial/fan-participation.jpg" 
                         alt="F1 fan participation analysis"
                         className="w-full h-full object-cover"
                       />
