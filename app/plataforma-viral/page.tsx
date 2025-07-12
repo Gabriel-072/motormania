@@ -107,28 +107,29 @@ const TrackableCTALink: React.FC<TrackableCTALinkProps> = ({ href, children, cla
   const handleClick = (): void => {
     const sessionAttr = getSessionAttribution();
     
-    trackFBEvent('InitiateCheckout', {
-      params: {
-        content_type: 'cta_click',
-        content_category: 'advertorial_cta',
-        content_name: `cta_${ctaLocation}`,
-        source: 'rn365_advertorial',
-        value: 0,
-        currency: 'USD',
-        cta_location: ctaLocation,
-        
-        // Attribution data
-        original_utm_source: sessionAttr.utm_params?.utm_source,
-        original_utm_campaign: sessionAttr.utm_params?.utm_campaign,
-        original_utm_medium: sessionAttr.utm_params?.utm_medium,
-        session_duration: Date.now() - parseInt(sessionStorage.getItem('session_start') || '0'),
-        referrer: sessionAttr.referrer
-      },
-      event_id: generateEventId()
-    });
-    
-    console.log(`🎯 CTA clicked: ${ctaLocation}`);
-  };
+        // ✅ CORRECT: Track as Lead (not InitiateCheckout)
+        trackFBEvent('Lead', {
+            params: {
+              content_type: 'cta_click',
+              content_category: 'advertorial_lead',
+              content_name: `advertorial_cta_${ctaLocation}`,
+              source: 'rn365_advertorial',
+              value: 0,
+              currency: 'USD',
+              cta_location: ctaLocation,
+              
+              // Attribution data
+              original_utm_source: sessionAttr.utm_params?.utm_source,
+              original_utm_campaign: sessionAttr.utm_params?.utm_campaign,
+              original_utm_medium: sessionAttr.utm_params?.utm_medium,
+              session_duration: Date.now() - parseInt(sessionStorage.getItem('session_start') || '0'),
+              referrer: sessionAttr.referrer
+            },
+            event_id: generateEventId()
+          });
+          
+          console.log(`🎯 Lead tracked for advertorial CTA: ${ctaLocation}`);
+        };
 
   return (
     <Link 

@@ -1,6 +1,7 @@
-//Bridge Page + Checkout Popup
+//Bridge Page + Checkout Popup - FIXED EVENT TRACKING
 'use client';
 
+import React from 'react';
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createClient } from '@supabase/supabase-js';
@@ -126,7 +127,10 @@ const predictionSteps = [
   { name: 'micro', label: 'Micro-Predicciones', icon: 'μ', color: 'from-yellow-500 to-orange-500' },
 ];
 
-// Helper functions
+// ==============================================
+// HELPER FUNCTIONS
+// ==============================================
+
 const hashUserData = (data: string) => {
   return btoa(data.toLowerCase().trim());
 };
@@ -149,6 +153,34 @@ const getUserData = (user: any) => ({
   fbc: typeof window !== 'undefined' ? getCookie('_fbc') : undefined,
   fbp: typeof window !== 'undefined' ? getCookie('_fbp') : undefined
 });
+
+// ==============================================
+// ENHANCED ATTRIBUTION HELPER
+// ==============================================
+
+const getSessionAttribution = () => {
+  if (typeof window === 'undefined') return {};
+  
+  try {
+    const sessionAttr = JSON.parse(sessionStorage.getItem('session_attribution') || '{}');
+    return {
+      // Original source attribution  
+      original_utm_source: sessionAttr.utm_params?.utm_source,
+      original_utm_medium: sessionAttr.utm_params?.utm_medium,
+      original_utm_campaign: sessionAttr.utm_params?.utm_campaign,
+      original_utm_content: sessionAttr.utm_params?.utm_content,
+      original_utm_term: sessionAttr.utm_params?.utm_term,
+      
+      // Session data
+      landing_page: sessionAttr.landing_page,
+      session_duration: Date.now() - parseInt(sessionStorage.getItem('session_start') || '0'),
+      referrer: sessionAttr.referrer,
+      session_id: sessionAttr.session_id
+    };
+  } catch {
+    return {};
+  }
+};
 
 export default function MotorManiaBridgePage() {
   // Hooks
@@ -232,13 +264,16 @@ export default function MotorManiaBridgePage() {
     }
   }, []);
 
-  // Purchase handler
+  // ==============================================
+  // FIXED PURCHASE HANDLER - CORRECT EVENT FLOW
+  // ==============================================
+
   const handlePurchase = async (planId: Plan['id']) => {
     const plan = planes.find(p => p.id === planId);
     if (!plan) return;
 
-    // Track purchase intent
-    trackFBEvent('InitiateCheckout', {
+    // ✅ STEP 1: Track plan selection as AddToCart (not InitiateCheckout)
+    trackFBEvent('AddToCart', {
       params: {
         content_type: 'product',
         content_category: 'vip_membership_bridge',
@@ -246,9 +281,15 @@ export default function MotorManiaBridgePage() {
         content_ids: [planId],
         value: plan.precio / 1000,
         currency: 'COP',
-        source: 'bridge_page'
-      }
+        source: 'bridge_page_plan_selection',
+        
+        // Attribution data from advertorial
+        ...getSessionAttribution()
+      },
+      event_id: generateEventId()
     });
+
+    console.log('🛒 AddToCart tracked for plan selection:', planId);
 
     // Auth check
     if (!isSignedIn || !user) {
@@ -295,6 +336,27 @@ export default function MotorManiaBridgePage() {
 
       const { orderId, amount, redirectionUrl, integritySignature } = await res.json();
 
+      // ✅ STEP 2: Track InitiateCheckout ONLY when checkout modal opens
+      const checkoutEventId = generateEventId();
+      trackFBEvent('InitiateCheckout', {
+        params: {
+          content_type: 'product',
+          content_category: 'vip_membership_checkout',
+          content_name: plan.nombre,
+          content_ids: [planId],
+          value: plan.precio / 1000,
+          currency: 'COP',
+          predicted_ltv: planId === 'season-pass' ? 300 : 150,
+          source: 'bridge_page_checkout_modal',
+          
+          // Full attribution chain
+          ...getSessionAttribution()
+        },
+        event_id: checkoutEventId
+      });
+
+      console.log('💳 InitiateCheckout tracked for modal opening:', planId);
+
       // Bold Checkout config
       const config = {
         apiKey,
@@ -312,22 +374,6 @@ export default function MotorManiaBridgePage() {
         }),
       };
 
-      // Track checkout initiation
-      const eventId = generateEventId();
-      trackFBEvent('InitiateCheckout', {
-        params: {
-          content_type: 'product',
-          content_category: 'vip_membership_bridge',
-          content_name: plan.nombre,
-          content_ids: [planId],
-          value: plan.precio / 1000,
-          currency: 'COP',
-          predicted_ltv: planId === 'season-pass' ? 300 : 150,
-          source: 'bridge_page'
-        },
-        event_id: eventId
-      });
-
       // Dynamic import of Bold
       const { openBoldCheckout } = await import('@/lib/bold');
 
@@ -335,22 +381,10 @@ export default function MotorManiaBridgePage() {
       openBoldCheckout({
         ...config,
         onSuccess: async (result: any) => {
-          const purchaseEventId = generateEventId();
-          trackFBEvent('Purchase', {
-            params: {
-              content_type: 'product',
-              content_category: 'vip_membership_bridge',
-              content_name: plan.nombre,
-              content_ids: [planId],
-              value: plan.precio / 1000,
-              currency: 'COP',
-              transaction_id: result?.orderId || orderId,
-              source: 'bridge_page'
-            },
-            event_id: purchaseEventId
-          });
-
-          toast.success('✅ ¡Pago exitoso! Redirigiendo a la plataforma...');
+          // ✅ NO Purchase tracking here - webhook handles it!
+          console.log('💰 Payment successful, webhook will track Purchase event');
+          
+          toast.success('✅ ¡Pago exitoso! Procesando acceso...');
           setTimeout(() => {
             router.push('/f1-fantasy-panel');
           }, 2000);
