@@ -1,13 +1,145 @@
-//Advertorial Page
+//Advertorial Page - ENHANCED WITH TRACKING
 'use client';
 
+import React from 'react';
 import Link from 'next/link';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { createAuthClient } from '@/lib/supabase';
+import { generateEventId, trackFBEvent } from '@/lib/trackFBEvent';
 
-// Types
-type GpSchedule = { gp_name: string; qualy_time: string; race_time: string };
+// TypeScript interfaces and types
+interface GpSchedule { 
+  gp_name: string; 
+  qualy_time: string; 
+  race_time: string; 
+}
+
+interface TrackableCTALinkProps {
+  href: string;
+  children: React.ReactNode;
+  className: string;
+  ctaLocation: string;
+}
+
+interface UTMParams {
+  utm_source: string | null;
+  utm_medium: string | null;
+  utm_campaign: string | null;
+  utm_content: string | null;
+  utm_term: string | null;
+  fbclid: string | null;
+  gclid: string | null;
+}
+
+interface SessionAttribution {
+  landing_page: string;
+  timestamp: number;
+  referrer: string;
+  utm_params: UTMParams;
+  session_id: string;
+  page_url: string;
+}
+
+// ==============================================
+// TRACKING UTILITIES
+// ==============================================
+
+const getUTMParams = (): UTMParams => {
+  if (typeof window === 'undefined') return {
+    utm_source: null,
+    utm_medium: null,
+    utm_campaign: null,
+    utm_content: null,
+    utm_term: null,
+    fbclid: null,
+    gclid: null
+  };
+  
+  const params = new URLSearchParams(window.location.search);
+  return {
+    utm_source: params.get('utm_source'),
+    utm_medium: params.get('utm_medium'),
+    utm_campaign: params.get('utm_campaign'),
+    utm_content: params.get('utm_content'),
+    utm_term: params.get('utm_term'),
+    fbclid: params.get('fbclid'),
+    gclid: params.get('gclid')
+  };
+};
+
+const setSessionAttribution = (): void => {
+  if (typeof window === 'undefined') return;
+  
+  // Only set if not already set (preserve first-touch attribution)
+  if (!sessionStorage.getItem('session_attribution')) {
+    const attribution: SessionAttribution = {
+      landing_page: 'advertorial',
+      timestamp: Date.now(),
+      referrer: document.referrer,
+      utm_params: getUTMParams(),
+      session_id: generateEventId(),
+      page_url: window.location.href
+    };
+    
+    sessionStorage.setItem('session_attribution', JSON.stringify(attribution));
+    sessionStorage.setItem('session_start', Date.now().toString());
+    
+    console.log('🎯 Session attribution set:', attribution);
+  }
+};
+
+const getSessionAttribution = (): Partial<SessionAttribution> => {
+  if (typeof window === 'undefined') return {};
+  
+  try {
+    return JSON.parse(sessionStorage.getItem('session_attribution') || '{}');
+  } catch {
+    return {};
+  }
+};
+
+// ==============================================
+// TRACKABLE CTA COMPONENT
+// ==============================================
+
+const TrackableCTALink: React.FC<TrackableCTALinkProps> = ({ href, children, className, ctaLocation }) => {
+  const handleClick = (): void => {
+    const sessionAttr = getSessionAttribution();
+    
+    trackFBEvent('InitiateCheckout', {
+      params: {
+        content_type: 'cta_click',
+        content_category: 'advertorial_cta',
+        content_name: `cta_${ctaLocation}`,
+        source: 'rn365_advertorial',
+        value: 0,
+        currency: 'USD',
+        cta_location: ctaLocation,
+        
+        // Attribution data
+        original_utm_source: sessionAttr.utm_params?.utm_source,
+        original_utm_campaign: sessionAttr.utm_params?.utm_campaign,
+        original_utm_medium: sessionAttr.utm_params?.utm_medium,
+        session_duration: Date.now() - parseInt(sessionStorage.getItem('session_start') || '0'),
+        referrer: sessionAttr.referrer
+      },
+      event_id: generateEventId()
+    });
+    
+    console.log(`🎯 CTA clicked: ${ctaLocation}`);
+  };
+
+  return (
+    <Link 
+      href={href} 
+      className={className}
+      onClick={handleClick}
+    >
+      {children}
+    </Link>
+  );
+};
 
 export default function MotorsportNewsArticle() {
   // State management
@@ -28,7 +160,7 @@ export default function MotorsportNewsArticle() {
   const headlineRef = useRef<HTMLHeadingElement>(null);
 
   // Toggle dark mode
-  const toggleDarkMode = () => {
+  const toggleDarkMode = (): void => {
     setDarkMode(!darkMode);
   };
 
@@ -60,6 +192,39 @@ export default function MotorsportNewsArticle() {
         observer.unobserve(headlineRef.current);
       }
     };
+  }, [hydrated]);
+
+  // ==============================================
+  // ENHANCED TRACKING: HEADLINE ENGAGEMENT
+  // ==============================================
+  useEffect(() => {
+    if (!hydrated || !headlineRef.current) return;
+
+    // Track when user scrolls past headline (engagement)
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          trackFBEvent('ViewContent', {
+            params: {
+              content_type: 'article',
+              content_category: 'advertorial_engagement',
+              content_name: 'motormania_headline_engagement',
+              source: 'rn365_advertorial',
+              ...getUTMParams()
+            },
+            event_id: generateEventId()
+          });
+          
+          console.log('🎯 Headline engagement tracked');
+          observer.disconnect(); // Only track once
+        }
+      },
+      { threshold: 0.5 } // Trigger when 50% of headline is visible
+    );
+
+    observer.observe(headlineRef.current);
+
+    return () => observer.disconnect();
   }, [hydrated]);
 
   // Fetch data function (real Supabase integration)
@@ -152,7 +317,7 @@ export default function MotorsportNewsArticle() {
   }, []);
 
   // Format countdown function
-  const formatCountdown = (countdown: { days: number; hours: number; minutes: number; seconds: number }) => {
+  const formatCountdown = (countdown: { days: number; hours: number; minutes: number; seconds: number }): string => {
     const d = Math.max(0, countdown.days);
     const h = Math.max(0, countdown.hours);
     const m = Math.max(0, countdown.minutes);
@@ -160,10 +325,32 @@ export default function MotorsportNewsArticle() {
     return `${String(d).padStart(2, '0')}d ${String(h).padStart(2, '0')}h ${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`;
   };
 
-  // Initial data fetch
+  // ==============================================
+  // ENHANCED INITIAL DATA FETCH WITH TRACKING
+  // ==============================================
   useEffect(() => {
     setHydrated(true);
     fetchData();
+    
+    // Set up session attribution
+    setSessionAttribution();
+    
+    // Track page view
+    if (typeof window !== 'undefined') {
+      trackFBEvent('PageView', {
+        params: {
+          content_type: 'article',
+          content_category: 'advertorial_investigation',
+          content_name: 'motormania_rn365_investigation',
+          source: 'rn365_advertorial',
+          page_location: window.location.href,
+          ...getUTMParams()
+        },
+        event_id: generateEventId()
+      });
+      
+      console.log('🎯 Page view tracked for advertorial');
+    }
   }, [fetchData]);
 
   // Countdown and GP switching logic (from dashboard)
@@ -531,13 +718,14 @@ export default function MotorsportNewsArticle() {
               className="fixed bottom-0 left-0 right-0 z-40 p-4 sm:p-6"
             >
               <div className="max-w-lg mx-auto">
-                <Link 
+                <TrackableCTALink 
                   href="/investigacion-rn365" 
                   className={`block w-full px-4 sm:px-6 py-3 sm:py-4 text-center text-sm sm:text-base font-bold rounded-xl sm:rounded-2xl shadow-xl sm:shadow-2xl transition-all active:scale-95 transform hover:scale-105 ${
                     darkMode 
                       ? 'bg-red-600 text-white hover:bg-red-700' 
                       : 'bg-red-600 text-white hover:bg-red-700'
                   }`}
+                  ctaLocation="sticky_button_cta"
                 >
                   <div className="flex items-center justify-center space-x-2">
                     <span>💰</span>
@@ -547,7 +735,7 @@ export default function MotorsportNewsArticle() {
                   <div className="text-xs opacity-90 mt-1">
                     Próximo GP: $500 al P1 + $500 sorteo
                   </div>
-                </Link>
+                </TrackableCTALink>
               </div>
             </motion.div>
           )}
@@ -587,9 +775,12 @@ export default function MotorsportNewsArticle() {
                 <div className="inline-block bg-red-500 text-white px-3 sm:px-4 py-1 sm:py-2 text-xs font-semibold mb-4 sm:mb-8 rounded uppercase tracking-wide">
                   SPECIAL INVESTIGATION
                 </div>
-                <h1 className={`text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-4 sm:mb-8 transition-colors duration-300 ${
-                  darkMode ? 'text-white' : 'text-gray-900'
-                }`}>
+                <h1 
+                  ref={headlineRef}
+                  className={`text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-4 sm:mb-8 transition-colors duration-300 ${
+                    darkMode ? 'text-white' : 'text-gray-900'
+                  }`}
+                >
                   La nueva plataforma viral que está cambiando cómo los fanáticos viven la F1 en Latinoamérica
                 </h1>
                 <p className={`text-lg sm:text-xl md:text-2xl leading-relaxed mb-6 sm:mb-12 max-w-4xl transition-colors duration-300 ${
@@ -762,12 +953,9 @@ export default function MotorsportNewsArticle() {
 
                 {/* New Section: The Real Impact - WITH REF */}
                 <div className="mb-8 sm:mb-12">
-                  <h2 
-                    ref={headlineRef}
-                    className={`text-2xl sm:text-3xl md:text-4xl font-bold mb-4 sm:mb-6 transition-colors duration-300 ${
-                      darkMode ? 'text-white' : 'text-gray-900'
-                    }`}
-                  >
+                  <h2 className={`text-2xl sm:text-3xl md:text-4xl font-bold mb-4 sm:mb-6 transition-colors duration-300 ${
+                    darkMode ? 'text-white' : 'text-gray-900'
+                  }`}>
                     Cómo la Competencia Transforma Tu Experiencia de F1
                   </h2>
                   <div className="w-16 sm:w-24 h-1 bg-red-600 mb-6 sm:mb-8"></div>
@@ -1062,12 +1250,13 @@ export default function MotorsportNewsArticle() {
                   </div>
                   
                   <div className="text-center">
-                    <Link 
+                    <TrackableCTALink 
                       href="/investigacion-rn365" 
                       className="block w-full bg-red-600 text-white px-6 sm:px-12 py-4 sm:py-6 text-lg sm:text-xl font-bold rounded-xl sm:rounded-2xl hover:bg-red-700 transition-all active:scale-95 shadow-xl sm:shadow-2xl mb-4 sm:mb-8"
+                      ctaLocation="main_article_cta"
                     >
                       RECLAMAR PASE DE ESTRATEGA - COMPETIR POR $1,000 USD →
-                    </Link>
+                    </TrackableCTALink>
                     
                     <div className={`text-sm sm:text-base max-w-2xl mx-auto px-2 transition-colors duration-300 ${
                       darkMode ? 'text-gray-400' : 'text-gray-600'
