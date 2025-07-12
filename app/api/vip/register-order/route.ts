@@ -1,5 +1,4 @@
 // 📁 app/api/vip/register-order/route.ts - HYBRID: SUPPORTS BOTH AUTHENTICATED & PAY-FIRST FLOWS
-'use server';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { auth }                      from '@clerk/nextjs/server';
