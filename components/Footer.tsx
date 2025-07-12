@@ -11,6 +11,7 @@ export default function Footer() {
   if (pathname === '/giveaway/spain') return null;
   if (pathname === '/fantasy-vip') return null;
   if (pathname === '/fantasy-vip-info') return null;
+  if (pathname === '/plataforma-viral') return null;
 
   return (
     <footer className="bg-gray-950 text-gray-400 py-10 px-4 sm:px-8 border-t border-gray-800 text-sm font-exo2">

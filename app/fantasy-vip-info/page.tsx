@@ -1,4 +1,5 @@
-// /app/fantasy-vip-info/page.tsx - PART 1: IMPORTS, CONFIGURATION & ENHANCED VIDEO PLAYER
+// VSL Page
+
 'use client';
 
 import React, { useState, useEffect, useRef, Suspense } from 'react';
@@ -634,6 +635,50 @@ function VideoPlayer({ onWatchProgress }: { onWatchProgress?: (percentage: numbe
   );
 }
 
+// REPLACE THE ENTIRE ScrollLockIndicator COMPONENT with this improved version:
+
+const ScrollLockIndicator = ({ watchPercentage, isScrollLocked }: { watchPercentage: number, isScrollLocked: boolean }) => {
+  if (!isScrollLocked) return null;
+
+  return (
+    <div className="fixed bottom-0 left-0 right-0 z-[70] bg-gradient-to-t from-black to-transparent p-4">
+      <div className="max-w-2xl mx-auto">
+        <div className="bg-gradient-to-r from-amber-900/90 to-orange-900/90 border border-amber-500/50 rounded-xl p-4 backdrop-blur-lg shadow-xl">
+          
+          {/* Header */}
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <span className="text-2xl">🔒</span>
+              <span className="text-amber-300 font-bold text-sm">
+                Sigue viendo para continuar
+              </span>
+            </div>
+            <span className="text-white font-black text-sm">{Math.round(watchPercentage)}% / 20%</span>
+          </div>
+          
+          {/* Progress Bar */}
+          <div className="mb-3">
+            <div className="bg-black/40 rounded-full h-2 overflow-hidden">
+              <div 
+                className="h-full bg-gradient-to-r from-amber-400 to-orange-500 transition-all duration-500"
+                style={{ width: `${Math.min((watchPercentage / 20) * 100, 100)}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Dynamic Message */}
+          <p className="text-amber-200 text-sm font-medium text-center">
+            {watchPercentage < 5 && "🎯 El secreto está a punto de revelarse..."}
+            {watchPercentage >= 5 && watchPercentage < 10 && "🔥 Esto va a cambiar todo..."}
+            {watchPercentage >= 10 && watchPercentage < 15 && "⚡ Los próximos segundos son clave"}
+            {watchPercentage >= 15 && watchPercentage < 20 && "🚀 ¡Casi! Prepárate para el acceso VIP"}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ============================================================================
 // MAIN LANDING PAGE COMPONENT - ENHANCED STATE & HOOKS
 // ============================================================================
@@ -660,6 +705,13 @@ export default function FantasyVipLanding() {
   
   // Video & tracking states (simplified - no unlock logic)
   const [watchPercentage, setWatchPercentage] = useState(0);
+  const [isScrollLocked, setIsScrollLocked] = useState(() => {
+    // Check if user has already unlocked
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('vsl_unlocked') !== 'true';
+    }
+    return true; // Default: locked
+  });
   const [videoEngagementTracked, setVideoEngagementTracked] = useState(new Set<number>());
   const [planViewsTracked, setPlanViewsTracked] = useState(new Set<string>());
   const { trackVideoProgress, trackVipEvent, sessionId } = useVideoAnalytics();
@@ -841,6 +893,30 @@ export default function FantasyVipLanding() {
     if (!isMounted) return;
     
     setWatchPercentage(percentage);
+
+    if (percentage >= 20 && isScrollLocked) {
+      setIsScrollLocked(false);
+      
+      // Save unlock state
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('vsl_unlocked', 'true');
+      }
+      
+      toast.success('🎉 ¡Scroll desbloqueado! Descubre tu acceso VIP', {
+        duration: 5000,
+        className: 'bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold text-lg'
+      });
+    
+      trackFBEvent('VIP_ScrollUnlock_20Percent', {
+        params: {
+          content_type: 'scroll_unlock',
+          content_category: 'vsl_engagement_gate',
+          unlock_percentage: 20,
+          engagement_quality: 'high',
+          unlock_method: 'video_completion'
+        }
+      });
+    }
 
     // Track Analytics (Database)
     trackVideoProgress(percentage, {
@@ -1300,6 +1376,44 @@ export default function FantasyVipLanding() {
       isCancelled = true;
     };
   }, [isMounted]);
+
+  // SCROLL LOCK EFFECT - ADD THIS ENTIRE BLOCK
+useEffect(() => {
+  if (!isMounted) return;
+
+  if (isScrollLocked) {
+    // Disable scrolling
+    document.body.style.overflow = 'hidden';
+    document.body.style.height = '100vh';
+    
+    // Block scroll events
+    const preventScroll = (e: Event) => {
+      e.preventDefault();
+      e.stopPropagation();
+      return false;
+    };
+
+    // Block all scroll attempts
+    window.addEventListener('scroll', preventScroll, { passive: false });
+    window.addEventListener('wheel', preventScroll, { passive: false });
+    window.addEventListener('touchmove', preventScroll, { passive: false });
+    window.addEventListener('keydown', (e) => {
+      // Block arrow keys, page up/down, space, home, end
+      if (['ArrowDown', 'ArrowUp', 'PageDown', 'PageUp', 'Space', 'Home', 'End'].includes(e.code)) {
+        e.preventDefault();
+      }
+    });
+
+    return () => {
+      // Cleanup
+      document.body.style.overflow = '';
+      document.body.style.height = '';
+      window.removeEventListener('scroll', preventScroll);
+      window.removeEventListener('wheel', preventScroll);
+      window.removeEventListener('touchmove', preventScroll);
+    };
+  }
+}, [isScrollLocked, isMounted]);
   
   // Countdown logic
   useEffect(() => {
@@ -1611,53 +1725,57 @@ export default function FantasyVipLanding() {
                 <VideoPlayer onWatchProgress={handleWatchProgress} />
               </div>
 
-              {/* Enhanced ACCEDER Button - Add this here */}
-              <div className="mb-8">
-                <button
-                  ref={heroButtonRef}
-                  onClick={() => handleAccederClick('hero_section')}
-                  className="inline-flex items-center gap-4 px-10 py-5 bg-gradient-to-r from-amber-500 to-orange-500 text-black font-black rounded-2xl text-xl shadow-2xl transition-all transform hover:scale-105 active:scale-95"
-                  data-track="acceder-button"
-                  data-location="hero"
-                >
-                  ACTIVAR DRS
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                    <path
-                      fillRule="evenodd"
-                      d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </button>
-              </div>
+              {/* Show ACTIVAR DRS button only when unlocked */}
+{!isScrollLocked && (
+  <div className="mb-8">
+    <button
+      ref={heroButtonRef}
+      onClick={() => handleAccederClick('hero_section')}
+      className="inline-flex items-center gap-4 px-10 py-5 bg-gradient-to-r from-amber-500 to-orange-500 text-black font-black rounded-2xl text-xl shadow-2xl transition-all transform hover:scale-105 active:scale-95 animate-pulse"
+      data-track="acceder-button"
+      data-location="hero"
+    >
+      🚀 ACTIVAR DRS
+      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+        <path
+          fillRule="evenodd"
+          d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z"
+          clipRule="evenodd"
+        />
+      </svg>
+    </button>
+  </div>
+)}
 
-              {/* Pain Point Bullets */}
-              <div className="bg-gradient-to-br from-red-900/30 to-red-800/20 border border-red-500/40 rounded-2xl p-6 text-left backdrop-blur-lg shadow-2xl mb-8 max-w-3xl mx-auto">
-                <h3 className="text-red-400 font-bold mb-4 text-xl text-center">
-                  Mientras otros "gritan" y sufren en el sofá, vos:
-                </h3>
-                <ul className="space-y-3 text-gray-300">
-                  <li className="flex items-start gap-3">
-                    <span className="text-amber-400 mt-1 text-lg">✓</span>
-                    <span className="font-medium">Predecís exactamente cuándo un piloto va a hacer pit stop</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <span className="text-amber-400 mt-1 text-lg">✓</span>
-                    <span className="font-medium">Sabés qué estrategia de llantas va a funcionar en cada circuito</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <span className="text-amber-400 mt-1 text-lg">✓</span>
-                    <span className="font-medium">Identificás cuáles pilotos rinden mejor bajo presión</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <span className="text-amber-400 mt-1 text-lg">✓</span>
-                    <span className="font-medium">Entendés cómo el clima y el setup afectan el rendimiento</span>
-                  </li>
-                </ul>
-                <p className="text-red-300 font-bold mt-4 text-lg text-center">
-                  ¿Pero dónde está tu recompensa por toda esa experiencia?
-                </p>
-              </div>
+              {/* Pain Point Bullets - Only show when unlocked */}
+{!isScrollLocked && (
+  <div className="bg-gradient-to-br from-red-900/30 to-red-800/20 border border-red-500/40 rounded-2xl p-6 text-left backdrop-blur-lg shadow-2xl mb-8 max-w-3xl mx-auto">
+    <h3 className="text-red-400 font-bold mb-4 text-xl text-center">
+      Mientras otros "gritan" y sufren en el sofá, vos:
+    </h3>
+    <ul className="space-y-3 text-gray-300">
+      <li className="flex items-start gap-3">
+        <span className="text-amber-400 mt-1 text-lg">✓</span>
+        <span className="font-medium">Predecís exactamente cuándo un piloto va a hacer pit stop</span>
+      </li>
+      <li className="flex items-start gap-3">
+        <span className="text-amber-400 mt-1 text-lg">✓</span>
+        <span className="font-medium">Sabés qué estrategia de llantas va a funcionar en cada circuito</span>
+      </li>
+      <li className="flex items-start gap-3">
+        <span className="text-amber-400 mt-1 text-lg">✓</span>
+        <span className="font-medium">Identificás cuáles pilotos rinden mejor bajo presión</span>
+      </li>
+      <li className="flex items-start gap-3">
+        <span className="text-amber-400 mt-1 text-lg">✓</span>
+        <span className="font-medium">Entendés cómo el clima y el setup afectan el rendimiento</span>
+      </li>
+    </ul>
+    <p className="text-red-300 font-bold mt-4 text-lg text-center">
+      ¿Pero dónde está tu recompensa por toda esa experiencia?
+    </p>
+  </div>
+)}
 
               {/* Countdown */}
               {currentGp && (
@@ -1698,9 +1816,10 @@ export default function FantasyVipLanding() {
             </div>
           </section>
   
-          {/* REST OF CONTENT - Only show if video has been watched */}
-          {(
+          {/* REST OF CONTENT - Only show when scroll is unlocked */}
+              {!isScrollLocked && (
             <div>
+              
               {/* Enhanced Sections */}
               <ROISection />
 
@@ -2039,8 +2158,11 @@ export default function FantasyVipLanding() {
         </main>
       </div>
   
-      {/* Use Original StickyAccessCTA Component */}
-      <StickyAccessCTA heroButtonRef={heroButtonRef} />
+      {/* Scroll Lock Indicator */}
+<ScrollLockIndicator watchPercentage={watchPercentage} isScrollLocked={isScrollLocked} />
+
+{/* Use Original StickyAccessCTA Component */}
+<StickyAccessCTA heroButtonRef={heroButtonRef} />
 
       {/* Enhanced Telegram Support Button */}
       {(

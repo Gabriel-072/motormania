@@ -13,6 +13,8 @@ export default function MovingBar() {
   if (pathname === '/giveaway/spain') return null;
   if (pathname === '/fantasy-vip') return null;
   if (pathname === '/fantasy-vip-info') return null;
+  if (pathname === '/plataforma-viral') return null;
+  if (pathname === '/investigacion-rn365') return null;
 
 
   // repeat enough times to guarantee coverage; you can bump this up if your message is very short

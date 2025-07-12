@@ -42,6 +42,15 @@ export default function Header() {
     return null;
   }
 
+  if (pathname === '/plataforma-viral' || pathname === '/fantasy') {
+    return null;
+  }
+
+  if (pathname === '/investigacion-rn365' || pathname === '/fantasy') {
+    return null;
+  }
+
+
   // 3) Resto del componente
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
