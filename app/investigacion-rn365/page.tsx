@@ -268,146 +268,159 @@ export default function MotorManiaBridgePage() {
   // FIXED PURCHASE HANDLER - CORRECT EVENT FLOW
   // ==============================================
 
-  const handlePurchase = async (planId: Plan['id']) => {
-    const plan = planes.find(p => p.id === planId);
-    if (!plan) return;
+// 🚀 UPDATED handlePurchase - HYBRID: SUPPORTS BOTH AUTHENTICATED & PAY-FIRST FLOWS
+const handlePurchase = async (planId: Plan['id']) => {
+  const plan = planes.find(p => p.id === planId);
+  if (!plan) return;
 
-    // ✅ STEP 1: Track plan selection as AddToCart (not InitiateCheckout)
-    trackFBEvent('AddToCart', {
+  // ✅ STEP 1: Track plan selection as AddToCart
+  trackFBEvent('AddToCart', {
+    params: {
+      content_type: 'product',
+      content_category: 'vip_membership_bridge',
+      content_name: plan.nombre,
+      content_ids: [planId],
+      value: plan.precio / 1000,
+      currency: 'COP',
+      source: 'bridge_page_plan_selection',
+      ...getSessionAttribution()
+    },
+    event_id: generateEventId()
+  });
+
+  console.log('🛒 AddToCart tracked for plan selection:', planId);
+
+  // 🔥 NEW: Handle both authenticated and pay-first flows
+  const isPayFirstFlow = !isSignedIn || !user;
+  
+  if (isPayFirstFlow) {
+    console.log('🚀 Using pay-first flow - no auth required');
+  } else {
+    console.log('🔑 Using authenticated flow - user logged in');
+  }
+
+  setProcessingPlan(planId);
+
+  try {
+    // Get Bold API key
+    const apiKey = process.env.NEXT_PUBLIC_BOLD_BUTTON_KEY;
+    if (!apiKey) {
+      toast.error('El sistema de pagos no está disponible temporalmente.');
+      return;
+    }
+
+    // 🔥 NEW: Smart order creation - supports both flows
+    const res = await fetch('/api/vip/register-order', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        planId: plan.id,
+        planName: plan.nombre,
+        amount: plan.precio,
+        // 🔥 Conditional user data based on flow
+        ...(isPayFirstFlow ? {
+          // Pay-first flow: minimal data
+          requireEmailCollection: true,
+          payFirst: true
+        } : {
+          // Authenticated flow: full user data
+          fullName: user.fullName,
+          email: user.primaryEmailAddress?.emailAddress,
+          payFirst: false
+        })
+      }),
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ error: 'Error desconocido' }));
+      throw new Error(errorData.error || 'Error creando orden');
+    }
+
+    const { orderId, amount, redirectionUrl, integritySignature, payFirstFlow } = await res.json();
+
+    // ✅ STEP 2: Track InitiateCheckout when checkout modal opens
+    const checkoutEventId = generateEventId();
+    trackFBEvent('InitiateCheckout', {
       params: {
         content_type: 'product',
-        content_category: 'vip_membership_bridge',
+        content_category: 'vip_membership_checkout',
         content_name: plan.nombre,
         content_ids: [planId],
         value: plan.precio / 1000,
         currency: 'COP',
-        source: 'bridge_page_plan_selection',
-        
-        // Attribution data from advertorial
+        predicted_ltv: planId === 'season-pass' ? 300 : 150,
+        source: 'bridge_page_checkout_modal',
+        flow_type: payFirstFlow ? 'pay_first' : 'authenticated', // 🔥 NEW: Track flow type
         ...getSessionAttribution()
       },
-      event_id: generateEventId()
+      event_id: checkoutEventId
     });
 
-    console.log('🛒 AddToCart tracked for plan selection:', planId);
+    console.log(`💳 InitiateCheckout tracked for ${payFirstFlow ? 'pay-first' : 'authenticated'} flow:`, planId);
 
-    // Auth check
-    if (!isSignedIn || !user) {
-      // Store plan for after login
-      if (typeof window !== 'undefined') {
-        sessionStorage.setItem('pendingVipPlan', planId);
-        sessionStorage.setItem('pendingVipEventId', generateEventId());
-      }
-
-      clerk.openSignIn({
-        redirectUrl: window.location.href,
-        afterSignInUrl: window.location.href
-      });
-      return;
-    }
-
-    setProcessingPlan(planId);
-
-    try {
-      // Get Bold API key
-      const apiKey = process.env.NEXT_PUBLIC_BOLD_BUTTON_KEY;
-      if (!apiKey) {
-        toast.error('El sistema de pagos no está disponible temporalmente.');
-        return;
-      }
-
-      // Create order
-      const res = await fetch('/api/vip/register-order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          planId: plan.id,
-          planName: plan.nombre,
-          amount: plan.precio,
-          fullName: user.fullName,
-          email: user.primaryEmailAddress?.emailAddress,
-        }),
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({ error: 'Error desconocido' }));
-        throw new Error(errorData.error || 'Error creando orden');
-      }
-
-      const { orderId, amount, redirectionUrl, integritySignature } = await res.json();
-
-      // ✅ STEP 2: Track InitiateCheckout ONLY when checkout modal opens
-      const checkoutEventId = generateEventId();
-      trackFBEvent('InitiateCheckout', {
-        params: {
-          content_type: 'product',
-          content_category: 'vip_membership_checkout',
-          content_name: plan.nombre,
-          content_ids: [planId],
-          value: plan.precio / 1000,
-          currency: 'COP',
-          predicted_ltv: planId === 'season-pass' ? 300 : 150,
-          source: 'bridge_page_checkout_modal',
-          
-          // Full attribution chain
-          ...getSessionAttribution()
-        },
-        event_id: checkoutEventId
-      });
-
-      console.log('💳 InitiateCheckout tracked for modal opening:', planId);
-
-      // Bold Checkout config
-      const config = {
-        apiKey,
-        orderId,
-        amount,
-        currency: 'COP',
-        description: `Acceso VIP · ${plan.nombre}`,
-        redirectionUrl,
-        integritySignature,
-        renderMode: 'embedded',
-        containerId: 'bold-embed-bridge',
+    // Bold Checkout config
+    const config = {
+      apiKey,
+      orderId,
+      amount,
+      currency: 'COP',
+      description: `Acceso VIP · ${plan.nombre}`,
+      redirectionUrl,
+      integritySignature,
+      renderMode: 'embedded',
+      containerId: 'bold-embed-bridge',
+      // 🔥 SMART: Only add customer data for authenticated flow
+      ...(isPayFirstFlow ? {} : {
         customerData: JSON.stringify({
           email: user.primaryEmailAddress?.emailAddress ?? '',
           fullName: user.fullName ?? '',
-        }),
-      };
+        })
+      })
+    };
 
-      // Dynamic import of Bold
-      const { openBoldCheckout } = await import('@/lib/bold');
+    // Dynamic import of Bold
+    const { openBoldCheckout } = await import('@/lib/bold');
 
-      // Open Bold Checkout
-      openBoldCheckout({
-        ...config,
-        onSuccess: async (result: any) => {
-          // ✅ NO Purchase tracking here - webhook handles it!
-          console.log('💰 Payment successful, webhook will track Purchase event');
-          
+    // Open Bold Checkout
+    openBoldCheckout({
+      ...config,
+      onSuccess: async (result: any) => {
+        // ✅ NO Purchase tracking here - webhook handles it!
+        console.log('💰 Payment successful, webhook will handle tracking and account creation');
+        
+        if (payFirstFlow) {
+          toast.success('✅ ¡Pago exitoso! Creando tu cuenta...');
+          // 🔥 NEW: Redirect to auto-login page for pay-first flow
+          setTimeout(() => {
+            router.push(`/vip-account-setup?order=${orderId}`);
+          }, 2000);
+        } else {
           toast.success('✅ ¡Pago exitoso! Procesando acceso...');
+          // Authenticated flow: direct to dashboard
           setTimeout(() => {
             router.push('/f1-fantasy-panel');
           }, 2000);
-        },
-        onFailed: ({ message }: { message?: string }) => {
-          toast.error(`Pago rechazado: ${message || 'Por favor intenta con otro método de pago'}`);
-          setProcessingPlan(null);
-        },
-        onPending: () => {
-          toast.info('Tu pago está siendo procesado...');
-          setProcessingPlan(null);
-        },
-        onClose: () => {
-          setProcessingPlan(null);
-        },
-      });
+        }
+      },
+      onFailed: ({ message }: { message?: string }) => {
+        toast.error(`Pago rechazado: ${message || 'Por favor intenta con otro método de pago'}`);
+        setProcessingPlan(null);
+      },
+      onPending: () => {
+        toast.info('Tu pago está siendo procesado...');
+        setProcessingPlan(null);
+      },
+      onClose: () => {
+        setProcessingPlan(null);
+      },
+    });
 
-    } catch (err: any) {
-      console.error('Error en handlePurchase:', err);
-      toast.error(err.message || 'Error al iniciar el proceso de pago');
-      setProcessingPlan(null);
-    }
-  };
+  } catch (err: any) {
+    console.error('Error en handlePurchase:', err);
+    toast.error(err.message || 'Error al iniciar el proceso de pago');
+    setProcessingPlan(null);
+  }
+};
 
   // Countdown logic
   useEffect(() => {

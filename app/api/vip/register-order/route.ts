@@ -1,4 +1,4 @@
-// 📁 app/api/vip/register-order/route.ts
+// 📁 app/api/vip/register-order/route.ts - HYBRID: SUPPORTS BOTH AUTHENTICATED & PAY-FIRST FLOWS
 'use server';
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -21,86 +21,163 @@ const PLANS: Record<string, { price: number; name: string }> = {
 };
 
 export async function POST(req: NextRequest) {
-  /* ───────────── 1️⃣ Auth ───────────── */
-  const { userId } = await auth();
-  if (!userId) return new NextResponse('Unauthorized', { status: 401 });
+  try {
+    /* ───────────── 🔥 NEW: Parse request body with pay-first support ───────────── */
+    const { 
+      planId, 
+      planName, 
+      amount,
+      // Legacy authenticated flow fields
+      fullName, 
+      email,
+      // 🔥 NEW: Pay-first flow flags
+      requireEmailCollection = false,
+      payFirst = false
+    } = await req.json();
 
-  /* ───────────── 1.5️⃣ Get user data from clerk_users table ───────────── */
-  const { data: clerkUser } = await sb
-    .from('clerk_users')
-    .select('full_name, email')
-    .eq('clerk_id', userId)
-    .single();
-
-  // Use data from clerk_users table, with fallbacks
-  const fullName = clerkUser?.full_name || 'Sin nombre';
-  const email = clerkUser?.email || '';
-
-  /* ───────────── 2️⃣ Plan ───────────── */
-  const { planId } = await req.json();
-  const plan       = PLANS[planId as keyof typeof PLANS];
-  if (!plan) {
-    return NextResponse.json({ error: 'PLAN_NOT_FOUND' }, { status: 400 });
-  }
-
-  /* ───────────── 2.5️⃣ Get Active GP for Race Pass ───────────── */
-  let activeGp = null;
-  if (planId === 'race-pass') {
-    const { data: gpData } = await sb
-      .from('gp_schedule')
-      .select('gp_name, qualy_time, race_time')
-      .gte('qualy_time', new Date().toISOString()) // Predictions close at qualy time
-      .order('race_time', { ascending: true })
-      .limit(1)
-      .single();
+    /* ───────────── 1️⃣ Auth (Optional for pay-first flow) ───────────── */
+    const { userId } = await auth();
     
-    activeGp = gpData?.gp_name || null;
-    
-    if (!activeGp) {
-      return NextResponse.json({ 
-        error: 'NO_ACTIVE_GP',
-        message: 'No hay ningún Gran Premio activo para predicciones en este momento.' 
-      }, { status: 400 });
+    // 🚀 NEW: Pay-first flow - no auth required
+    if (payFirst) {
+      console.log('🚀 Pay-first flow initiated - no auth required');
+    } else if (!userId) {
+      // Legacy flow - auth required
+      return new NextResponse('Unauthorized', { status: 401 });
     }
+
+    /* ───────────── 1.5️⃣ Get user data (only for authenticated flow) ───────────── */
+    let userData = { fullName: 'Sin nombre', email: '' };
+    
+    if (userId && !payFirst) {
+      const { data: clerkUser } = await sb
+        .from('clerk_users')
+        .select('full_name, email')
+        .eq('clerk_id', userId)
+        .single();
+
+      userData = {
+        fullName: clerkUser?.full_name || fullName || 'Sin nombre',
+        email: clerkUser?.email || email || ''
+      };
+    }
+
+    /* ───────────── 2️⃣ Plan validation ───────────── */
+    const plan = PLANS[planId as keyof typeof PLANS];
+    if (!plan) {
+      return NextResponse.json({ error: 'PLAN_NOT_FOUND' }, { status: 400 });
+    }
+
+    // Use provided amount or plan default
+    const finalAmount = amount || plan.price;
+    const finalPlanName = planName || plan.name;
+
+    /* ───────────── 2.5️⃣ Get Active GP for Race Pass ───────────── */
+    let activeGp = null;
+    if (planId === 'race-pass') {
+      const { data: gpData } = await sb
+        .from('gp_schedule')
+        .select('gp_name, qualy_time, race_time')
+        .gte('qualy_time', new Date().toISOString())
+        .order('race_time', { ascending: true })
+        .limit(1)
+        .single();
+      
+      activeGp = gpData?.gp_name || null;
+      
+      if (!activeGp) {
+        return NextResponse.json({ 
+          error: 'NO_ACTIVE_GP',
+          message: 'No hay ningún Gran Premio activo para predicciones en este momento.' 
+        }, { status: 400 });
+      }
+    }
+
+    /* ───────────── 3️⃣ Generate Order ID ───────────── */
+    let orderId;
+    if (payFirst) {
+      // 🔥 NEW: Pay-first order ID format
+      const shortStamp = Date.now().toString(36);
+      const randomSuffix = Math.random().toString(36).substr(2, 6);
+      orderId = `vip-${planId}-pf-${shortStamp}-${randomSuffix}`;
+    } else {
+      // Legacy authenticated order ID format
+      const safeUserId = userId!.toLowerCase().replace(/[^a-z0-9-]/g, '-').slice(0, 12);
+      const shortStamp = Date.now().toString(36);
+      orderId = `vip-${planId}-${safeUserId}-${shortStamp}`;
+    }
+
+    const amountStr = String(finalAmount);
+    
+    const integritySignature = crypto
+      .createHash('sha256')
+      .update(`${orderId}${amountStr}${CURRENCY}${BOLD_SECRET}`)
+      .digest('hex');
+
+    /* ───────────── 4️⃣ Set redirection URL based on flow ───────────── */
+    const redirectionUrl = payFirst 
+      ? `${SITE_URL}/vip-account-setup?order=${orderId}`
+      : `${SITE_URL}/fantasy-vip-success?orderId=${orderId}`;
+
+    /* ───────────── 5️⃣ Save transaction to Supabase ───────────── */
+    const transactionData = {
+      order_id: orderId,
+      plan_id: planId,
+      amount_cop: finalAmount,
+      payment_status: 'pending',
+      selected_gp: activeGp,
+      // 🔥 NEW: Pay-first flow tracking
+      pay_first_flow: payFirst,
+      requires_account_creation: payFirst,
+      ...(payFirst ? {
+        // Pay-first flow: minimal data, will be filled by webhook
+        user_id: null,
+        full_name: null,
+        email: null,
+        customer_email: null,
+        customer_name: null
+      } : {
+        // Authenticated flow: full user data
+        user_id: userId,
+        full_name: userData.fullName,
+        email: userData.email
+      })
+    };
+
+    const { data: transaction, error: dbError } = await sb
+      .from('vip_transactions')
+      .insert(transactionData)
+      .select()
+      .single();
+
+    if (dbError) {
+      console.error('[register-order] DB Error:', dbError);
+      return new NextResponse('DB_ERROR', { status: 500 });
+    }
+
+    /* ───────────── 6️⃣ Response to client ───────────── */
+    const response = {
+      orderId,
+      amount: amountStr,
+      description: `F1 Fantasy VIP – ${finalPlanName}${activeGp ? ` (${activeGp})` : ''}`,
+      integritySignature,
+      redirectionUrl,
+      activeGp,
+      // 🔥 NEW: Flow-specific data
+      payFirstFlow: payFirst,
+      requiresAccountCreation: payFirst,
+      transaction_id: transaction.id
+    };
+
+    console.log(`✅ Order created: ${orderId} (${payFirst ? 'pay-first' : 'authenticated'} flow)`);
+    
+    return NextResponse.json(response);
+
+  } catch (error) {
+    console.error('❌ Error in register-order:', error);
+    return NextResponse.json(
+      { error: 'Error interno del servidor' },
+      { status: 500 }
+    );
   }
-
-  /* ───────────── 3️⃣ Generar orden (≤ 40 chars) ───────────── */
-  const safeUserId = userId.toLowerCase().replace(/[^a-z0-9-]/g, '-').slice(0, 12);
-  const shortStamp = Date.now().toString(36);
-  const orderId    = `vip-${planId}-${safeUserId}-${shortStamp}`; // p.ej: vip-race-pass-abc123-kg9hf5
-  const amount     = String(plan.price);
-  
-  const integritySignature = crypto
-    .createHash('sha256')
-    .update(`${orderId}${amount}${CURRENCY}${BOLD_SECRET}`)
-    .digest('hex');
-
-  const redirectionUrl = `${SITE_URL}/fantasy-vip-success?orderId=${orderId}`;
-
-  /* ───────────── 4️⃣ Guardar orden en Supabase ───────────── */
-  const { error } = await sb.from('vip_transactions').insert({
-    user_id       : userId,
-    full_name     : fullName,    // Now from clerk_users table
-    email         : email,        // Now from clerk_users table
-    plan_id       : planId,
-    order_id      : orderId,
-    amount_cop    : plan.price,
-    payment_status: 'pending',
-    selected_gp   : activeGp // Auto-assigned for race-pass, null for season-pass
-  });
-
-  if (error) {
-    console.error('[register-order]', error);
-    return new NextResponse('DB_ERROR', { status: 500 });
-  }
-
-  /* ───────────── 5️⃣ Respuesta al cliente ───────────── */
-  return NextResponse.json({
-    orderId,
-    amount,
-    description       : `F1 Fantasy VIP – ${plan.name}${activeGp ? ` (${activeGp})` : ''}`,
-    integritySignature,
-    redirectionUrl,
-    activeGp          : activeGp // Include in response so frontend can show it
-  });
 }
