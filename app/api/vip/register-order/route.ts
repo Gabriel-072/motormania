@@ -159,15 +159,14 @@ export async function POST(req: NextRequest) {
       amount_cop: finalAmount,
       payment_status: 'pending',
       selected_gp: activeGp,
-      pay_first_flow: payFirst,
-      requires_account_creation: payFirst,
+      // 🔥 FIXED: Use existing column names
       ...(payFirst ? {
+        // Pay-first flow: use existing columns with placeholder values
         user_id: null,
-        full_name: null,
-        email: null,
-        customer_email: null,
-        customer_name: null
+        full_name: `[PAY_FIRST] ${finalPlanName}`, // Mark as pay-first in existing column
+        email: 'pay-first@pending.com' // Temporary email, will be updated by webhook
       } : {
+        // Authenticated flow: use real user data
         user_id: userId,
         full_name: userData.fullName,
         email: userData.email
