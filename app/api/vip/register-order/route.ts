@@ -6,6 +6,10 @@ import { auth }                      from '@clerk/nextjs/server';
 import { createClient }              from '@supabase/supabase-js';
 import crypto                        from 'crypto';
 
+// 🔥 FIXED: Add dynamic configuration to prevent static rendering
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 const sb = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!

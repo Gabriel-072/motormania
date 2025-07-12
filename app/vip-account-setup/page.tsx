@@ -2,13 +2,13 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useClerk } from '@clerk/nextjs';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 
-export default function VipAccountSetup() {
+function VipAccountSetupContent() {
   const router = useRouter();
   const clerk = useClerk();
   const searchParams = useSearchParams();
@@ -298,5 +298,21 @@ export default function VipAccountSetup() {
         </div>
       </div>
     </div>
+  );
+}
+
+// 🔥 FIXED: Single export default with Suspense wrapper
+export default function VipAccountSetup() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-b from-gray-950 to-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-amber-400 font-bold">Cargando...</p>
+        </div>
+      </div>
+    }>
+      <VipAccountSetupContent />
+    </Suspense>
   );
 }
