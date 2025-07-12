@@ -1,3 +1,4 @@
+//Bridge Page + Checkout Popup
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
