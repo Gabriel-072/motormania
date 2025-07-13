@@ -1,11 +1,10 @@
-// 📁 app/api/vip/register-order/route.ts - DEBUG VERSION
+// 📁 app/api/vip/register-order/route.ts - CLEAN VERSION (EXISTING COLUMNS ONLY)
 
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
 
-// Dynamic configuration
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
@@ -27,7 +26,6 @@ export async function POST(req: NextRequest) {
   console.log('🔍 Register order called');
   
   try {
-    // Parse request body
     const body = await req.json();
     console.log('📦 Request body:', JSON.stringify(body, null, 2));
     
@@ -80,11 +78,9 @@ export async function POST(req: NextRequest) {
         console.log('✅ User data retrieved:', userData);
       } catch (userError) {
         console.log('⚠️ Error getting user data:', userError);
-        // Continue with fallback data
       }
     }
 
-    // Use provided amount or plan default
     const finalAmount = amount || plan.price;
     const finalPlanName = planName || plan.name;
 
@@ -145,32 +141,22 @@ export async function POST(req: NextRequest) {
 
     console.log('🔐 Integrity signature generated');
 
-    // Set redirection URL based on flow
     const redirectionUrl = payFirst 
       ? `${SITE_URL}/vip-account-setup?order=${orderId}`
       : `${SITE_URL}/fantasy-vip-success?orderId=${orderId}`;
 
     console.log('🔗 Redirection URL:', redirectionUrl);
 
-    // Prepare transaction data
+    // 🔥 SIMPLIFIED: Only use columns that definitely exist
     const transactionData = {
       order_id: orderId,
       plan_id: planId,
       amount_cop: finalAmount,
       payment_status: 'pending',
       selected_gp: activeGp,
-      // 🔥 FIXED: Use existing column names
-      ...(payFirst ? {
-        // Pay-first flow: use existing columns with placeholder values
-        user_id: null,
-        full_name: `[PAY_FIRST] ${finalPlanName}`, // Mark as pay-first in existing column
-        email: 'pay-first@pending.com' // Temporary email, will be updated by webhook
-      } : {
-        // Authenticated flow: use real user data
-        user_id: userId,
-        full_name: userData.fullName,
-        email: userData.email
-      })
+      user_id: payFirst ? null : userId,
+      full_name: payFirst ? `[PAY_FIRST] ${finalPlanName}` : userData.fullName,
+      email: payFirst ? 'pay-first@pending.com' : userData.email
     };
 
     console.log('💾 Transaction data to insert:', JSON.stringify(transactionData, null, 2));
@@ -194,7 +180,6 @@ export async function POST(req: NextRequest) {
 
       console.log('✅ Transaction saved:', transaction);
 
-      // Response
       const response = {
         orderId,
         amount: amountStr,
@@ -223,8 +208,7 @@ export async function POST(req: NextRequest) {
     console.error('❌ Unexpected error in register-order:', error);
     return NextResponse.json({
       error: 'INTERNAL_SERVER_ERROR',
-      details: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined
+      details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 });
   }
 }
