@@ -369,13 +369,19 @@ const handlePurchase = async (planId: Plan['id']) => {
       integritySignature,
       renderMode: 'embedded',
       containerId: 'bold-embed-bridge',
-      // 🔥 SMART: Only add customer data for authenticated flow
-      ...(isPayFirstFlow ? {} : {
-        customerData: JSON.stringify({
+      // 🔥 FIXED: Always provide customerData, use empty for pay-first
+      customerData: JSON.stringify(
+        isPayFirstFlow ? {
+          // Pay-first: Let Bold collect customer data
+          email: '',
+          fullName: '',
+          collectCustomerData: true // Tell Bold to collect data
+        } : {
+          // Authenticated: Use existing user data
           email: user.primaryEmailAddress?.emailAddress ?? '',
           fullName: user.fullName ?? '',
-        })
-      })
+        }
+      )
     };
 
     // Dynamic import of Bold
