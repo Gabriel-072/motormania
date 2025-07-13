@@ -18,6 +18,10 @@ function VipAccountSetupContent() {
   const [accountInfo, setAccountInfo] = useState<any>(null);
   const [pollCount, setPollCount] = useState(0);
   const [timeElapsed, setTimeElapsed] = useState(0);
+  const [showEmailForm, setShowEmailForm] = useState(false);
+  const [email, setEmail] = useState('');
+  const [emailSubmitting, setEmailSubmitting] = useState(false);
+  
 
   useEffect(() => {
     if (!orderId) {
@@ -50,11 +54,21 @@ function VipAccountSetupContent() {
         const data = await response.json();
 
         if (data.status === 'account_ready') {
-          // Account created, proceed to login
-          setAccountInfo(data.account);
-          setStatus('logging-in');
-          await performAutoLogin(data.account);
-        } else if (data.status === 'payment_pending') {
+            // Account created, proceed to login
+            setAccountInfo(data.account);
+            setStatus('logging-in');
+            await performAutoLogin(data.account);
+          } else if (data.status === 'needs_email_collection') {
+            // 🔥 NEW: Payment successful but need email
+            setAccountInfo({ 
+              needs_email: true, 
+              customer_name: data.customer_name,
+              order_id: data.order_id 
+            });
+            setShowEmailForm(true);
+            setStatus('creating');
+          } else if (data.status === 'payment_pending') {
+
           // Payment still processing
           setStatus('checking');
           if (currentPoll < maxPolls) {
@@ -88,6 +102,51 @@ function VipAccountSetupContent() {
 
     // Start first poll after 5 seconds (give webhook time to process)
     setTimeout(poll, 5000);
+  };
+
+  // 🔥 NEW: Handle email submission
+const handleEmailSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!email || !orderId) return;
+    
+    setEmailSubmitting(true);
+    
+    try {
+      const response = await fetch('/api/vip/collect-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId,
+          email: email.trim().toLowerCase()
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setShowEmailForm(false);
+        toast.success('Email registrado. Creando tu cuenta...');
+        
+        // Resume polling for account creation
+        setTimeout(() => {
+          pollForAccountCreation();
+        }, 2000);
+      } else if (data.user_exists) {
+        // User already exists, redirect to sign in
+        toast.info('Ya tienes una cuenta. Serás redirigido para iniciar sesión.');
+        clerk.redirectToSignIn({
+          afterSignInUrl: '/f1-fantasy-panel'
+        });
+      } else {
+        throw new Error(data.error || 'Error procesando email');
+      }
+    } catch (error) {
+      console.error('❌ Email submission error:', error);
+      toast.error('Error procesando email. Por favor intenta nuevamente.');
+    } finally {
+      setEmailSubmitting(false);
+    }
   };
 
   const performAutoLogin = async (account: any) => {
@@ -232,7 +291,67 @@ function VipAccountSetupContent() {
             </div>
           )}
 
-          {/* Account Info */}
+{/* Email Collection Form */}
+{showEmailForm && accountInfo?.needs_email && (
+  <motion.div
+    initial={{ opacity: 0, y: 10 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.3 }}
+    className="mb-6"
+  >
+    <div className="bg-amber-900/30 border border-amber-500/30 rounded-lg p-6">
+      <h3 className="text-amber-400 font-bold mb-3 text-lg">
+        ¡Pago Exitoso! 🎉
+      </h3>
+      <p className="text-gray-300 text-sm mb-4">
+        Para completar tu acceso VIP, necesitamos tu email:
+      </p>
+      
+      <form onSubmit={handleEmailSubmit} className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-2">
+            Email
+          </label>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="tu.email@ejemplo.com"
+            required
+            disabled={emailSubmitting}
+            className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 disabled:opacity-50"
+          />
+        </div>
+        
+        <button
+          type="submit"
+          disabled={emailSubmitting || !email}
+          className="w-full py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-black font-bold rounded-lg hover:from-amber-400 hover:to-orange-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+        >
+          {emailSubmitting ? (
+            <>
+              <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin"></div>
+              Procesando...
+            </>
+          ) : (
+            <>
+              Crear Mi Cuenta VIP
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+              </svg>
+            </>
+          )}
+        </button>
+      </form>
+      
+      <p className="text-xs text-gray-400 mt-3 text-center">
+        🔒 Tu información está segura y protegida
+      </p>
+    </div>
+  </motion.div>
+)}
+
+{/* Account Info */}
           {accountInfo && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}

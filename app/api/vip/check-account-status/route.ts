@@ -3,6 +3,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 const sb = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -37,22 +40,32 @@ export async function GET(req: NextRequest) {
     }
 
     // Check payment status
-    if (transaction.status === 'pending') {
+    if (transaction.payment_status === 'pending') {
       return NextResponse.json({
         status: 'payment_pending',
         message: 'Pago en proceso'
       });
     }
 
-    if (transaction.status === 'failed') {
+    if (transaction.payment_status === 'failed') {
       return NextResponse.json({
         status: 'payment_failed',
         message: 'Pago falló'
       });
     }
 
-    if (transaction.status === 'paid') {
-      // Check if account was created
+    // 🔥 NEW: Handle payment success but no email collected
+    if (transaction.payment_status === 'paid_no_email') {
+      return NextResponse.json({
+        status: 'needs_email_collection',
+        message: 'Pago exitoso, se requiere email',
+        order_id: orderId,
+        customer_name: transaction.customer_name || transaction.full_name
+      });
+    }
+
+    if (transaction.payment_status === 'paid') {
+      // Check if account was created (either by webhook or email collection)
       const { data: vipUser, error: vipUserError } = await sb
         .from('vip_users')
         .select('*')
@@ -60,10 +73,20 @@ export async function GET(req: NextRequest) {
         .single();
 
       if (vipUserError || !vipUser) {
-        return NextResponse.json({
-          status: 'account_creating',
-          message: 'Creando cuenta...'
-        });
+        // Account not created yet
+        if (transaction.user_id && transaction.user_id.startsWith('PENDING_')) {
+          // Still has placeholder user_id, account creation in progress
+          return NextResponse.json({
+            status: 'account_creating',
+            message: 'Creando cuenta...'
+          });
+        } else {
+          // Has real user_id but no VIP user record
+          return NextResponse.json({
+            status: 'account_creating', 
+            message: 'Finalizando configuración...'
+          });
+        }
       }
 
       // Account exists, check for login session

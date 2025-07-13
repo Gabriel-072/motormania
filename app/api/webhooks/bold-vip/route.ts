@@ -154,22 +154,59 @@ export async function POST(req: NextRequest) {
 
     const boldPaymentId = data.payment_id || data.id;
 
-    // 🔥 EXTRACT EMAIL FROM BOLD PAYMENT DATA
-    const customerEmail = data.customer?.email || 
-                         data.billing_data?.email || 
-                         data.payer?.email ||
-                         data.buyer?.email;
-    
-    const customerName = data.customer?.name || 
-                        data.billing_data?.name || 
-                        data.payer?.name ||
-                        data.buyer?.name ||
-                        `${data.customer?.first_name || ''} ${data.customer?.last_name || ''}`.trim();
+// 🔥 ENHANCED EMAIL EXTRACTION WITH FALLBACK
+const customerEmail = data.customer?.email || 
+                     data.billing_data?.email || 
+                     data.payer?.email ||
+                     data.buyer?.email ||
+                     data.customer?.emailAddress ||
+                     data.billing?.email;
 
-    if (!customerEmail) {
-      console.error('❌ No customer email in Bold payment data');
-      return NextResponse.json({ ok: false, error: 'No customer email' });
+const customerName = data.customer?.name || 
+                    data.billing_data?.name || 
+                    data.payer?.name ||
+                    data.buyer?.name ||
+                    `${data.customer?.first_name || ''} ${data.customer?.last_name || ''}`.trim() ||
+                    data.customer?.fullName;
+
+console.log('📧 Email extraction attempt:', {
+  customerEmail,
+  customerName,
+  available_fields: Object.keys(data)
+});
+
+if (!customerEmail) {
+  console.log('⚠️ No customer email in Bold payment data - will require manual collection');
+  
+  // Handle missing email case
+  const { data: updateResult, error: updateError } = await sb.rpc(
+    'update_vip_payment_status',
+    {
+      p_order_id: orderId,
+      p_payment_id: boldPaymentId,
+      p_status: 'paid_no_email', // Special status for payments without email
+      p_user_id: null,
+      p_email: null,
+      p_full_name: customerName
     }
+  );
+
+  if (updateError) {
+    console.error('❌ Update error for no-email payment:', updateError);
+    return NextResponse.json({ ok: false, error: updateError?.message });
+  }
+
+  // Don't create account yet - wait for email collection
+  return NextResponse.json({
+    ok: true,
+    processed: true,
+    requires_email_collection: true,
+    transaction_id: updateResult[0]?.transaction_id,
+    order_id: orderId,
+    customer_name: customerName,
+    message: 'Payment successful, email collection required'
+  });
+}
 
     console.log('📧 Customer email extracted:', customerEmail);
     console.log('👤 Customer name extracted:', customerName);
