@@ -6,19 +6,30 @@ const isPublicRoute = createRouteMatcher([
   '/sign-in(.*)',
   '/sign-up(.*)',
   '/mmc-go(.*)',
-  '/api/webhooks/bold(.*)', // Específico para el webhook de Bold
-  '/api/webhooks(.*)', // Mantiene compatibilidad con otros webhooks
-  '/f1-fantasy-panel(.*)',
+  '/api/webhooks/bold(.*)',
+  '/api/webhooks(.*)',
+  '/fantasy-vip(.*)', // Temporarily public to fix redirect loop
   '/fantasy(.*)',
+  '/api/vip/collect-email',
+  '/api/vip/verify-access',
+  '/api/vip/check-access',
+  '/vip-email-only(.*)',
+  '/vip-direct-access(.*)',
+  '/pricing(.*)',
+  '/investigacion-rn365(.*)',
+  '/plataforma-viral(.*)',
 ]);
 
-const isProtectedRoute = createRouteMatcher(['/dashboard(.*)', '/api/entries(.*)']);
+const isProtectedRoute = createRouteMatcher([
+  '/dashboard(.*)', 
+  '/api/entries(.*)',
+  '/f1-fantasy-panel(.*)' // Move f1-fantasy-panel to protected instead
+]);
 
 export default clerkMiddleware(async (auth, req) => {
-  // Log para depurar qué rutas llegan al middleware
   console.log('Middleware processing:', req.url);
 
-  // Permitir rutas públicas sin autenticación
+  // Allow public routes
   if (isPublicRoute(req)) {
     console.log('Public route matched:', req.nextUrl.pathname);
     return NextResponse.next();
@@ -27,7 +38,7 @@ export default clerkMiddleware(async (auth, req) => {
   const authResult = await auth();
   const { userId } = authResult;
 
-  // Proteger rutas privadas
+  // Handle protected routes
   if (!userId && isProtectedRoute(req)) {
     const signInUrl = new URL('/sign-in', req.url);
     const redirectUrl = req.nextUrl.pathname + req.nextUrl.search;
@@ -36,14 +47,12 @@ export default clerkMiddleware(async (auth, req) => {
     return NextResponse.redirect(signInUrl);
   }
 
-  // Continuar con solicitudes autenticadas
   console.log('Authenticated request proceeding:', req.nextUrl.pathname);
   return NextResponse.next();
 });
 
 export const config = {
   matcher: [
-    // Aplicar middleware a todas las rutas excepto assets estáticos y _next
     '/((?!.*\\..*|_next).*)',
     '/',
     '/(api|trpc)(.*)',
