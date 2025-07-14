@@ -1,4 +1,4 @@
-//app/api/vip/collect-email/route.ts - FIXED FOR EXISTING USERS
+//app/api/vip/collect-email/route.ts - FIXED: Handle already processed transactions
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
@@ -36,12 +36,12 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
 
-    // 1. Get the transaction
+    // 1. 🔥 FIXED: Check for transaction with multiple statuses
     const { data: transaction, error: transactionError } = await sb
       .from('vip_transactions')
       .select('*')
       .eq('order_id', orderId)
-      .eq('payment_status', 'paid_no_email')
+      .in('payment_status', ['paid_no_email', 'paid']) // Check both statuses
       .single();
 
     if (transactionError || !transaction) {
@@ -52,7 +52,46 @@ export async function POST(req: NextRequest) {
       }, { status: 404 });
     }
 
-    // 2. Check if user already exists
+    // 2. 🔥 NEW: Check if already processed
+    if (transaction.payment_status === 'paid' && transaction.user_id && !transaction.user_id.startsWith('PENDING_')) {
+      console.log('✅ Transaction already processed, checking VIP status...');
+      
+      // Check if VIP access already exists
+      const { data: existingVipUser } = await sb
+        .from('vip_users')
+        .select('*')
+        .eq('id', transaction.user_id)
+        .single();
+
+      if (existingVipUser) {
+        // Already has VIP access, create login session and return success
+        const sessionToken = crypto.randomUUID();
+        const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+
+        await sb
+          .from('vip_login_sessions')
+          .insert({
+            session_token: sessionToken,
+            clerk_user_id: transaction.user_id,
+            order_id: orderId,
+            expires_at: expiresAt.toISOString(),
+            used: false
+          });
+
+        return NextResponse.json({
+          success: true,
+          message: 'Acceso VIP ya activado',
+          user_id: transaction.user_id,
+          email: transaction.email,
+          login_session_token: sessionToken,
+          is_new_user: false,
+          plan_activated: existingVipUser.active_plan,
+          already_processed: true
+        });
+      }
+    }
+
+    // 3. Check if user already exists
     const clerk = await clerkClient();
     const existingUsers = await clerk.users.getUserList({
       emailAddress: [email]
@@ -67,13 +106,12 @@ export async function POST(req: NextRequest) {
       userId = existingUsers.data[0].id;
       isNewUser = false;
       
-      // Use existing user's name if available
       const existingUserName = `${existingUsers.data[0].firstName || ''} ${existingUsers.data[0].lastName || ''}`.trim();
       if (existingUserName) {
         customerName = existingUserName;
       }
     } else {
-      // 3. Create new Clerk user
+      // Create new Clerk user
       console.log('🚀 Creating new user for email:', email);
       
       const firstName = customerName.split(' ')[0] || undefined;
@@ -90,7 +128,6 @@ export async function POST(req: NextRequest) {
       userId = newUser.id;
       console.log('✅ New Clerk user created:', userId);
 
-      // Store in clerk_users table
       await sb
         .from('clerk_users')
         .upsert({
@@ -102,7 +139,7 @@ export async function POST(req: NextRequest) {
         }, { onConflict: 'clerk_id' });
     }
 
-    // 4. Update transaction with user ID (for both new and existing users)
+    // 4. Update transaction with user ID
     await sb
       .from('vip_transactions')
       .update({
@@ -115,7 +152,7 @@ export async function POST(req: NextRequest) {
       })
       .eq('order_id', orderId);
 
-    // 5. 🔥 CRITICAL: Grant VIP access (for both new AND existing users)
+    // 5. Grant VIP access
     const activePlan = transaction.plan_id;
     let planExpiresAt;
     let racePassGp = null;
@@ -140,7 +177,6 @@ export async function POST(req: NextRequest) {
       planExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
     }
 
-    // 6. Create/Update VIP user (works for both new and existing users)
     const entryTxId = crypto.randomUUID();
     await sb
       .from('vip_users')
@@ -156,7 +192,6 @@ export async function POST(req: NextRequest) {
         created_via_pay_first: isNewUser
       }, { onConflict: 'id' });
 
-    // 7. Create VIP entry (for both new and existing users)
     await sb
       .from('vip_entries')
       .upsert({
@@ -175,7 +210,7 @@ export async function POST(req: NextRequest) {
         }
       }, { onConflict: 'bold_order_id' });
 
-    // 8. Generate login session (for both new and existing users)
+    // 6. Generate login session
     const sessionToken = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
 
@@ -191,7 +226,34 @@ export async function POST(req: NextRequest) {
 
     console.log(`✅ VIP access granted for ${isNewUser ? 'new' : 'existing'} user:`, email);
 
-    // 9. 🔥 NEW: Return success for BOTH new and existing users
+    // 7. 🔥 NEW: Send confirmation email
+try {
+    const emailResponse = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/vip/send-confirmation-email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: email,
+        customerName: customerName,
+        planType: activePlan,
+        racePassGp: racePassGp,
+        amount: transaction.amount_cop,
+        orderId: orderId
+      })
+    });
+  
+    if (emailResponse.ok) {
+      console.log('✅ Confirmation email sent to:', email);
+    } else {
+      console.log('⚠️ Failed to send confirmation email, but continuing...');
+    }
+  } catch (emailError) {
+    console.log('⚠️ Email sending error (non-critical):', emailError);
+  }
+  
+    
+    // 8. 🔥 TODO: Send confirmation email here
+    // await sendVipConfirmationEmail(email, customerName, activePlan, racePassGp);
+
     return NextResponse.json({
       success: true,
       message: isNewUser ? 'Cuenta creada exitosamente' : 'Acceso VIP activado para cuenta existente',

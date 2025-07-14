@@ -108,7 +108,7 @@ function VipAccountSetupContent() {
 const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!email || !orderId) return;
+    if (!email || !orderId || emailSubmitting) return; // 🔥 Prevent double submission
     
     setEmailSubmitting(true);
     
@@ -127,14 +127,14 @@ const handleEmailSubmit = async (e: React.FormEvent) => {
       if (data.success) {
         setShowEmailForm(false);
         
-        // 🔥 UPDATED: Unified flow for both new and existing users
-        if (data.is_new_user) {
+        if (data.already_processed) {
+          toast.success('✅ Acceso VIP ya activado. Iniciando sesión...');
+        } else if (data.is_new_user) {
           toast.success('✅ Cuenta creada. Iniciando sesión...');
         } else {
           toast.success('✅ Acceso VIP activado. Iniciando sesión...');
         }
         
-        // Set account info and proceed directly to auto-login
         setAccountInfo({
           email: data.email,
           plan_id: data.plan_activated,
@@ -144,7 +144,7 @@ const handleEmailSubmit = async (e: React.FormEvent) => {
         
         setStatus('logging-in');
         
-        // Proceed directly to auto-login (no polling needed)
+        // Proceed directly to auto-login
         setTimeout(() => {
           performAutoLogin({
             email: data.email,
@@ -169,7 +169,7 @@ const handleEmailSubmit = async (e: React.FormEvent) => {
         // Fallback: redirect to sign in
         toast.info('Tu cuenta fue creada. Por favor inicia sesión.');
         clerk.redirectToSignIn({
-          afterSignInUrl: '/f1-fantasy-panel'
+          afterSignInUrl: '/fantasy-vip'
         });
         return;
       }
@@ -201,14 +201,14 @@ const handleEmailSubmit = async (e: React.FormEvent) => {
           // Redirect to sign-in (more reliable than server-side sessions)
           setTimeout(() => {
             clerk.redirectToSignIn({
-              afterSignInUrl: '/f1-fantasy-panel'
+              afterSignInUrl: '/fantasy-vip'
             });
           }, 2000);
         } else {
           // Fallback to manual login
           toast.info('Tu acceso fue activado. Serás redirigido para iniciar sesión.');
           clerk.redirectToSignIn({
-            afterSignInUrl: '/f1-fantasy-panel'
+            afterSignInUrl: '/fantasy-vip'
           });
         }
       } else {
@@ -224,7 +224,7 @@ const handleEmailSubmit = async (e: React.FormEvent) => {
         toast.info('Tu acceso VIP fue activado. Por favor inicia sesión.');
       }
       clerk.redirectToSignIn({
-        afterSignInUrl: '/f1-fantasy-panel'
+        afterSignInUrl: '/fantasy-vip'
       });
     }
   };
@@ -445,7 +445,7 @@ const handleEmailSubmit = async (e: React.FormEvent) => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 2 }}
-              onClick={() => clerk.redirectToSignIn({ afterSignInUrl: '/f1-fantasy-panel' })}
+              onClick={() => clerk.redirectToSignIn({ afterSignInUrl: '/fantasy-vip' })}
               className="mt-6 px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-black font-bold rounded-lg hover:from-amber-400 hover:to-orange-400 transition-all"
             >
               Intentar Acceso Manual
