@@ -124,8 +124,8 @@ const redirectionUrl = payFirst
       user_id: payFirst ? `PENDING_${orderId}` : userId,
       
       // Other fields
-      full_name: payFirst ? `[PAY_FIRST] ${finalPlanName}` : userData.fullName,
-      email: payFirst ? 'pay-first@pending.com' : userData.email,
+      full_name: payFirst ? 'Usuario VIP' : userData.fullName,
+      email: payFirst ? 'usuario@vip.pending' : userData.email,
       selected_gp: activeGp,
       
       // Pay-first tracking fields

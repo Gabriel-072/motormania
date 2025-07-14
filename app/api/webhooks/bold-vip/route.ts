@@ -57,12 +57,26 @@ async function createUserAccount(email: string, fullName?: string) {
       };
     }
 
-    // 🚀 Create new Clerk user
+    // 🔥 IMPROVED: Better name parsing for Clerk
+    const parseNameForClerk = (fullName: string) => {
+      if (!fullName || fullName === 'Usuario VIP' || fullName.includes('[')) {
+        return { firstName: undefined, lastName: undefined };
+      }
+      
+      const parts = fullName.trim().split(' ');
+      return {
+        firstName: parts[0] || undefined,
+        lastName: parts.slice(1).join(' ') || undefined
+      };
+    };
+
+    const { firstName, lastName } = parseNameForClerk(fullName || '');
+
     const newUser = await clerk.users.createUser({
       emailAddress: [email],
-      firstName: fullName?.split(' ')[0] || undefined,
-      lastName: fullName?.split(' ').slice(1).join(' ') || undefined,
-      skipPasswordRequirement: true, // User will set password later
+      firstName,
+      lastName,
+      skipPasswordRequirement: true,
       skipPasswordChecks: true
     });
 
@@ -72,13 +86,17 @@ async function createUserAccount(email: string, fullName?: string) {
       name: fullName
     });
 
-    // 🔥 Store in clerk_users table for our reference
+    // 🔥 FIXED: Store in clerk_users table with proper name handling
+    const cleanName = fullName && fullName !== 'Usuario VIP' && !fullName.includes('[') 
+      ? fullName 
+      : (email ? email.split('@')[0].replace(/[._]/g, ' ').charAt(0).toUpperCase() + email.split('@')[0].replace(/[._]/g, ' ').slice(1) : 'Usuario VIP');
+
     await sb
       .from('clerk_users')
       .upsert({
         clerk_id: newUser.id,
         email: email,
-        full_name: fullName || '',
+        full_name: cleanName,
         created_at: new Date().toISOString(),
         created_via: 'pay_first_webhook'
       }, { onConflict: 'clerk_id' });
@@ -154,84 +172,111 @@ export async function POST(req: NextRequest) {
 
     const boldPaymentId = data.payment_id || data.id;
 
-// 🔥 ENHANCED: Aggressive email extraction
-const extractAllPossibleEmails = (data: any) => {
-  const emailSources = [
-    data.customer?.email,
-    data.customer?.emailAddress, 
-    data.customer?.email_address,
-    data.billing_data?.email,
-    data.billing?.email,
-    data.payer?.email,
-    data.buyer?.email,
-    data.contact?.email,
-    data.metadata?.customer_email,
-    data.payment_method?.customer?.email,
-    data.card_holder?.email,
-    data.transaction?.customer_email,
-    data.checkout?.customer?.email,
-    data.customer?.contact?.email,
-    data.billing_address?.email,
-    data.shipping_address?.email,
-    data.payment_source?.payer?.email,
-    data.payment_details?.email
-  ];
+    // 🔥 ENHANCED: Aggressive email extraction
+    const extractAllPossibleEmails = (data: any) => {
+      const emailSources = [
+        data.customer?.email,
+        data.customer?.emailAddress, 
+        data.customer?.email_address,
+        data.billing_data?.email,
+        data.billing?.email,
+        data.payer?.email,
+        data.buyer?.email,
+        data.contact?.email,
+        data.metadata?.customer_email,
+        data.payment_method?.customer?.email,
+        data.card_holder?.email,
+        data.transaction?.customer_email,
+        data.checkout?.customer?.email,
+        data.customer?.contact?.email,
+        data.billing_address?.email,
+        data.shipping_address?.email,
+        data.payment_source?.payer?.email,
+        data.payment_details?.email
+      ];
 
-  for (const email of emailSources) {
-    if (email && typeof email === 'string' && email.includes('@')) {
-      return email.toLowerCase().trim();
+      for (const email of emailSources) {
+        if (email && typeof email === 'string' && email.includes('@')) {
+          return email.toLowerCase().trim();
+        }
+      }
+      return null;
+    };
+
+    // 🔥 ENHANCED: Better name extraction with fallback
+    const extractCustomerName = (data: any, email: string | null) => {
+      const nameSources = [
+        data.customer?.name,
+        data.customer?.full_name,
+        data.customer?.fullName,
+        data.billing_data?.name,
+        data.billing?.name,
+        data.payer?.name,
+        data.buyer?.name,
+        data.card_holder?.name,
+        data.metadata?.customer_name,
+        `${data.customer?.first_name || ''} ${data.customer?.last_name || ''}`.trim(),
+        `${data.customer?.firstName || ''} ${data.customer?.lastName || ''}`.trim(),
+        `${data.billing_data?.first_name || ''} ${data.billing_data?.last_name || ''}`.trim()
+      ];
+
+      for (const name of nameSources) {
+        if (name && typeof name === 'string' && name.length > 1 && !name.includes('[') && !name.includes('pending')) {
+          return name.trim();
+        }
+      }
+      
+      // Fallback to email-based name if available
+      if (email) {
+        const emailName = email.split('@')[0].replace(/[._]/g, ' ');
+        return emailName.charAt(0).toUpperCase() + emailName.slice(1);
+      }
+      
+      return 'Usuario VIP';
+    };
+
+    // Extract customer data
+    const customerEmail = extractAllPossibleEmails(data);
+    const customerName = extractCustomerName(data, customerEmail);
+
+    console.log('📧 Email extraction attempt:', {
+      customerEmail,
+      customerName,
+      available_fields: Object.keys(data)
+    });
+
+    if (!customerEmail) {
+      console.log('⚠️ No customer email in Bold payment data - will require manual collection');
+      
+      // Handle missing email case
+      const { data: updateResult, error: updateError } = await sb.rpc(
+        'update_vip_payment_status',
+        {
+          p_order_id: orderId,
+          p_payment_id: boldPaymentId,
+          p_status: 'paid_no_email', // Special status for payments without email
+          p_user_id: null,
+          p_email: null,
+          p_full_name: customerName
+        }
+      );
+
+      if (updateError) {
+        console.error('❌ Update error for no-email payment:', updateError);
+        return NextResponse.json({ ok: false, error: updateError?.message });
+      }
+
+      return NextResponse.json({
+        ok: true,
+        processed: true,
+        requires_email_collection: true,
+        transaction_id: updateResult[0]?.transaction_id,
+        order_id: orderId,
+        customer_name: customerName,
+        redirect_url: `${process.env.NEXT_PUBLIC_SITE_URL}/vip-email-only?order=${orderId}`,
+        message: 'Payment successful, email collection required'
+      });
     }
-  }
-  return null;
-};
-
-const customerEmail = extractAllPossibleEmails(data);
-
-const customerName = data.customer?.name || 
-                    data.billing_data?.name || 
-                    data.payer?.name ||
-                    data.buyer?.name ||
-                    `${data.customer?.first_name || ''} ${data.customer?.last_name || ''}`.trim() ||
-                    data.customer?.fullName;
-
-console.log('📧 Email extraction attempt:', {
-  customerEmail,
-  customerName,
-  available_fields: Object.keys(data)
-});
-
-if (!customerEmail) {
-  console.log('⚠️ No customer email in Bold payment data - will require manual collection');
-  
-  // Handle missing email case
-  const { data: updateResult, error: updateError } = await sb.rpc(
-    'update_vip_payment_status',
-    {
-      p_order_id: orderId,
-      p_payment_id: boldPaymentId,
-      p_status: 'paid_no_email', // Special status for payments without email
-      p_user_id: null,
-      p_email: null,
-      p_full_name: customerName
-    }
-  );
-
-  if (updateError) {
-    console.error('❌ Update error for no-email payment:', updateError);
-    return NextResponse.json({ ok: false, error: updateError?.message });
-  }
-
-  return NextResponse.json({
-    ok: true,
-    processed: true,
-    requires_email_collection: true,
-    transaction_id: updateResult[0]?.transaction_id,
-    order_id: orderId,
-    customer_name: customerName,
-    redirect_url: `${process.env.NEXT_PUBLIC_SITE_URL}/vip-email-only?order=${orderId}`,
-    message: 'Payment successful, email collection required'
-  });
-}
 
     console.log('📧 Customer email extracted:', customerEmail);
     console.log('👤 Customer name extracted:', customerName);
@@ -350,7 +395,7 @@ if (!customerEmail) {
           id: userAccount?.clerkUserId || transaction.user_id,
           entry_tx_id: entryTxId,
           joined_at: transaction.paid_at,
-          full_name: customerName || transaction.full_name,
+          full_name: customerName && customerName !== 'Usuario VIP' ? customerName : (customerEmail ? customerEmail.split('@')[0].replace(/[._]/g, ' ').charAt(0).toUpperCase() + customerEmail.split('@')[0].replace(/[._]/g, ' ').slice(1) : 'Usuario VIP'),
           email: customerEmail || transaction.email,
           active_plan: transaction.plan_id,
           plan_expires_at: planExpiresAt,
