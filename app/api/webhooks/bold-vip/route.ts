@@ -154,13 +154,38 @@ export async function POST(req: NextRequest) {
 
     const boldPaymentId = data.payment_id || data.id;
 
-// 🔥 ENHANCED EMAIL EXTRACTION WITH FALLBACK
-const customerEmail = data.customer?.email || 
-                     data.billing_data?.email || 
-                     data.payer?.email ||
-                     data.buyer?.email ||
-                     data.customer?.emailAddress ||
-                     data.billing?.email;
+// 🔥 ENHANCED: Aggressive email extraction
+const extractAllPossibleEmails = (data: any) => {
+  const emailSources = [
+    data.customer?.email,
+    data.customer?.emailAddress, 
+    data.customer?.email_address,
+    data.billing_data?.email,
+    data.billing?.email,
+    data.payer?.email,
+    data.buyer?.email,
+    data.contact?.email,
+    data.metadata?.customer_email,
+    data.payment_method?.customer?.email,
+    data.card_holder?.email,
+    data.transaction?.customer_email,
+    data.checkout?.customer?.email,
+    data.customer?.contact?.email,
+    data.billing_address?.email,
+    data.shipping_address?.email,
+    data.payment_source?.payer?.email,
+    data.payment_details?.email
+  ];
+
+  for (const email of emailSources) {
+    if (email && typeof email === 'string' && email.includes('@')) {
+      return email.toLowerCase().trim();
+    }
+  }
+  return null;
+};
+
+const customerEmail = extractAllPossibleEmails(data);
 
 const customerName = data.customer?.name || 
                     data.billing_data?.name || 
@@ -196,7 +221,6 @@ if (!customerEmail) {
     return NextResponse.json({ ok: false, error: updateError?.message });
   }
 
-  // Don't create account yet - wait for email collection
   return NextResponse.json({
     ok: true,
     processed: true,
@@ -204,6 +228,7 @@ if (!customerEmail) {
     transaction_id: updateResult[0]?.transaction_id,
     order_id: orderId,
     customer_name: customerName,
+    redirect_url: `${process.env.NEXT_PUBLIC_SITE_URL}/vip-email-only?order=${orderId}`,
     message: 'Payment successful, email collection required'
   });
 }
@@ -487,7 +512,6 @@ if (!customerEmail) {
       console.error('❌ Facebook tracking error (non-critical):', fbError);
     }
 
-    // 🎯 SUCCESS RESPONSE WITH AUTO-LOGIN INFO
     return NextResponse.json({
       ok: true,
       processed: true,
@@ -497,7 +521,8 @@ if (!customerEmail) {
       amount_cop: data.amount?.total || transaction.amount_cop,
       plan_expires_at: planExpiresAt,
       race_pass_gp: racePassGp,
-      // 🔥 NEW: Account creation info
+      // 🔥 NEW: Smart redirect URL
+      redirect_url: `${process.env.NEXT_PUBLIC_SITE_URL}/vip-direct-access?order=${orderId}&email=${encodeURIComponent(customerEmail)}&verified=true`,
       account_info: {
         is_new_user: userAccount?.isNewUser || false,
         email: customerEmail,

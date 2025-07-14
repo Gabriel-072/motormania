@@ -391,20 +391,18 @@ const handlePurchase = async (planId: Plan['id']) => {
     openBoldCheckout({
       ...config,
       onSuccess: async (result: any) => {
-        // ✅ NO Purchase tracking here - webhook handles it!
-        console.log('💰 Payment successful, webhook will handle tracking and account creation');
+        console.log('💰 Payment successful');
         
         if (payFirstFlow) {
-          toast.success('✅ ¡Pago exitoso! Creando tu cuenta...');
-          // 🔥 NEW: Redirect to auto-login page for pay-first flow
-          setTimeout(() => {
-            router.push(`/vip-account-setup?order=${orderId}`);
-          }, 2000);
+          toast.success('✅ ¡Pago exitoso! Activando acceso VIP...');
+          
+          // 🔥 IMPROVED: Let Bold's redirect handle the flow
+          // Don't manually redirect - Bold will use the redirectionUrl from register-order
+          console.log('🔄 Bold will handle redirect to activation page');
         } else {
           toast.success('✅ ¡Pago exitoso! Procesando acceso...');
-          // Authenticated flow: direct to dashboard
           setTimeout(() => {
-            router.push('/f1-fantasy-panel');
+            router.push('/fantasy-vip');
           }, 2000);
         }
       },

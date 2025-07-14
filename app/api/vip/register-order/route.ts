@@ -108,9 +108,10 @@ export async function POST(req: NextRequest) {
       .update(`${orderId}${amountStr}${CURRENCY}${BOLD_SECRET}`)
       .digest('hex');
 
-    const redirectionUrl = payFirst 
-      ? `${SITE_URL}/vip-account-setup?order=${orderId}`
-      : `${SITE_URL}/fantasy-vip-success?orderId=${orderId}`;
+// 🔥 SMART REDIRECT: Default to simple email collection
+const redirectionUrl = payFirst 
+  ? `${SITE_URL}/vip-email-only?order=${orderId}`
+  : `${SITE_URL}/fantasy-vip-success?orderId=${orderId}`;
 
     // 🔥 FIXED: Handle NOT NULL user_id constraint
     const transactionData = {
