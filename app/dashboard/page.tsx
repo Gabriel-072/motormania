@@ -505,12 +505,10 @@ export default function DashboardPage() {
               >
                 <Dialog.Panel className="mx-auto max-w-sm rounded-xl bg-gradient-to-br from-gray-800 to-black p-6 text-center text-white shadow-xl">
                   <Dialog.Title className="text-2xl font-bold text-cyan-400 mb-2">
-                    ¡Ya tienes tus 5 números para el Lego!
+                    ¡Ya tienes tus 5 números para nuestros sorteos!
                   </Dialog.Title>
                   <p className="text-gray-300 mb-4">
-                    Gana una gorra Ferrari!
-                    Envía tus predicciones para el Gran Premio De España!
-                    Participa por una gorra oficial.
+                    Envía tus predicciones para el siguiente GP!!
                   </p>
                   <button
                     onClick={() => {

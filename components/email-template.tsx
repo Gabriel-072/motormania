@@ -16,7 +16,7 @@ export function EmailTemplate({ numbers, userName, unsubscribeLink }: EmailTempl
         </h1>
 
         <p style={{ color: "#FFFFFF", fontSize: "16px", textAlign: "center", marginBottom: "20px" }}>
-          Tus números para el LEGO McLaren P1:
+          Tus números para nuestros sorteos:
         </p>
 
         {/* Números */}
@@ -131,7 +131,7 @@ export function textVersion({ numbers, userName }: EmailTemplateProps) {
   return `
 🏆 ¡Hola ${userName}!
 
-Tus números para el sorteo del LEGO McLaren P1 son:
+Tus números para nuestros sorteos:
 ${numbers.join(", ")}
 
 🎯 ¿Quieres más oportunidades?

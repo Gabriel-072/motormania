@@ -126,7 +126,7 @@ export async function POST(req: NextRequest) {
           color: #999;
           text-align: center;
         ">
-          ${appName} | Bogotá D.C., Colombia | 
+          ${appName} 
           <a href="mailto:${supportEmail}" style="color: #999;">
             ${supportEmail}
           </a>
