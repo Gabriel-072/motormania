@@ -18,6 +18,16 @@ export async function POST(req: NextRequest) {
   try {
     const { orderId, email } = await req.json();
 
+    // 🔥 FIXED: Declare all variables at function scope
+    let userId: string;
+    let isNewUser: boolean = true;
+    let customerName: string;
+    let sessionToken: string;
+    let activePlan: string;
+    let planExpiresAt: string;
+    let racePassGp: string | null = null;
+    let autoLoginToken: string | null = null;
+
     if (!orderId || !email) {
       return NextResponse.json({
         success: false,
@@ -65,7 +75,7 @@ export async function POST(req: NextRequest) {
 
       if (existingVipUser) {
         // Already has VIP access, create login session and return success
-        const sessionToken = crypto.randomUUID();
+        sessionToken = crypto.randomUUID();
         const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
 
         await sb
@@ -97,9 +107,7 @@ export async function POST(req: NextRequest) {
       emailAddress: [email]
     });
 
-    let userId;
-    let isNewUser = true;
-    let customerName = transaction.customer_name || transaction.full_name || '';
+    customerName = transaction.customer_name || transaction.full_name || '';
 
     if (existingUsers.data && existingUsers.data.length > 0) {
       console.log('👤 User already exists:', email);
@@ -124,9 +132,24 @@ export async function POST(req: NextRequest) {
         skipPasswordRequirement: true,
         skipPasswordChecks: true
       });
-
+      
       userId = newUser.id;
       console.log('✅ New Clerk user created:', userId);
+      
+      // 🔥 NEW: Create a sign-in token for immediate authentication
+      try {
+        const signInToken = await clerk.signInTokens.createSignInToken({
+          userId: userId,
+          expiresInSeconds: 600, // 10 minutes
+        });
+        
+        console.log('✅ Sign-in token created for auto-login');
+        autoLoginToken = signInToken.token;
+        
+      } catch (tokenError) {
+        console.error('⚠️ Could not create sign-in token:', tokenError);
+        // Continue without auto-login - user will need to sign in manually
+      }
 
       await sb
         .from('clerk_users')
@@ -153,9 +176,7 @@ export async function POST(req: NextRequest) {
       .eq('order_id', orderId);
 
     // 5. Grant VIP access
-    const activePlan = transaction.plan_id;
-    let planExpiresAt;
-    let racePassGp = null;
+    activePlan = transaction.plan_id;
 
     if (transaction.plan_id === 'race-pass' && transaction.selected_gp) {
       const { data: gpData } = await sb
@@ -211,7 +232,7 @@ export async function POST(req: NextRequest) {
       }, { onConflict: 'bold_order_id' });
 
     // 6. Generate login session
-    const sessionToken = crypto.randomUUID();
+    sessionToken = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
 
     await sb
@@ -226,34 +247,31 @@ export async function POST(req: NextRequest) {
 
     console.log(`✅ VIP access granted for ${isNewUser ? 'new' : 'existing'} user:`, email);
 
-    // 7. 🔥 NEW: Send confirmation email
-try {
-    const emailResponse = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/vip/send-confirmation-email`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: email,
-        customerName: customerName,
-        planType: activePlan,
-        racePassGp: racePassGp,
-        amount: transaction.amount_cop,
-        orderId: orderId
-      })
-    });
-  
-    if (emailResponse.ok) {
-      console.log('✅ Confirmation email sent to:', email);
-    } else {
-      console.log('⚠️ Failed to send confirmation email, but continuing...');
-    }
-  } catch (emailError) {
-    console.log('⚠️ Email sending error (non-critical):', emailError);
-  }
-  
+    // 7. Send confirmation email
+    try {
+      const emailResponse = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/vip/send-confirmation-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email,
+          customerName: customerName,
+          planType: activePlan,
+          racePassGp: racePassGp,
+          amount: transaction.amount_cop,
+          orderId: orderId
+        })
+      });
     
-    // 8. 🔥 TODO: Send confirmation email here
-    // await sendVipConfirmationEmail(email, customerName, activePlan, racePassGp);
+      if (emailResponse.ok) {
+        console.log('✅ Confirmation email sent to:', email);
+      } else {
+        console.log('⚠️ Failed to send confirmation email, but continuing...');
+      }
+    } catch (emailError) {
+      console.log('⚠️ Email sending error (non-critical):', emailError);
+    }
 
+    // 8. Return success response
     return NextResponse.json({
       success: true,
       message: isNewUser ? 'Cuenta creada exitosamente' : 'Acceso VIP activado para cuenta existente',
@@ -261,7 +279,9 @@ try {
       email: email,
       login_session_token: sessionToken,
       is_new_user: isNewUser,
-      plan_activated: activePlan
+      plan_activated: activePlan,
+      // 🔥 NEW: Include auto-login token if available
+      auto_login_token: autoLoginToken
     });
 
   } catch (error) {

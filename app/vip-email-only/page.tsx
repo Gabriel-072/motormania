@@ -33,9 +33,11 @@ function EmailOnlyContent() {
       if (data.success) {
         toast.success('✅ ¡Acceso VIP activado!');
         
-        // 🔥 FIX: Direct redirect to dashboard (bypass Clerk redirect loop)
+        // 🔥 FIXED: Sign user in first, then redirect to dashboard
         setTimeout(() => {
-          window.location.href = '/fantasy-vip';
+          // Redirect to Clerk sign-in with email pre-filled and return URL
+          const signInUrl = `/sign-in?redirect_url=${encodeURIComponent('/fantasy-vip')}`;
+          window.location.href = signInUrl;
         }, 1000);
       } else {
         throw new Error(data.error || 'Error activando acceso');
