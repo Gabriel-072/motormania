@@ -104,7 +104,7 @@ function VipAccountSetupContent() {
     setTimeout(poll, 5000);
   };
 
-  // 🔥 NEW: Handle email submission
+// 🔥 UPDATED: Handle email submission with unified flow
 const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -126,18 +126,32 @@ const handleEmailSubmit = async (e: React.FormEvent) => {
       
       if (data.success) {
         setShowEmailForm(false);
-        toast.success('Email registrado. Creando tu cuenta...');
         
-        // Resume polling for account creation
-        setTimeout(() => {
-          pollForAccountCreation();
-        }, 2000);
-      } else if (data.user_exists) {
-        // User already exists, redirect to sign in
-        toast.info('Ya tienes una cuenta. Serás redirigido para iniciar sesión.');
-        clerk.redirectToSignIn({
-          afterSignInUrl: '/f1-fantasy-panel'
+        // 🔥 UPDATED: Unified flow for both new and existing users
+        if (data.is_new_user) {
+          toast.success('✅ Cuenta creada. Iniciando sesión...');
+        } else {
+          toast.success('✅ Acceso VIP activado. Iniciando sesión...');
+        }
+        
+        // Set account info and proceed directly to auto-login
+        setAccountInfo({
+          email: data.email,
+          plan_id: data.plan_activated,
+          login_session_token: data.login_session_token,
+          is_new_user: data.is_new_user
         });
+        
+        setStatus('logging-in');
+        
+        // Proceed directly to auto-login (no polling needed)
+        setTimeout(() => {
+          performAutoLogin({
+            email: data.email,
+            login_session_token: data.login_session_token
+          });
+        }, 1000);
+        
       } else {
         throw new Error(data.error || 'Error procesando email');
       }
@@ -148,7 +162,7 @@ const handleEmailSubmit = async (e: React.FormEvent) => {
       setEmailSubmitting(false);
     }
   };
-
+  
   const performAutoLogin = async (account: any) => {
     try {
       if (!account.login_session_token) {
@@ -159,7 +173,7 @@ const handleEmailSubmit = async (e: React.FormEvent) => {
         });
         return;
       }
-
+  
       // Use the session token to verify and get user info
       const loginResponse = await fetch('/api/vip/auto-login', {
         method: 'POST',
@@ -169,16 +183,22 @@ const handleEmailSubmit = async (e: React.FormEvent) => {
           orderId: orderId
         })
       });
-
+  
       if (loginResponse.ok) {
         const loginData = await loginResponse.json();
         
         if (loginData.success) {
           setStatus('success');
-          toast.success('¡Cuenta creada exitosamente!');
           
-          // 🔥 SIMPLIFIED: Redirect to sign-in with after URL
-          // This is more reliable than trying to create sessions server-side
+          // 🔥 UPDATED: Dynamic success message
+          const isNewUser = accountInfo?.is_new_user;
+          if (isNewUser) {
+            toast.success('🎉 ¡Cuenta creada e inicio de sesión exitoso!');
+          } else {
+            toast.success('🎉 ¡Acceso VIP activado e inicio de sesión exitoso!');
+          }
+          
+          // Redirect to sign-in (more reliable than server-side sessions)
           setTimeout(() => {
             clerk.redirectToSignIn({
               afterSignInUrl: '/f1-fantasy-panel'
@@ -186,7 +206,7 @@ const handleEmailSubmit = async (e: React.FormEvent) => {
           }, 2000);
         } else {
           // Fallback to manual login
-          toast.info('Tu cuenta fue creada. Serás redirigido para iniciar sesión.');
+          toast.info('Tu acceso fue activado. Serás redirigido para iniciar sesión.');
           clerk.redirectToSignIn({
             afterSignInUrl: '/f1-fantasy-panel'
           });
@@ -197,35 +217,57 @@ const handleEmailSubmit = async (e: React.FormEvent) => {
     } catch (error) {
       console.error('❌ Auto-login error:', error);
       // Fallback: redirect to sign in
-      toast.info('Tu cuenta fue creada exitosamente. Por favor inicia sesión.');
+      const isNewUser = accountInfo?.is_new_user;
+      if (isNewUser) {
+        toast.info('Tu cuenta fue creada exitosamente. Por favor inicia sesión.');
+      } else {
+        toast.info('Tu acceso VIP fue activado. Por favor inicia sesión.');
+      }
       clerk.redirectToSignIn({
         afterSignInUrl: '/f1-fantasy-panel'
       });
     }
   };
-
+  
+  // 🔥 UPDATED: Status messages that handle email collection
   const getStatusMessage = () => {
     switch (status) {
       case 'checking':
         return 'Verificando tu pago...';
       case 'creating':
+        if (showEmailForm) {
+          return '¡Pago exitoso! Completa tu registro';
+        }
         return 'Creando tu cuenta VIP...';
       case 'logging-in':
-        return 'Verificando credenciales...';
+        const isNewUser = accountInfo?.is_new_user;
+        if (isNewUser) {
+          return 'Cuenta creada. Iniciando sesión...';
+        } else {
+          return 'Acceso VIP activado. Iniciando sesión...';
+        }
       case 'success':
-        return '¡Cuenta creada exitosamente!';
+        const isNew = accountInfo?.is_new_user;
+        if (isNew) {
+          return '¡Cuenta creada exitosamente!';
+        } else {
+          return '¡Acceso VIP activado exitosamente!';
+        }
       case 'error':
         return 'Hubo un problema. Contactando soporte...';
       default:
         return 'Procesando...';
     }
   };
-
+  
   const getStatusIcon = () => {
     switch (status) {
       case 'checking':
         return '🔍';
       case 'creating':
+        if (showEmailForm) {
+          return '📧';
+        }
         return '👤';
       case 'logging-in':
         return '🔑';
