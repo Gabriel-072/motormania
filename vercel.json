@@ -2,7 +2,7 @@
     "redirects": [
       {
         "source": "/",
-        "destination": "/plataforma-viral",
+        "destination": "/fantasy",
         "permanent": true
       }
     ]
