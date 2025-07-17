@@ -1,3 +1,5 @@
+///components/FantasyPageContent.tsx - Free Fantasy Experience
+
 'use client';
 
 // SECTION: Imports
@@ -1392,7 +1394,7 @@ const handleSubmit = async () => {
 
 {/* VIP Banner - Compact Premium Design */}
 <div className="col-span-1 md:col-span-3 mt-4">
-  <Link href="/fantasy-vip-info" className="block w-full group">
+  <Link href="/fantasy" className="block w-full group">
     <motion.div
       initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
@@ -2516,7 +2518,7 @@ const handleSubmit = async () => {
       }`} />
 
       {/* VIP Banner - Compact */}
-      <Link href="/fantasy-vip-info" className="block w-full mb-3 group relative z-10">
+      <Link href="/fantasy" className="block w-full mb-3 group relative z-10">
         <div className="relative overflow-hidden rounded-lg bg-gradient-to-r from-black/50 via-red-950/50 to-black/50 border border-red-900/30 p-2.5 hover:border-yellow-500/50 transition-all duration-200">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
@@ -2837,7 +2839,7 @@ const handleSubmit = async () => {
           
           // Use window.location.href for Vercel reliability
           // This bypasses all Next.js routing and Vercel optimizations
-          window.location.href = '/fantasy-vip-info';
+          window.location.href = '/fantasy';
         }}
         className="w-full px-4 py-2.5 bg-gray-800 text-white rounded-lg font-exo2
                    hover:bg-gray-700 hover:text-green-300 hover:shadow-[0_0_10px_rgba(74,222,128,0.5)]
