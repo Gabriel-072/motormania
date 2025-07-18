@@ -22,12 +22,12 @@ export default function Footer() {
         </p>
 
         <div className="flex flex-wrap justify-center sm:justify-end gap-4 text-amber-500">
-          <Link href="/legal/terminos"        className="hover:underline">Términos y Condiciones</Link>
-          <Link href="/legal/privacy-policy"  className="hover:underline">Política de Privacidad</Link>
-          <Link href="/legal/responsable"     className="hover:underline">Juego Responsable</Link>
-          <Link href="/legal/unofficial"      className="hover:underline">Aplicación No Oficial</Link>
-          <Link href="/legal/reglas"          className="hover:underline">Reglas de la Casa</Link>{/* 🔗 nuevo */}
-          <Link href="/soporte"               className="hover:underline">Centro de Soporte</Link>
+          <Link href="/pages/legal/terminos"        className="hover:underline">Términos y Condiciones</Link>
+          <Link href="/pages/legal/privacy-policy"  className="hover:underline">Política de Privacidad</Link>
+          <Link href="/pages/legal/responsable"     className="hover:underline">Juego Responsable</Link>
+          <Link href="/pages/legal/unofficial"      className="hover:underline">Aplicación No Oficial</Link>
+          <Link href="/pages/legal/reglas"          className="hover:underline">Reglas de la Casa</Link>{/* 🔗 nuevo */}
+          <Link href="/pages/legal/soporte"               className="hover:underline">Centro de Soporte</Link>
         </div>
       </div>
     </footer>

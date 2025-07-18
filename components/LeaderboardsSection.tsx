@@ -1,4 +1,4 @@
-//components/LeaderboardsSection.tsx
+// components/LeaderboardsSection.tsx - UPDATED WITH VIP BADGES
 
 'use client';
 
@@ -15,6 +15,25 @@ export default function LeaderboardsSection() {
     loading,
     error,
   } = useFantasyLeaderboards();
+
+  // 🔥 NEW: Component to render user name with VIP badge
+  const UserNameWithBadge = ({ name, isVip }: { name: string, isVip?: boolean }) => (
+    <div className="flex items-center gap-2 min-w-0">
+      <span className="font-semibold text-white group-hover/item:text-blue-300 transition-colors text-sm md:text-base truncate">
+        {name}
+      </span>
+      {isVip && (
+        <motion.span
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ delay: 0.2, type: 'spring', stiffness: 500 }}
+          className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-gradient-to-r from-amber-500 to-orange-500 text-black shadow-lg flex-shrink-0"
+        >
+          VIP
+        </motion.span>
+      )}
+    </div>
+  );
 
   if (loading) {
     return (
@@ -181,25 +200,27 @@ export default function LeaderboardsSection() {
                     className={`group/item bg-gradient-to-r ${colors.bg} backdrop-blur-sm border ${colors.border} rounded-lg md:rounded-xl p-2 md:p-4 shadow-lg ${colors.glow} hover:shadow-xl transition-all duration-300 hover:scale-[1.02]`}
                   >
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 md:gap-4">
-                        <div className="flex items-center justify-center w-7 h-7 md:w-10 md:h-10 bg-slate-800/50 rounded-full border border-slate-600/50">
+                      <div className="flex items-center gap-2 md:gap-4 min-w-0 flex-1">
+                        <div className="flex items-center justify-center w-7 h-7 md:w-10 md:h-10 bg-slate-800/50 rounded-full border border-slate-600/50 flex-shrink-0">
                           <span className={`text-xs md:text-sm font-bold ${colors.text}`}>
                             {index + 1}
                           </span>
                         </div>
-                        <div className="text-sm md:text-lg md:block hidden">
+                        <div className="text-sm md:text-lg md:block hidden flex-shrink-0">
                           {getRankIcon(index + 1)}
                         </div>
-                        <div>
-                          <p className="font-semibold text-white group-hover/item:text-blue-300 transition-colors text-sm md:text-base">
-                            {user.name}
-                          </p>
+                        <div className="min-w-0 flex-1">
+                          {/* 🔥 UPDATED: Use UserNameWithBadge component */}
+                          <UserNameWithBadge 
+                            name={user.name} 
+                            isVip={user.is_vip}
+                          />
                           <p className="text-xs text-slate-400 hidden md:block">
                             {index === 0 ? 'Campeón Mundial' : `Posición ${index + 1}`}
                           </p>
                         </div>
                       </div>
-                      <div className="text-right">
+                      <div className="text-right flex-shrink-0">
                         <p className="text-sm md:text-xl font-bold text-white">
                           {user.score.toLocaleString('es-CO')}
                         </p>
@@ -253,25 +274,27 @@ export default function LeaderboardsSection() {
                       className={`group/item bg-gradient-to-r ${colors.bg} backdrop-blur-sm border ${colors.border} rounded-lg md:rounded-xl p-2 md:p-4 shadow-lg ${colors.glow} hover:shadow-xl transition-all duration-300 hover:scale-[1.02]`}
                     >
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 md:gap-4">
-                          <div className="flex items-center justify-center w-7 h-7 md:w-10 md:h-10 bg-slate-800/50 rounded-full border border-slate-600/50">
+                        <div className="flex items-center gap-2 md:gap-4 min-w-0 flex-1">
+                          <div className="flex items-center justify-center w-7 h-7 md:w-10 md:h-10 bg-slate-800/50 rounded-full border border-slate-600/50 flex-shrink-0">
                             <span className={`text-xs md:text-sm font-bold ${colors.text}`}>
                               {index + 1}
                             </span>
                           </div>
-                          <div className="text-sm md:text-lg md:block hidden">
+                          <div className="text-sm md:text-lg md:block hidden flex-shrink-0">
                             {getRankIcon(index + 1)}
                           </div>
-                          <div>
-                            <p className="font-semibold text-white group-hover/item:text-orange-300 transition-colors text-sm md:text-base">
-                              {user.name}
-                            </p>
+                          <div className="min-w-0 flex-1">
+                            {/* 🔥 UPDATED: Use UserNameWithBadge component */}
+                            <UserNameWithBadge 
+                              name={user.name} 
+                              isVip={user.is_vip}
+                            />
                             <p className="text-xs text-slate-400 hidden md:block">
                               {index === 0 ? 'Ganador del GP' : `P${index + 1}`}
                             </p>
                           </div>
                         </div>
-                        <div className="text-right">
+                        <div className="text-right flex-shrink-0">
                           <p className="text-sm md:text-xl font-bold text-white">
                             {user.score.toLocaleString('es-CO')}
                           </p>
