@@ -2849,7 +2849,7 @@ const handleVipSuccess = () => {
                    hover:bg-gray-700 hover:text-green-300 hover:shadow-[0_0_10px_rgba(74,222,128,0.5)]
                    transition-all duration-200 text-sm sm:text-base font-semibold"
       >
-        Gana un viaje a la F1
+        Gana hasta 100X
       </button>
     </motion.div>
   </motion.div>
