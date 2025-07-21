@@ -171,7 +171,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     else if (totalPicks > 8) msg = 'Máximo 8 picks por jugada';
     else if (combinedPicks.some(p => !p.betterOrWorse))
       msg = 'Completa todos tus picks (Mejor/Peor)';
-    else if (amount < 10000) msg = 'Monto mínimo $10.000 COP';
+    else if (amount < 20000) msg = 'Monto mínimo $20.000 COP';
     else if (mode === 'safety' && totalPicks < 3)
       msg = 'Safety requiere mínimo 3 picks';
     else if (
@@ -453,7 +453,7 @@ const handleWalletBet = async () => {
                     type="number"
                     value={amount}
                     onChange={e => setAmount(Math.max(0, parseInt(e.target.value) || 0))}
-                    min={10000} step={1000}
+                    min={20000} step={1000}
                     className="w-full pl-7 py-2 rounded-lg bg-gray-700/60 border border-gray-600 text-white font-semibold text-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
                   />
                 </div>
@@ -466,7 +466,7 @@ const handleWalletBet = async () => {
                       +${v.toLocaleString('es-CO')}
                     </button>
                   ))}
-                  <button onClick={() => setAmount(10000)}
+                  <button onClick={() => setAmount(20000)}
                     className="px-3 py-1 rounded-full text-xs bg-red-800 text-gray-200 hover:bg-red-700">
                     Limpiar
                   </button>
