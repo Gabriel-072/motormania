@@ -26,7 +26,7 @@ const StickyModal: React.FC<StickyModalProps> = ({ onFinish }) => {
   // Determine if the button should be enabled and if max picks achieved
   const isValid = totalPicks >= MIN_PICKS;
   const isMaxPicks = totalPicks === MAX_PICKS; // Check for max picks
-  const wager = 10000; // Base wager amount (adjust if dynamic)
+  const wager = 20000; // Base wager amount (adjust if dynamic)
   const potentialWin = isValid ? wager * multiplier : 0;
 
   // --- SVG Arc Calculation ---
