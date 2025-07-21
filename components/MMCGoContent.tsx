@@ -511,7 +511,7 @@ channelsToRemove.push(newConfigChannel);
     const currentMultiplier = multipliers[totalPicks] || 0;
 
     setMultiplier(currentMultiplier);
-    setPotentialWin(currentMultiplier * 10000); // Asumiendo $10,000 COP
+    setPotentialWin(currentMultiplier * 20000); // Asumiendo $10,000 COP
 
   }, [picks.qualy, picks.race, setShowSticky, setMultiplier, setPotentialWin]); // Dependencias correctas
 
