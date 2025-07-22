@@ -9,8 +9,8 @@ const RESEND_API_KEY = process.env.RESEND_API_KEY!;
 const APP_URL        = process.env.NEXT_PUBLIC_SITE_URL!;
 const INTERNAL_KEY   = process.env.INTERNAL_API_KEY!;
 const APP_NAME       = 'MotorManía';
-const FROM_EMAIL     = `MotorMania <noreply@motormaniacolombia.com>`;
-const SUPPORT_EMAIL  = 'soporte@motormaniacolombia.com';
+const FROM_EMAIL     = `MotorMania <noreply@motormania.app>`;
+const SUPPORT_EMAIL  = 'soporte@motormania.app';
 
 // ─── Start-up sanity checks (solo log) ──────────────────
 if (!RESEND_API_KEY) console.error('FATAL: RESEND_API_KEY missing');

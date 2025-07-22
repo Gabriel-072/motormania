@@ -22,6 +22,14 @@ import { toast } from 'sonner';
 import { createAuthClient } from '@/lib/supabase';
 import { PickSelection } from '@/app/types/picks';
 
+// ✨ NEW: Currency imports
+import { useCurrencyStore } from '@/stores/currencyStore';
+import { CurrencyDisplay } from './ui/CurrencyDisplay';
+import { CurrencyInput } from './ui/CurrencyInput';
+import { CurrencySelector } from './ui/CurrencySelector';
+import { QuickAmountButtons } from './ui/QuickAmountButtons';
+import { CurrencyStatusIndicator } from './ui/CurrencyStatusIndicator';
+
 interface FullModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -65,6 +73,9 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
   const { user } = useUser();
   const { getToken } = useAuth();
 
+  // ✨ NEW: Currency store
+  const { initializeCurrency, isInitialized } = useCurrencyStore();
+
   // local state
   const [amount, setAmount] = useState(20000);
   const [mode, setMode] = useState<'full' | 'safety'>('full');
@@ -89,6 +100,13 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     ...(picks.race ?? [])
   ];
   const totalPicks = combinedPicks.length;
+
+  // ✨ NEW: Initialize currency system
+  useEffect(() => {
+    if (isOpen && !isInitialized) {
+      initializeCurrency();
+    }
+  }, [isOpen, initializeCurrency, isInitialized]);
 
   // ───────────────────────────────────────────
   // Fetch wallet balance (solo si modal abierto)
@@ -354,13 +372,16 @@ const handleWalletBet = async () => {
               exit={{ y: 60, opacity: 0 }}
               transition={{ type: 'spring', damping: 25, stiffness: 250 }}
             >
-              {/* header */}
+              {/* ✨ UPDATED: Header with currency selector */}
               <div className="flex justify-between items-center mb-4 pb-2 border-b border-gray-700/50">
                 <h2 className="text-xl font-bold text-amber-400">Revisa tus Picks</h2>
-                <button onClick={onClose} aria-label="Cerrar"
-                  className="text-gray-400 hover:text-white p-1 rounded-full hover:bg-gray-700/60">
-                  <FaTimes size={20} />
-                </button>
+                <div className="flex items-center gap-4">
+                  <CurrencySelector />
+                  <button onClick={onClose} aria-label="Cerrar"
+                    className="text-gray-400 hover:text-white p-1 rounded-full hover:bg-gray-700/60">
+                    <FaTimes size={20} />
+                  </button>
+                </div>
               </div>
 
               {/* promo feedback */}
@@ -422,7 +443,7 @@ const handleWalletBet = async () => {
 
               {/* controls */}
               <div className="mt-4 pt-4 border-t border-gray-700/50 space-y-4">
-                {/* Saldo wallet */}
+                {/* ✨ UPDATED: Saldo wallet with currency display */}
                 {wallet && (
                   <div className="flex items-center justify-between bg-gray-800/70 rounded-lg px-4 py-2">
                     <div className="flex items-center gap-2 text-sm text-gray-200">
@@ -430,7 +451,7 @@ const handleWalletBet = async () => {
                       <span>{wallet.mmc_coins - wallet.locked_mmc} MMC Coins</span>
                       <span className="text-gray-400">
                         (
-                        ${(wallet.mmc_coins - wallet.locked_mmc).toLocaleString('es-CO')} COP
+                        <CurrencyDisplay copAmount={(wallet.mmc_coins - wallet.locked_mmc) * 1000} />
                         )
                       </span>
                     </div>
@@ -446,31 +467,24 @@ const handleWalletBet = async () => {
                   </div>
                 )}
 
-                {/* amount */}
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
-                  <input
-                    type="number"
-                    value={amount}
-                    onChange={e => setAmount(Math.max(0, parseInt(e.target.value) || 0))}
-                    min={20000} step={1000}
-                    className="w-full pl-7 py-2 rounded-lg bg-gray-700/60 border border-gray-600 text-white font-semibold text-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                {/* ✨ UPDATED: Amount input with currency support */}
+                <div className="space-y-2">
+                  <CurrencyInput
+                    copValue={amount}
+                    onCOPChange={setAmount}
+                    className="w-full py-2 rounded-lg bg-gray-700/60 border border-gray-600 text-white font-semibold text-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    placeholder="Enter amount"
                   />
+                  <div className="flex justify-between items-center text-xs text-gray-400">
+                    <CurrencyStatusIndicator />
+                  </div>
                 </div>
 
-                {/* quick add */}
-                <div className="flex flex-wrap justify-center gap-2">
-                  {[10000, 20000, 50000, 100000].map(v => (
-                    <button key={v} onClick={() => setAmount(a => a + v)}
-                      className="px-3 py-1 rounded-full text-xs bg-gray-600 text-gray-200 hover:bg-gray-500">
-                      +${v.toLocaleString('es-CO')}
-                    </button>
-                  ))}
-                  <button onClick={() => setAmount(20000)}
-                    className="px-3 py-1 rounded-full text-xs bg-red-800 text-gray-200 hover:bg-red-700">
-                    Limpiar
-                  </button>
-                </div>
+                {/* ✨ UPDATED: Quick add buttons with currency */}
+                <QuickAmountButtons
+                  onAmountAdd={(copAmount) => setAmount(a => a + copAmount)}
+                  onClear={() => setAmount(20000)}
+                />
 
                 {/* mode */}
                 <div className="flex justify-center bg-gray-800/80 rounded-lg p-1">
@@ -487,7 +501,7 @@ const handleWalletBet = async () => {
                   </button>
                 </div>
 
-                {/* payout info */}
+                {/* ✨ UPDATED: Payout info with currency displays */}
                 <div className="bg-gray-800/70 p-3 rounded-lg text-sm text-gray-200 space-y-1 border border-gray-700/60">
                   {mode === 'full' ? (
                     <div className="flex justify-between">
@@ -496,7 +510,7 @@ const handleWalletBet = async () => {
                         <span className="text-cyan-400 font-bold">{payoutCombos[totalPicks] || 0}x</span>
                         <span className="text-gray-400 text-xs"> → </span>
                         <span className="text-green-400 font-bold">
-                          ${(amount * (payoutCombos[totalPicks] || 0)).toLocaleString('es-CO')}
+                          <CurrencyDisplay copAmount={amount * (payoutCombos[totalPicks] || 0)} />
                         </span>
                       </span>
                     </div>
@@ -508,7 +522,7 @@ const handleWalletBet = async () => {
                           <span className="text-cyan-400 font-bold">{m}x</span>
                           <span className="text-gray-400 text-xs"> → </span>
                           <span className="text-white font-semibold">
-                            ${(m * amount).toLocaleString('es-CO')}
+                            <CurrencyDisplay copAmount={m * amount} />
                           </span>
                         </span>
                       </div>
@@ -549,7 +563,7 @@ const handleWalletBet = async () => {
                   )}
                 </AnimatePresence>
 
-                {/* confirm */}
+                {/* ✨ UPDATED: Confirm button with currency display */}
                 <button
                   onClick={handleConfirm}
                   disabled={!isValid || isProcessing}
@@ -567,10 +581,10 @@ const handleWalletBet = async () => {
                       <FaSpinner className="animate-spin" /> Procesando…
                     </>
                   ) : useWallet ? (
-                    <>🎮 Jugar ${amount.toLocaleString('es-CO')}</>
+                    <>🎮 Jugar <CurrencyDisplay copAmount={amount} /></>
                   ) : (
                     <>
-                      <FaDollarSign /> Confirmar y Pagar ${amount.toLocaleString('es-CO')}
+                      <FaDollarSign /> Confirmar y Pagar <CurrencyDisplay copAmount={amount} />
                     </>
                   )}
                 </button>

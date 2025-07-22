@@ -11,7 +11,7 @@ export default function PrivacyPolicyPage() {
   
         <h2 className="text-xl font-semibold text-white mt-8 mb-2">1. Responsable del tratamiento</h2>
         <p className="text-gray-300 mb-4">
-          MotorManía Colombia. Para contactarnos: soporte@motormaniacolombia.com
+          MotorManía Colombia. Para contactarnos: soporte@motormania.app
         </p>
   
         <h2 className="text-xl font-semibold text-white mt-8 mb-2">2. Finalidades del tratamiento</h2>
@@ -24,7 +24,7 @@ export default function PrivacyPolicyPage() {
   
         <h2 className="text-xl font-semibold text-white mt-8 mb-2">3. Derechos del titular</h2>
         <p className="text-gray-300 mb-4">
-          Los titulares podrán acceder, actualizar, rectificar y suprimir sus datos personales, así como revocar la autorización otorgada para su tratamiento, escribiendo a soporte@motormaniacolombia.com.
+          Los titulares podrán acceder, actualizar, rectificar y suprimir sus datos personales, así como revocar la autorización otorgada para su tratamiento, escribiendo a soporte@motormania.app
         </p>
   
         <h2 className="text-xl font-semibold text-white mt-8 mb-2">4. Seguridad de la información</h2>

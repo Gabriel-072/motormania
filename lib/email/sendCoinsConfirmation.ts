@@ -13,14 +13,14 @@ interface SendConfirmationEmailParams {
 export async function sendCoinsConfirmationEmail({ to, amount, mmc, fc }: SendConfirmationEmailParams) {
   try {
     const { data, error } = await resend.emails.send({
-      from: 'MotorManía <noreply@motormaniacolombia.com>',
+      from: 'MotorManía <noreply@motormania.app>',
       to: [to],
       subject: '✅ Confirmación de Recarga - MotorManía',
       html: `
         <div style="font-family: sans-serif; color: #222;">
           <h2 style="color: #0ea5e9;">Recarga Exitosa</h2>
           <p>Has recibido <strong>${mmc} MMC Coins</strong> y <strong>${fc.toLocaleString('es-CO')} Fuel Coins</strong> por tu depósito de <strong>$${amount.toLocaleString('es-CO')} COP</strong>.</p>
-          <p>Revisa el detalle completo en tu <a href="https://motormaniacolombia.com/wallet" style="color: #0ea5e9;">billetera</a>.</p>
+          <p>Revisa el detalle completo en tu <a href="https://motormania.app/wallet" style="color: #0ea5e9;">billetera</a>.</p>
           <p>Gracias por divertirte con MotorManía. 🏎️</p>
         </div>
       `,

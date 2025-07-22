@@ -1,11 +1,14 @@
 //components/StickyModal.tsx
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useStickyStore } from '../stores/stickyStore'; // Adjust path if needed
+import { useStickyStore } from '../stores/stickyStore';
+// ✨ NEW: Currency imports
+import { useCurrencyStore } from '../stores/currencyStore';
+import { CurrencyDisplay } from './ui/CurrencyDisplay';
 // Import icons
-import { FaArrowRight, FaStar } from 'react-icons/fa'; // Added FaStar for max picks
+import { FaArrowRight, FaStar } from 'react-icons/fa';
 
 type StickyModalProps = {
   onFinish: () => Promise<void>; // Function to call when finishing picks
@@ -18,6 +21,16 @@ const MIN_PICKS = 2; // Minimum picks to be valid
 const StickyModal: React.FC<StickyModalProps> = ({ onFinish }) => {
   // Get state from Zustand store
   const { showSticky, multiplier, picks } = useStickyStore();
+  
+  // ✨ NEW: Currency store
+  const { initializeCurrency, isInitialized } = useCurrencyStore();
+
+  // ✨ NEW: Initialize currency system on mount
+  useEffect(() => {
+    if (!isInitialized) {
+      initializeCurrency();
+    }
+  }, [initializeCurrency, isInitialized]);
 
   // Calculate combined picks and counts
   const combinedPicks = [...picks.qualy, ...picks.race];
@@ -144,7 +157,7 @@ const StickyModal: React.FC<StickyModalProps> = ({ onFinish }) => {
   return (
     <AnimatePresence>
       <motion.div
-        key="sticky-modal-worldclass-opaque" // Updated key
+        key="sticky-modal-currency-enabled" // Updated key
         initial={{ y: "110%", opacity: 0 }}
         animate={{ y: "0%", opacity: 1 }}
         exit={{ y: "110%", opacity: 0 }}
@@ -198,10 +211,10 @@ const StickyModal: React.FC<StickyModalProps> = ({ onFinish }) => {
             </motion.span>
           </motion.div>
 
-          {/* Wager Wins Text */}
+          {/* ✨ UPDATED: Wager Wins Text with Currency Display */}
           <div className="flex flex-col items-start">
              <span className={wagerWinTextClasses}> {/* Dynamic text color */}
-               ${wager.toLocaleString('es-CO')} gana
+               <CurrencyDisplay copAmount={wager} /> gana
              </span>
              <motion.span
                 key={potentialWin} // Animate when value changes
@@ -210,7 +223,7 @@ const StickyModal: React.FC<StickyModalProps> = ({ onFinish }) => {
                 transition={{ duration: 0.3 }}
                 className={`${wagerWinAmountClasses} text-lg sm:text-xl tabular-nums`} // Dynamic text color + styles
              >
-                 ${potentialWin.toLocaleString('es-CO')}!
+                 <CurrencyDisplay copAmount={potentialWin} suffix="!" />
              </motion.span>
           </div>
         </div>

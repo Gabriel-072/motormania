@@ -1,3 +1,4 @@
+//stores/stickyStore.ts
 import { create } from 'zustand';
 import { PickSelection } from '../app/types/picks';
 
