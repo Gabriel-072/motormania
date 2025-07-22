@@ -152,7 +152,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     })();
   }, [getToken]);
 
-  // promo message
+  // ✨ UPDATED: Simple 100% deposit bonus message
   useEffect(() => {
     if (!promo) {
       setPromoMessage('No hay promoción activa.');
@@ -160,23 +160,12 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     }
     if (amount < promo.min_deposit) {
       setPromoMessage(
-        `Deposita al menos $${promo.min_deposit.toLocaleString('es-CO')} COP para recibir la promoción.`
+        `Deposita al menos ${promo.min_deposit.toLocaleString('es-CO')} COP para recibir la promoción.`
       );
       return;
     }
-    const baseMmc = Math.floor(amount / 1000);
-    const baseFuel = amount;
-    let bonusMmc = promo.type === 'multiplier'
-      ? baseMmc * (promo.factor - 1)
-      : Math.floor(baseMmc * (promo.factor / 100));
-    let bonusFuel = promo.type === 'multiplier'
-      ? baseFuel * (promo.factor - 1)
-      : Math.floor(baseFuel * (promo.factor / 100));
-    bonusMmc = Math.min(bonusMmc, promo.max_bonus_mmc);
-    bonusFuel = Math.min(bonusFuel, promo.max_bonus_fuel);
-    setPromoMessage(
-      `Con $${amount.toLocaleString('es-CO')} COP recibes +${bonusMmc} MMC Coins y +${bonusFuel} Fuel Coins para tu próxima jugada.`
-    );
+    // Simple message - we'll render with CurrencyDisplay in JSX
+    setPromoMessage('active');
   }, [amount, promo]);
 
   // ───────────────────────────────────────────
@@ -384,8 +373,34 @@ const handleWalletBet = async () => {
                 </div>
               </div>
 
-              {/* promo feedback */}
-              <p className="mb-4 text-sm text-gray-300">{promoMessage}</p>
+              {/* ✨ UPDATED: Simple 100% deposit bonus message */}
+              {promo ? (
+                <div className="mb-4 text-sm text-gray-300">
+                  {amount < promo.min_deposit ? (
+                    <p>
+                      Deposita al menos{' '}
+                      <span className="font-semibold text-amber-400">
+                        ${promo.min_deposit.toLocaleString('es-CO')} COP
+                      </span>{' '}
+                      para recibir la promoción.
+                    </p>
+                  ) : (
+                    <p>
+                      🎉 Con{' '}
+                      <span className="font-semibold text-cyan-400">
+                        <CurrencyDisplay copAmount={amount} />
+                      </span>{' '}
+                      recibes{' '}
+                      <span className="font-semibold text-green-400">
+                        <CurrencyDisplay copAmount={amount} />
+                      </span>{' '}
+                      de bonus! (100% Deposit Bonus)
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <p className="mb-4 text-sm text-gray-300">No hay promoción activa.</p>
+              )}
 
               {/* picks list */}
               <div className="flex-grow overflow-y-auto space-y-3 pr-2 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800/50">
