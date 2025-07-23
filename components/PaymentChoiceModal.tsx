@@ -253,25 +253,25 @@ export default function PaymentChoiceModal({
                   <svg className="w-5 h-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                   </svg>
-                  <span className="text-white text-sm">Todo lo de predicción gratuita</span>
+                  <span className="text-white text-sm">$1000 doólares en premios por GP</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <svg className="w-5 h-5 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                   </svg>
-                  <span className="text-amber-200 text-sm font-semibold">Badge VIP en leaderboard</span>
+                  <span className="text-amber-200 text-sm font-semibold">$500 dólares para el P1</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <svg className="w-5 h-5 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                   </svg>
-                  <span className="text-amber-200 text-sm font-semibold">Status VIP permanente</span>
+                  <span className="text-amber-200 text-sm font-semibold">$500 dólares sorteo entre VIPs</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <svg className="w-5 h-5 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                   </svg>
-                  <span className="text-amber-200 text-sm font-semibold">Acceso a funciones exclusivas</span>
+                  <span className="text-amber-200 text-sm font-semibold">Acceso a competir por un viaje a la F1</span>
                 </div>
               </div>
 
@@ -301,7 +301,7 @@ export default function PaymentChoiceModal({
               </button>
 
               <p className="text-amber-200/80 text-xs text-center mt-2">
-                Pago seguro via Bold • Una sola vez
+                Pago seguro • Garantía de satisfacción 
               </p>
             </motion.div>
           </div>
@@ -309,7 +309,7 @@ export default function PaymentChoiceModal({
           {/* Footer Info */}
           <div className="mt-6 p-4 bg-gray-800/50 rounded-xl border border-gray-700/50">
             <p className="text-gray-400 text-sm text-center font-exo2">
-              <span className="text-amber-400">💡</span> Una vez VIP, todas tus futuras predicciones serán automáticamente VIP.
+              <span className="text-amber-400">💡</span> Hazte VIP y compite con otros fanáticos por premios reales
             </p>
           </div>
         </motion.div>

@@ -1457,7 +1457,7 @@ const handleVipSuccess = () => {
             <div className="relative group">
               <div className="absolute inset-0 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-lg blur opacity-50 group-hover:opacity-75 transition-opacity" />
               <button className="relative bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-300 hover:to-orange-400 text-black font-bold px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg shadow-lg flex items-center gap-1.5 transition-all duration-200">
-                <span className="text-xs sm:text-sm">VER MÁS</span>
+                <span className="text-xs sm:text-sm">JUGAR</span>
                 <svg className="w-3 h-3 sm:w-4 sm:h-4 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
                 </svg>
