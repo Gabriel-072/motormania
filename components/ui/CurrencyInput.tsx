@@ -21,7 +21,7 @@ export const CurrencyInput: React.FC<CurrencyInputProps> = ({
   className = '',
   placeholder,
   disabled = false,
-  min = 20000,
+  min = 10000,
   max,
   step = 1000,
 }) => {

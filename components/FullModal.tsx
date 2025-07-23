@@ -77,7 +77,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
   const { initializeCurrency, isInitialized } = useCurrencyStore();
 
   // local state
-  const [amount, setAmount] = useState(20000);
+  const [amount, setAmount] = useState(10000);
   const [mode, setMode] = useState<'full' | 'safety'>('full');
   const [error, setError] = useState<string | null>(null);
   const [isValid, setIsValid] = useState(false);
@@ -178,7 +178,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     else if (totalPicks > 8) msg = 'Máximo 8 picks por jugada';
     else if (combinedPicks.some(p => !p.betterOrWorse))
       msg = 'Completa todos tus picks (Mejor/Peor)';
-    else if (amount < 20000) msg = 'Monto mínimo $20.000 COP o $5 USD';
+    else if (amount < 10000) msg = 'Monto mínimo $10.000 COP o $2.5 USD';
     else if (mode === 'safety' && totalPicks < 3)
       msg = 'Safety requiere mínimo 3 picks';
     else if (
@@ -498,7 +498,7 @@ const handleWalletBet = async () => {
                 {/* ✨ UPDATED: Quick add buttons with currency */}
                 <QuickAmountButtons
                   onAmountAdd={(copAmount) => setAmount(a => a + copAmount)}
-                  onClear={() => setAmount(20000)}
+                  onClear={() => setAmount(10000)}
                 />
 
                 {/* mode */}
