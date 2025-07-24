@@ -97,17 +97,20 @@ async function trackPurchaseEvent(orderData: {
         event_source_url: `${SITE_URL}/mmc-go`,
         user_data: {
           em: hashedEmail,
-          external_id: orderData.userId, // Better user matching
+          external_id: orderData.userId,
         },
-        custom_data: purchaseData,
+        params: purchaseData, // ✅ FIXED: Changed from custom_data to params
       }),
     });
 
     if (!response.ok) {
-      throw new Error(`Facebook tracking failed: ${response.status}`);
+      const errorText = await response.text();
+      console.error(`❌ Facebook API response:`, errorText);
+      throw new Error(`Facebook tracking failed: ${response.status} - ${errorText}`);
     }
 
-    console.log(`✅ Purchase event tracked successfully: ${eventId}`);
+    const responseData = await response.json();
+    console.log(`✅ Purchase event tracked successfully:`, responseData);
     
     // Also track custom VIP event for high-value purchases
     if (orderData.amount >= 100000) { // 100k COP or more
@@ -125,7 +128,7 @@ async function trackPurchaseEvent(orderData: {
             em: hashedEmail,
             external_id: orderData.userId,
           },
-          custom_data: {
+          params: {
             ...purchaseData,
             vip_tier: orderData.amount >= 200000 ? 'platinum' : 'gold',
           },
