@@ -77,7 +77,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
   const { initializeCurrency, isInitialized } = useCurrencyStore();
 
   // local state
-  const [amount, setAmount] = useState(10000);
+  const [amount, setAmount] = useState(20000);
   const [mode, setMode] = useState<'full' | 'safety'>('full');
   const [error, setError] = useState<string | null>(null);
   const [isValid, setIsValid] = useState(false);
@@ -178,7 +178,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     else if (totalPicks > 8) msg = 'Máximo 8 picks por jugada';
     else if (combinedPicks.some(p => !p.betterOrWorse))
       msg = 'Completa todos tus picks (Mejor/Peor)';
-    else if (amount < 10000) msg = 'Monto mínimo $10.000 COP o $2.5 USD';
+    else if (amount < 20000) msg = 'Monto mínimo $20.000 COP o $5 USD';
     else if (mode === 'safety' && totalPicks < 3)
       msg = 'Safety requiere mínimo 3 picks';
     else if (
@@ -304,6 +304,21 @@ const handleWalletBet = async () => {
         integritySignature: integrityKey,
         customerData: JSON.stringify({ email, fullName: user.fullName ?? 'Jugador MMC' }),
         renderMode: 'embedded',
+        onOpen: () => {
+          // 🎯 Track InitiateCheckout when Bold modal actually opens
+          console.log('🎯 Bold checkout opened - tracking InitiateCheckout');
+          if (typeof window !== 'undefined' && window.fbq) {
+            window.fbq('track', 'InitiateCheckout', {
+              value: amount / 1000,
+              currency: 'COP',
+              content_type: 'product',
+              content_category: 'sports_betting',
+              content_ids: [`mmc_picks_${totalPicks}`],
+              content_name: `MMC GO ${mode === 'full' ? 'Full Throttle' : 'Safety Car'} (${totalPicks} picks)`,
+              num_items: totalPicks,
+            });
+          }
+        },
         onSuccess: async () => {
           toast.success('Pago recibido, procesando…');
           try {
@@ -498,7 +513,7 @@ const handleWalletBet = async () => {
                 {/* ✨ UPDATED: Quick add buttons with currency */}
                 <QuickAmountButtons
                   onAmountAdd={(copAmount) => setAmount(a => a + copAmount)}
-                  onClear={() => setAmount(10000)}
+                  onClear={() => setAmount(20000)}
                 />
 
                 {/* mode */}
