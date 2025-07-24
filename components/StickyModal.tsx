@@ -9,6 +9,8 @@ import { useCurrencyStore } from '../stores/currencyStore';
 import { CurrencyDisplay } from './ui/CurrencyDisplay';
 // Import icons
 import { FaArrowRight, FaStar } from 'react-icons/fa';
+// ✨ NEW: Tracking import
+import { trackFBEvent } from '@/lib/trackFBEvent';
 
 type StickyModalProps = {
   onFinish: () => Promise<void>; // Function to call when finishing picks
@@ -229,47 +231,60 @@ const StickyModal: React.FC<StickyModalProps> = ({ onFinish }) => {
         </div>
 
         {/* Right Section: Finish Button */}
-<motion.button
-  onClick={async () => {
-    if (!isValid) return;
-    
-    try {
-      // 1. Fire tracking events (non-blocking but with error handling)
-      try {
-        await fetch('/api/fb-track', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ event: 'IntentoFinalizarPicks' })
-        });
-      } catch (trackingError) {
-        console.warn('Tracking failed:', trackingError);
-        // Don't block the main flow if tracking fails
-      }
+        <motion.button
+          onClick={async () => {
+            if (!isValid) return;
+            
+            try {
+              // 🎯 1. Track InitiateCheckout Event (Facebook Standard Event)
+              trackFBEvent('InitiateCheckout', {
+                params: {
+                  value: wager / 1000, // Convert to thousands for better tracking
+                  currency: 'COP',
+                  content_type: 'product',
+                  content_category: 'sports_betting',
+                  content_ids: [`mmc_picks_${totalPicks}`],
+                  content_name: `MMC GO Picks (${totalPicks} selections)`,
+                  num_items: totalPicks,
+                  predicted_ltv: (wager / 1000) * multiplier,
+                }
+              });
 
-      // Fire Facebook Pixel events (with safety checks)
-      if (typeof window !== 'undefined' && window.fbq) {
-        try {
-          window.fbq('track', 'Lead');
-          window.fbq('trackCustom', 'IntentoFinalizarPicks');
-        } catch (fbError) {
-          console.warn('Facebook Pixel tracking failed:', fbError);
-        }
-      }
+              // 2. Fire custom tracking events (non-blocking)
+              try {
+                await fetch('/api/fb-track', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ event: 'IntentoFinalizarPicks' })
+                });
+              } catch (trackingError) {
+                console.warn('Tracking failed:', trackingError);
+                // Don't block the main flow if tracking fails
+              }
 
-      // 2. Open the full modal - this is the critical part
-      await onFinish();
-      
-    } catch (error) {
-      console.error('Error in sticky modal handler:', error);
-      // Even if something fails, try to open the modal
-      try {
-        await onFinish();
-      } catch (modalError) {
-        console.error('Failed to open full modal:', modalError);
-      }
-    }
-  }}
+              // Fire Facebook Pixel events (with safety checks)
+              if (typeof window !== 'undefined' && window.fbq) {
+                try {
+                  window.fbq('track', 'Lead');
+                  window.fbq('trackCustom', 'IntentoFinalizarPicks');
+                } catch (fbError) {
+                  console.warn('Facebook Pixel tracking failed:', fbError);
+                }
+              }
 
+              // 3. Open the full modal - this is the critical part
+              await onFinish();
+              
+            } catch (error) {
+              console.error('Error in sticky modal handler:', error);
+              // Even if something fails, try to open the modal
+              try {
+                await onFinish();
+              } catch (modalError) {
+                console.error('Failed to open full modal:', modalError);
+              }
+            }
+          }}
           disabled={!isValid}
           className={buttonClasses} // Apply dynamic button styles
           initial={false}
