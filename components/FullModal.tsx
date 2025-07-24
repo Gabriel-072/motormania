@@ -320,6 +320,20 @@ const handleWalletBet = async () => {
           }
         },
         onSuccess: async () => {
+          // 🎯 Track Purchase event with browser context
+          if (typeof window !== 'undefined' && window.fbq) {
+            window.fbq('track', 'Purchase', {
+              value: amount / 1000,
+              currency: 'COP',
+              content_type: 'product',
+              content_category: 'sports_betting',
+              content_ids: [`mmc_picks_${totalPicks}`],
+              content_name: `MMC GO ${mode === 'full' ? 'Full Throttle' : 'Safety Car'} (${totalPicks} picks)`,
+              num_items: totalPicks,
+            });
+            console.log('🎯 Purchase event tracked from FullModal');
+          }
+
           toast.success('Pago recibido, procesando…');
           try {
             const token = await getToken({ template: 'supabase' });
