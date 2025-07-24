@@ -322,6 +322,7 @@ const handleWalletBet = async () => {
         onSuccess: async () => {
           // 🎯 Track Purchase event with browser context
           if (typeof window !== 'undefined' && window.fbq) {
+            const eventId = `purchase_${orderId}_${user.id}`;
             window.fbq('track', 'Purchase', {
               value: amount / 1000,
               currency: 'COP',
@@ -330,8 +331,21 @@ const handleWalletBet = async () => {
               content_ids: [`mmc_picks_${totalPicks}`],
               content_name: `MMC GO ${mode === 'full' ? 'Full Throttle' : 'Safety Car'} (${totalPicks} picks)`,
               num_items: totalPicks,
+              eventID: eventId,
             });
             console.log('🎯 Purchase event tracked from FullModal');
+
+            // 🛡️ Safety net: Delayed backup tracking (same event_id prevents duplicates)
+            setTimeout(() => {
+              if (window.fbq) {
+                window.fbq('track', 'Purchase', {
+                  value: amount / 1000,
+                  currency: 'COP',
+                  eventID: eventId, // Same ID = no duplicate
+                });
+                console.log('🛡️ Backup Purchase tracking fired');
+              }
+            }, 3000);
           }
 
           toast.success('Pago recibido, procesando…');
