@@ -232,6 +232,18 @@ const StickyModal: React.FC<StickyModalProps> = ({ onFinish }) => {
         <motion.button
           onClick={async () => {
             if (!isValid) return;
+            
+            // Track AddToCart event
+            if (typeof window !== 'undefined' && window.fbq) {
+              window.fbq('track', 'AddToCart', {
+                value: wager / 1000,
+                currency: 'COP',
+                content_type: 'product',
+                content_ids: [`mmc_picks_${totalPicks}`],
+                num_items: totalPicks,
+              });
+            }
+            
             try {
               await onFinish();
             } catch (error) {
