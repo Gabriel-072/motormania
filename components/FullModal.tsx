@@ -388,11 +388,16 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
 
   // ✨ NEW: PayPal payment handler
   const handlePayPalPayment = async () => {
-    if (!user?.id || isProcessing || !isValid) return;
+    if (!user?.id || isProcessing || !isValid) {
+      throw new Error('Invalid state for payment');
+    }
     const email = user.primaryEmailAddress?.emailAddress;
-    if (!email) { toast.error('Tu cuenta no tiene email'); return; }
+    if (!email) {
+      throw new Error('Email required for PayPal');
+    }
 
     try {
+      console.log('Creating PayPal order...');
       const res = await fetch('/api/paypal/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -406,16 +411,25 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
         })
       });
 
+      console.log('PayPal API response status:', res.status);
+      
       if (!res.ok) {
-        const { error: e } = await res.json().catch(() => ({}));
-        throw new Error(e ?? 'Error creating PayPal order');
+        const errorText = await res.text();
+        console.error('PayPal API error:', errorText);
+        throw new Error(`PayPal API failed: ${res.status}`);
       }
 
-      const { orderID } = await res.json();
-      return orderID;
+      const data = await res.json();
+      console.log('PayPal order created:', data);
+      
+      if (!data.orderID) {
+        throw new Error('No orderID returned from PayPal API');
+      }
+
+      return data.orderID;
     } catch (err: any) {
-      toast.error(err.message ?? 'Error with PayPal');
-      throw err;
+      console.error('PayPal payment error:', err);
+      throw new Error('Failed to create PayPal order');
     }
   };
 
@@ -849,10 +863,13 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                         }}
                         style={{
                           layout: 'vertical',
-                          color: 'blue',
+                          color: 'white',
                           shape: 'rect',
-                          label: 'paypal'
+                          label: 'pay',
+                          height: 45,
+                          tagline: false
                         }}
+                        forceReRender={[amount, totalPicks]}
                       />
                     </PayPalScriptProvider>
                   </div>
