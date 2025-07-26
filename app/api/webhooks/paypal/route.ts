@@ -114,7 +114,7 @@ async function trackPurchaseEvent(orderData: {
           em: hashedEmail,
           external_id: orderData.userId,
         },
-        params: purchaseData,
+        custom_data: purchaseData,
       }),
     });
 

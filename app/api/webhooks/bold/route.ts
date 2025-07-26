@@ -99,7 +99,7 @@ async function trackPurchaseEvent(orderData: {
           em: hashedEmail,
           external_id: orderData.userId,
         },
-        params: purchaseData, // ✅ FIXED: Changed from custom_data to params
+        custom_data: purchaseData, // ✅ FIXED: Changed from params to custom_data
       }),
     });
 
@@ -128,10 +128,10 @@ async function trackPurchaseEvent(orderData: {
             em: hashedEmail,
             external_id: orderData.userId,
           },
-          params: {
+          custom_data: {
             ...purchaseData,
             vip_tier: orderData.amount >= 200000 ? 'platinum' : 'gold',
-          },
+          }, // ✅ FIXED: Changed from params to custom_data
         }),
       });
       console.log(`🏆 VIP event tracked for high-value purchase: ${orderData.orderId}`);

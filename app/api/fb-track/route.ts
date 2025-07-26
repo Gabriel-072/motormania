@@ -1,6 +1,6 @@
 //api/fb-track/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { createHash } from 'crypto'; // Add crypto for hashing email
+import { createHash } from 'crypto';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': 'https://www.motormania.app',
@@ -53,11 +53,14 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // ✅ FIXED: Handle both parameter formats
+  const customData = body.custom_data || body.params || {};
+  
   // Hash email for user_data if provided
-  const email = body.params?.email || null;
-  const hashedEmail = email
+  const email = customData.email || body.user_data?.em || null;
+  const hashedEmail = email && typeof email === 'string'
     ? createHash('sha256').update(email.trim().toLowerCase()).digest('hex')
-    : null;
+    : body.user_data?.em || null;
 
   const eventData = {
     data: [
@@ -70,12 +73,21 @@ export async function POST(req: NextRequest) {
         user_data: {
           client_user_agent: userAgent,
           client_ip_address: req.ip ?? '127.0.0.1',
-          em: hashedEmail || undefined, // Add hashed email to user_data
+          em: hashedEmail,
+          external_id: body.user_data?.external_id || undefined,
+          fbc: body.user_data?.fbc || undefined,
+          fbp: body.user_data?.fbp || undefined,
         },
-        custom_data: body.params || {},
+        custom_data: customData,
       },
     ],
   };
+
+  console.log(`📊 Sending FB event: ${body.event_name}`, {
+    event_id: body.event_id,
+    custom_data_keys: Object.keys(customData),
+    user_data_keys: Object.keys(eventData.data[0].user_data).filter(k => (eventData.data[0].user_data as any)[k])
+  });
 
   const fbRes = await fetch(`https://graph.facebook.com/v18.0/${pixelId}/events`, {
     method: 'POST',
@@ -84,5 +96,15 @@ export async function POST(req: NextRequest) {
   });
 
   const data = await fbRes.json();
+  
+  if (!fbRes.ok) {
+    console.error('❌ Facebook API error:', data);
+    return new NextResponse(JSON.stringify({ error: 'Facebook API failed', details: data }), { 
+      status: fbRes.status, 
+      headers: corsHeaders 
+    });
+  }
+
+  console.log('✅ Facebook event sent successfully:', data);
   return new NextResponse(JSON.stringify(data), { headers: corsHeaders });
 }
