@@ -16,7 +16,7 @@ import {
   FaWallet,
   FaGlobeAmericas
 } from 'react-icons/fa';
-import { useUser, useAuth, SignUp } from '@clerk/nextjs';
+import { useUser, useAuth, SignIn } from '@clerk/nextjs';
 import { useStickyStore } from '@/stores/stickyStore';
 import { openBoldCheckout } from '@/lib/bold';
 import { toast } from 'sonner';
@@ -465,10 +465,9 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                       <p className="text-xs text-gray-400 mt-2">Quick signup to secure your picks</p>
                     </div>
                     
-                    <SignUp
+                    <SignIn
                       routing="virtual"
-                      fallbackRedirectUrl={typeof window !== 'undefined' ? window.location.href : '/mmc-go'}
-                      afterSignUpUrl={typeof window !== 'undefined' ? window.location.href : '/mmc-go'}
+                      signUpUrl="#"
                       appearance={{
                         variables: {
                           colorPrimary: "#10b981",
