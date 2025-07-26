@@ -15,14 +15,14 @@ import {
   FaSpinner,
   FaWallet
 } from 'react-icons/fa';
-import { useUser, useAuth } from '@clerk/nextjs';
+import { useUser, useAuth, SignUp } from '@clerk/nextjs';
 import { useStickyStore } from '@/stores/stickyStore';
 import { openBoldCheckout } from '@/lib/bold';
 import { toast } from 'sonner';
 import { createAuthClient } from '@/lib/supabase';
 import { PickSelection } from '@/app/types/picks';
 
-// ✨ NEW: Currency imports
+// ✨ Currency imports
 import { useCurrencyStore } from '@/stores/currencyStore';
 import { CurrencyDisplay } from './ui/CurrencyDisplay';
 import { CurrencyInput } from './ui/CurrencyInput';
@@ -70,10 +70,10 @@ const safetyPayouts: Record<number, number[]> = {
 export default function FullModal({ isOpen, onClose }: FullModalProps) {
   // stores & auth
   const { picks, setQualyPicks, setRacePicks } = useStickyStore();
-  const { user } = useUser();
+  const { user, isSignedIn } = useUser();
   const { getToken } = useAuth();
 
-  // ✨ NEW: Currency store
+  // ✨ Currency store
   const { initializeCurrency, isInitialized } = useCurrencyStore();
 
   // local state
@@ -91,6 +91,9 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
   const [promo, setPromo] = useState<Promo | null>(null);
   const [promoMessage, setPromoMessage] = useState<string>('');
 
+  // ✨ NEW: Inline auth state
+  const [showInlineAuth, setShowInlineAuth] = useState(false);
+
   // Notificaciones FOMO
   const fomoMsg = useFomoFake(2500);
 
@@ -101,16 +104,22 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
   ];
   const totalPicks = combinedPicks.length;
 
-  // ✨ NEW: Initialize currency system
+  // ✨ Initialize currency system
   useEffect(() => {
     if (isOpen && !isInitialized) {
       initializeCurrency();
     }
   }, [isOpen, initializeCurrency, isInitialized]);
 
-  // ───────────────────────────────────────────
-  // Fetch wallet balance (solo si modal abierto)
-  // ───────────────────────────────────────────
+  // ✨ NEW: Close auth modal when user signs in
+  useEffect(() => {
+    if (isSignedIn && showInlineAuth) {
+      setShowInlineAuth(false);
+      toast.success('¡Bienvenido! Ahora puedes completar tu pago.');
+    }
+  }, [isSignedIn, showInlineAuth]);
+
+  // Fetch wallet balance
   useEffect(() => {
     if (!isOpen || !user?.id) return;
     (async () => {
@@ -130,9 +139,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     })();
   }, [isOpen, user, getToken]);
 
-  // ───────────────────────────────────────────
   // Fetch active promo
-  // ───────────────────────────────────────────
   useEffect(() => {
     (async () => {
       try {
@@ -152,7 +159,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     })();
   }, [getToken]);
 
-  // ✨ UPDATED: Simple 100% deposit bonus message
+  // Simple 100% deposit bonus message
   useEffect(() => {
     if (!promo) {
       setPromoMessage('No hay promoción activa.');
@@ -164,13 +171,10 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
       );
       return;
     }
-    // Simple message - we'll render with CurrencyDisplay in JSX
     setPromoMessage('active');
   }, [amount, promo]);
 
-  // ───────────────────────────────────────────
   // Validation
-  // ───────────────────────────────────────────
   useEffect(() => {
     let msg: string | null = null;
     const betMmc = Math.round(amount / 1000);
@@ -191,9 +195,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     setIsValid(!msg);
   }, [combinedPicks, totalPicks, amount, mode, useWallet, wallet]);
 
-  // ───────────────────────────────────────────
   // Helpers para editar picks
-  // ───────────────────────────────────────────
   const updatePick = useCallback((idx: number, better: boolean) => {
     const flag = better ? 'mejor' : 'peor';
     if (idx < picks.qualy.length) {
@@ -217,55 +219,48 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     }
   }, [picks, setQualyPicks, setRacePicks]);
 
-// ───────────────────────────────────────────
-// (A) Confirmación usando saldo wallet
-// ───────────────────────────────────────────
-const handleWalletBet = async () => {
-  if (!user?.id || !wallet) return;
-  setIsProcessing(true);
+  // Wallet bet handler
+  const handleWalletBet = async () => {
+    if (!user?.id || !wallet) return;
+    setIsProcessing(true);
 
-  try {
-    const token = await getToken({ template: 'supabase' });
-    if (!token) throw new Error('Token inválido');
-    const sb = createAuthClient(token);
+    try {
+      const token = await getToken({ template: 'supabase' });
+      if (!token) throw new Error('Token inválido');
+      const sb = createAuthClient(token);
 
-    // 1) Registrar jugada + bloquear MMC
-    const { error } = await sb.rpc('register_picks_with_wallet', {
-      p_user_id: user.id,
-      p_picks: combinedPicks,
-      p_mode: mode,
-      p_amount: amount
-    });
-    if (error) throw new Error(error.message);
+      const { error } = await sb.rpc('register_picks_with_wallet', {
+        p_user_id: user.id,
+        p_picks: combinedPicks,
+        p_mode: mode,
+        p_amount: amount
+      });
+      if (error) throw new Error(error.message);
 
-    // 2) Enviar email de confirmación (via proxy)
-    await fetch('/api/picks/email-with-wallet', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        to: user.primaryEmailAddress?.emailAddress,
-        name: user.fullName,
-        amount,
-        mode,
-        picks: combinedPicks,
-        orderId: `WALLET-${Date.now()}`
-      })
-    });
+      await fetch('/api/picks/email-with-wallet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: user.primaryEmailAddress?.emailAddress,
+          name: user.fullName,
+          amount,
+          mode,
+          picks: combinedPicks,
+          orderId: `WALLET-${Date.now()}`
+        })
+      });
 
-    // 3) Feedback UI
-    toast.success('¡Jugaste usando tu saldo! 🎉');
-    setQualyPicks([]); setRacePicks([]);
-    onClose();
-  } catch (e: any) {
-    toast.error(e.message ?? 'Error usando saldo');
-  } finally {
-    setIsProcessing(false);
-  }
-};
+      toast.success('¡Jugaste usando tu saldo! 🎉');
+      setQualyPicks([]); setRacePicks([]);
+      onClose();
+    } catch (e: any) {
+      toast.error(e.message ?? 'Error usando saldo');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
-  // ───────────────────────────────────────────
-  // (B) Flujo Bold (sin cambios de backend)
-  // ───────────────────────────────────────────
+  // Bold payment handler
   const handleBoldPayment = async () => {
     if (!user?.id || isProcessing || !isValid) return;
     const email = user.primaryEmailAddress?.emailAddress;
@@ -305,7 +300,6 @@ const handleWalletBet = async () => {
         customerData: JSON.stringify({ email, fullName: user.fullName ?? 'Jugador MMC' }),
         renderMode: 'embedded',
         onOpen: () => {
-          // 🎯 Track InitiateCheckout when Bold modal actually opens
           console.log('🎯 Bold checkout opened - tracking InitiateCheckout');
           if (typeof window !== 'undefined' && window.fbq) {
             window.fbq('track', 'InitiateCheckout', {
@@ -320,7 +314,6 @@ const handleWalletBet = async () => {
           }
         },
         onSuccess: async () => {
-          // 🎯 Track Purchase event with browser context
           if (typeof window !== 'undefined' && window.fbq) {
             const eventId = `purchase_${orderId}_${user.id}`;
             window.fbq('track', 'Purchase', {
@@ -335,13 +328,12 @@ const handleWalletBet = async () => {
             });
             console.log('🎯 Purchase event tracked from FullModal');
 
-            // 🛡️ Safety net: Delayed backup tracking (same event_id prevents duplicates)
             setTimeout(() => {
               if (window.fbq) {
                 window.fbq('track', 'Purchase', {
                   value: amount / 1000,
                   currency: 'COP',
-                  eventID: eventId, // Same ID = no duplicate
+                  eventID: eventId,
                 });
                 console.log('🛡️ Backup Purchase tracking fired');
               }
@@ -380,15 +372,17 @@ const handleWalletBet = async () => {
     }
   };
 
-  // Decide qué handler usar
+  // ✨ NEW: Main confirm handler with inline auth
   const handleConfirm = () => {
+    if (!isSignedIn) {
+      setShowInlineAuth(true);
+      return;
+    }
+    
     if (useWallet) return handleWalletBet();
     handleBoldPayment();
   };
 
-  // ───────────────────────────────────────────
-  // Render
-  // ───────────────────────────────────────────
   return (
     <AnimatePresence>
       {isOpen && (
@@ -404,7 +398,67 @@ const handleWalletBet = async () => {
               exit={{ y: 60, opacity: 0 }}
               transition={{ type: 'spring', damping: 25, stiffness: 250 }}
             >
-              {/* ✨ UPDATED: Header with currency selector */}
+              {/* ✨ Enhanced Inline Auth Modal */}
+              {showInlineAuth && (
+                <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4">
+                  <div className="relative bg-gray-800 border border-gray-700 rounded-xl shadow-2xl max-w-md w-full">
+                    <button
+                      onClick={() => setShowInlineAuth(false)}
+                      className="absolute top-4 right-4 text-gray-400 hover:text-gray-200 z-10"
+                    >
+                      <FaTimes size={20} />
+                    </button>
+                    
+                    {/* Simplified Header */}
+                    <div className="p-4 text-center">
+                      <h3 className="text-xl font-bold text-white mb-1">🏎️ Termina tu jugada!</h3>
+                      <p className="text-green-400 font-semibold">
+                        {totalPicks} picks • <CurrencyDisplay copAmount={amount} />
+                      </p>
+                      <p className="text-xs text-gray-400 mt-2">Asegura tus picks</p>
+                    </div>
+                    
+                    <SignUp
+                      routing="virtual"
+                      fallbackRedirectUrl={typeof window !== 'undefined' ? window.location.href : '/mmc-go'}
+                      afterSignUpUrl={typeof window !== 'undefined' ? window.location.href : '/mmc-go'}
+                      appearance={{
+                        variables: {
+                          colorPrimary: "#10b981",
+                          colorBackground: "#1f2937",
+                          colorText: "#f9fafb",
+                          colorTextSecondary: "#9ca3af",
+                          colorInputBackground: "#374151",
+                          colorInputText: "#f9fafb",
+                          borderRadius: "0.5rem"
+                        },
+                        elements: {
+                          rootBox: "w-full",
+                          card: "shadow-none border-0 bg-transparent px-4 pb-4",
+                          headerTitle: "hidden",
+                          headerSubtitle: "hidden",
+                          socialButtonsBlockButton: "border border-gray-600 hover:border-gray-500 bg-gray-700 hover:bg-gray-600 text-white mb-3",
+                          socialButtonsBlockButtonText: "text-white font-medium",
+                          formButtonPrimary: "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 font-semibold py-3",
+                          formFieldInput: "bg-gray-700 border-gray-600 text-white placeholder-gray-400",
+                          formFieldLabel: "text-gray-300 text-sm",
+                          identityPreviewText: "text-gray-300",
+                          formFieldInputShowPasswordButton: "text-gray-400 hover:text-gray-200",
+                          footerActionText: "text-gray-400 text-sm",
+                          footerActionLink: "text-green-400 hover:text-green-300",
+                          dividerLine: "bg-gray-600",
+                          dividerText: "text-gray-400 text-sm"
+                        },
+                        layout: {
+                          socialButtonsPlacement: "top",
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Header with currency selector */}
               <div className="flex justify-between items-center mb-4 pb-2 border-b border-gray-700/50">
                 <h2 className="text-xl font-bold text-amber-400">Revisa tus Picks</h2>
                 <div className="flex items-center gap-4">
@@ -416,7 +470,7 @@ const handleWalletBet = async () => {
                 </div>
               </div>
 
-              {/* ✨ UPDATED: Simple 100% deposit bonus message */}
+              {/* Promo message */}
               {promo ? (
                 <div className="mb-4 text-sm text-gray-300">
                   {amount < promo.min_deposit ? (
@@ -501,8 +555,8 @@ const handleWalletBet = async () => {
 
               {/* controls */}
               <div className="mt-4 pt-4 border-t border-gray-700/50 space-y-4">
-                {/* ✨ UPDATED: Saldo wallet with currency display */}
-                {wallet && (
+                {/* Wallet balance */}
+                {wallet && isSignedIn && (
                   <div className="flex items-center justify-between bg-gray-800/70 rounded-lg px-4 py-2">
                     <div className="flex items-center gap-2 text-sm text-gray-200">
                       <FaWallet className="text-amber-400" />
@@ -525,7 +579,7 @@ const handleWalletBet = async () => {
                   </div>
                 )}
 
-                {/* ✨ UPDATED: Amount input with currency support */}
+                {/* Amount input */}
                 <div className="space-y-2">
                   <CurrencyInput
                     copValue={amount}
@@ -538,7 +592,7 @@ const handleWalletBet = async () => {
                   </div>
                 </div>
 
-                {/* ✨ UPDATED: Quick add buttons with currency */}
+                {/* Quick add buttons */}
                 <QuickAmountButtons
                   onAmountAdd={(copAmount) => setAmount(a => a + copAmount)}
                   onClear={() => setAmount(20000)}
@@ -559,7 +613,7 @@ const handleWalletBet = async () => {
                   </button>
                 </div>
 
-                {/* ✨ UPDATED: Payout info with currency displays */}
+                {/* Payout info */}
                 <div className="bg-gray-800/70 p-3 rounded-lg text-sm text-gray-200 space-y-1 border border-gray-700/60">
                   {mode === 'full' ? (
                     <div className="flex justify-between">
@@ -621,7 +675,7 @@ const handleWalletBet = async () => {
                   )}
                 </AnimatePresence>
 
-                {/* ✨ UPDATED: Confirm button with currency display */}
+                {/* Confirm button */}
                 <button
                   onClick={handleConfirm}
                   disabled={!isValid || isProcessing}
@@ -638,6 +692,8 @@ const handleWalletBet = async () => {
                     <>
                       <FaSpinner className="animate-spin" /> Procesando…
                     </>
+                  ) : !isSignedIn ? (
+                    <>Confirmar y Pagar <CurrencyDisplay copAmount={amount} /></>
                   ) : useWallet ? (
                     <>🎮 Jugar <CurrencyDisplay copAmount={amount} /></>
                   ) : (

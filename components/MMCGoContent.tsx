@@ -975,7 +975,10 @@ if (isBetter) {
 
           {/* === Modals === */}
           {showTutorial && ( <DynamicTutorialModal show={showTutorial} onClose={() => setShowTutorial(false)} /> )}
-          <StickyModal onFinish={async () => { soundManager.click.play(); if (!isSignedIn) { localStorage.setItem('pendingPicks', JSON.stringify(picks)); setShowAuthModal(true); return; } setShowFullModal(true); }} />
+          <StickyModal onFinish={async () => { 
+  soundManager.click.play(); 
+  setShowFullModal(true); 
+}} />
           {showFullModal && ( <FullModal isOpen={showFullModal} onClose={() => setShowFullModal(false)} /> )}
           <AnimatePresence>
             {showAuthModal && ( <Transition appear show={showAuthModal} as={Fragment}> <Dialog as="div" className="relative z-[90]" onClose={() => setShowAuthModal(false)}> <Transition.Child as={Fragment} {...{/* Overlay */} }> <div className="fixed inset-0 bg-black/80 backdrop-blur-sm" aria-hidden="true" /> </Transition.Child> <div className="fixed inset-0 flex items-center justify-center p-4"> <Transition.Child as={Fragment} {...{/* Panel */} }> <Dialog.Panel className="mx-auto max-w-sm w-full rounded-xl bg-gradient-to-br from-gray-800 to-black border border-amber-500/30 p-6 text-white shadow-xl text-center"> <Dialog.Title className="text-lg font-bold mb-2 text-amber-400">Inicia sesión o Regístrate</Dialog.Title> <Dialog.Description className="text-sm mb-4 text-gray-300"> Para guardar y confirmar tus picks en MMC GO, necesitas una cuenta. ¡Es rápido y gratis! Tus selecciones actuales se guardarán. </Dialog.Description> <button onClick={() => { router.push(`/sign-in?redirect_url=${encodeURIComponent('/mmc-go')}`); }} className="w-full px-4 py-2.5 mb-2 bg-amber-500 text-black font-bold rounded-md hover:bg-amber-400 transition-colors duration-200 shadow hover:shadow-lg"> Iniciar sesión / Registrarse </button> <button onClick={() => setShowAuthModal(false)} className="mt-2 text-xs text-gray-400 hover:text-gray-200"> Cancelar </button> </Dialog.Panel> </Transition.Child> </div> </Dialog> </Transition> )}

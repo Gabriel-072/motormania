@@ -68,7 +68,7 @@ export function useFomoFake(intervalMs = 2500): string | null {
       const notification = allNotificationsRef.current[currentIndexRef.current];
       if (notification) {
         const { nombre, ciudad, picks_count } = notification;
-        const message = `${nombre} en ${ciudad} acaba de enviar ${picks_count} pick${picks_count > 1 ? 's' : ''}`;
+        const message = `${nombre} en ${ciudad} ha enviado ${picks_count} pick${picks_count > 1 ? 's' : ''}`;
         if (isMounted) {
           setCurrentMessage(message);
         }
