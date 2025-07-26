@@ -824,9 +824,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                     <PayPalScriptProvider options={{ 
                       clientId: process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID!,
                       currency: "USD",
-                      intent: "capture",
-                      components: "buttons",
-                      "disable-funding": "card"
+                      intent: "capture"
                     }}>
                       <PayPalButtons
                         disabled={!isValid || isProcessing}
@@ -869,7 +867,17 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                           shape: 'rect',
                           label: 'pay',
                           height: 45,
-                          tagline: false
+                          tagline: false,
+                          disableMaxWidth: true
+                        }}
+                        fundingSource={undefined}
+                        onCancel={() => {
+                          console.log('PayPal payment cancelled');
+                          setIsProcessing(false);
+                        }}
+                        onShippingChange={() => {
+                          // Return resolved promise to avoid shipping address collection
+                          return Promise.resolve();
                         }}
                         forceReRender={[amount, totalPicks]}
                       />
