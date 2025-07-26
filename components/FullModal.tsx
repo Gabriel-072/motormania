@@ -824,7 +824,9 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                     <PayPalScriptProvider options={{ 
                       clientId: process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID!,
                       currency: "USD",
-                      intent: "capture"
+                      intent: "capture",
+                      components: "buttons",
+                      "disable-funding": "card"
                     }}>
                       <PayPalButtons
                         disabled={!isValid || isProcessing}
