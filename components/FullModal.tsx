@@ -493,8 +493,8 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                             formFieldLabel: "text-gray-300 text-sm",
                             identityPreviewText: "text-gray-300",
                             formFieldInputShowPasswordButton: "text-gray-400 hover:text-gray-200",
-                            footerActionText: "text-gray-400 text-sm",
-                            footerActionLink: "text-green-400 hover:text-green-300",
+                            footerActionText: "hidden",
+                            footerActionLink: "hidden",
                             dividerLine: "bg-gray-600",
                             dividerText: "text-gray-400 text-sm"
                           },
@@ -530,8 +530,8 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                             formFieldLabel: "text-gray-300 text-sm",
                             identityPreviewText: "text-gray-300",
                             formFieldInputShowPasswordButton: "text-gray-400 hover:text-gray-200",
-                            footerActionText: "text-gray-400 text-sm",
-                            footerActionLink: "text-green-400 hover:text-green-300",
+                            footerActionText: "hidden",
+                            footerActionLink: "hidden",
                             dividerLine: "bg-gray-600",
                             dividerText: "text-gray-400 text-sm"
                           },
