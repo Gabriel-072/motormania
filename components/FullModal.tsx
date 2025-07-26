@@ -13,7 +13,8 @@ import {
   FaExclamationTriangle,
   FaDollarSign,
   FaSpinner,
-  FaWallet
+  FaWallet,
+  FaGlobeAmericas
 } from 'react-icons/fa';
 import { useUser, useAuth, SignUp } from '@clerk/nextjs';
 import { useStickyStore } from '@/stores/stickyStore';
@@ -23,12 +24,15 @@ import { createAuthClient } from '@/lib/supabase';
 import { PickSelection } from '@/app/types/picks';
 
 // ✨ Currency imports
-import { useCurrencyStore } from '@/stores/currencyStore';
+import { useCurrencyStore, useCurrencyInfo } from '@/stores/currencyStore';
 import { CurrencyDisplay } from './ui/CurrencyDisplay';
 import { CurrencyInput } from './ui/CurrencyInput';
 import { CurrencySelector } from './ui/CurrencySelector';
 import { QuickAmountButtons } from './ui/QuickAmountButtons';
 import { CurrencyStatusIndicator } from './ui/CurrencyStatusIndicator';
+
+// ✨ PayPal imports
+import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js';
 
 interface FullModalProps {
   isOpen: boolean;
@@ -75,6 +79,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
 
   // ✨ Currency store
   const { initializeCurrency, isInitialized } = useCurrencyStore();
+  const { detectionInfo } = useCurrencyInfo();
 
   // local state
   const [amount, setAmount] = useState(20000);
@@ -93,6 +98,14 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
 
   // ✨ NEW: Inline auth state
   const [showInlineAuth, setShowInlineAuth] = useState(false);
+
+  // ✨ NEW: Payment method state
+  const [paymentMethod, setPaymentMethod] = useState<'bold' | 'paypal' | 'wallet'>('bold');
+
+  // ✨ NEW: Detect if user is in Colombia
+  const isInColombia = detectionInfo?.country === 'Colombia' || 
+                      detectionInfo?.timezone?.includes('Bogota') ||
+                      detectionInfo?.currency === 'COP';
 
   // Notificaciones FOMO
   const fomoMsg = useFomoFake(2500);
@@ -372,15 +385,49 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     }
   };
 
-  // ✨ NEW: Main confirm handler with inline auth
+  // ✨ NEW: PayPal payment handler
+  const handlePayPalPayment = async () => {
+    if (!user?.id || isProcessing || !isValid) return;
+    const email = user.primaryEmailAddress?.emailAddress;
+    if (!email) { toast.error('Tu cuenta no tiene email'); return; }
+
+    try {
+      const res = await fetch('/api/paypal/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          picks: combinedPicks,
+          mode,
+          amount,
+          gpName: combinedPicks[0]?.gp_name ?? 'GP',
+          fullName: user.fullName,
+          email
+        })
+      });
+
+      if (!res.ok) {
+        const { error: e } = await res.json().catch(() => ({}));
+        throw new Error(e ?? 'Error creating PayPal order');
+      }
+
+      const { orderID } = await res.json();
+      return orderID;
+    } catch (err: any) {
+      toast.error(err.message ?? 'Error with PayPal');
+      throw err;
+    }
+  };
+
+  // ✨ NEW: Main confirm handler with payment method routing
   const handleConfirm = () => {
     if (!isSignedIn) {
       setShowInlineAuth(true);
       return;
     }
     
-    if (useWallet) return handleWalletBet();
-    handleBoldPayment();
+    if (paymentMethod === 'wallet') return handleWalletBet();
+    if (paymentMethod === 'paypal') return; // PayPal handled by PayPalButtons component
+    handleBoldPayment(); // Default to Bold
   };
 
   return (
@@ -411,11 +458,11 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                     
                     {/* Simplified Header */}
                     <div className="p-4 text-center">
-                      <h3 className="text-xl font-bold text-white mb-1">🏎️ Termina tu jugada!</h3>
+                      <h3 className="text-xl font-bold text-white mb-1">🏎️ Let's Place Your Bet!</h3>
                       <p className="text-green-400 font-semibold">
                         {totalPicks} picks • <CurrencyDisplay copAmount={amount} />
                       </p>
-                      <p className="text-xs text-gray-400 mt-2">Asegura tus picks</p>
+                      <p className="text-xs text-gray-400 mt-2">Quick signup to secure your picks</p>
                     </div>
                     
                     <SignUp
@@ -570,12 +617,44 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                     <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
                       <input
                         type="checkbox"
-                        checked={useWallet}
-                        onChange={() => setUseWallet(!useWallet)}
+                        checked={paymentMethod === 'wallet'}
+                        onChange={() => setPaymentMethod(paymentMethod === 'wallet' ? (isInColombia ? 'bold' : 'paypal') : 'wallet')}
                         className="accent-amber-500"
                       />
                       <span>Usar saldo</span>
                     </label>
+                  </div>
+                )}
+
+                {/* ✨ NEW: Payment Method Selection for International Users */}
+                {!isInColombia && isSignedIn && paymentMethod !== 'wallet' && (
+                  <div className="bg-gray-800/70 rounded-lg p-4">
+                    <h4 className="text-sm font-semibold text-gray-300 mb-3 flex items-center gap-2">
+                      <FaGlobeAmericas className="text-blue-400" />
+                      Método de Pago
+                    </h4>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => setPaymentMethod('paypal')}
+                        className={`p-3 rounded-lg border text-sm font-medium transition-all ${
+                          paymentMethod === 'paypal'
+                            ? 'border-blue-500 bg-blue-500/20 text-blue-300'
+                            : 'border-gray-600 text-gray-300 hover:border-gray-500'
+                        }`}
+                      >
+                        💳 PayPal
+                      </button>
+                      <button
+                        onClick={() => setPaymentMethod('bold')}
+                        className={`p-3 rounded-lg border text-sm font-medium transition-all ${
+                          paymentMethod === 'bold'
+                            ? 'border-green-500 bg-green-500/20 text-green-300'
+                            : 'border-gray-600 text-gray-300 hover:border-gray-500'
+                        }`}
+                      >
+                        🏦 Tarjeta
+                      </button>
+                    </div>
                   </div>
                 )}
 
@@ -675,33 +754,86 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                   )}
                 </AnimatePresence>
 
-                {/* Confirm button */}
-                <button
-                  onClick={handleConfirm}
-                  disabled={!isValid || isProcessing}
-                  className={`
-                    w-full py-3 rounded-lg font-bold text-lg flex justify-center gap-2
-                    ${isProcessing
-                      ? 'bg-yellow-600 text-white cursor-wait'
-                      : isValid
-                        ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white'
-                        : 'bg-gray-600/80 text-gray-400/80 cursor-not-allowed'}
-                  `}
-                >
-                  {isProcessing ? (
-                    <>
-                      <FaSpinner className="animate-spin" /> Procesando…
-                    </>
-                  ) : !isSignedIn ? (
-                    <>Confirmar y Pagar <CurrencyDisplay copAmount={amount} /></>
-                  ) : useWallet ? (
-                    <>🎮 Jugar <CurrencyDisplay copAmount={amount} /></>
-                  ) : (
-                    <>
-                      <FaDollarSign /> Confirmar y Pagar <CurrencyDisplay copAmount={amount} />
-                    </>
-                  )}
-                </button>
+                {/* ✨ NEW: PayPal or Regular Confirm Button */}
+                {isSignedIn && paymentMethod === 'paypal' ? (
+                  <div className="space-y-2">
+                    <PayPalScriptProvider options={{ 
+                      clientId: process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID!,
+                      currency: "USD",
+                      intent: "capture"
+                    }}>
+                      <PayPalButtons
+                        disabled={!isValid || isProcessing}
+                        createOrder={handlePayPalPayment}
+                        onApprove={async (data, actions) => {
+                          setIsProcessing(true);
+                          try {
+                            // Track InitiateCheckout when PayPal modal opens
+                            if (typeof window !== 'undefined' && window.fbq) {
+                              window.fbq('track', 'InitiateCheckout', {
+                                value: amount / 1000,
+                                currency: 'COP',
+                                content_type: 'product',
+                                content_category: 'sports_betting',
+                                content_ids: [`mmc_picks_${totalPicks}`],
+                                content_name: `MMC GO ${mode === 'full' ? 'Full Throttle' : 'Safety Car'} (${totalPicks} picks)`,
+                                num_items: totalPicks,
+                              });
+                            }
+
+                            // PayPal will handle the capture via webhook
+                            toast.success('Pago de PayPal procesando...');
+                            setQualyPicks([]); 
+                            setRacePicks([]);
+                            onClose();
+                          } catch (err) {
+                            toast.error('Error procesando pago PayPal');
+                          } finally {
+                            setIsProcessing(false);
+                          }
+                        }}
+                        onError={(err) => {
+                          console.error('PayPal error:', err);
+                          toast.error('Error con PayPal');
+                          setIsProcessing(false);
+                        }}
+                        style={{
+                          layout: 'vertical',
+                          color: 'blue',
+                          shape: 'rect',
+                          label: 'paypal'
+                        }}
+                      />
+                    </PayPalScriptProvider>
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleConfirm}
+                    disabled={!isValid || isProcessing}
+                    className={`
+                      w-full py-3 rounded-lg font-bold text-lg flex justify-center gap-2
+                      ${isProcessing
+                        ? 'bg-yellow-600 text-white cursor-wait'
+                        : isValid
+                          ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white'
+                          : 'bg-gray-600/80 text-gray-400/80 cursor-not-allowed'}
+                    `}
+                  >
+                    {isProcessing ? (
+                      <>
+                        <FaSpinner className="animate-spin" /> Procesando…
+                      </>
+                    ) : !isSignedIn ? (
+                      <>🔐 Iniciar Sesión y Pagar <CurrencyDisplay copAmount={amount} /></>
+                    ) : paymentMethod === 'wallet' ? (
+                      <>🎮 Jugar <CurrencyDisplay copAmount={amount} /></>
+                    ) : (
+                      <>
+                        <FaDollarSign /> Confirmar y Pagar <CurrencyDisplay copAmount={amount} />
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
             </motion.div>
           </div>
