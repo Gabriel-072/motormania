@@ -16,7 +16,7 @@ import {
   FaWallet,
   FaGlobeAmericas
 } from 'react-icons/fa';
-import { useUser, useAuth, SignIn } from '@clerk/nextjs';
+import { useUser, useAuth, SignIn, SignUp } from '@clerk/nextjs';
 import { useStickyStore } from '@/stores/stickyStore';
 import { openBoldCheckout } from '@/lib/bold';
 import { toast } from 'sonner';
@@ -98,6 +98,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
 
   // ✨ NEW: Inline auth state
   const [showInlineAuth, setShowInlineAuth] = useState(false);
+  const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
 
   // ✨ NEW: Payment method state
   const [paymentMethod, setPaymentMethod] = useState<'bold' | 'paypal' | 'wallet'>('bold');
@@ -462,47 +463,94 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                       <p className="text-green-400 font-semibold">
                         {totalPicks} picks • <CurrencyDisplay copAmount={amount} />
                       </p>
-                      <p className="text-xs text-gray-400 mt-2">Quick signup to secure your picks</p>
+                      <p className="text-xs text-gray-400 mt-2">Quick {authMode === 'signin' ? 'sign in' : 'signup'} to secure your picks</p>
                     </div>
                     
-                    <SignIn
-                      routing="virtual"
-                      signUpUrl="#"
-                      afterSignInUrl="/mmc-go"
-                      afterSignUpUrl="/mmc-go"
-                      redirectUrl="/mmc-go"
-                      appearance={{
-                        variables: {
-                          colorPrimary: "#10b981",
-                          colorBackground: "#1f2937",
-                          colorText: "#f9fafb",
-                          colorTextSecondary: "#9ca3af",
-                          colorInputBackground: "#374151",
-                          colorInputText: "#f9fafb",
-                          borderRadius: "0.5rem"
-                        },
-                        elements: {
-                          rootBox: "w-full",
-                          card: "shadow-none border-0 bg-transparent px-4 pb-4",
-                          headerTitle: "hidden",
-                          headerSubtitle: "hidden",
-                          socialButtonsBlockButton: "border border-gray-600 hover:border-gray-500 bg-gray-700 hover:bg-gray-600 text-white mb-3",
-                          socialButtonsBlockButtonText: "text-white font-medium",
-                          formButtonPrimary: "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 font-semibold py-3",
-                          formFieldInput: "bg-gray-700 border-gray-600 text-white placeholder-gray-400",
-                          formFieldLabel: "text-gray-300 text-sm",
-                          identityPreviewText: "text-gray-300",
-                          formFieldInputShowPasswordButton: "text-gray-400 hover:text-gray-200",
-                          footerActionText: "text-gray-400 text-sm",
-                          footerActionLink: "text-green-400 hover:text-green-300",
-                          dividerLine: "bg-gray-600",
-                          dividerText: "text-gray-400 text-sm"
-                        },
-                        layout: {
-                          socialButtonsPlacement: "top",
-                        }
-                      }}
-                    />
+                    {authMode === 'signin' ? (
+                      <SignIn
+                        routing="virtual"
+                        afterSignInUrl="/mmc-go"
+                        redirectUrl="/mmc-go"
+                        appearance={{
+                          variables: {
+                            colorPrimary: "#10b981",
+                            colorBackground: "#1f2937",
+                            colorText: "#f9fafb",
+                            colorTextSecondary: "#9ca3af",
+                            colorInputBackground: "#374151",
+                            colorInputText: "#f9fafb",
+                            borderRadius: "0.5rem"
+                          },
+                          elements: {
+                            rootBox: "w-full",
+                            card: "shadow-none border-0 bg-transparent px-4 pb-4",
+                            headerTitle: "hidden",
+                            headerSubtitle: "hidden",
+                            socialButtonsBlockButton: "border border-gray-600 hover:border-gray-500 bg-gray-700 hover:bg-gray-600 text-white mb-3",
+                            socialButtonsBlockButtonText: "text-white font-medium",
+                            formButtonPrimary: "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 font-semibold py-3",
+                            formFieldInput: "bg-gray-700 border-gray-600 text-white placeholder-gray-400",
+                            formFieldLabel: "text-gray-300 text-sm",
+                            identityPreviewText: "text-gray-300",
+                            formFieldInputShowPasswordButton: "text-gray-400 hover:text-gray-200",
+                            footerActionText: "text-gray-400 text-sm",
+                            footerActionLink: "text-green-400 hover:text-green-300",
+                            dividerLine: "bg-gray-600",
+                            dividerText: "text-gray-400 text-sm"
+                          },
+                          layout: {
+                            socialButtonsPlacement: "top",
+                          }
+                        }}
+                      />
+                    ) : (
+                      <SignUp
+                        routing="virtual"
+                        afterSignUpUrl="/mmc-go"
+                        redirectUrl="/mmc-go"
+                        appearance={{
+                          variables: {
+                            colorPrimary: "#10b981",
+                            colorBackground: "#1f2937",
+                            colorText: "#f9fafb",
+                            colorTextSecondary: "#9ca3af",
+                            colorInputBackground: "#374151",
+                            colorInputText: "#f9fafb",
+                            borderRadius: "0.5rem"
+                          },
+                          elements: {
+                            rootBox: "w-full",
+                            card: "shadow-none border-0 bg-transparent px-4 pb-4",
+                            headerTitle: "hidden",
+                            headerSubtitle: "hidden",
+                            socialButtonsBlockButton: "border border-gray-600 hover:border-gray-500 bg-gray-700 hover:bg-gray-600 text-white mb-3",
+                            socialButtonsBlockButtonText: "text-white font-medium",
+                            formButtonPrimary: "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 font-semibold py-3",
+                            formFieldInput: "bg-gray-700 border-gray-600 text-white placeholder-gray-400",
+                            formFieldLabel: "text-gray-300 text-sm",
+                            identityPreviewText: "text-gray-300",
+                            formFieldInputShowPasswordButton: "text-gray-400 hover:text-gray-200",
+                            footerActionText: "text-gray-400 text-sm",
+                            footerActionLink: "text-green-400 hover:text-green-300",
+                            dividerLine: "bg-gray-600",
+                            dividerText: "text-gray-400 text-sm"
+                          },
+                          layout: {
+                            socialButtonsPlacement: "top",
+                          }
+                        }}
+                      />
+                    )}
+                    
+                    {/* Toggle link */}
+                    <div className="px-4 pb-4 text-center">
+                      <button
+                        onClick={() => setAuthMode(authMode === 'signin' ? 'signup' : 'signin')}
+                        className="text-sm text-gray-400 hover:text-green-400"
+                      >
+                        {authMode === 'signin' ? '¿No tienes cuenta? Regístrate' : '¿Ya tienes cuenta? Inicia sesión'}
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
