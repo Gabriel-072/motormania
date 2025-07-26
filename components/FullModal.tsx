@@ -468,6 +468,9 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                     <SignIn
                       routing="virtual"
                       signUpUrl="#"
+                      afterSignInUrl="/mmc-go"
+                      afterSignUpUrl="/mmc-go"
+                      redirectUrl="/mmc-go"
                       appearance={{
                         variables: {
                           colorPrimary: "#10b981",
