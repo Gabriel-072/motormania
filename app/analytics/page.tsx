@@ -114,10 +114,10 @@ export default function AnalyticsPage() {
     });
   };
 
-  if (!isLoaded || loading) {
+  if (!isLoaded) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-gray-950 via-gray-900 to-black flex items-center justify-center">
-        <div className="text-white text-lg">Cargando analytics...</div>
+        <div className="text-white text-lg">Cargando...</div>
       </div>
     );
   }
@@ -153,6 +153,14 @@ export default function AnalyticsPage() {
             </button>
           </form>
         </motion.div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-gray-950 via-gray-900 to-black flex items-center justify-center">
+        <div className="text-white text-lg">Cargando analytics...</div>
       </div>
     );
   }
