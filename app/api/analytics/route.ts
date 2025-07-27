@@ -13,13 +13,6 @@ const ADMIN_USER_IDS = ['user_2nJf8kKqHPfKLgQRN9X2bEf6wYt']; // Replace with act
 
 export async function GET(req: NextRequest) {
   try {
-    const { userId } = await auth();
-    
-    // Check admin access
-    if (!userId || !ADMIN_USER_IDS.includes(userId)) {
-      return new NextResponse('Unauthorized', { status: 401 });
-    }
-
     const { searchParams } = new URL(req.url);
     const period = searchParams.get('period') || '30'; // days
     const startDate = new Date();
