@@ -56,6 +56,18 @@ export default function AnalyticsPage() {
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState('30');
   const [error, setError] = useState<string | null>(null);
+  const [password, setPassword] = useState('');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  const handlePasswordSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (password === 'gamot62.72') {
+      setIsAuthenticated(true);
+    } else {
+      toast.error('Contraseña incorrecta');
+      setPassword('');
+    }
+  };
 
   const fetchAnalytics = async (selectedPeriod: string) => {
     try {
@@ -82,10 +94,10 @@ export default function AnalyticsPage() {
   };
 
   useEffect(() => {
-    if (isLoaded) {
+    if (isLoaded && isAuthenticated) {
       fetchAnalytics(period);
     }
-  }, [isLoaded, period]);
+  }, [isLoaded, period, isAuthenticated]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('es-CO', {
@@ -106,6 +118,41 @@ export default function AnalyticsPage() {
     return (
       <div className="min-h-screen bg-gradient-to-b from-gray-950 via-gray-900 to-black flex items-center justify-center">
         <div className="text-white text-lg">Cargando analytics...</div>
+      </div>
+    );
+  }
+
+  // Password protection
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-gray-950 via-gray-900 to-black flex items-center justify-center">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-gray-800/50 p-8 rounded-xl border border-gray-700/50 max-w-md w-full mx-4"
+        >
+          <div className="text-center mb-6">
+            <h1 className="text-2xl font-bold text-amber-400 mb-2">🔒 Analytics Restringido</h1>
+            <p className="text-gray-400">Ingresa la contraseña para acceder</p>
+          </div>
+          
+          <form onSubmit={handlePasswordSubmit} className="space-y-4">
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Contraseña..."
+              className="w-full px-4 py-3 bg-gray-700/60 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
+              autoFocus
+            />
+            <button
+              type="submit"
+              className="w-full py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-black font-bold rounded-lg hover:from-amber-600 hover:to-orange-600 transition-colors"
+            >
+              Acceder
+            </button>
+          </form>
+        </motion.div>
       </div>
     );
   }
