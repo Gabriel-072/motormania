@@ -35,6 +35,18 @@ interface AnalyticsData {
     driver: string;
     pick_count: number;
   }>;
+  trafficSources: Array<{
+    source: string;
+    count: number;
+  }>;
+  trafficMediums: Array<{
+    medium: string;
+    count: number;
+  }>;
+  trafficCampaigns: Array<{
+    campaign: string;
+    count: number;
+  }>;
   totals: {
     total_users: number;
     total_transactions: number;
@@ -346,7 +358,7 @@ export default function AnalyticsPage() {
             </div>
 
             {/* Charts Row 2 */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
               {/* Payment Methods */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -388,6 +400,76 @@ export default function AnalyticsPage() {
                 </div>
               </motion.div>
 
+              {/* Traffic Sources */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-gray-800/50 p-6 rounded-xl border border-gray-700/50"
+              >
+                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                  🌍 Fuentes de Tráfico
+                </h3>
+                <div className="flex items-center justify-center">
+                  <ResponsiveContainer width="100%" height={250}>
+                    <PieChart>
+                      <Pie
+                        data={data.trafficSources}
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={80}
+                        dataKey="count"
+                        label={(entry: any) => 
+                          `${entry.source} ${(entry.percent * 100).toFixed(0)}%`
+                        }
+                        labelLine={false}
+                      >
+                        {data.trafficSources.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: '#1F2937', 
+                          border: '1px solid #374151',
+                          borderRadius: '8px'
+                        }}
+                        formatter={(value: number) => [value, 'Visitantes']}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </motion.div>
+            </div>
+
+            {/* Charts Row 3 */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Popular Campaigns */}
+              {data.trafficCampaigns.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-gray-800/50 p-6 rounded-xl border border-gray-700/50"
+                >
+                  <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                    🎯 Campañas Populares
+                  </h3>
+                  <div className="space-y-3">
+                    {data.trafficCampaigns.slice(0, 6).map((campaign, index) => (
+                      <div key={campaign.campaign} className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                            COLORS[index % COLORS.length]
+                          }`} style={{ backgroundColor: COLORS[index % COLORS.length] }}>
+                            {index + 1}
+                          </div>
+                          <span className="text-white font-medium truncate">{campaign.campaign}</span>
+                        </div>
+                        <span className="text-gray-400 text-sm">{campaign.count} visitantes</span>
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
               {/* Popular Drivers */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}

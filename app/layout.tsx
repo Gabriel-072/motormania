@@ -9,6 +9,7 @@ import Header from "@/components/Header";
 import MovingBar from "@/components/MovingBar";
 import PixelTracker from "@/components/PixelTracker";
 import RegistrationTracker from "@/components/RegistrationTracker";
+import UTMTracker from "@/components/UTMTracker";
 import Footer from "@/components/Footer";
 import { Suspense } from "react";
 import HotjarInit from '@/components/HotjarInit';
@@ -75,6 +76,7 @@ export default function RootLayout({
           <PixelTracker />
           <Suspense fallback={null}>
             <RegistrationTracker />
+            <UTMTracker />
           </Suspense>
           <MovingBar />
           <Header />

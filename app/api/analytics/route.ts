@@ -89,6 +89,45 @@ export async function GET(req: NextRequest) {
       .sort((a, b) => b.pick_count - a.pick_count)
       .slice(0, 10);
 
+    // Get traffic sources data
+    const { data: trafficData } = await sb
+      .from('traffic_sources')
+      .select('utm_source, utm_medium, utm_campaign, referrer')
+      .gte('created_at', startDate.toISOString());
+
+    // Process traffic sources
+    const sourceGroups: Record<string, number> = {};
+    const mediumGroups: Record<string, number> = {};
+    const campaignGroups: Record<string, number> = {};
+
+    trafficData?.forEach((traffic: any) => {
+      // Group by source
+      const source = traffic.utm_source || getSourceFromReferrer(traffic.referrer) || 'Direct';
+      sourceGroups[source] = (sourceGroups[source] || 0) + 1;
+
+      // Group by medium
+      if (traffic.utm_medium) {
+        mediumGroups[traffic.utm_medium] = (mediumGroups[traffic.utm_medium] || 0) + 1;
+      }
+
+      // Group by campaign
+      if (traffic.utm_campaign) {
+        campaignGroups[traffic.utm_campaign] = (campaignGroups[traffic.utm_campaign] || 0) + 1;
+      }
+    });
+
+    const trafficSources = Object.entries(sourceGroups)
+      .map(([source, count]) => ({ source, count }))
+      .sort((a, b) => b.count - a.count);
+
+    const trafficMediums = Object.entries(mediumGroups)
+      .map(([medium, count]) => ({ medium, count }))
+      .sort((a, b) => b.count - a.count);
+
+    const trafficCampaigns = Object.entries(campaignGroups)
+      .map(([campaign, count]) => ({ campaign, count }))
+      .sort((a, b) => b.count - a.count);
+
     // Calculate totals
     const totals = {
       total_users: userData?.length || 0,
@@ -116,6 +155,9 @@ export async function GET(req: NextRequest) {
         revenue: data.revenue
       })),
       popularDrivers,
+      trafficSources,
+      trafficMediums,
+      trafficCampaigns,
       totals
     };
 
@@ -124,5 +166,40 @@ export async function GET(req: NextRequest) {
   } catch (error: any) {
     console.error('Analytics API error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+// Helper function to extract source from referrer
+function getSourceFromReferrer(referrer: string): string | null {
+  if (!referrer) return null;
+  
+  try {
+    const url = new URL(referrer);
+    const domain = url.hostname.toLowerCase();
+    
+    // Internal referrers (same domain)
+    if (domain.includes('motormania.app')) {
+      const path = url.pathname;
+      if (path === '/fantasy') return 'Fantasy Page';
+      if (path === '/') return 'Homepage';
+      if (path.includes('/blog')) return 'Blog';
+      if (path.includes('/dashboard')) return 'Dashboard';
+      return `Internal: ${path}`;
+    }
+    
+    // External referrers
+    if (domain.includes('google')) return 'Google';
+    if (domain.includes('facebook') || domain.includes('fb.com')) return 'Facebook';
+    if (domain.includes('instagram')) return 'Instagram';
+    if (domain.includes('twitter') || domain.includes('t.co')) return 'Twitter';
+    if (domain.includes('youtube')) return 'YouTube';
+    if (domain.includes('tiktok')) return 'TikTok';
+    if (domain.includes('linkedin')) return 'LinkedIn';
+    if (domain.includes('whatsapp')) return 'WhatsApp';
+    if (domain.includes('telegram')) return 'Telegram';
+    
+    return domain;
+  } catch {
+    return null;
   }
 }
