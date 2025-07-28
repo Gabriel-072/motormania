@@ -811,7 +811,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                       <div>
                         <h4 className="text-sm font-semibold text-green-400 mb-1">Pago en Colombia</h4>
                         <p className="text-xs text-gray-300">
-                          Procesamos tu pago de forma segura con tarjetas colombianas a través de Bold
+                          Procesamos tu pago de forma segura, con tarjetas, NEQUI, PSE o Botón de pagos
                         </p>
                       </div>
                     </div>
