@@ -1,7 +1,7 @@
 // 📁 components/FullModal.tsx
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import { useFomoFake } from '@/lib/useFomoFake';
@@ -81,6 +81,17 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
   const { initializeCurrency, isInitialized } = useCurrencyStore();
   const { detectionInfo } = useCurrencyInfo();
 
+  // ✨ ENHANCED: More robust Colombia detection
+  const isInColombia = useMemo(() => {
+    if (!detectionInfo) return false;
+    
+    return detectionInfo.country === 'Colombia' || 
+           detectionInfo.timezone?.includes('Bogota') ||
+           detectionInfo.timezone?.includes('America/Bogota') ||
+           detectionInfo.currency === 'COP' ||
+           detectionInfo.locale?.includes('CO');
+  }, [detectionInfo]);
+
   // local state
   const [amount, setAmount] = useState(20000);
   const [mode, setMode] = useState<'full' | 'safety'>('full');
@@ -100,13 +111,11 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
   const [showInlineAuth, setShowInlineAuth] = useState(false);
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
 
-  // ✨ NEW: Payment method state
-  const [paymentMethod, setPaymentMethod] = useState<'bold' | 'paypal' | 'wallet'>('bold');
-
-  // ✨ NEW: Detect if user is in Colombia
-  const isInColombia = detectionInfo?.country === 'Colombia' || 
-                      detectionInfo?.timezone?.includes('Bogota') ||
-                      detectionInfo?.currency === 'COP';
+  // ✨ ENHANCED: Payment method state with Colombia restriction
+  const [paymentMethod, setPaymentMethod] = useState<'bold' | 'paypal' | 'wallet'>(() => {
+    // Default to Bold for Colombian users, PayPal for international
+    return isInColombia ? 'bold' : 'paypal';
+  });
 
   // Notificaciones FOMO
   const fomoMsg = useFomoFake(2500);
@@ -124,6 +133,14 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
       initializeCurrency();
     }
   }, [isOpen, initializeCurrency, isInitialized]);
+
+  // ✨ ENHANCED: Ensure Colombian users can't access PayPal
+  useEffect(() => {
+    if (isInColombia && paymentMethod === 'paypal') {
+      setPaymentMethod('bold');
+      toast.info('Método de pago actualizado para usuarios en Colombia');
+    }
+  }, [isInColombia, paymentMethod]);
 
   // ✨ NEW: Close auth modal when user signs in
   useEffect(() => {
@@ -208,6 +225,16 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     setError(msg);
     setIsValid(!msg);
   }, [combinedPicks, totalPicks, amount, mode, useWallet, wallet]);
+
+  // ✨ ENHANCED: Safe payment method setter
+  const handlePaymentMethodChange = useCallback((method: 'bold' | 'paypal' | 'wallet') => {
+    // Block PayPal for Colombian users
+    if (method === 'paypal' && isInColombia) {
+      toast.warning('PayPal no está disponible en Colombia. Usa tarjeta de crédito.');
+      return;
+    }
+    setPaymentMethod(method);
+  }, [isInColombia]);
 
   // Helpers para editar picks
   const updatePick = useCallback((idx: number, better: boolean) => {
@@ -682,7 +709,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                       <input
                         type="checkbox"
                         checked={paymentMethod === 'wallet'}
-                        onChange={() => setPaymentMethod(paymentMethod === 'wallet' ? (isInColombia ? 'bold' : 'paypal') : 'wallet')}
+                        onChange={() => handlePaymentMethodChange(paymentMethod === 'wallet' ? (isInColombia ? 'bold' : 'paypal') : 'wallet')}
                         className="accent-amber-500"
                       />
                       <span>Usar saldo</span>
@@ -690,16 +717,16 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                   </div>
                 )}
 
-                {/* ✨ NEW: Payment Method Selection for International Users */}
+                {/* ✨ ENHANCED: Payment Method Selection - Only for International Users */}
                 {!isInColombia && isSignedIn && paymentMethod !== 'wallet' && (
                   <div className="bg-gray-800/70 rounded-lg p-4">
                     <h4 className="text-sm font-semibold text-gray-300 mb-3 flex items-center gap-2">
                       <FaGlobeAmericas className="text-blue-400" />
-                      Método de Pago
+                      Método de Pago Internacional
                     </h4>
                     <div className="grid grid-cols-2 gap-2">
                       <button
-                        onClick={() => setPaymentMethod('paypal')}
+                        onClick={() => handlePaymentMethodChange('paypal')}
                         className={`p-3 rounded-lg border text-sm font-medium transition-all ${
                           paymentMethod === 'paypal'
                             ? 'border-blue-500 bg-blue-500/20 text-blue-300'
@@ -709,15 +736,33 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                         💳 PayPal
                       </button>
                       <button
-                        onClick={() => setPaymentMethod('bold')}
+                        onClick={() => handlePaymentMethodChange('bold')}
                         className={`p-3 rounded-lg border text-sm font-medium transition-all ${
                           paymentMethod === 'bold'
                             ? 'border-green-500 bg-green-500/20 text-green-300'
                             : 'border-gray-600 text-gray-300 hover:border-gray-500'
                         }`}
                       >
-                        🏦 Tarjeta
+                        🏦 Tarjeta de Crédito
                       </button>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-2 text-center">
+                      Usuarios internacionales pueden elegir su método preferido
+                    </p>
+                  </div>
+                )}
+
+                {/* ✨ NEW: Information banner for Colombian users */}
+                {isInColombia && isSignedIn && paymentMethod !== 'wallet' && (
+                  <div className="bg-gradient-to-r from-green-800/30 to-blue-800/30 rounded-lg p-4 border border-green-700/50">
+                    <div className="flex items-center gap-3">
+                      <div className="text-2xl">🇨🇴</div>
+                      <div>
+                        <h4 className="text-sm font-semibold text-green-400 mb-1">Pago en Colombia</h4>
+                        <p className="text-xs text-gray-300">
+                          Procesamos tu pago de forma segura con tarjetas colombianas a través de Bold
+                        </p>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -818,8 +863,8 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                   )}
                 </AnimatePresence>
 
-                {/* ✨ NEW: PayPal or Regular Confirm Button */}
-                {isSignedIn && paymentMethod === 'paypal' ? (
+                {/* ✨ ENHANCED: PayPal button section - with Colombia check */}
+                {isSignedIn && paymentMethod === 'paypal' && !isInColombia ? (
                   <div className="space-y-2">
                     <PayPalScriptProvider options={{ 
                       clientId: process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID!,
@@ -901,9 +946,13 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                         <FaSpinner className="animate-spin" /> Procesando…
                       </>
                     ) : !isSignedIn ? (
-                      <>🔐 Confirmar y Pagar <CurrencyDisplay copAmount={amount} /></>
+                      <>🔐 Iniciar Sesión y Pagar <CurrencyDisplay copAmount={amount} /></>
                     ) : paymentMethod === 'wallet' ? (
                       <>🎮 Jugar <CurrencyDisplay copAmount={amount} /></>
+                    ) : isInColombia ? (
+                      <>
+                        <FaDollarSign /> Pagar con Tarjeta <CurrencyDisplay copAmount={amount} />
+                      </>
                     ) : (
                       <>
                         <FaDollarSign /> Confirmar y Pagar <CurrencyDisplay copAmount={amount} />
