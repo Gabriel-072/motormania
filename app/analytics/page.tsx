@@ -22,6 +22,13 @@ interface AnalyticsData {
     transactions: number;
     avg_bet: number;
   }>;
+  // 🎯 NEW: AOV trending data
+  aov: Array<{
+    date: string;
+    aov: number;
+    transactions: number;
+    revenue: number;
+  }>;
   users: Array<{
     date: string;
     new_users: number;
@@ -47,7 +54,6 @@ interface AnalyticsData {
     campaign: string;
     count: number;
   }>;
-  // 🎯 NEW: UTM Revenue Data
   utmRevenue: Array<{
     source_campaign: string;
     source: string;
@@ -69,15 +75,28 @@ interface AnalyticsData {
     purchases: number;
     avg_purchase: number;
   }>;
+  // 🎯 NEW: Conversion rates data
+  utmConversionRates: Array<{
+    source: string;
+    visits: number;
+    purchases: number;
+    conversion_rate: number;
+    revenue: number;
+    revenue_per_visit: number;
+  }>;
   totals: {
     total_users: number;
     total_transactions: number;
     total_revenue: number;
     total_picks: number;
-    // 🎯 NEW: Attribution metrics
+    total_visits: number;
     attributed_revenue: number;
     attribution_rate: number;
     attributed_purchases: number;
+    // 🎯 NEW: AOV and Conversion metrics
+    aov: number;
+    overall_conversion_rate: number;
+    revenue_per_visit: number;
   };
 }
 
@@ -244,68 +263,68 @@ export default function AnalyticsPage() {
 
         {data && (
           <>
-            {/* KPI Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+            {/* KPI Cards - Enhanced with AOV and Conversion */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4 mb-8">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-gradient-to-br from-green-800/50 to-green-900/50 p-6 rounded-xl border border-green-700/50"
+                className="bg-gradient-to-br from-green-800/50 to-green-900/50 p-4 rounded-xl border border-green-700/50"
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-green-400 text-sm font-medium">Ingresos Totales</p>
-                    <p className="text-2xl font-bold text-white">
+                    <p className="text-green-400 text-xs font-medium">Ingresos Totales</p>
+                    <p className="text-xl font-bold text-white">
                       {formatCurrency(data.totals.total_revenue)}
                     </p>
                   </div>
-                  <FaDollarSign className="text-green-400 text-2xl" />
+                  <FaDollarSign className="text-green-400 text-xl" />
                 </div>
               </motion.div>
 
+              {/* 🎯 NEW: AOV Card */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 }}
-                className="bg-gradient-to-br from-blue-800/50 to-blue-900/50 p-6 rounded-xl border border-blue-700/50"
+                className="bg-gradient-to-br from-emerald-800/50 to-emerald-900/50 p-4 rounded-xl border border-emerald-700/50"
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-blue-400 text-sm font-medium">Usuarios Nuevos</p>
-                    <p className="text-2xl font-bold text-white">{data.totals.total_users.toLocaleString()}</p>
+                    <p className="text-emerald-400 text-xs font-medium">AOV Promedio</p>
+                    <p className="text-xl font-bold text-white">{formatCurrency(data.totals.aov)}</p>
                   </div>
-                  <FaUsers className="text-blue-400 text-2xl" />
+                  <FaChartLine className="text-emerald-400 text-xl" />
                 </div>
               </motion.div>
 
+              {/* 🎯 NEW: Conversion Rate Card */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
-                className="bg-gradient-to-br from-purple-800/50 to-purple-900/50 p-6 rounded-xl border border-purple-700/50"
+                className="bg-gradient-to-br from-orange-800/50 to-orange-900/50 p-4 rounded-xl border border-orange-700/50"
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-purple-400 text-sm font-medium">Transacciones</p>
-                    <p className="text-2xl font-bold text-white">{data.totals.total_transactions.toLocaleString()}</p>
+                    <p className="text-orange-400 text-xs font-medium">Conversión</p>
+                    <p className="text-xl font-bold text-white">{data.totals.overall_conversion_rate}%</p>
                   </div>
-                  <FaChartLine className="text-purple-400 text-2xl" />
+                  <FaPercentage className="text-orange-400 text-xl" />
                 </div>
               </motion.div>
 
-              {/* 🎯 NEW: Attribution Rate Card */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
-                className="bg-gradient-to-br from-cyan-800/50 to-cyan-900/50 p-6 rounded-xl border border-cyan-700/50"
+                className="bg-gradient-to-br from-blue-800/50 to-blue-900/50 p-4 rounded-xl border border-blue-700/50"
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-cyan-400 text-sm font-medium">Atribución UTM</p>
-                    <p className="text-2xl font-bold text-white">{data.totals.attribution_rate}%</p>
-                    <p className="text-xs text-cyan-300">{formatCurrency(data.totals.attributed_revenue)}</p>
+                    <p className="text-blue-400 text-xs font-medium">Usuarios Nuevos</p>
+                    <p className="text-xl font-bold text-white">{data.totals.total_users.toLocaleString()}</p>
                   </div>
-                  <FaBullseye className="text-cyan-400 text-2xl" />
+                  <FaUsers className="text-blue-400 text-xl" />
                 </div>
               </motion.div>
 
@@ -313,20 +332,51 @@ export default function AnalyticsPage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4 }}
-                className="bg-gradient-to-br from-amber-800/50 to-amber-900/50 p-6 rounded-xl border border-amber-700/50"
+                className="bg-gradient-to-br from-purple-800/50 to-purple-900/50 p-4 rounded-xl border border-purple-700/50"
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-amber-400 text-sm font-medium">Total Picks</p>
-                    <p className="text-2xl font-bold text-white">{data.totals.total_picks.toLocaleString()}</p>
+                    <p className="text-purple-400 text-xs font-medium">Transacciones</p>
+                    <p className="text-xl font-bold text-white">{data.totals.total_transactions.toLocaleString()}</p>
                   </div>
-                  <FaGamepad className="text-amber-400 text-2xl" />
+                  <FaChartLine className="text-purple-400 text-xl" />
+                </div>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+                className="bg-gradient-to-br from-cyan-800/50 to-cyan-900/50 p-4 rounded-xl border border-cyan-700/50"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-cyan-400 text-xs font-medium">Atribución UTM</p>
+                    <p className="text-xl font-bold text-white">{data.totals.attribution_rate}%</p>
+                    <p className="text-xs text-cyan-300">{formatCurrency(data.totals.attributed_revenue)}</p>
+                  </div>
+                  <FaBullseye className="text-cyan-400 text-xl" />
+                </div>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.6 }}
+                className="bg-gradient-to-br from-amber-800/50 to-amber-900/50 p-4 rounded-xl border border-amber-700/50"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-amber-400 text-xs font-medium">Total Picks</p>
+                    <p className="text-xl font-bold text-white">{data.totals.total_picks.toLocaleString()}</p>
+                  </div>
+                  <FaGamepad className="text-amber-400 text-xl" />
                 </div>
               </motion.div>
             </div>
 
-            {/* Charts Row 1 */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            {/* Charts Row 1 - Revenue, AOV, Users */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
               {/* Revenue Chart */}
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
@@ -337,15 +387,15 @@ export default function AnalyticsPage() {
                   <FaDollarSign className="text-green-400" />
                   Ingresos Diarios
                 </h3>
-                <ResponsiveContainer width="100%" height={300}>
+                <ResponsiveContainer width="100%" height={250}>
                   <LineChart data={data.revenue}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                     <XAxis 
                       dataKey="date" 
-                      tick={{ fontSize: 12, fill: '#9CA3AF' }}
+                      tick={{ fontSize: 10, fill: '#9CA3AF' }}
                       tickFormatter={formatDate}
                     />
-                    <YAxis tick={{ fontSize: 12, fill: '#9CA3AF' }} />
+                    <YAxis tick={{ fontSize: 10, fill: '#9CA3AF' }} />
                     <Tooltip 
                       contentStyle={{ 
                         backgroundColor: '#1F2937', 
@@ -359,8 +409,47 @@ export default function AnalyticsPage() {
                       type="monotone" 
                       dataKey="revenue" 
                       stroke="#10b981" 
-                      strokeWidth={3}
-                      dot={{ fill: '#10b981', r: 4 }}
+                      strokeWidth={2}
+                      dot={{ fill: '#10b981', r: 3 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </motion.div>
+
+              {/* 🎯 NEW: AOV Trending Chart */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-gray-800/50 p-6 rounded-xl border border-gray-700/50"
+              >
+                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                  <FaChartLine className="text-emerald-400" />
+                  AOV Trending
+                </h3>
+                <ResponsiveContainer width="100%" height={250}>
+                  <LineChart data={data.aov}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                    <XAxis 
+                      dataKey="date" 
+                      tick={{ fontSize: 10, fill: '#9CA3AF' }}
+                      tickFormatter={formatDate}
+                    />
+                    <YAxis tick={{ fontSize: 10, fill: '#9CA3AF' }} />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: '#1F2937', 
+                        border: '1px solid #374151',
+                        borderRadius: '8px'
+                      }}
+                      formatter={(value: number) => [formatCurrency(value), 'AOV']}
+                      labelFormatter={(label: string) => formatDate(label)}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="aov" 
+                      stroke="#10d9b4" 
+                      strokeWidth={2}
+                      dot={{ fill: '#10d9b4', r: 3 }}
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -376,15 +465,15 @@ export default function AnalyticsPage() {
                   <FaUsers className="text-blue-400" />
                   Registros Diarios
                 </h3>
-                <ResponsiveContainer width="100%" height={300}>
+                <ResponsiveContainer width="100%" height={250}>
                   <BarChart data={data.users}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                     <XAxis 
                       dataKey="date" 
-                      tick={{ fontSize: 12, fill: '#9CA3AF' }}
+                      tick={{ fontSize: 10, fill: '#9CA3AF' }}
                       tickFormatter={formatDate}
                     />
-                    <YAxis tick={{ fontSize: 12, fill: '#9CA3AF' }} />
+                    <YAxis tick={{ fontSize: 10, fill: '#9CA3AF' }} />
                     <Tooltip 
                       contentStyle={{ 
                         backgroundColor: '#1F2937', 
@@ -397,6 +486,63 @@ export default function AnalyticsPage() {
                     <Bar dataKey="new_users" fill="#3b82f6" radius={4} />
                   </BarChart>
                 </ResponsiveContainer>
+              </motion.div>
+            </div>
+
+            {/* 🎯 NEW: Conversion Rates Table */}
+            <div className="mb-8">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-gray-800/50 p-6 rounded-xl border border-gray-700/50"
+              >
+                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                  🎯 Tasas de Conversión por Fuente UTM
+                </h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-700">
+                        <th className="text-left py-3 px-4 text-gray-300 font-medium">Fuente</th>
+                        <th className="text-right py-3 px-4 text-gray-300 font-medium">Visitas</th>
+                        <th className="text-right py-3 px-4 text-gray-300 font-medium">Compras</th>
+                        <th className="text-right py-3 px-4 text-gray-300 font-medium">Conv. %</th>
+                        <th className="text-right py-3 px-4 text-gray-300 font-medium">Ingresos</th>
+                        <th className="text-right py-3 px-4 text-gray-300 font-medium">Rev/Visita</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.utmConversionRates.slice(0, 10).map((source, index) => (
+                        <tr key={source.source} className="border-b border-gray-700/50 hover:bg-gray-700/30">
+                          <td className="py-3 px-4">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-3 h-3 rounded-full`} 
+                                   style={{ backgroundColor: COLORS[index % COLORS.length] }}></div>
+                              <span className="text-white font-medium">{source.source}</span>
+                            </div>
+                          </td>
+                          <td className="py-3 px-4 text-right text-gray-300">{source.visits.toLocaleString()}</td>
+                          <td className="py-3 px-4 text-right text-white font-semibold">{source.purchases}</td>
+                          <td className="py-3 px-4 text-right">
+                            <span className={`font-bold ${
+                              source.conversion_rate >= 5 ? 'text-green-400' :
+                              source.conversion_rate >= 2 ? 'text-yellow-400' :
+                              'text-red-400'
+                            }`}>
+                              {source.conversion_rate}%
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-right text-green-400 font-semibold">
+                            {formatCurrency(source.revenue)}
+                          </td>
+                          <td className="py-3 px-4 text-right text-cyan-400 font-medium">
+                            {formatCurrency(source.revenue_per_visit)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </motion.div>
             </div>
 
