@@ -536,11 +536,11 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                     
                     {/* Simplified Header */}
                     <div className="p-4 text-center">
-                      <h3 className="text-xl font-bold text-white mb-1">🏎️ Activar el DRS!</h3>
+                      <h3 className="text-xl font-bold text-white mb-1">🏎️ Let's Place Your Bet!</h3>
                       <p className="text-green-400 font-semibold">
-                        {totalPicks} Picks • <CurrencyDisplay copAmount={amount} />
+                        {totalPicks} picks • <CurrencyDisplay copAmount={amount} />
                       </p>
-                      <p className="text-xs text-gray-400 mt-2">Inicio rápido {authMode === 'signin' ? 'sign in' : 'signup'} para asegurar tus picks</p>
+                      <p className="text-xs text-gray-400 mt-2">Quick {authMode === 'signin' ? 'sign in' : 'signup'} to secure your picks</p>
                     </div>
                     
                     {authMode === 'signin' ? (
@@ -811,7 +811,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                       <div>
                         <h4 className="text-sm font-semibold text-green-400 mb-1">Pago en Colombia</h4>
                         <p className="text-xs text-gray-300">
-                          Procesamos tu pago de forma segura, con tarjetas, NEQUI, PSE o Botón de pagos
+                          Procesamos tu pago de forma segura con tarjetas colombianas a través de Bold
                         </p>
                       </div>
                     </div>
@@ -826,9 +826,12 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                     className="w-full py-2 rounded-lg bg-gray-700/60 border border-gray-600 text-white font-semibold text-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
                     placeholder="Enter amount"
                   />
-                  <div className="flex justify-between items-center text-xs text-gray-400">
-                    <CurrencyStatusIndicator />
-                  </div>
+                  {/* ✨ Only show currency status for international users who need conversion */}
+                  {!isInColombia && currency !== 'COP' && (
+                    <div className="flex justify-between items-center text-xs text-gray-400">
+                      <CurrencyStatusIndicator />
+                    </div>
+                  )}
                 </div>
 
                 {/* Quick add buttons */}
@@ -997,16 +1000,16 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                         <FaSpinner className="animate-spin" /> Procesando…
                       </>
                     ) : !isSignedIn ? (
-                      <>CONFIRMAR Y PAGAR <CurrencyDisplay copAmount={amount} /></>
+                      <>🔐 Iniciar Sesión y Pagar <CurrencyDisplay copAmount={amount} /></>
                     ) : paymentMethod === 'wallet' ? (
                       <>🎮 Jugar <CurrencyDisplay copAmount={amount} /></>
                     ) : (isInColombia || currency === 'COP') ? (
                       <>
-                        <FaDollarSign /> CONFIRMAR Y PAGAR <CurrencyDisplay copAmount={amount} />
+                        <FaDollarSign /> Pagar con Tarjeta <CurrencyDisplay copAmount={amount} />
                       </>
                     ) : (
                       <>
-                        <FaDollarSign /> CONFIRMAR Y PAGAR <CurrencyDisplay copAmount={amount} />
+                        <FaDollarSign /> Confirmar y Pagar <CurrencyDisplay copAmount={amount} />
                       </>
                     )}
                   </button>
