@@ -901,7 +901,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                         <FaSpinner className="animate-spin" /> Procesando…
                       </>
                     ) : !isSignedIn ? (
-                      <>🔐 Iniciar Sesión y Pagar <CurrencyDisplay copAmount={amount} /></>
+                      <>🔐 Confirmar y Pagar <CurrencyDisplay copAmount={amount} /></>
                     ) : paymentMethod === 'wallet' ? (
                       <>🎮 Jugar <CurrencyDisplay copAmount={amount} /></>
                     ) : (
