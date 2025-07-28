@@ -12,8 +12,16 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const period = searchParams.get('period') || '30'; // days
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - parseInt(period));
+    
+    // 🎯 NEW: Handle different time periods
+    let startDate = new Date();
+    if (period === '4h') {
+      startDate.setHours(startDate.getHours() - 4);
+    } else if (period === '24h') {
+      startDate.setHours(startDate.getHours() - 24);
+    } else {
+      startDate.setDate(startDate.getDate() - parseInt(period));
+    }
 
     // Get revenue data
     const { data: revenueData } = await sb
@@ -41,19 +49,29 @@ export async function GET(req: NextRequest) {
       .eq('payment_status', 'paid')
       .gte('created_at', startDate.toISOString());
 
-    // Process revenue by day
+    // Process revenue by day/hour based on period
+    const getGroupKey = (date: Date, period: string) => {
+      if (period === '4h' || period === '24h') {
+        // Group by hour for short periods
+        return date.toISOString().substring(0, 13) + ':00:00.000Z'; // Hour precision
+      } else {
+        // Group by day for longer periods
+        return date.toISOString().split('T')[0];
+      }
+    };
+
     const revenueByDay = revenueData?.reduce((acc: any, row: any) => {
-      const date = new Date(row.created_at).toISOString().split('T')[0];
-      if (!acc[date]) acc[date] = { revenue: 0, transactions: 0 };
-      acc[date].revenue += row.wager_amount || 0;
-      acc[date].transactions += 1;
+      const groupKey = getGroupKey(new Date(row.created_at), period);
+      if (!acc[groupKey]) acc[groupKey] = { revenue: 0, transactions: 0 };
+      acc[groupKey].revenue += row.wager_amount || 0;
+      acc[groupKey].transactions += 1;
       return acc;
     }, {}) || {};
 
-    // Process users by day
+    // Process users by day/hour
     const usersByDay = userData?.reduce((acc: any, row: any) => {
-      const date = new Date(row.created_at).toISOString().split('T')[0];
-      acc[date] = (acc[date] || 0) + 1;
+      const groupKey = getGroupKey(new Date(row.created_at), period);
+      acc[groupKey] = (acc[groupKey] || 0) + 1;
       return acc;
     }, {}) || {};
 
@@ -91,18 +109,19 @@ export async function GET(req: NextRequest) {
     const utmSources: Record<string, { revenue: number; purchases: number }> = {};
     const utmCampaigns: Record<string, { revenue: number; purchases: number; source: string }> = {};
 
-    let attributedRevenue = 0;
-    let totalRevenue = 0;
+    // 🎯 FIXED: Renamed to avoid conflict with later totalRevenue declaration
+    let utmAttributedRevenue = 0;
+    let utmTotalRevenue = 0;
     let attributedPurchases = 0;
     let totalPurchases = 0;
 
     picksData?.forEach((pick: any) => {
       const revenue = pick.wager_amount || 0;
-      totalRevenue += revenue;
+      utmTotalRevenue += revenue;
       totalPurchases += 1;
 
       if (pick.utm_source || pick.utm_campaign) {
-        attributedRevenue += revenue;
+        utmAttributedRevenue += revenue;
         attributedPurchases += 1;
 
         // Group by source
@@ -210,19 +229,20 @@ export async function GET(req: NextRequest) {
       .sort((a, b) => b.revenue - a.revenue);
 
     // 🎯 NEW: Calculate AOV and Conversion Rates
-    const totalRevenueCalc = revenueData?.reduce((sum, r) => sum + (r.wager_amount || 0), 0) || 0;
+    // 🎯 FIXED: This is the second totalRevenue declaration - now unique
+    const totalRevenue = revenueData?.reduce((sum, r) => sum + (r.wager_amount || 0), 0) || 0;
     const totalTransactions = revenueData?.length || 0;
     const totalVisits = trafficData?.length || 0;
-    const aov = totalTransactions > 0 ? totalRevenueCalc / totalTransactions : 0;
+    const aov = totalTransactions > 0 ? totalRevenue / totalTransactions : 0;
     const overallConversionRate = totalVisits > 0 ? (totalTransactions / totalVisits) * 100 : 0;
 
     // Calculate daily AOV for trending
     const aovByDay = revenueData?.reduce((acc: any, row: any) => {
-      const date = new Date(row.created_at).toISOString().split('T')[0];
-      if (!acc[date]) acc[date] = { revenue: 0, transactions: 0, aov: 0 };
-      acc[date].revenue += row.wager_amount || 0;
-      acc[date].transactions += 1;
-      acc[date].aov = acc[date].transactions > 0 ? acc[date].revenue / acc[date].transactions : 0;
+      const groupKey = getGroupKey(new Date(row.created_at), period);
+      if (!acc[groupKey]) acc[groupKey] = { revenue: 0, transactions: 0, aov: 0 };
+      acc[groupKey].revenue += row.wager_amount || 0;
+      acc[groupKey].transactions += 1;
+      acc[groupKey].aov = acc[groupKey].transactions > 0 ? acc[groupKey].revenue / acc[groupKey].transactions : 0;
       return acc;
     }, {}) || {};
 
@@ -254,22 +274,24 @@ export async function GET(req: NextRequest) {
     const totals = {
       total_users: userData?.length || 0,
       total_transactions: totalTransactions,
-      total_revenue: totalRevenueCalc,
+      total_revenue: totalRevenue,
       total_picks: picksData?.length || 0,
       total_visits: totalVisits,
-      // 🎯 NEW: Attribution metrics
-      attributed_revenue: attributedRevenue,
+      // 🎯 NEW: Attribution metrics - using renamed variables
+      attributed_revenue: utmAttributedRevenue,
       attribution_rate: totalPurchases > 0 ? Math.round((attributedPurchases / totalPurchases) * 100) : 0,
       attributed_purchases: attributedPurchases,
       // 🎯 NEW: AOV and Conversion metrics
       aov: Math.round(aov),
       overall_conversion_rate: Math.round(overallConversionRate * 100) / 100,
-      revenue_per_visit: totalVisits > 0 ? Math.round(totalRevenueCalc / totalVisits) : 0
+      revenue_per_visit: totalVisits > 0 ? Math.round(totalRevenue / totalVisits) : 0
     };
 
     // Format response
     const response = {
-      period: parseInt(period),
+      period: period, // Keep original period string
+      period_label: period === '4h' ? '4 horas' : period === '24h' ? '24 horas' : `${period} días`,
+      last_updated: new Date().toISOString(),
       revenue: Object.entries(revenueByDay).map(([date, data]: [string, any]) => ({
         date,
         revenue: data.revenue,

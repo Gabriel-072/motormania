@@ -9,13 +9,16 @@ import {
 } from 'recharts';
 import { 
   FaUsers, FaDollarSign, FaChartLine, FaGamepad,
-  FaCreditCard, FaPaypal, FaCalendarAlt, FaTrophy, FaBullseye, FaPercentage
+  FaCreditCard, FaPaypal, FaCalendarAlt, FaTrophy, FaBullseye, FaPercentage,
+  FaSync, FaClock
 } from 'react-icons/fa';
 import { useUser } from '@clerk/nextjs';
 import { toast } from 'sonner';
 
 interface AnalyticsData {
-  period: number;
+  period: string; // Changed from number to string
+  period_label: string;
+  last_updated: string;
   revenue: Array<{
     date: string;
     revenue: number;
@@ -102,6 +105,8 @@ interface AnalyticsData {
 
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#84cc16', '#f97316'];
 const PERIODS = [
+  { value: '4h', label: '4 horas' },
+  { value: '24h', label: '24 horas' },
   { value: '7', label: '7 días' },
   { value: '30', label: '30 días' },
   { value: '90', label: '90 días' }
@@ -111,10 +116,13 @@ export default function AnalyticsPage() {
   const { user, isLoaded } = useUser();
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [period, setPeriod] = useState('30');
+  const [period, setPeriod] = useState('24h'); // Changed default to 24h
   const [error, setError] = useState<string | null>(null);
   const [password, setPassword] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<string>('');
+  const [refreshing, setRefreshing] = useState(false);
 
   const handlePasswordSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -126,9 +134,13 @@ export default function AnalyticsPage() {
     }
   };
 
-  const fetchAnalytics = async (selectedPeriod: string) => {
+  const fetchAnalytics = async (selectedPeriod: string, isAutoRefresh = false) => {
     try {
-      setLoading(true);
+      if (isAutoRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
       setError(null);
       
       const response = await fetch(`/api/analytics?period=${selectedPeriod}`);
@@ -142,13 +154,28 @@ export default function AnalyticsPage() {
 
       const analyticsData = await response.json();
       setData(analyticsData);
+      setLastUpdated(analyticsData.last_updated);
     } catch (err: any) {
       setError(err.message);
-      toast.error(err.message);
+      if (!isAutoRefresh) {
+        toast.error(err.message);
+      }
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
+
+  // Auto-refresh effect
+  useEffect(() => {
+    if (!isLoaded || !isAuthenticated || !autoRefresh) return;
+
+    const refreshInterval = setInterval(() => {
+      fetchAnalytics(period, true); // Mark as auto-refresh
+    }, 30000); // Refresh every 30 seconds
+
+    return () => clearInterval(refreshInterval);
+  }, [isLoaded, isAuthenticated, period, autoRefresh]);
 
   useEffect(() => {
     if (isLoaded && isAuthenticated) {
@@ -165,7 +192,18 @@ export default function AnalyticsPage() {
   };
 
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('es-CO', {
+    const date = new Date(dateStr);
+    
+    // For hourly data, show time
+    if (period === '4h' || period === '24h') {
+      return date.toLocaleTimeString('es-CO', {
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+    
+    // For daily data, show date
+    return date.toLocaleDateString('es-CO', {
       month: 'short',
       day: 'numeric'
     });
@@ -237,27 +275,59 @@ export default function AnalyticsPage() {
     <div className="min-h-screen bg-gradient-to-b from-gray-950 via-gray-900 to-black text-white p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-8">
           <div>
             <h1 className="text-3xl font-bold text-amber-400">📊 Analytics MotorManía GO</h1>
-            <p className="text-gray-400 mt-1">Dashboard de métricas en tiempo real</p>
+            <div className="flex items-center gap-4 mt-2">
+              <p className="text-gray-400">Dashboard de métricas en tiempo real</p>
+              {lastUpdated && (
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  <div className={`w-2 h-2 rounded-full ${autoRefresh ? 'bg-green-400 animate-pulse' : 'bg-gray-400'}`}></div>
+                  Actualizado: {new Date(lastUpdated).toLocaleTimeString('es-CO')}
+                </div>
+              )}
+            </div>
           </div>
           
-          {/* Period Selector */}
-          <div className="flex gap-2">
-            {PERIODS.map((p) => (
-              <button
-                key={p.value}
-                onClick={() => setPeriod(p.value)}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  period === p.value 
-                    ? 'bg-amber-500 text-black' 
-                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                }`}
-              >
-                {p.label}
-              </button>
-            ))}
+          <div className="flex flex-col lg:flex-row items-start lg:items-center gap-4">
+            {/* Auto-refresh toggle */}
+            <div className="flex items-center gap-2">
+              <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={autoRefresh}
+                  onChange={(e) => setAutoRefresh(e.target.checked)}
+                  className="rounded border-gray-600 bg-gray-700 text-green-500 focus:ring-green-500"
+                />
+                Auto-refresh (30s)
+              </label>
+            </div>
+
+            {/* Period Selector */}
+            <div className="flex gap-2 flex-wrap">
+              {PERIODS.map((p) => (
+                <button
+                  key={p.value}
+                  onClick={() => setPeriod(p.value)}
+                  className={`px-3 py-2 rounded-lg font-medium transition-colors text-sm ${
+                    period === p.value 
+                      ? 'bg-amber-500 text-black' 
+                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  }`}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Manual refresh button */}
+            <button
+              onClick={() => fetchAnalytics(period)}
+              disabled={loading}
+              className="px-3 py-2 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 text-white rounded-lg transition-colors text-sm"
+            >
+              {loading ? '⟳' : '🔄'}
+            </button>
           </div>
         </div>
 
@@ -498,6 +568,12 @@ export default function AnalyticsPage() {
               >
                 <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                   🎯 Tasas de Conversión por Fuente UTM
+                  {data.period === '4h' || data.period === '24h' ? (
+                    <span className="text-xs bg-green-500/20 text-green-400 px-2 py-1 rounded-full flex items-center gap-1">
+                      <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></div>
+                      REAL-TIME
+                    </span>
+                  ) : null}
                 </h3>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
