@@ -4,9 +4,11 @@
 import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStickyStore } from '../stores/stickyStore';
-// ✨ NEW: Currency imports
+// ✨ Currency imports
 import { useCurrencyStore } from '../stores/currencyStore';
 import { CurrencyDisplay } from './ui/CurrencyDisplay';
+// ✨ FIXED: Import tracking utility
+import { trackFBEvent } from '@/lib/trackFBEvent';
 // Import icons
 import { FaArrowRight, FaStar } from 'react-icons/fa';
 
@@ -22,10 +24,10 @@ const StickyModal: React.FC<StickyModalProps> = ({ onFinish }) => {
   // Get state from Zustand store
   const { showSticky, multiplier, picks } = useStickyStore();
   
-  // ✨ NEW: Currency store
+  // ✨ Currency store
   const { initializeCurrency, isInitialized } = useCurrencyStore();
 
-  // ✨ NEW: Initialize currency system on mount
+  // ✨ Initialize currency system on mount
   useEffect(() => {
     if (!isInitialized) {
       initializeCurrency();
@@ -41,6 +43,48 @@ const StickyModal: React.FC<StickyModalProps> = ({ onFinish }) => {
   const isMaxPicks = totalPicks === MAX_PICKS; // Check for max picks
   const wager = 20000; // Base wager amount (adjust if dynamic)
   const potentialWin = isValid ? wager * multiplier : 0;
+
+  // ✨ FIXED: AddToCart tracking function
+  const trackAddToCart = () => {
+    console.log('🛒 StickyModal: Tracking AddToCart event', {
+      totalPicks,
+      wager,
+      isValid,
+      fbqAvailable: typeof window !== 'undefined' && !!window.fbq
+    });
+
+    const eventData = {
+      value: wager / 1000,
+      currency: 'COP',
+      content_type: 'product',
+      content_category: 'sports_betting',
+      content_ids: [`mmc_picks_${totalPicks}`],
+      content_name: `MMC GO Picks (${totalPicks} selections)`,
+      num_items: totalPicks,
+    };
+
+    // Facebook Pixel direct tracking
+    if (typeof window !== 'undefined' && window.fbq) {
+      try {
+        window.fbq('track', 'AddToCart', eventData);
+        console.log('✅ Facebook Pixel AddToCart tracked:', eventData);
+      } catch (error) {
+        console.error('❌ Facebook Pixel AddToCart failed:', error);
+      }
+    } else {
+      console.warn('❌ Facebook Pixel not available for AddToCart tracking');
+    }
+
+    // Also use trackFBEvent utility for consistency
+    try {
+      trackFBEvent('AddToCart', {
+        params: eventData
+      });
+      console.log('✅ trackFBEvent AddToCart sent');
+    } catch (error) {
+      console.error('❌ trackFBEvent AddToCart failed:', error);
+    }
+  };
 
   // --- SVG Arc Calculation ---
   const radius = 20; // SVG circle radius
@@ -231,23 +275,27 @@ const StickyModal: React.FC<StickyModalProps> = ({ onFinish }) => {
         {/* Right Section: Finish Button */}
         <motion.button
           onClick={async () => {
-            if (!isValid) return;
+            console.log('🚀 StickyModal button clicked!', { isValid, totalPicks });
             
-            // Track AddToCart event
-            if (typeof window !== 'undefined' && window.fbq) {
-              window.fbq('track', 'AddToCart', {
-                value: wager / 1000,
-                currency: 'COP',
-                content_type: 'product',
-                content_ids: [`mmc_picks_${totalPicks}`],
-                num_items: totalPicks,
-              });
+            if (!isValid) {
+              console.log('❌ Button click blocked - not valid');
+              return;
             }
             
+            // ✨ FIXED: Track AddToCart event with better error handling
             try {
+              trackAddToCart();
+            } catch (error) {
+              console.error('❌ AddToCart tracking failed:', error);
+              // Don't block the flow if tracking fails
+            }
+            
+            // Open the full modal
+            try {
+              console.log('📱 Opening full modal...');
               await onFinish();
             } catch (error) {
-              console.error('Error opening full modal:', error);
+              console.error('❌ Error opening full modal:', error);
             }
           }}
           disabled={!isValid}
