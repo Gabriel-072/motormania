@@ -129,6 +129,8 @@ export default function MMCGoContent() {
   const [driverVisibility, setDriverVisibility] = useState<Record<string, DriverVisibility>>({});
   const [highlightFirstTwoCards, setHighlightFirstTwoCards] = useState(true);
 
+  // ✨ NEW: Tracking state
+  const [hasTrackedLead, setHasTrackedLead] = useState(false);
 
   // Refs & stores
   const configChannelRef       = useRef<any>(null);
@@ -139,6 +141,59 @@ export default function MMCGoContent() {
     addPick, removePick, setShowSticky,
     setMultiplier, setPotentialWin
   } = useStickyStore();
+
+  // ✨ NEW: PageView tracking when component mounts
+  useEffect(() => {
+    if (!isLoaded) return;
+    
+    console.log('🏁 MMC-GO Page loaded - tracking PageView');
+    
+    // Track PageView event
+    if (typeof window !== 'undefined' && window.fbq) {
+      window.fbq('track', 'PageView', {
+        content_name: 'MMC_GO_Main_Page',
+        content_category: 'sports_betting',
+      });
+      console.log('✅ PageView tracked for MMC-GO');
+    }
+    
+    // Also track with your utility
+    trackFBEvent('PageView', {
+      params: {
+        content_name: 'MMC_GO_Main_Page',
+        content_category: 'sports_betting',
+      }
+    });
+  }, [isLoaded]);
+
+  // ✨ NEW: Lead tracking - only when user shows real intent (first 2 picks)
+  useEffect(() => {
+    const totalPicks = (picks.qualy?.length || 0) + (picks.race?.length || 0);
+    
+    // Track Lead only once when they reach 2 picks (shows real intent)
+    if (totalPicks >= 2 && !hasTrackedLead) {
+      console.log('🎯 User reached 2 picks - tracking Lead event');
+      
+      if (typeof window !== 'undefined' && window.fbq) {
+        window.fbq('track', 'Lead', {
+          content_name: 'MMC_GO_Engagement',
+          content_category: 'sports_betting',
+          num_items: totalPicks,
+        });
+      }
+      
+      trackFBEvent('Lead', {
+        params: {
+          content_name: 'MMC_GO_Engagement',
+          content_category: 'sports_betting',
+          num_items: totalPicks,
+        }
+      });
+      
+      setHasTrackedLead(true);
+      console.log('✅ Lead event tracked (user engaged with 2+ picks)');
+    }
+  }, [picks.qualy, picks.race, hasTrackedLead]);
 
   // EFFECT: Restore pending picks after login
   useEffect(() => {
@@ -847,7 +902,7 @@ const driverGridClasses =
       </div>
     </div>
 
-{/* Mejor/Peor Buttons - Enhanced with New Icons and Clearer Feedback */}
+{/* ✨ FIXED: Mejor/Peor Buttons with proper tracking */}
 <div className="mt-auto flex w-full overflow-hidden rounded-b-lg">
   {(['mejor', 'peor'] as const).map((opt) => {
     const currentPick = getUserPick(driver);
@@ -921,6 +976,16 @@ if (isBetter) {
         
         if (currentPick === opt) {
           removePick(driver, currentSession);
+          
+          // ✨ FIXED: Track pick removal as engagement (not Lead)
+          trackFBEvent('PickRemoved', {
+            params: { 
+              content_name: `${driver}_${opt}_removed`,
+              driver_name: driver,
+              session_type: currentSession,
+              prediction: opt
+            },
+          });
         } else {
           addPick({
             driver,
@@ -930,9 +995,19 @@ if (isBetter) {
             gp_name: currentGp?.gp_name ?? '',
             session_type: currentSession,
           });
-          trackFBEvent('Lead', {
-            params: { content_name: `Pick_${currentSession}_${driver}_${opt}` },
+          
+          // ✨ FIXED: Track individual picks as engagement (not Lead)
+          trackFBEvent('PickSelected', {
+            params: { 
+              content_name: `${driver}_${opt}_selected`,
+              driver_name: driver,
+              session_type: currentSession,
+              prediction: opt,
+              line_value: typeof line === 'number' ? line : 0
+            },
           });
+          
+          console.log(`📊 Pick tracked: ${driver} - ${opt} (${currentSession})`);
         }
       }}
       className={`${baseClasses} ${buttonStateClasses} ${focusRingClasses}`}
