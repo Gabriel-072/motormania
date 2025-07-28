@@ -536,11 +536,11 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                     
                     {/* Simplified Header */}
                     <div className="p-4 text-center">
-                      <h3 className="text-xl font-bold text-white mb-1">🏎️ Let's Place Your Bet!</h3>
+                      <h3 className="text-xl font-bold text-white mb-1">🏎️ Activar el DRS!</h3>
                       <p className="text-green-400 font-semibold">
-                        {totalPicks} picks • <CurrencyDisplay copAmount={amount} />
+                        {totalPicks} Picks • <CurrencyDisplay copAmount={amount} />
                       </p>
-                      <p className="text-xs text-gray-400 mt-2">Quick {authMode === 'signin' ? 'sign in' : 'signup'} to secure your picks</p>
+                      <p className="text-xs text-gray-400 mt-2">Inicio rápido {authMode === 'signin' ? 'sign in' : 'signup'} para asegurar tus picks</p>
                     </div>
                     
                     {authMode === 'signin' ? (
@@ -997,16 +997,16 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                         <FaSpinner className="animate-spin" /> Procesando…
                       </>
                     ) : !isSignedIn ? (
-                      <>🔐 Iniciar Sesión y Pagar <CurrencyDisplay copAmount={amount} /></>
+                      <>CONFIRMAR Y PAGAR <CurrencyDisplay copAmount={amount} /></>
                     ) : paymentMethod === 'wallet' ? (
                       <>🎮 Jugar <CurrencyDisplay copAmount={amount} /></>
                     ) : (isInColombia || currency === 'COP') ? (
                       <>
-                        <FaDollarSign /> Pagar con Tarjeta <CurrencyDisplay copAmount={amount} />
+                        <FaDollarSign /> CONFIRMAR Y PAGAR <CurrencyDisplay copAmount={amount} />
                       </>
                     ) : (
                       <>
-                        <FaDollarSign /> Confirmar y Pagar <CurrencyDisplay copAmount={amount} />
+                        <FaDollarSign /> CONFIRMAR Y PAGAR <CurrencyDisplay copAmount={amount} />
                       </>
                     )}
                   </button>
