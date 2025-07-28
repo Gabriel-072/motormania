@@ -78,19 +78,50 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
   const { getToken } = useAuth();
 
   // ✨ Currency store
-  const { initializeCurrency, isInitialized } = useCurrencyStore();
+  const { initializeCurrency, isInitialized, currency } = useCurrencyStore();
   const { detectionInfo } = useCurrencyInfo();
 
-  // ✨ ENHANCED: More robust Colombia detection
+  // ✨ ENHANCED: More robust Colombia detection with multiple fallbacks
   const isInColombia = useMemo(() => {
-    if (!detectionInfo) return false;
+    // First check: Current currency selection (most reliable)
+    if (currency === 'COP') {
+      console.log('🇨🇴 Colombia detected via currency: COP');
+      return true;
+    }
     
-    return detectionInfo.country === 'Colombia' || 
-           detectionInfo.timezone?.includes('Bogota') ||
-           detectionInfo.timezone?.includes('America/Bogota') ||
-           detectionInfo.currency === 'COP' ||
-           detectionInfo.locale?.includes('CO');
-  }, [detectionInfo]);
+    // Second check: Detection info if available
+    if (detectionInfo) {
+      const colombiaChecks = [
+        detectionInfo.country === 'Colombia',
+        detectionInfo.country === 'CO', 
+        detectionInfo.timezone?.includes('Bogota'),
+        detectionInfo.timezone?.includes('America/Bogota'),
+        detectionInfo.currency === 'COP',
+        detectionInfo.locale?.includes('CO'),
+        detectionInfo.locale?.includes('es-CO')
+      ];
+      
+      const isColombiaByDetection = colombiaChecks.some(check => check);
+      if (isColombiaByDetection) {
+        console.log('🇨🇴 Colombia detected via detectionInfo:', detectionInfo);
+        return true;
+      }
+    }
+    
+    // Third check: Browser timezone as fallback
+    try {
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if (timezone.includes('Bogota') || timezone.includes('America/Bogota')) {
+        console.log('🇨🇴 Colombia detected via browser timezone:', timezone);
+        return true;
+      }
+    } catch (e) {
+      console.warn('Could not detect timezone:', e);
+    }
+    
+    console.log('🌍 International user detected. Currency:', currency, 'DetectionInfo:', detectionInfo);
+    return false;
+  }, [currency, detectionInfo]);
 
   // local state
   const [amount, setAmount] = useState(20000);
@@ -226,15 +257,20 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     setIsValid(!msg);
   }, [combinedPicks, totalPicks, amount, mode, useWallet, wallet]);
 
-  // ✨ ENHANCED: Safe payment method setter
+  // ✨ ENHANCED: Safe payment method setter with better debugging
   const handlePaymentMethodChange = useCallback((method: 'bold' | 'paypal' | 'wallet') => {
+    console.log(`💳 Payment method change requested: ${method}, isInColombia: ${isInColombia}, currency: ${currency}`);
+    
     // Block PayPal for Colombian users
     if (method === 'paypal' && isInColombia) {
-      toast.warning('PayPal no está disponible en Colombia. Usa tarjeta de crédito.');
+      console.log('🚫 BLOCKED: PayPal access denied for Colombian user');
+      toast.error('PayPal no está disponible en Colombia. Usa tarjeta de crédito.', { duration: 4000 });
       return;
     }
+    
+    console.log(`✅ Payment method changed to: ${method}`);
     setPaymentMethod(method);
-  }, [isInColombia]);
+  }, [isInColombia, currency]);
 
   // Helpers para editar picks
   const updatePick = useCallback((idx: number, better: boolean) => {
@@ -608,6 +644,21 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                 </div>
               </div>
 
+              {/* ✨ DEBUG: Detection status (remove in production) */}
+              {process.env.NODE_ENV === 'development' && (
+                <div className="mb-4 p-3 bg-gray-900/50 rounded-lg border border-yellow-500/30">
+                  <h4 className="text-xs font-bold text-yellow-400 mb-2">🔍 DEBUG - Detection Status</h4>
+                  <div className="text-xs text-gray-300 space-y-1">
+                    <div>Currency: <span className="text-cyan-400">{currency}</span></div>
+                    <div>Is Colombia: <span className={isInColombia ? 'text-green-400' : 'text-red-400'}>{isInColombia ? 'YES' : 'NO'}</span></div>
+                    <div>Payment Method: <span className="text-amber-400">{paymentMethod}</span></div>
+                    {detectionInfo && (
+                      <div>Detection: <span className="text-gray-400">{JSON.stringify(detectionInfo, null, 2)}</span></div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Promo message */}
               {promo ? (
                 <div className="mb-4 text-sm text-gray-300">
@@ -717,8 +768,8 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                   </div>
                 )}
 
-                {/* ✨ ENHANCED: Payment Method Selection - Only for International Users */}
-                {!isInColombia && isSignedIn && paymentMethod !== 'wallet' && (
+                {/* ✨ ENHANCED: Payment Method Selection - Only for International Users (with strict Colombia blocking) */}
+                {!isInColombia && isSignedIn && paymentMethod !== 'wallet' && currency !== 'COP' && (
                   <div className="bg-gray-800/70 rounded-lg p-4">
                     <h4 className="text-sm font-semibold text-gray-300 mb-3 flex items-center gap-2">
                       <FaGlobeAmericas className="text-blue-400" />
@@ -752,8 +803,8 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                   </div>
                 )}
 
-                {/* ✨ NEW: Information banner for Colombian users */}
-                {isInColombia && isSignedIn && paymentMethod !== 'wallet' && (
+                {/* ✨ ENHANCED: Information banner for Colombian users */}
+                {(isInColombia || currency === 'COP') && isSignedIn && paymentMethod !== 'wallet' && (
                   <div className="bg-gradient-to-r from-green-800/30 to-blue-800/30 rounded-lg p-4 border border-green-700/50">
                     <div className="flex items-center gap-3">
                       <div className="text-2xl">🇨🇴</div>
@@ -863,8 +914,8 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                   )}
                 </AnimatePresence>
 
-                {/* ✨ ENHANCED: PayPal button section - with Colombia check */}
-                {isSignedIn && paymentMethod === 'paypal' && !isInColombia ? (
+                {/* ✨ ENHANCED: PayPal button section - with strict Colombia check */}
+                {isSignedIn && paymentMethod === 'paypal' && !isInColombia && currency !== 'COP' ? (
                   <div className="space-y-2">
                     <PayPalScriptProvider options={{ 
                       clientId: process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID!,
@@ -949,7 +1000,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                       <>🔐 Iniciar Sesión y Pagar <CurrencyDisplay copAmount={amount} /></>
                     ) : paymentMethod === 'wallet' ? (
                       <>🎮 Jugar <CurrencyDisplay copAmount={amount} /></>
-                    ) : isInColombia ? (
+                    ) : (isInColombia || currency === 'COP') ? (
                       <>
                         <FaDollarSign /> Pagar con Tarjeta <CurrencyDisplay copAmount={amount} />
                       </>
