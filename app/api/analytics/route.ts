@@ -209,16 +209,62 @@ export async function GET(req: NextRequest) {
       }))
       .sort((a, b) => b.revenue - a.revenue);
 
+    // 🎯 NEW: Calculate AOV and Conversion Rates
+    const totalRevenueCalc = revenueData?.reduce((sum, r) => sum + (r.wager_amount || 0), 0) || 0;
+    const totalTransactions = revenueData?.length || 0;
+    const totalVisits = trafficData?.length || 0;
+    const aov = totalTransactions > 0 ? totalRevenueCalc / totalTransactions : 0;
+    const overallConversionRate = totalVisits > 0 ? (totalTransactions / totalVisits) * 100 : 0;
+
+    // Calculate daily AOV for trending
+    const aovByDay = revenueData?.reduce((acc: any, row: any) => {
+      const date = new Date(row.created_at).toISOString().split('T')[0];
+      if (!acc[date]) acc[date] = { revenue: 0, transactions: 0, aov: 0 };
+      acc[date].revenue += row.wager_amount || 0;
+      acc[date].transactions += 1;
+      acc[date].aov = acc[date].transactions > 0 ? acc[date].revenue / acc[date].transactions : 0;
+      return acc;
+    }, {}) || {};
+
+    // Calculate UTM conversion rates
+    const utmConversionRates: Record<string, { visits: number; purchases: number; conversion_rate: number; revenue: number }> = {};
+    
+    // Count visits by UTM source
+    const visitsBySource: Record<string, number> = {};
+    trafficData?.forEach((traffic: any) => {
+      const source = traffic.utm_source || 'Direct';
+      visitsBySource[source] = (visitsBySource[source] || 0) + 1;
+    });
+
+    // Match with purchases for conversion rates
+    Object.entries(utmSources).forEach(([source, data]) => {
+      const visits = visitsBySource[source] || 0;
+      const purchases = data.purchases;
+      const conversionRate = visits > 0 ? (purchases / visits) * 100 : 0;
+      
+      utmConversionRates[source] = {
+        visits,
+        purchases,
+        conversion_rate: conversionRate,
+        revenue: data.revenue
+      };
+    });
+
     // Calculate totals
     const totals = {
       total_users: userData?.length || 0,
-      total_transactions: revenueData?.length || 0,
-      total_revenue: revenueData?.reduce((sum, r) => sum + (r.wager_amount || 0), 0) || 0,
+      total_transactions: totalTransactions,
+      total_revenue: totalRevenueCalc,
       total_picks: picksData?.length || 0,
+      total_visits: totalVisits,
       // 🎯 NEW: Attribution metrics
       attributed_revenue: attributedRevenue,
       attribution_rate: totalPurchases > 0 ? Math.round((attributedPurchases / totalPurchases) * 100) : 0,
-      attributed_purchases: attributedPurchases
+      attributed_purchases: attributedPurchases,
+      // 🎯 NEW: AOV and Conversion metrics
+      aov: Math.round(aov),
+      overall_conversion_rate: Math.round(overallConversionRate * 100) / 100,
+      revenue_per_visit: totalVisits > 0 ? Math.round(totalRevenueCalc / totalVisits) : 0
     };
 
     // Format response
@@ -229,6 +275,13 @@ export async function GET(req: NextRequest) {
         revenue: data.revenue,
         transactions: data.transactions,
         avg_bet: data.transactions > 0 ? data.revenue / data.transactions : 0
+      })).sort((a, b) => a.date.localeCompare(b.date)),
+      // 🎯 NEW: AOV trending data
+      aov: Object.entries(aovByDay).map(([date, data]: [string, any]) => ({
+        date,
+        aov: Math.round(data.aov),
+        transactions: data.transactions,
+        revenue: data.revenue
       })).sort((a, b) => a.date.localeCompare(b.date)),
       users: Object.entries(usersByDay).map(([date, count]) => ({
         date,
@@ -247,6 +300,15 @@ export async function GET(req: NextRequest) {
       utmRevenue: utmRevenueData,
       utmSources: utmSourcesData,
       utmCampaigns: utmCampaignsData,
+      // 🎯 NEW: UTM conversion rates
+      utmConversionRates: Object.entries(utmConversionRates).map(([source, data]) => ({
+        source,
+        visits: data.visits,
+        purchases: data.purchases,
+        conversion_rate: Math.round(data.conversion_rate * 100) / 100,
+        revenue: data.revenue,
+        revenue_per_visit: data.visits > 0 ? Math.round(data.revenue / data.visits) : 0
+      })).sort((a, b) => b.conversion_rate - a.conversion_rate),
       totals
     };
 
