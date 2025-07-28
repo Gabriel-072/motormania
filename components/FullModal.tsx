@@ -22,6 +22,7 @@ import { openBoldCheckout } from '@/lib/bold';
 import { toast } from 'sonner';
 import { createAuthClient } from '@/lib/supabase';
 import { PickSelection } from '@/app/types/picks';
+import { trackFBEvent } from '@/lib/trackFBEvent';
 
 // ✨ Currency imports
 import { useCurrencyStore, useCurrencyInfo } from '@/stores/currencyStore';
@@ -157,6 +158,37 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     ...(picks.race ?? [])
   ];
   const totalPicks = combinedPicks.length;
+
+  // ✨ NEW: InitiateCheckout tracking helper
+  const trackInitiateCheckout = useCallback((paymentMethodUsed: string) => {
+    console.log(`🎯 Tracking InitiateCheckout - ${paymentMethodUsed} payment button clicked`);
+    
+    if (typeof window !== 'undefined' && window.fbq) {
+      const eventData = {
+        value: amount / 1000, // Convert to thousands for better tracking
+        currency: 'COP',
+        content_type: 'product',
+        content_category: 'sports_betting',
+        content_ids: [`mmc_picks_${totalPicks}`],
+        content_name: `MMC GO ${mode === 'full' ? 'Full Throttle' : 'Safety Car'} (${totalPicks} picks)`,
+        num_items: totalPicks,
+        payment_method: paymentMethodUsed,
+      };
+
+      // Standard Facebook tracking
+      window.fbq('track', 'InitiateCheckout', eventData);
+      
+      // Also track with your custom trackFBEvent utility for better deduplication
+      trackFBEvent('InitiateCheckout', {
+        params: eventData,
+        email: user?.primaryEmailAddress?.emailAddress
+      });
+      
+      console.log('✅ InitiateCheckout tracked:', eventData);
+    } else {
+      console.warn('❌ Facebook Pixel not loaded for InitiateCheckout tracking');
+    }
+  }, [amount, totalPicks, mode, user]);
 
   // ✨ Initialize currency system
   useEffect(() => {
@@ -337,7 +369,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     }
   };
 
-  // Bold payment handler
+  // Bold payment handler - FIXED: Removed onOpen tracking
   const handleBoldPayment = async () => {
     if (!user?.id || isProcessing || !isValid) return;
     const email = user.primaryEmailAddress?.emailAddress;
@@ -376,20 +408,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
         integritySignature: integrityKey,
         customerData: JSON.stringify({ email, fullName: user.fullName ?? 'Jugador MMC' }),
         renderMode: 'embedded',
-        onOpen: () => {
-          console.log('🎯 Bold checkout opened - tracking InitiateCheckout');
-          if (typeof window !== 'undefined' && window.fbq) {
-            window.fbq('track', 'InitiateCheckout', {
-              value: amount / 1000,
-              currency: 'COP',
-              content_type: 'product',
-              content_category: 'sports_betting',
-              content_ids: [`mmc_picks_${totalPicks}`],
-              content_name: `MMC GO ${mode === 'full' ? 'Full Throttle' : 'Safety Car'} (${totalPicks} picks)`,
-              num_items: totalPicks,
-            });
-          }
-        },
+        // ❌ REMOVED: InitiateCheckout tracking moved to button click
         onSuccess: async () => {
           if (typeof window !== 'undefined' && window.fbq) {
             const eventId = `purchase_${orderId}_${user.id}`;
@@ -496,12 +515,15 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     }
   };
 
-  // ✨ NEW: Main confirm handler with payment method routing
+  // ✨ UPDATED: Main confirm handler with InitiateCheckout tracking
   const handleConfirm = () => {
     if (!isSignedIn) {
       setShowInlineAuth(true);
       return;
     }
+    
+    // 🎯 Track InitiateCheckout when payment button is clicked
+    trackInitiateCheckout(paymentMethod);
     
     if (paymentMethod === 'wallet') return handleWalletBet();
     if (paymentMethod === 'paypal') return; // PayPal handled by PayPalButtons component
@@ -917,7 +939,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                   )}
                 </AnimatePresence>
 
-                {/* ✨ ENHANCED: PayPal button section - with strict Colombia check */}
+                {/* ✨ ENHANCED: PayPal button section - with strict Colombia check and tracking */}
                 {isSignedIn && paymentMethod === 'paypal' && !isInColombia && currency !== 'COP' ? (
                   <div className="space-y-2">
                     <PayPalScriptProvider options={{ 
@@ -927,22 +949,15 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                     }}>
                       <PayPalButtons
                         disabled={!isValid || isProcessing}
-                        createOrder={handlePayPalPayment}
+                        createOrder={() => {
+                          // 🎯 Track InitiateCheckout for PayPal
+                          trackInitiateCheckout('paypal');
+                          return handlePayPalPayment();
+                        }}
                         onApprove={async (data, actions) => {
                           setIsProcessing(true);
                           try {
-                            // Track InitiateCheckout when PayPal modal opens
-                            if (typeof window !== 'undefined' && window.fbq) {
-                              window.fbq('track', 'InitiateCheckout', {
-                                value: amount / 1000,
-                                currency: 'COP',
-                                content_type: 'product',
-                                content_category: 'sports_betting',
-                                content_ids: [`mmc_picks_${totalPicks}`],
-                                content_name: `MMC GO ${mode === 'full' ? 'Full Throttle' : 'Safety Car'} (${totalPicks} picks)`,
-                                num_items: totalPicks,
-                              });
-                            }
+                            // ❌ REMOVED: InitiateCheckout tracking moved to createOrder
 
                             // PayPal will handle the capture via webhook
                             toast.success('Pago de PayPal procesando...');
@@ -1000,16 +1015,16 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                         <FaSpinner className="animate-spin" /> Procesando…
                       </>
                     ) : !isSignedIn ? (
-                      <>Confirmar y pagar <CurrencyDisplay copAmount={amount} /></>
+                      <>🔐 Iniciar Sesión y Pagar <CurrencyDisplay copAmount={amount} /></>
                     ) : paymentMethod === 'wallet' ? (
-                      <>🎮 Jugar <CurrencyDisplay copAmount={amount} /></>
+                      <>🎮 Jugar <CurrencyDisplay copAmount={amount} /></> 
                     ) : (isInColombia || currency === 'COP') ? (
                       <>
-                      Confirmar y pagar <CurrencyDisplay copAmount={amount} />
+                        <FaDollarSign /> Confirmar y pagar <CurrencyDisplay copAmount={amount} />
                       </>
                     ) : (
                       <>
-                      Confirmar y Pagar <CurrencyDisplay copAmount={amount} />
+                        <FaDollarSign /> Confirmar y Pagar <CurrencyDisplay copAmount={amount} />
                       </>
                     )}
                   </button>
