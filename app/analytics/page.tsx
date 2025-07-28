@@ -9,7 +9,7 @@ import {
 } from 'recharts';
 import { 
   FaUsers, FaDollarSign, FaChartLine, FaGamepad,
-  FaCreditCard, FaPaypal, FaCalendarAlt, FaTrophy
+  FaCreditCard, FaPaypal, FaCalendarAlt, FaTrophy, FaBullseye, FaPercentage
 } from 'react-icons/fa';
 import { useUser } from '@clerk/nextjs';
 import { toast } from 'sonner';
@@ -47,15 +47,41 @@ interface AnalyticsData {
     campaign: string;
     count: number;
   }>;
+  // 🎯 NEW: UTM Revenue Data
+  utmRevenue: Array<{
+    source_campaign: string;
+    source: string;
+    campaign: string;
+    revenue: number;
+    purchases: number;
+    avg_purchase: number;
+  }>;
+  utmSources: Array<{
+    source: string;
+    revenue: number;
+    purchases: number;
+    avg_purchase: number;
+  }>;
+  utmCampaigns: Array<{
+    campaign: string;
+    source: string;
+    revenue: number;
+    purchases: number;
+    avg_purchase: number;
+  }>;
   totals: {
     total_users: number;
     total_transactions: number;
     total_revenue: number;
     total_picks: number;
+    // 🎯 NEW: Attribution metrics
+    attributed_revenue: number;
+    attribution_rate: number;
+    attributed_purchases: number;
   };
 }
 
-const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'];
+const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#84cc16', '#f97316'];
 const PERIODS = [
   { value: '7', label: '7 días' },
   { value: '30', label: '30 días' },
@@ -219,7 +245,7 @@ export default function AnalyticsPage() {
         {data && (
           <>
             {/* KPI Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -266,10 +292,27 @@ export default function AnalyticsPage() {
                 </div>
               </motion.div>
 
+              {/* 🎯 NEW: Attribution Rate Card */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
+                className="bg-gradient-to-br from-cyan-800/50 to-cyan-900/50 p-6 rounded-xl border border-cyan-700/50"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-cyan-400 text-sm font-medium">Atribución UTM</p>
+                    <p className="text-2xl font-bold text-white">{data.totals.attribution_rate}%</p>
+                    <p className="text-xs text-cyan-300">{formatCurrency(data.totals.attributed_revenue)}</p>
+                  </div>
+                  <FaBullseye className="text-cyan-400 text-2xl" />
+                </div>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
                 className="bg-gradient-to-br from-amber-800/50 to-amber-900/50 p-6 rounded-xl border border-amber-700/50"
               >
                 <div className="flex items-center justify-between">
@@ -357,6 +400,69 @@ export default function AnalyticsPage() {
               </motion.div>
             </div>
 
+            {/* 🎯 NEW: UTM Revenue Attribution Row */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+              {/* UTM Sources Revenue */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-gray-800/50 p-6 rounded-xl border border-gray-700/50"
+              >
+                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                  <FaBullseye className="text-cyan-400" />
+                  Ingresos por Fuente UTM
+                </h3>
+                <div className="space-y-3 max-h-60 overflow-y-auto">
+                  {data.utmSources.slice(0, 8).map((source, index) => (
+                    <div key={source.source} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white`} 
+                             style={{ backgroundColor: COLORS[index % COLORS.length] }}>
+                          {index + 1}
+                        </div>
+                        <span className="text-white font-medium truncate">{source.source}</span>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-white font-semibold">{formatCurrency(source.revenue)}</div>
+                        <div className="text-gray-400 text-xs">{source.purchases} compras</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+
+              {/* UTM Campaigns Revenue */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-gray-800/50 p-6 rounded-xl border border-gray-700/50"
+              >
+                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                  🎯 Campañas con Mayor Retorno
+                </h3>
+                <div className="space-y-3 max-h-60 overflow-y-auto">
+                  {data.utmCampaigns.slice(0, 8).map((campaign, index) => (
+                    <div key={campaign.campaign} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white`}
+                             style={{ backgroundColor: COLORS[index % COLORS.length] }}>
+                          {index + 1}
+                        </div>
+                        <div>
+                          <span className="text-white font-medium truncate block">{campaign.campaign}</span>
+                          <span className="text-gray-400 text-xs">{campaign.source}</span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-white font-semibold">{formatCurrency(campaign.revenue)}</div>
+                        <div className="text-gray-400 text-xs">{campaign.purchases} compras</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            </div>
+
             {/* Charts Row 2 */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
               {/* Payment Methods */}
@@ -400,14 +506,14 @@ export default function AnalyticsPage() {
                 </div>
               </motion.div>
 
-              {/* Traffic Sources */}
+              {/* Traffic Sources (Visits) */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="bg-gray-800/50 p-6 rounded-xl border border-gray-700/50"
               >
                 <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                  🌍 Fuentes de Tráfico
+                  🌍 Fuentes de Tráfico (Visitas)
                 </h3>
                 <div className="flex items-center justify-center">
                   <ResponsiveContainer width="100%" height={250}>
@@ -443,7 +549,7 @@ export default function AnalyticsPage() {
 
             {/* Charts Row 3 */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Popular Campaigns */}
+              {/* Popular Campaigns (Traffic) */}
               {data.trafficCampaigns.length > 0 && (
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
@@ -451,15 +557,14 @@ export default function AnalyticsPage() {
                   className="bg-gray-800/50 p-6 rounded-xl border border-gray-700/50"
                 >
                   <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                    🎯 Campañas Populares
+                    🎯 Campañas Populares (Tráfico)
                   </h3>
                   <div className="space-y-3">
                     {data.trafficCampaigns.slice(0, 6).map((campaign, index) => (
                       <div key={campaign.campaign} className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                            COLORS[index % COLORS.length]
-                          }`} style={{ backgroundColor: COLORS[index % COLORS.length] }}>
+                          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold`} 
+                               style={{ backgroundColor: COLORS[index % COLORS.length], color: 'white' }}>
                             {index + 1}
                           </div>
                           <span className="text-white font-medium truncate">{campaign.campaign}</span>
@@ -470,6 +575,7 @@ export default function AnalyticsPage() {
                   </div>
                 </motion.div>
               )}
+              
               {/* Popular Drivers */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}

@@ -81,6 +81,7 @@ async function trackPurchaseEvent(orderData: {
   userId?: string;
   picks?: any[];
   mode?: string;
+  utmData?: any;
 }) {
   const eventId = `purchase_${orderData.orderId}_${Date.now()}`;
   
@@ -98,6 +99,10 @@ async function trackPurchaseEvent(orderData: {
       content_name: `MMC GO ${orderData.mode === 'full' ? 'Full Throttle' : 'Safety Car'} (${orderData.picks?.length || 0} picks)`,
       num_items: orderData.picks?.length || 1,
       order_id: orderData.orderId,
+      // 🎯 NEW: Include UTM data in tracking
+      utm_source: orderData.utmData?.utm_source,
+      utm_medium: orderData.utmData?.utm_medium,
+      utm_campaign: orderData.utmData?.utm_campaign,
     };
 
     await fetch(`${SITE_URL}/api/fb-track`, {
@@ -178,7 +183,31 @@ export async function POST(req: NextRequest) {
         })
         .eq('id', tx.id);
 
-      // Move to picks table
+      // 🎯 NEW: Get recent UTM data for this user
+      let utmData = null;
+      if (tx.user_id) {
+        const { data: recentTraffic } = await sb
+          .from('traffic_sources')
+          .select('utm_source, utm_medium, utm_campaign, utm_term, utm_content, referrer')
+          .eq('user_id', tx.user_id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        
+        utmData = recentTraffic;
+        
+        // Log attribution if found
+        if (utmData?.utm_source || utmData?.utm_campaign) {
+          console.log(`🎯 PayPal Purchase attributed to UTM:`, {
+            orderId: customId,
+            utm_source: utmData.utm_source,
+            utm_campaign: utmData.utm_campaign,
+            amount: tx.wager_amount
+          });
+        }
+      }
+
+      // 🎯 Move to picks table WITH UTM data
       await sb.from('picks').insert({
         user_id: tx.user_id,
         gp_name: tx.gp_name,
@@ -190,7 +219,14 @@ export async function POST(req: NextRequest) {
         name: tx.full_name,
         mode: tx.mode,
         order_id: customId,
-        pick_transaction_id: tx.id
+        pick_transaction_id: tx.id,
+        // 🎯 NEW: Include UTM attribution from recent traffic
+        utm_source: utmData?.utm_source,
+        utm_medium: utmData?.utm_medium,
+        utm_campaign: utmData?.utm_campaign,
+        utm_term: utmData?.utm_term,
+        utm_content: utmData?.utm_content,
+        referrer: utmData?.referrer
       });
 
       // Add wallet rewards
@@ -208,7 +244,7 @@ export async function POST(req: NextRequest) {
         if (rpcErr) console.warn('RPC wallet error', rpcErr.message);
       }
 
-      // Track Facebook Purchase event
+      // 🎯 Track Facebook Purchase event with UTM
       await trackPurchaseEvent({
         orderId: customId,
         amount: tx.wager_amount || 0,
@@ -216,7 +252,8 @@ export async function POST(req: NextRequest) {
         email: tx.email,
         userId: tx.user_id,
         picks: tx.picks || [],
-        mode: tx.mode
+        mode: tx.mode,
+        utmData: utmData
       });
 
       // Send confirmation email
