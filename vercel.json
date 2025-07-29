@@ -1,15 +1,9 @@
 {
-  "redirects": [
-    {
-      "source": "/",
-      "destination": "/fantasy",
-      "permanent": true
-    }
-  ],
-  "crons": [
-    {
-      "path": "/api/abandonment/detect",
-      "schedule": "*/30 * * * *"
-    }
-  ]
-}
+    "redirects": [
+      {
+        "source": "/",
+        "destination": "/fantasy",
+        "permanent": true
+      }
+    ]
+  }
