@@ -127,8 +127,21 @@ export default function MMCGoContent() {
   const [isRaceEnabled,  setIsRaceEnabled]  = useState(true);
   const [showTutorial,  setShowTutorial]    = useState(false);
   const [driverVisibility, setDriverVisibility] = useState<Record<string, DriverVisibility>>({});
-  const [highlightFirstTwoCards, setHighlightFirstTwoCards] = useState(true);
-
+  const [highlightFirstTwoCards, setHighlightFirstTwoCards] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const hasModalParam = urlParams.get('modal') === 'full';
+      const hasVisited = localStorage.getItem('mmc_go_visited') === 'true';
+      
+      if (hasModalParam || hasVisited) {
+        return false;
+      }
+      
+      localStorage.setItem('mmc_go_visited', 'true');
+      return true;
+    }
+    return false;
+  });
   // ✨ NEW: Tracking state
   const [hasTrackedLead, setHasTrackedLead] = useState(false);
 
@@ -219,7 +232,7 @@ export default function MMCGoContent() {
     if (highlightFirstTwoCards && isDataLoaded) {
       const timer = setTimeout(() => {
         setHighlightFirstTwoCards(false);
-      }, 5000); // Se quita el highlight después de 5 segundos
+      }, 2000);
   
       return () => clearTimeout(timer);
     }
