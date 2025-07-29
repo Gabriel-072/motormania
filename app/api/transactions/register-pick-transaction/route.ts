@@ -51,22 +51,6 @@ export async function POST(req:NextRequest){
     if(mode==='safety' && picks.length<3)
       return NextResponse.json({ error:'Safety requiere ≥3 picks'},{status:400});
 
-    /* 3.5️⃣ Idempotency check - prevent duplicate pending transactions */
-    const { data: recentPending } = await sb
-      .from('pick_transactions')
-      .select('id, created_at')
-      .eq('user_id', userId)
-      .eq('payment_status', 'pending')
-      .gte('created_at', new Date(Date.now() - 5 * 60 * 1000).toISOString())
-      .maybeSingle();
-
-    if (recentPending) {
-      console.log(`🔄 Duplicate transaction blocked for user ${userId}`);
-      return NextResponse.json({ 
-        error: 'Ya tienes una transacción pendiente. Espera 5 minutos o completa el pago anterior.' 
-      }, { status: 409 });
-    }
-
     /* 4️⃣  Cálculos */
     const multiplier   = calcMultiplier(picks.length, mode);
     const potentialWin = multiplier * amount;
@@ -96,8 +80,6 @@ export async function POST(req:NextRequest){
       payment_status:'pending'
     });
     if(dbErr) throw dbErr;
-
-    console.log(`✅ Created pending transaction: ${orderId} for user ${userId}`);
 
     /* 6️⃣  Respuesta para el frontend */
     return NextResponse.json({
