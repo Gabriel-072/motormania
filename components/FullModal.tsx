@@ -553,8 +553,6 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                           <SignIn
                             routing="virtual"
                             signUpUrl="#"
-                            forceRedirectUrl={null}
-                            fallbackRedirectUrl={null}
                             appearance={{
                               variables: {
                                 colorPrimary: "#10b981",
@@ -591,10 +589,6 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                           <SignUp
                             routing="virtual"
                             signInUrl="#"
-                            afterSignUpUrl={null}
-                            redirectUrl={null}
-                            forceRedirectUrl={null}
-                            fallbackRedirectUrl={null}
                             unsafeMetadata={{
                               betAmount: amount,
                               picksCount: totalPicks,
