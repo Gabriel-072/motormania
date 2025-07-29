@@ -484,12 +484,12 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center"
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-end sm:items-center justify-center"
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
         >
           <div className="w-full max-w-2xl p-4">
             <motion.div
-              className="bg-gradient-to-b from-gray-900 to-[#0a1922] rounded-xl p-6 border border-gray-700/50 shadow-xl flex flex-col max-h-[90vh]"
+              className="bg-gray-900/80 backdrop-blur-lg rounded-xl p-6 border border-gray-700/50 shadow-xl flex flex-col max-h-[90vh]"
               initial={{ y: 60, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 60, opacity: 0 }}
@@ -502,7 +502,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="absolute inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 rounded-xl"
+                    className="absolute inset-0 z-[100] bg-black/70 backdrop-blur-lg flex items-center justify-center p-4 rounded-xl"
                     onClick={(e) => {
                       // Prevent closing during auth loading
                       if (!authLoading && e.target === e.currentTarget) {
