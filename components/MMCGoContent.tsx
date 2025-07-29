@@ -31,6 +31,8 @@ import { trackFBEvent } from '@/lib/trackFBEvent'; // Ajusta ruta si es necesari
 import { FaCheck, FaTimes, FaArrowUp, FaArrowDown } from 'react-icons/fa';
 import { TiRefresh } from 'react-icons/ti';
 
+import PickRecoveryModal from '@/components/PickRecoveryModal';
+
 // ──────────────────────────────────────────────────────────────────────────────
 // SECTION: Types
 // ──────────────────────────────────────────────────────────────────────────────
@@ -126,6 +128,7 @@ export default function MMCGoContent() {
   const [isQualyEnabled, setIsQualyEnabled] = useState(true);
   const [isRaceEnabled,  setIsRaceEnabled]  = useState(true);
   const [showTutorial,  setShowTutorial]    = useState(false);
+  const [recoveryId, setRecoveryId] = useState<string | null>(null);
   const [driverVisibility, setDriverVisibility] = useState<Record<string, DriverVisibility>>({});
   const [highlightFirstTwoCards, setHighlightFirstTwoCards] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -657,13 +660,17 @@ useEffect(() => {
   mql.addEventListener('change', onChange);
   return () => mql.removeEventListener('change', onChange);
 }, []);
+
+useEffect(() => {
+  const urlParams = new URLSearchParams(window.location.search);
+  const recover = urlParams.get('recover');
+  if (recover) setRecoveryId(recover);
+}, []);
            
           
 // ──────────────────────────────────────────────────────────────────────────
 // RENDER LOGIC
 // ──────────────────────────────────────────────────────────────────────────
-
-
 
 if (!isLoaded) {
   return <LoadingAnimation text="Cargando autenticación…" animationDuration={4} />;
@@ -1101,6 +1108,11 @@ if (isBetter) {
             {showRealtimeModal && ( <Transition appear show={showRealtimeModal} as={Fragment}> <Dialog as="div" className="relative z-[90]" onClose={() => setShowRealtimeModal(false)}> <Transition.Child as={Fragment} {...{/* Overlay */} }> <div className="fixed inset-0 bg-black/80 backdrop-blur-sm" aria-hidden="true" /> </Transition.Child> <div className="fixed inset-0 flex items-center justify-center p-4"> <Transition.Child as={Fragment} {...{/* Panel */} }> <Dialog.Panel className="mx-auto max-w-xs w-full rounded-xl bg-gradient-to-br from-gray-800 to-black border border-cyan-500/30 p-6 text-white shadow-xl text-center"> <Dialog.Title className="text-lg font-bold text-cyan-400 flex items-center justify-center gap-2"><span className="text-xl">⚡</span> Estado Actualizado</Dialog.Title> <Dialog.Description className="mt-2 text-sm text-gray-300"> La disponibilidad de picks (Qualy/Carrera) ha sido actualizada. </Dialog.Description> <div className="mt-4"> <button onClick={() => setShowRealtimeModal(false)} className="w-full px-4 py-2 text-sm font-medium bg-cyan-600 text-white rounded-md hover:bg-cyan-700 transition-colors duration-200 shadow"> Entendido </button> </div> </Dialog.Panel> </Transition.Child> </div> </Dialog> </Transition> )}
           </AnimatePresence>
           {/* === End Modals === */}
+          <PickRecoveryModal 
+            recoveryId={recoveryId}
+            onClose={() => setRecoveryId(null)}
+            onRecover={() => setShowFullModal(true)}
+          />
 
         </main>
       )} {/* End Main Content Render */}
