@@ -1,4 +1,4 @@
-// 📁 components/FullModal.tsx - FIXED AUTH FLOW
+// 📁 components/FullModal.tsx - FIXED CURRENCY ALIGNMENT
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -77,33 +77,20 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
   const { getToken } = useAuth();
   const router = useRouter();
 
-  // ✨ Currency store
-  const { initializeCurrency, isInitialized, currency } = useCurrencyStore();
-  const { detectionInfo } = useCurrencyInfo();
+  // ✨ Currency store - unified currency management
+  const { initializeCurrency, isInitialized, convertToCOP } = useCurrencyStore();
+  const { minimumBet, currency } = useCurrencyInfo();
 
-  // ✨ Colombia detection
-  const isInColombia = useMemo(() => {
-    if (currency === 'COP') return true;
-    if (detectionInfo) {
-      const colombiaChecks = [
-        detectionInfo.country === 'Colombia',
-        detectionInfo.country === 'CO', 
-        detectionInfo.timezone?.includes('Bogota'),
-        detectionInfo.timezone?.includes('America/Bogota'),
-        detectionInfo.currency === 'COP',
-        detectionInfo.locale?.includes('CO'),
-        detectionInfo.locale?.includes('es-CO')
-      ];
-      if (colombiaChecks.some(check => check)) return true;
-    }
-    try {
-      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      if (timezone.includes('Bogota') || timezone.includes('America/Bogota')) return true;
-    } catch (e) {
-      console.warn('Could not detect timezone:', e);
-    }
-    return false;
-  }, [currency, detectionInfo]);
+  // ✨ Dynamic minimum amount based on currency
+  const defaultAmount = useMemo(() => {
+    if (!isInitialized) return 20000; // COP fallback
+    
+    // Use minimum bet but ensure it's reasonable for betting
+    const baseDisplayAmount = Math.max(minimumBet.display, currency === 'COP' ? 20 : 5);
+    
+    // Convert to COP for internal processing
+    return Math.round(convertToCOP(baseDisplayAmount));
+  }, [isInitialized, minimumBet.display, currency, convertToCOP]);
 
   // local state
   const [amount, setAmount] = useState(20000);
@@ -118,7 +105,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
   // promotion
   const [promo, setPromo] = useState<Promo | null>(null);
 
-  // ✨ FIXED: Payment method state
+  // ✨ Payment method state
   const [paymentMethod, setPaymentMethod] = useState<'bold' | 'wallet'>('bold');
 
   // Notificaciones FOMO
@@ -131,14 +118,29 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
   ];
   const totalPicks = combinedPicks.length;
 
+  // ✨ Initialize currency system
+  useEffect(() => {
+    if (isOpen && !isInitialized) {
+      initializeCurrency();
+    }
+  }, [isOpen, initializeCurrency, isInitialized]);
+
+  // ✨ Set default amount when currency system is ready
+  useEffect(() => {
+    if (isInitialized && amount === 20000) {
+      setAmount(defaultAmount);
+    }
+  }, [isInitialized, defaultAmount]);
+
   // ✨ InitiateCheckout tracking helper
   const trackInitiateCheckout = useCallback((paymentMethodUsed: string) => {
     console.log(`🎯 Tracking InitiateCheckout - ${paymentMethodUsed} payment button clicked`);
     
     if (typeof window !== 'undefined' && window.fbq) {
+      const copAmount = currency === 'COP' ? amount : convertToCOP(amount);
       const eventData = {
-        value: amount / 1000,
-        currency: 'COP',
+        value: copAmount / 1000,
+        currency: 'COP', // Always track in COP for consistency
         content_type: 'product',
         content_category: 'sports_betting',
         content_ids: [`mmc_picks_${totalPicks}`],
@@ -155,14 +157,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
       
       console.log('✅ InitiateCheckout tracked:', eventData);
     }
-  }, [amount, totalPicks, mode, user]);
-
-  // ✨ Initialize currency system
-  useEffect(() => {
-    if (isOpen && !isInitialized) {
-      initializeCurrency();
-    }
-  }, [isOpen, initializeCurrency, isInitialized]);
+  }, [amount, totalPicks, mode, user, currency, convertToCOP]);
 
   // Fetch wallet balance
   useEffect(() => {
@@ -204,15 +199,19 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     })();
   }, [getToken]);
 
-  // Validation
+  // ✨ UPDATED: Validation with currency-aware minimum
   useEffect(() => {
     let msg: string | null = null;
-    const betMmc = Math.round(amount / 1000);
+    const copAmount = currency === 'COP' ? amount : convertToCOP(amount);
+    const betMmc = Math.round(copAmount / 1000);
+    const minCOPAmount = isInitialized ? convertToCOP(minimumBet.display) : 20000;
+    
     if (totalPicks < 2) msg = 'Elige al menos 2 picks';
     else if (totalPicks > 8) msg = 'Máximo 8 picks por jugada';
     else if (combinedPicks.some(p => !p.betterOrWorse))
       msg = 'Completa todos tus picks (Mejor/Peor)';
-    else if (amount < 20000) msg = 'Monto mínimo $20.000 COP o $5 USD';
+    else if (copAmount < minCOPAmount) 
+      msg = `Monto mínimo ${minimumBet.formatted}`;
     else if (mode === 'safety' && totalPicks < 3)
       msg = 'Safety requiere mínimo 3 picks';
     else if (
@@ -223,7 +222,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
       msg = `Saldo insuficiente: necesitas ${betMmc} MMC Coins`;
     setError(msg);
     setIsValid(!msg);
-  }, [combinedPicks, totalPicks, amount, mode, paymentMethod, wallet]);
+  }, [combinedPicks, totalPicks, amount, mode, paymentMethod, wallet, isInitialized, minimumBet, currency, convertToCOP]);
 
   // ✨ Payment method handler
   const handlePaymentMethodChange = useCallback((method: 'bold' | 'wallet') => {
@@ -264,11 +263,14 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
       if (!token) throw new Error('Token inválido');
       const sb = createAuthClient(token);
 
+      // Ensure we're sending COP amount to backend
+      const copAmount = currency === 'COP' ? amount : convertToCOP(amount);
+
       const { error } = await sb.rpc('register_picks_with_wallet', {
         p_user_id: user.id,
         p_picks: combinedPicks,
         p_mode: mode,
-        p_amount: amount
+        p_amount: Math.round(copAmount)
       });
       if (error) throw new Error(error.message);
 
@@ -278,7 +280,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
         body: JSON.stringify({
           to: user.primaryEmailAddress?.emailAddress,
           name: user.fullName,
-          amount,
+          amount: Math.round(copAmount),
           mode,
           picks: combinedPicks,
           orderId: `WALLET-${Date.now()}`
@@ -305,13 +307,16 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     setError(null);
 
     try {
+      // Ensure we're sending COP amount to backend
+      const copAmount = currency === 'COP' ? amount : convertToCOP(amount);
+
       const res = await fetch('/api/transactions/register-pick-transaction', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           picks: combinedPicks,
           mode,
-          amount,
+          amount: Math.round(copAmount),
           gpName: combinedPicks[0]?.gp_name ?? 'GP',
           fullName: user.fullName,
           email
@@ -338,7 +343,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
           if (typeof window !== 'undefined' && window.fbq) {
             const eventId = `purchase_${orderId}_${user.id}`;
             window.fbq('track', 'Purchase', {
-              value: amount / 1000,
+              value: copAmount / 1000,
               currency: 'COP',
               content_type: 'product',
               content_category: 'sports_betting',
@@ -356,7 +361,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
               const sb = createAuthClient(token);
               await sb.rpc('consume_locked_mmc', {
                 p_user_id: user.id,
-                p_bet_mmc: Math.round(amount / 1000)
+                p_bet_mmc: Math.round(copAmount / 1000)
               });
             }
           } catch (err) {
@@ -381,7 +386,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     }
   };
 
-  // ✨ FIXED: Handle auth requirement - redirect to external auth pages
+  // ✨ Handle auth requirement - redirect to external auth pages
   const handleAuthRequired = () => {
     // Save picks for later
     localStorage.setItem('pendingPicks', JSON.stringify(picks));
@@ -446,7 +451,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                     <p>
                       Deposita al menos{' '}
                       <span className="font-semibold text-amber-400">
-                        ${promo.min_deposit.toLocaleString('es-CO')} COP
+                        <CurrencyDisplay copAmount={promo.min_deposit} />
                       </span>{' '}
                       para recibir la promoción.
                     </p>
@@ -571,7 +576,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                     className="w-full py-2 rounded-lg bg-gray-700/60 border border-gray-600 text-white font-semibold text-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
                     placeholder="Enter amount"
                   />
-                  {!isInColombia && currency !== 'COP' && (
+                  {currency !== 'COP' && (
                     <div className="flex justify-between items-center text-xs text-gray-400">
                       <CurrencyStatusIndicator />
                     </div>
@@ -581,7 +586,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                 {/* Quick add buttons */}
                 <QuickAmountButtons
                   onAmountAdd={(copAmount) => setAmount(a => a + copAmount)}
-                  onClear={() => setAmount(20000)}
+                  onClear={() => setAmount(defaultAmount)}
                 />
 
                 {/* mode */}
@@ -695,4 +700,4 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
       )}
     </AnimatePresence>
   );
-}  
+}

@@ -1,11 +1,11 @@
 //components/StickyModal.tsx
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStickyStore } from '../stores/stickyStore';
 // ✨ Currency imports
-import { useCurrencyStore } from '../stores/currencyStore';
+import { useCurrencyStore, useCurrencyInfo } from '../stores/currencyStore';
 import { CurrencyDisplay } from './ui/CurrencyDisplay';
 // ✨ FIXED: Import tracking utility
 import { trackFBEvent } from '@/lib/trackFBEvent';
@@ -25,7 +25,8 @@ const StickyModal: React.FC<StickyModalProps> = ({ onFinish }) => {
   const { showSticky, multiplier, picks } = useStickyStore();
   
   // ✨ Currency store
-  const { initializeCurrency, isInitialized } = useCurrencyStore();
+  const { initializeCurrency, isInitialized, convertToCOP } = useCurrencyStore();
+  const { minimumBet, currency } = useCurrencyInfo();
 
   // ✨ Initialize currency system on mount
   useEffect(() => {
@@ -34,6 +35,17 @@ const StickyModal: React.FC<StickyModalProps> = ({ onFinish }) => {
     }
   }, [initializeCurrency, isInitialized]);
 
+  // ✨ FIXED: Dynamic wager based on currency and minimum bet
+  const wager = useMemo(() => {
+    if (!isInitialized) return 20000; // Default COP fallback
+    
+    // Use minimum bet but ensure it's at least reasonable for betting
+    const baseDisplayAmount = Math.max(minimumBet.display, currency === 'COP' ? 20 : 5);
+    
+    // Convert back to COP for consistent internal processing
+    return Math.round(convertToCOP(baseDisplayAmount));
+  }, [isInitialized, minimumBet.display, currency, convertToCOP]);
+
   // Calculate combined picks and counts
   const combinedPicks = [...picks.qualy, ...picks.race];
   const totalPicks = combinedPicks.length;
@@ -41,21 +53,21 @@ const StickyModal: React.FC<StickyModalProps> = ({ onFinish }) => {
   // Determine if the button should be enabled and if max picks achieved
   const isValid = totalPicks >= MIN_PICKS;
   const isMaxPicks = totalPicks === MAX_PICKS; // Check for max picks
-  const wager = 20000; // Base wager amount (adjust if dynamic)
   const potentialWin = isValid ? wager * multiplier : 0;
 
-  // ✨ FIXED: AddToCart tracking function
+  // ✨ FIXED: AddToCart tracking function with dynamic currency
   const trackAddToCart = () => {
     console.log('🛒 StickyModal: Tracking AddToCart event', {
       totalPicks,
       wager,
+      currency,
       isValid,
       fbqAvailable: typeof window !== 'undefined' && !!window.fbq
     });
 
     const eventData = {
-      value: wager / 1000,
-      currency: 'COP',
+      value: currency === 'COP' ? wager / 1000 : convertToCOP(wager / 1000) / 1000,
+      currency: 'COP', // Always track in COP for backend consistency
       content_type: 'product',
       content_category: 'sports_betting',
       content_ids: [`mmc_picks_${totalPicks}`],
