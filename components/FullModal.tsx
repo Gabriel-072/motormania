@@ -529,12 +529,12 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                       
                       {/* Header */}
                       <div className="p-4 text-center border-b border-gray-700">
-                        <h3 className="text-xl font-bold text-white mb-1">🏎️ ¡Confirma tu Apuesta!</h3>
+                        <h3 className="text-xl font-bold text-white mb-1">🏎️ Secure Your Bet!</h3>
                         <p className="text-green-400 font-semibold">
                           {totalPicks} picks • <CurrencyDisplay copAmount={amount} />
                         </p>
                         <p className="text-xs text-gray-400 mt-2">
-                          {authMode === 'signin' ? 'Inicia sesión rápido' : 'Registro en 30 segundos'} para asegurar tus picks
+                          {authMode === 'signin' ? 'Welcome back!' : 'Join thousands of F1 fans'} 
                         </p>
                       </div>
                       
@@ -570,17 +570,17 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                                 card: "shadow-none border-0 bg-transparent px-4 pb-4",
                                 headerTitle: "hidden",
                                 headerSubtitle: "hidden",
-                                socialButtonsBlockButton: "border border-gray-600 hover:border-gray-500 bg-gray-700 hover:bg-gray-600 text-white mb-3",
+                                socialButtonsBlockButton: "border border-gray-600 hover:border-gray-500 bg-gray-700 hover:bg-gray-600 text-white mb-3 py-3 text-base font-medium",
                                 socialButtonsBlockButtonText: "text-white font-medium",
-                                formButtonPrimary: "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 font-semibold py-3",
-                                formFieldInput: "bg-gray-700 border-gray-600 text-white placeholder-gray-400",
-                                formFieldLabel: "text-gray-300 text-sm",
+                                formButtonPrimary: "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 font-semibold py-3 text-base",
+                                formFieldInput: "bg-gray-700 border-gray-600 text-white placeholder-gray-400 py-3",
+                                formFieldLabel: "text-gray-300 text-sm font-medium",
                                 identityPreviewText: "text-gray-300",
                                 formFieldInputShowPasswordButton: "text-gray-400 hover:text-gray-200",
                                 footerActionText: "hidden",
                                 footerActionLink: "hidden",
                                 dividerLine: "bg-gray-600",
-                                dividerText: "text-gray-400 text-sm"
+                                dividerText: "text-gray-400 text-sm font-medium"
                               },
                               layout: {
                                 socialButtonsPlacement: "top",
@@ -613,17 +613,17 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                                 card: "shadow-none border-0 bg-transparent px-4 pb-4",
                                 headerTitle: "hidden",
                                 headerSubtitle: "hidden",
-                                socialButtonsBlockButton: "border border-gray-600 hover:border-gray-500 bg-gray-700 hover:bg-gray-600 text-white mb-3",
+                                socialButtonsBlockButton: "border border-gray-600 hover:border-gray-500 bg-gray-700 hover:bg-gray-600 text-white mb-3 py-3 text-base font-medium",
                                 socialButtonsBlockButtonText: "text-white font-medium",
-                                formButtonPrimary: "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 font-semibold py-3",
-                                formFieldInput: "bg-gray-700 border-gray-600 text-white placeholder-gray-400",
-                                formFieldLabel: "text-gray-300 text-sm",
+                                formButtonPrimary: "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 font-semibold py-3 text-base",
+                                formFieldInput: "bg-gray-700 border-gray-600 text-white placeholder-gray-400 py-3",
+                                formFieldLabel: "text-gray-300 text-sm font-medium",
                                 identityPreviewText: "text-gray-300",
                                 formFieldInputShowPasswordButton: "text-gray-400 hover:text-gray-200",
                                 footerActionText: "hidden",
                                 footerActionLink: "hidden",
                                 dividerLine: "bg-gray-600",
-                                dividerText: "text-gray-400 text-sm"
+                                dividerText: "text-gray-400 text-sm font-medium"
                               },
                               layout: {
                                 socialButtonsPlacement: "top",
@@ -989,7 +989,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                         <FaSpinner className="animate-spin" /> Procesando…
                       </>
                     ) : !isSignedIn ? (
-                      <>Confirmar y Pagar <CurrencyDisplay copAmount={amount} /></>
+                      <>🔐 Iniciar Sesión y Pagar <CurrencyDisplay copAmount={amount} /></>
                     ) : paymentMethod === 'wallet' ? (
                       <>🎮 Jugar <CurrencyDisplay copAmount={amount} /></> 
                     ) : (
