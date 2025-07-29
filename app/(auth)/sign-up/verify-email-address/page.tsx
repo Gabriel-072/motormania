@@ -1,3 +1,4 @@
+//app/(auth)/sign-up/verify-email-address/page.tsx
 'use client';
 
 import { Suspense } from 'react';
