@@ -33,9 +33,6 @@ import { CurrencySelector } from './ui/CurrencySelector';
 import { QuickAmountButtons } from './ui/QuickAmountButtons';
 import { CurrencyStatusIndicator } from './ui/CurrencyStatusIndicator';
 
-// ✨ PayPal imports
-import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js';
-
 interface FullModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -122,9 +119,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
   const [promo, setPromo] = useState<Promo | null>(null);
 
   // ✨ FIXED: Payment method state
-  const [paymentMethod, setPaymentMethod] = useState<'bold' | 'paypal' | 'wallet'>(() => {
-    return isInColombia ? 'bold' : 'paypal';
-  });
+  const [paymentMethod, setPaymentMethod] = useState<'bold' | 'wallet'>('bold');
 
   // Notificaciones FOMO
   const fomoMsg = useFomoFake(2500);
@@ -168,14 +163,6 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
       initializeCurrency();
     }
   }, [isOpen, initializeCurrency, isInitialized]);
-
-  // ✨ Colombia payment method enforcement
-  useEffect(() => {
-    if (isInColombia && paymentMethod === 'paypal') {
-      setPaymentMethod('bold');
-      toast.info('Método de pago actualizado para usuarios en Colombia');
-    }
-  }, [isInColombia, paymentMethod]);
 
   // Fetch wallet balance
   useEffect(() => {
@@ -238,14 +225,10 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     setIsValid(!msg);
   }, [combinedPicks, totalPicks, amount, mode, paymentMethod, wallet]);
 
-  // ✨ Payment method handler with Colombia blocking
-  const handlePaymentMethodChange = useCallback((method: 'bold' | 'paypal' | 'wallet') => {
-    if (method === 'paypal' && isInColombia) {
-      toast.error('PayPal no está disponible en Colombia. Usa tarjeta de crédito.', { duration: 4000 });
-      return;
-    }
+  // ✨ Payment method handler
+  const handlePaymentMethodChange = useCallback((method: 'bold' | 'wallet') => {
     setPaymentMethod(method);
-  }, [isInColombia]);
+  }, []);
 
   // Helpers para editar picks
   const updatePick = useCallback((idx: number, better: boolean) => {
@@ -398,46 +381,6 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     }
   };
 
-  // PayPal payment handler
-  const handlePayPalPayment = async () => {
-    if (!user?.id || isProcessing || !isValid) {
-      throw new Error('Invalid state for payment');
-    }
-    const email = user.primaryEmailAddress?.emailAddress;
-    if (!email) {
-      throw new Error('Email required for PayPal');
-    }
-
-    try {
-      const res = await fetch('/api/paypal/create-order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          picks: combinedPicks,
-          mode,
-          amount,
-          gpName: combinedPicks[0]?.gp_name ?? 'GP',
-          fullName: user.fullName,
-          email
-        })
-      });
-
-      if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(`PayPal API failed: ${res.status}`);
-      }
-
-      const data = await res.json();
-      if (!data.orderID) {
-        throw new Error('No orderID returned from PayPal API');
-      }
-
-      return data.orderID;
-    } catch (err: any) {
-      throw new Error('Failed to create PayPal order');
-    }
-  };
-
   // ✨ FIXED: Handle auth requirement - redirect to external auth pages
   const handleAuthRequired = () => {
     // Save picks for later
@@ -466,7 +409,6 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     trackInitiateCheckout(paymentMethod);
     
     if (paymentMethod === 'wallet') return handleWalletBet();
-    if (paymentMethod === 'paypal') return; // PayPal handled by PayPalButtons component
     handleBoldPayment(); // Default to Bold
   };
 
@@ -598,7 +540,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                       <input
                         type="checkbox"
                         checked={paymentMethod === 'wallet'}
-                        onChange={() => handlePaymentMethodChange(paymentMethod === 'wallet' ? (isInColombia ? 'bold' : 'paypal') : 'wallet')}
+                        onChange={() => handlePaymentMethodChange(paymentMethod === 'wallet' ? 'bold' : 'wallet')}
                         className="accent-amber-500"
                       />
                       <span>Usar saldo</span>
@@ -606,47 +548,15 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                   </div>
                 )}
 
-                {/* Payment Method Selection - Only for International Users */}
-                {!isInColombia && isSignedIn && paymentMethod !== 'wallet' && currency !== 'COP' && (
-                  <div className="bg-gray-800/70 rounded-lg p-4">
-                    <h4 className="text-sm font-semibold text-gray-300 mb-3 flex items-center gap-2">
-                      <FaGlobeAmericas className="text-blue-400" />
-                      Método de Pago Internacional
-                    </h4>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        onClick={() => handlePaymentMethodChange('paypal')}
-                        className={`p-3 rounded-lg border text-sm font-medium transition-all ${
-                          paymentMethod === 'paypal'
-                            ? 'border-blue-500 bg-blue-500/20 text-blue-300'
-                            : 'border-gray-600 text-gray-300 hover:border-gray-500'
-                        }`}
-                      >
-                        💳 PayPal
-                      </button>
-                      <button
-                        onClick={() => handlePaymentMethodChange('bold')}
-                        className={`p-3 rounded-lg border text-sm font-medium transition-all ${
-                          paymentMethod === 'bold'
-                            ? 'border-green-500 bg-green-500/20 text-green-300'
-                            : 'border-gray-600 text-gray-300 hover:border-gray-500'
-                        }`}
-                      >
-                        🏦 Tarjeta de Crédito
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Information banner for Colombian users */}
-                {(isInColombia || currency === 'COP') && isSignedIn && paymentMethod !== 'wallet' && (
+                {/* Information banner for users */}
+                {isSignedIn && paymentMethod !== 'wallet' && (
                   <div className="bg-gradient-to-r from-green-800/30 to-blue-800/30 rounded-lg p-4 border border-green-700/50">
                     <div className="flex items-center gap-3">
-                      <div className="text-2xl">🇨🇴</div>
+                      <div className="text-2xl">💳</div>
                       <div>
-                        <h4 className="text-sm font-semibold text-green-400 mb-1">Pago en Colombia</h4>
+                        <h4 className="text-sm font-semibold text-green-400 mb-1">Pago Seguro</h4>
                         <p className="text-xs text-gray-300">
-                          Procesamos tu pago de forma segura con tarjetas colombianas a través de Bold
+                          Procesamos tu pago de forma segura con tarjetas a través de Bold
                         </p>
                       </div>
                     </div>
@@ -751,87 +661,33 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                   )}
                 </AnimatePresence>
 
-                {/* PayPal button section or Regular Confirm Button */}
-                {isSignedIn && paymentMethod === 'paypal' && !isInColombia && currency !== 'COP' ? (
-                  <div className="space-y-2">
-                    <PayPalScriptProvider options={{ 
-                      clientId: process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID!,
-                      currency: "USD",
-                      intent: "capture"
-                    }}>
-                      <PayPalButtons
-                        disabled={!isValid || isProcessing}
-                        createOrder={() => {
-                          trackInitiateCheckout('paypal');
-                          return handlePayPalPayment();
-                        }}
-                        onApprove={async (data, actions) => {
-                          setIsProcessing(true);
-                          try {
-                            toast.success('Pago de PayPal procesando...');
-                            setQualyPicks([]); 
-                            setRacePicks([]);
-                            onClose();
-                          } catch (err) {
-                            toast.error('Error procesando pago PayPal');
-                          } finally {
-                            setIsProcessing(false);
-                          }
-                        }}
-                        onError={(err) => {
-                          console.error('PayPal error:', err);
-                          toast.error('Error con PayPal');
-                          setIsProcessing(false);
-                        }}
-                        style={{
-                          layout: 'vertical',
-                          color: 'white',
-                          shape: 'rect',
-                          label: 'pay',
-                          height: 45,
-                          tagline: false,
-                          disableMaxWidth: true
-                        }}
-                        fundingSource={undefined}
-                        onCancel={() => {
-                          console.log('PayPal payment cancelled');
-                          setIsProcessing(false);
-                        }}
-                        onShippingChange={() => {
-                          return Promise.resolve();
-                        }}
-                        forceReRender={[amount, totalPicks]}
-                      />
-                    </PayPalScriptProvider>
-                  </div>
-                ) : (
-                  <button
-                    onClick={handleConfirm}
-                    disabled={!isValid || isProcessing}
-                    className={`
-                      w-full py-3 rounded-lg font-bold text-lg flex justify-center gap-2
-                      ${isProcessing
-                        ? 'bg-yellow-600 text-white cursor-wait'
-                        : isValid
-                          ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white'
-                          : 'bg-gray-600/80 text-gray-400/80 cursor-not-allowed'}
-                    `}
-                  >
-                    {isProcessing ? (
-                      <>
-                        <FaSpinner className="animate-spin" /> Procesando…
-                      </>
-                    ) : !isSignedIn ? (
-                      <>Confirmar y Pagar <CurrencyDisplay copAmount={amount} /></>
-                    ) : paymentMethod === 'wallet' ? (
-                      <>🎮 Jugar <CurrencyDisplay copAmount={amount} /></> 
-                    ) : (
-                      <>
-                        <FaDollarSign /> Confirmar y Pagar <CurrencyDisplay copAmount={amount} />
-                      </>
-                    )}
-                  </button>
-                )}
+                {/* Confirm Button */}
+                <button
+                  onClick={handleConfirm}
+                  disabled={!isValid || isProcessing}
+                  className={`
+                    w-full py-3 rounded-lg font-bold text-lg flex justify-center gap-2
+                    ${isProcessing
+                      ? 'bg-yellow-600 text-white cursor-wait'
+                      : isValid
+                        ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white'
+                        : 'bg-gray-600/80 text-gray-400/80 cursor-not-allowed'}
+                  `}
+                >
+                  {isProcessing ? (
+                    <>
+                      <FaSpinner className="animate-spin" /> Procesando…
+                    </>
+                  ) : !isSignedIn ? (
+                    <>Confirmar y Pagar <CurrencyDisplay copAmount={amount} /></>
+                  ) : paymentMethod === 'wallet' ? (
+                    <>🎮 Jugar <CurrencyDisplay copAmount={amount} /></> 
+                  ) : (
+                    <>
+                      <FaDollarSign /> Confirmar y Pagar <CurrencyDisplay copAmount={amount} />
+                    </>
+                  )}
+                </button>
               </div>
             </motion.div>
           </div>
