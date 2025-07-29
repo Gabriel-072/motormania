@@ -16,7 +16,7 @@ import {
   FaWallet,
   FaGlobeAmericas
 } from 'react-icons/fa';
-import { useUser, useAuth } from '@clerk/nextjs';
+import { useUser, useAuth, SignIn, SignUp } from '@clerk/nextjs';
 import { useStickyStore } from '@/stores/stickyStore';
 import { openBoldCheckout } from '@/lib/bold';
 import { toast } from 'sonner';
@@ -450,10 +450,28 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
       } catch (e) {}
     }
     
-    // Redirect to auth page with return URL
-    const currentUrl = window.location.pathname + window.location.search;
-    router.push(`/sign-up?redirect_url=${encodeURIComponent(currentUrl)}`);
+    setShowInlineAuth(true);
   };
+
+  // ✨ NEW: Inline auth state with callback control
+  const [showInlineAuth, setShowInlineAuth] = useState(false);
+  const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signup');
+  const [authLoading, setAuthLoading] = useState(false);
+
+  // ✨ Auth success handlers
+  const handleAuthSuccess = useCallback(() => {
+    console.log('🎉 Auth success - staying in modal');
+    setShowInlineAuth(false);
+    setAuthLoading(false);
+    toast.success('¡Perfecto! Completa tu pago');
+    
+    // Suppress Hotjar exit intent
+    if (typeof window !== 'undefined' && (window as any).hj) {
+      try {
+        (window as any).hj('trigger', 'user_converted');
+      } catch (e) {}
+    }
+  }, []);
 
   // ✨ Main confirm handler
   const handleConfirm = () => {
@@ -485,7 +503,155 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
               exit={{ y: 60, opacity: 0 }}
               transition={{ type: 'spring', damping: 25, stiffness: 250 }}
             >
-              {/* Header with currency selector */}
+              {/* ✨ ENHANCED: Inline Auth Modal with Redirect Prevention */}
+              <AnimatePresence>
+                {showInlineAuth && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="absolute inset-0 z-[100] bg-black/70 backdrop-blur-lg flex items-center justify-center p-4 rounded-xl"
+                    onClick={(e) => {
+                      if (!authLoading && e.target === e.currentTarget) {
+                        setShowInlineAuth(false);
+                      }
+                    }}
+                  >
+                    <motion.div
+                      initial={{ scale: 0.9, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      exit={{ scale: 0.9, opacity: 0 }}
+                      className="relative bg-gray-800 border border-gray-700 rounded-xl shadow-2xl max-w-md w-full max-h-[80vh] overflow-hidden"
+                    >
+                      {/* Close button */}
+                      <button
+                        onClick={() => {
+                          setShowInlineAuth(false);
+                          setAuthLoading(false);
+                        }}
+                        className="absolute top-4 right-4 text-gray-400 hover:text-gray-200 z-20"
+                      >
+                        <FaTimes size={20} />
+                      </button>
+                      
+                      {/* Header */}
+                      <div className="p-4 text-center border-b border-gray-700">
+                        <h3 className="text-xl font-bold text-white mb-1">🏎️ Secure Your Bet!</h3>
+                        <p className="text-green-400 font-semibold">
+                          {totalPicks} picks • <CurrencyDisplay copAmount={amount} />
+                        </p>
+                        <p className="text-xs text-gray-400 mt-2">
+                          {authMode === 'signin' ? 'Welcome back!' : 'Join thousands of F1 fans'} 
+                        </p>
+                      </div>
+                      
+                      {/* Auth content */}
+                      <div className="relative overflow-y-auto max-h-96">
+                        {authLoading && (
+                          <div className="absolute inset-0 bg-gray-800/80 flex items-center justify-center z-10">
+                            <div className="flex items-center gap-2 text-white">
+                              <FaSpinner className="animate-spin" />
+                              <span>Procesando...</span>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {authMode === 'signin' ? (
+                          <SignIn
+                            routing="virtual"
+                            appearance={{
+                              variables: {
+                                colorPrimary: "#10b981",
+                                colorBackground: "#1f2937",
+                                colorText: "#f9fafb",
+                                colorTextSecondary: "#9ca3af",
+                                colorInputBackground: "#374151",
+                                colorInputText: "#f9fafb",
+                                borderRadius: "0.5rem"
+                              },
+                              elements: {
+                                rootBox: "w-full",
+                                card: "shadow-none border-0 bg-transparent px-4 pb-4",
+                                headerTitle: "hidden",
+                                headerSubtitle: "hidden",
+                                socialButtonsBlockButton: "border border-gray-600 hover:border-gray-500 bg-gray-700 hover:bg-gray-600 text-white mb-3 py-3 text-base font-medium",
+                                socialButtonsBlockButtonText: "text-white font-medium",
+                                formButtonPrimary: "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 font-semibold py-3 text-base",
+                                formFieldInput: "bg-gray-700 border-gray-600 text-white placeholder-gray-400 py-3",
+                                formFieldLabel: "text-gray-300 text-sm font-medium",
+                                identityPreviewText: "text-gray-300",
+                                formFieldInputShowPasswordButton: "text-gray-400 hover:text-gray-200",
+                                footerActionText: "hidden",
+                                footerActionLink: "hidden",
+                                dividerLine: "bg-gray-600",
+                                dividerText: "text-gray-400 text-sm font-medium"
+                              },
+                              layout: {
+                                socialButtonsPlacement: "top",
+                              }
+                            }}
+                          />
+                        ) : (
+                          <SignUp
+                            routing="virtual"
+                            unsafeMetadata={{
+                              betAmount: amount,
+                              picksCount: totalPicks,
+                              paymentMethod: paymentMethod
+                            }}
+                            appearance={{
+                              variables: {
+                                colorPrimary: "#10b981",
+                                colorBackground: "#1f2937",
+                                colorText: "#f9fafb",
+                                colorTextSecondary: "#9ca3af",
+                                colorInputBackground: "#374151",
+                                colorInputText: "#f9fafb",
+                                borderRadius: "0.5rem"
+                              },
+                              elements: {
+                                rootBox: "w-full",
+                                card: "shadow-none border-0 bg-transparent px-4 pb-4",
+                                headerTitle: "hidden",
+                                headerSubtitle: "hidden",
+                                socialButtonsBlockButton: "border border-gray-600 hover:border-gray-500 bg-gray-700 hover:bg-gray-600 text-white mb-3 py-3 text-base font-medium",
+                                socialButtonsBlockButtonText: "text-white font-medium",
+                                formButtonPrimary: "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 font-semibold py-3 text-base",
+                                formFieldInput: "bg-gray-700 border-gray-600 text-white placeholder-gray-400 py-3",
+                                formFieldLabel: "text-gray-300 text-sm font-medium",
+                                identityPreviewText: "text-gray-300",
+                                formFieldInputShowPasswordButton: "text-gray-400 hover:text-gray-200",
+                                footerActionText: "hidden",
+                                footerActionLink: "hidden",
+                                dividerLine: "bg-gray-600",
+                                dividerText: "text-gray-400 text-sm font-medium"
+                              },
+                              layout: {
+                                socialButtonsPlacement: "top",
+                              }
+                            }}
+                          />
+                        )}
+                      </div>
+                      
+                      {/* Toggle link */}
+                      <div className="px-4 pb-4 text-center border-t border-gray-700 pt-3">
+                        <button
+                          onClick={() => {
+                            setAuthMode(authMode === 'signin' ? 'signup' : 'signin');
+                            setAuthLoading(false);
+                          }}
+                          className="text-sm text-gray-400 hover:text-green-400 transition-colors"
+                          disabled={authLoading}
+                          tabIndex={authLoading ? -1 : 0}
+                        >
+                          {authMode === 'signin' ? '¿No tienes cuenta? Regístrate en 30 segundos' : '¿Ya tienes cuenta? Inicia sesión rápido'}
+                        </button>
+                      </div>
+                    </motion.div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
               <div className="flex justify-between items-center mb-4 pb-2 border-b border-gray-700/50">
                 <h2 className="text-xl font-bold text-amber-400">Revisa tus Picks</h2>
                 <div className="flex items-center gap-4">
