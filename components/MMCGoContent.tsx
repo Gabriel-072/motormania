@@ -1050,8 +1050,37 @@ if (isBetter) {
 
           {/* === Modals === */}
           {showTutorial && ( <DynamicTutorialModal show={showTutorial} onClose={() => setShowTutorial(false)} /> )}
-          <StickyModal onFinish={async () => { 
+          // ✨ FIXED: StickyModal handler in MMCGoContent.tsx
+<StickyModal onFinish={async () => { 
   soundManager.click.play(); 
+  
+  // ✨ FIXED: Suppress Hotjar exit intent during betting flow
+  if (typeof window !== 'undefined' && (window as any).hj) {
+    try {
+      (window as any).hj('event', 'betting_flow_initiated');
+      (window as any).hj('trigger', 'suppress_exit_intent');
+    } catch (e) {
+      console.warn('Hotjar tracking failed:', e);
+    }
+  }
+  
+  // ✨ RESTORED: Authentication check logic
+  if (!isSignedIn) { 
+    localStorage.setItem('pendingPicks', JSON.stringify(picks)); 
+    
+    // Signal to Hotjar this is intentional auth flow, not exit
+    if (typeof window !== 'undefined' && (window as any).hj) {
+      try {
+        (window as any).hj('event', 'auth_required_for_betting');
+      } catch (e) {
+        console.warn('Hotjar tracking failed:', e);
+      }
+    }
+    
+    setShowFullModal(true); // This will trigger auth modal in FullModal
+    return; 
+  } 
+  
   setShowFullModal(true); 
 }} />
           {showFullModal && ( <FullModal isOpen={showFullModal} onClose={() => setShowFullModal(false)} /> )}

@@ -121,7 +121,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
 
   // ✨ OPTIMIZED: Inline auth state with better management
   const [showInlineAuth, setShowInlineAuth] = useState(false);
-  const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
+  const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signup');
   const [authLoading, setAuthLoading] = useState(false);
 
   // ✨ Payment method state
@@ -180,12 +180,22 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     }
   }, [isInColombia, paymentMethod]);
 
-  // ✨ OPTIMIZED: Enhanced auth state management
+  // ✨ OPTIMIZED: Enhanced auth state management with Hotjar control
   useEffect(() => {
     if (isSignedIn && showInlineAuth) {
       setAuthLoading(false);
       setShowInlineAuth(false);
       toast.success('¡Perfecto! Ahora confirma tu apuesta', { duration: 3000 });
+      
+      // ✨ FIXED: Tell Hotjar this is a conversion, not exit intent
+      if (typeof window !== 'undefined' && (window as any).hj) {
+        try {
+          (window as any).hj('trigger', 'user_converted');
+          (window as any).hj('event', 'auth_completed');
+        } catch (e) {
+          console.warn('Hotjar tracking failed:', e);
+        }
+      }
       
       // Immediate action - no delay for better UX
       if (paymentMethod === 'wallet') {
@@ -979,7 +989,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                         <FaSpinner className="animate-spin" /> Procesando…
                       </>
                     ) : !isSignedIn ? (
-                      <>🔐 Iniciar Sesión y Pagar <CurrencyDisplay copAmount={amount} /></>
+                      <>Confirmar y Pagar <CurrencyDisplay copAmount={amount} /></>
                     ) : paymentMethod === 'wallet' ? (
                       <>🎮 Jugar <CurrencyDisplay copAmount={amount} /></> 
                     ) : (
