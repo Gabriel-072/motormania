@@ -1063,7 +1063,6 @@ if (isBetter) {
 
           {/* === Modals === */}
           {showTutorial && ( <DynamicTutorialModal show={showTutorial} onClose={() => setShowTutorial(false)} /> )}
-          // ✨ FIXED: StickyModal handler in MMCGoContent.tsx
 <StickyModal onFinish={async () => { 
   soundManager.click.play(); 
   
