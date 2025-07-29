@@ -185,17 +185,12 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     if (isSignedIn && showInlineAuth) {
       setAuthLoading(false);
       setShowInlineAuth(false);
-      toast.success('¡Bienvenido! Completando tu registro...');
+      toast.success('¡Perfecto! Ahora confirma tu apuesta', { duration: 3000 });
       
-      // Auto-proceed with payment after successful auth
-      setTimeout(() => {
-        if (paymentMethod === 'wallet') {
-          handleWalletBet();
-        } else {
-          // Don't auto-open payment gateway, let user click again
-          toast.info('Ahora puedes completar tu pago');
-        }
-      }, 1000);
+      // Immediate action - no delay for better UX
+      if (paymentMethod === 'wallet') {
+        handleWalletBet();
+      }
     }
   }, [isSignedIn, showInlineAuth, paymentMethod]);
 
@@ -498,6 +493,12 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     className="absolute inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 rounded-xl"
+                    onClick={(e) => {
+                      // Prevent closing during auth loading
+                      if (!authLoading && e.target === e.currentTarget) {
+                        setShowInlineAuth(false);
+                      }
+                    }}
                   >
                     <motion.div
                       initial={{ scale: 0.9, opacity: 0 }}
@@ -523,7 +524,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                           {totalPicks} picks • <CurrencyDisplay copAmount={amount} />
                         </p>
                         <p className="text-xs text-gray-400 mt-2">
-                          {authMode === 'signin' ? 'Inicia sesión' : 'Crea tu cuenta'} para asegurar tus picks
+                          {authMode === 'signin' ? 'Inicia sesión rápido' : 'Registro en 30 segundos'} para asegurar tus picks
                         </p>
                       </div>
                       
@@ -542,6 +543,8 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                           <SignIn
                             routing="virtual"
                             signUpUrl="#"
+                            forceRedirectUrl={null}
+                            fallbackRedirectUrl={null}
                             appearance={{
                               variables: {
                                 colorPrimary: "#10b981",
@@ -578,6 +581,13 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                           <SignUp
                             routing="virtual"
                             signInUrl="#"
+                            forceRedirectUrl={null}
+                            fallbackRedirectUrl={null}
+                            unsafeMetadata={{
+                              betAmount: amount,
+                              picksCount: totalPicks,
+                              paymentMethod: paymentMethod
+                            }}
                             appearance={{
                               variables: {
                                 colorPrimary: "#10b981",
@@ -616,11 +626,15 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                       {/* Toggle link */}
                       <div className="px-4 pb-4 text-center border-t border-gray-700 pt-3">
                         <button
-                          onClick={() => setAuthMode(authMode === 'signin' ? 'signup' : 'signin')}
+                          onClick={() => {
+                            setAuthMode(authMode === 'signin' ? 'signup' : 'signin');
+                            setAuthLoading(false); // Reset loading state on toggle
+                          }}
                           className="text-sm text-gray-400 hover:text-green-400 transition-colors"
                           disabled={authLoading}
+                          tabIndex={authLoading ? -1 : 0}
                         >
-                          {authMode === 'signin' ? '¿No tienes cuenta? Regístrate aquí' : '¿Ya tienes cuenta? Inicia sesión'}
+                          {authMode === 'signin' ? '¿No tienes cuenta? Regístrate en 30 segundos' : '¿Ya tienes cuenta? Inicia sesión rápido'}
                         </button>
                       </div>
                     </motion.div>
