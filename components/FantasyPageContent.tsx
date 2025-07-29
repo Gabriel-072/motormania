@@ -2529,11 +2529,11 @@ const handleVipSuccess = () => {
               <div className="w-6 h-6 bg-gradient-to-br from-yellow-400 to-amber-600 rounded-full flex items-center justify-center">
                 <span className="text-xs">🏆</span>
               </div>
-              <span className="text-xs font-bold text-yellow-400 font-exo2">GANA UN VIAJE A LA F1</span>
-              <span className="text-[10px] text-white/60 hidden sm:inline">• Fantasy VIP</span>
+              <span className="text-xs font-bold text-yellow-400 font-exo2">GANA HASTA 100X</span>
+              <span className="text-[10px] text-white/60 hidden sm:inline">• MMC GO</span>
             </div>
             <span className="text-xs font-semibold text-white/80 group-hover:text-yellow-400 transition-colors flex items-center gap-1">
-              Ver más
+              JUGAR
               <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
