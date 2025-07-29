@@ -1,4 +1,4 @@
-// 📁 components/FullModal.tsx
+// 📁 components/FullModal.tsx - OPTIMIZED INLINE AUTH
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -82,15 +82,9 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
   const { initializeCurrency, isInitialized, currency } = useCurrencyStore();
   const { detectionInfo } = useCurrencyInfo();
 
-  // ✨ ENHANCED: More robust Colombia detection with multiple fallbacks
+  // ✨ Colombia detection
   const isInColombia = useMemo(() => {
-    // First check: Current currency selection (most reliable)
-    if (currency === 'COP') {
-      console.log('🇨🇴 Colombia detected via currency: COP');
-      return true;
-    }
-    
-    // Second check: Detection info if available
+    if (currency === 'COP') return true;
     if (detectionInfo) {
       const colombiaChecks = [
         detectionInfo.country === 'Colombia',
@@ -101,26 +95,14 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
         detectionInfo.locale?.includes('CO'),
         detectionInfo.locale?.includes('es-CO')
       ];
-      
-      const isColombiaByDetection = colombiaChecks.some(check => check);
-      if (isColombiaByDetection) {
-        console.log('🇨🇴 Colombia detected via detectionInfo:', detectionInfo);
-        return true;
-      }
+      if (colombiaChecks.some(check => check)) return true;
     }
-    
-    // Third check: Browser timezone as fallback
     try {
       const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      if (timezone.includes('Bogota') || timezone.includes('America/Bogota')) {
-        console.log('🇨🇴 Colombia detected via browser timezone:', timezone);
-        return true;
-      }
+      if (timezone.includes('Bogota') || timezone.includes('America/Bogota')) return true;
     } catch (e) {
       console.warn('Could not detect timezone:', e);
     }
-    
-    console.log('🌍 International user detected. Currency:', currency, 'DetectionInfo:', detectionInfo);
     return false;
   }, [currency, detectionInfo]);
 
@@ -133,19 +115,17 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
 
   // wallet
   const [wallet, setWallet] = useState<Wallet | null>(null);
-  const [useWallet, setUseWallet] = useState(false);
 
   // promotion
   const [promo, setPromo] = useState<Promo | null>(null);
-  const [promoMessage, setPromoMessage] = useState<string>('');
 
-  // ✨ NEW: Inline auth state
+  // ✨ OPTIMIZED: Inline auth state with better management
   const [showInlineAuth, setShowInlineAuth] = useState(false);
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
+  const [authLoading, setAuthLoading] = useState(false);
 
-  // ✨ ENHANCED: Payment method state with Colombia restriction
+  // ✨ Payment method state
   const [paymentMethod, setPaymentMethod] = useState<'bold' | 'paypal' | 'wallet'>(() => {
-    // Default to Bold for Colombian users, PayPal for international
     return isInColombia ? 'bold' : 'paypal';
   });
 
@@ -159,13 +139,13 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
   ];
   const totalPicks = combinedPicks.length;
 
-  // ✨ NEW: InitiateCheckout tracking helper
+  // ✨ InitiateCheckout tracking helper
   const trackInitiateCheckout = useCallback((paymentMethodUsed: string) => {
     console.log(`🎯 Tracking InitiateCheckout - ${paymentMethodUsed} payment button clicked`);
     
     if (typeof window !== 'undefined' && window.fbq) {
       const eventData = {
-        value: amount / 1000, // Convert to thousands for better tracking
+        value: amount / 1000,
         currency: 'COP',
         content_type: 'product',
         content_category: 'sports_betting',
@@ -175,18 +155,13 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
         payment_method: paymentMethodUsed,
       };
 
-      // Standard Facebook tracking
       window.fbq('track', 'InitiateCheckout', eventData);
-      
-      // Also track with your custom trackFBEvent utility for better deduplication
       trackFBEvent('InitiateCheckout', {
         params: eventData,
         email: user?.primaryEmailAddress?.emailAddress
       });
       
       console.log('✅ InitiateCheckout tracked:', eventData);
-    } else {
-      console.warn('❌ Facebook Pixel not loaded for InitiateCheckout tracking');
     }
   }, [amount, totalPicks, mode, user]);
 
@@ -197,7 +172,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     }
   }, [isOpen, initializeCurrency, isInitialized]);
 
-  // ✨ ENHANCED: Ensure Colombian users can't access PayPal
+  // ✨ Colombia payment method enforcement
   useEffect(() => {
     if (isInColombia && paymentMethod === 'paypal') {
       setPaymentMethod('bold');
@@ -205,13 +180,24 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     }
   }, [isInColombia, paymentMethod]);
 
-  // ✨ NEW: Close auth modal when user signs in
+  // ✨ OPTIMIZED: Enhanced auth state management
   useEffect(() => {
     if (isSignedIn && showInlineAuth) {
+      setAuthLoading(false);
       setShowInlineAuth(false);
-      toast.success('¡Bienvenido! Ahora puedes completar tu pago.');
+      toast.success('¡Bienvenido! Completando tu registro...');
+      
+      // Auto-proceed with payment after successful auth
+      setTimeout(() => {
+        if (paymentMethod === 'wallet') {
+          handleWalletBet();
+        } else {
+          // Don't auto-open payment gateway, let user click again
+          toast.info('Ahora puedes completar tu pago');
+        }
+      }, 1000);
     }
-  }, [isSignedIn, showInlineAuth]);
+  }, [isSignedIn, showInlineAuth, paymentMethod]);
 
   // Fetch wallet balance
   useEffect(() => {
@@ -253,21 +239,6 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     })();
   }, [getToken]);
 
-  // Simple 100% deposit bonus message
-  useEffect(() => {
-    if (!promo) {
-      setPromoMessage('No hay promoción activa.');
-      return;
-    }
-    if (amount < promo.min_deposit) {
-      setPromoMessage(
-        `Deposita al menos ${promo.min_deposit.toLocaleString('es-CO')} COP para recibir la promoción.`
-      );
-      return;
-    }
-    setPromoMessage('active');
-  }, [amount, promo]);
-
   // Validation
   useEffect(() => {
     let msg: string | null = null;
@@ -280,29 +251,23 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     else if (mode === 'safety' && totalPicks < 3)
       msg = 'Safety requiere mínimo 3 picks';
     else if (
-      useWallet &&
+      paymentMethod === 'wallet' &&
       wallet &&
       betMmc > wallet.mmc_coins - wallet.locked_mmc
     )
       msg = `Saldo insuficiente: necesitas ${betMmc} MMC Coins`;
     setError(msg);
     setIsValid(!msg);
-  }, [combinedPicks, totalPicks, amount, mode, useWallet, wallet]);
+  }, [combinedPicks, totalPicks, amount, mode, paymentMethod, wallet]);
 
-  // ✨ ENHANCED: Safe payment method setter with better debugging
+  // ✨ Payment method handler with Colombia blocking
   const handlePaymentMethodChange = useCallback((method: 'bold' | 'paypal' | 'wallet') => {
-    console.log(`💳 Payment method change requested: ${method}, isInColombia: ${isInColombia}, currency: ${currency}`);
-    
-    // Block PayPal for Colombian users
     if (method === 'paypal' && isInColombia) {
-      console.log('🚫 BLOCKED: PayPal access denied for Colombian user');
       toast.error('PayPal no está disponible en Colombia. Usa tarjeta de crédito.', { duration: 4000 });
       return;
     }
-    
-    console.log(`✅ Payment method changed to: ${method}`);
     setPaymentMethod(method);
-  }, [isInColombia, currency]);
+  }, [isInColombia]);
 
   // Helpers para editar picks
   const updatePick = useCallback((idx: number, better: boolean) => {
@@ -369,7 +334,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     }
   };
 
-  // Bold payment handler - FIXED: Removed onOpen tracking
+  // Bold payment handler
   const handleBoldPayment = async () => {
     if (!user?.id || isProcessing || !isValid) return;
     const email = user.primaryEmailAddress?.emailAddress;
@@ -408,7 +373,6 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
         integritySignature: integrityKey,
         customerData: JSON.stringify({ email, fullName: user.fullName ?? 'Jugador MMC' }),
         renderMode: 'embedded',
-        // ❌ REMOVED: InitiateCheckout tracking moved to button click
         onSuccess: async () => {
           if (typeof window !== 'undefined' && window.fbq) {
             const eventId = `purchase_${orderId}_${user.id}`;
@@ -422,18 +386,6 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
               num_items: totalPicks,
               eventID: eventId,
             });
-            console.log('🎯 Purchase event tracked from FullModal');
-
-            setTimeout(() => {
-              if (window.fbq) {
-                window.fbq('track', 'Purchase', {
-                  value: amount / 1000,
-                  currency: 'COP',
-                  eventID: eventId,
-                });
-                console.log('🛡️ Backup Purchase tracking fired');
-              }
-            }, 3000);
           }
 
           toast.success('Pago recibido, procesando…');
@@ -468,7 +420,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     }
   };
 
-  // ✨ NEW: PayPal payment handler
+  // PayPal payment handler
   const handlePayPalPayment = async () => {
     if (!user?.id || isProcessing || !isValid) {
       throw new Error('Invalid state for payment');
@@ -479,7 +431,6 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     }
 
     try {
-      console.log('Creating PayPal order...');
       const res = await fetch('/api/paypal/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -493,36 +444,30 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
         })
       });
 
-      console.log('PayPal API response status:', res.status);
-      
       if (!res.ok) {
         const errorText = await res.text();
-        console.error('PayPal API error:', errorText);
         throw new Error(`PayPal API failed: ${res.status}`);
       }
 
       const data = await res.json();
-      console.log('PayPal order created:', data);
-      
       if (!data.orderID) {
         throw new Error('No orderID returned from PayPal API');
       }
 
       return data.orderID;
     } catch (err: any) {
-      console.error('PayPal payment error:', err);
       throw new Error('Failed to create PayPal order');
     }
   };
 
-  // ✨ UPDATED: Main confirm handler with InitiateCheckout tracking
+  // ✨ OPTIMIZED: Main confirm handler
   const handleConfirm = () => {
     if (!isSignedIn) {
       setShowInlineAuth(true);
       return;
     }
     
-    // 🎯 Track InitiateCheckout when payment button is clicked
+    // Track InitiateCheckout when payment button is clicked
     trackInitiateCheckout(paymentMethod);
     
     if (paymentMethod === 'wallet') return handleWalletBet();
@@ -545,114 +490,143 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
               exit={{ y: 60, opacity: 0 }}
               transition={{ type: 'spring', damping: 25, stiffness: 250 }}
             >
-              {/* ✨ Enhanced Inline Auth Modal */}
-              {showInlineAuth && (
-                <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4">
-                  <div className="relative bg-gray-800 border border-gray-700 rounded-xl shadow-2xl max-w-md w-full">
-                    <button
-                      onClick={() => setShowInlineAuth(false)}
-                      className="absolute top-4 right-4 text-gray-400 hover:text-gray-200 z-10"
+              {/* ✨ OPTIMIZED: Enhanced Inline Auth Modal */}
+              <AnimatePresence>
+                {showInlineAuth && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="absolute inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 rounded-xl"
+                  >
+                    <motion.div
+                      initial={{ scale: 0.9, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      exit={{ scale: 0.9, opacity: 0 }}
+                      className="relative bg-gray-800 border border-gray-700 rounded-xl shadow-2xl max-w-md w-full max-h-[80vh] overflow-hidden"
                     >
-                      <FaTimes size={20} />
-                    </button>
-                    
-                    {/* Simplified Header */}
-                    <div className="p-4 text-center">
-                      <h3 className="text-xl font-bold text-white mb-1">🏎️ Let's Place Your Bet!</h3>
-                      <p className="text-green-400 font-semibold">
-                        {totalPicks} picks • <CurrencyDisplay copAmount={amount} />
-                      </p>
-                      <p className="text-xs text-gray-400 mt-2">Quick {authMode === 'signin' ? 'sign in' : 'signup'} to secure your picks</p>
-                    </div>
-                    
-                    {authMode === 'signin' ? (
-                      <SignIn
-                        routing="virtual"
-                        afterSignInUrl="/mmc-go"
-                        redirectUrl="/mmc-go"
-                        appearance={{
-                          variables: {
-                            colorPrimary: "#10b981",
-                            colorBackground: "#1f2937",
-                            colorText: "#f9fafb",
-                            colorTextSecondary: "#9ca3af",
-                            colorInputBackground: "#374151",
-                            colorInputText: "#f9fafb",
-                            borderRadius: "0.5rem"
-                          },
-                          elements: {
-                            rootBox: "w-full",
-                            card: "shadow-none border-0 bg-transparent px-4 pb-4",
-                            headerTitle: "hidden",
-                            headerSubtitle: "hidden",
-                            socialButtonsBlockButton: "border border-gray-600 hover:border-gray-500 bg-gray-700 hover:bg-gray-600 text-white mb-3",
-                            socialButtonsBlockButtonText: "text-white font-medium",
-                            formButtonPrimary: "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 font-semibold py-3",
-                            formFieldInput: "bg-gray-700 border-gray-600 text-white placeholder-gray-400",
-                            formFieldLabel: "text-gray-300 text-sm",
-                            identityPreviewText: "text-gray-300",
-                            formFieldInputShowPasswordButton: "text-gray-400 hover:text-gray-200",
-                            footerActionText: "hidden",
-                            footerActionLink: "hidden",
-                            dividerLine: "bg-gray-600",
-                            dividerText: "text-gray-400 text-sm"
-                          },
-                          layout: {
-                            socialButtonsPlacement: "top",
-                          }
-                        }}
-                      />
-                    ) : (
-                      <SignUp
-                        routing="virtual"
-                        afterSignUpUrl="/mmc-go"
-                        redirectUrl="/mmc-go"
-                        appearance={{
-                          variables: {
-                            colorPrimary: "#10b981",
-                            colorBackground: "#1f2937",
-                            colorText: "#f9fafb",
-                            colorTextSecondary: "#9ca3af",
-                            colorInputBackground: "#374151",
-                            colorInputText: "#f9fafb",
-                            borderRadius: "0.5rem"
-                          },
-                          elements: {
-                            rootBox: "w-full",
-                            card: "shadow-none border-0 bg-transparent px-4 pb-4",
-                            headerTitle: "hidden",
-                            headerSubtitle: "hidden",
-                            socialButtonsBlockButton: "border border-gray-600 hover:border-gray-500 bg-gray-700 hover:bg-gray-600 text-white mb-3",
-                            socialButtonsBlockButtonText: "text-white font-medium",
-                            formButtonPrimary: "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 font-semibold py-3",
-                            formFieldInput: "bg-gray-700 border-gray-600 text-white placeholder-gray-400",
-                            formFieldLabel: "text-gray-300 text-sm",
-                            identityPreviewText: "text-gray-300",
-                            formFieldInputShowPasswordButton: "text-gray-400 hover:text-gray-200",
-                            footerActionText: "hidden",
-                            footerActionLink: "hidden",
-                            dividerLine: "bg-gray-600",
-                            dividerText: "text-gray-400 text-sm"
-                          },
-                          layout: {
-                            socialButtonsPlacement: "top",
-                          }
-                        }}
-                      />
-                    )}
-                    
-                    {/* Toggle link */}
-                    <div className="px-4 pb-4 text-center">
+                      {/* Close button */}
                       <button
-                        onClick={() => setAuthMode(authMode === 'signin' ? 'signup' : 'signin')}
-                        className="text-sm text-gray-400 hover:text-green-400"
+                        onClick={() => {
+                          setShowInlineAuth(false);
+                          setAuthLoading(false);
+                        }}
+                        className="absolute top-4 right-4 text-gray-400 hover:text-gray-200 z-20"
                       >
-                        {authMode === 'signin' ? '¿No tienes cuenta? Regístrate' : '¿Ya tienes cuenta? Inicia sesión'}
+                        <FaTimes size={20} />
                       </button>
-                    </div>
-                  </div>
-                </div>
-              )}
+                      
+                      {/* Header */}
+                      <div className="p-4 text-center border-b border-gray-700">
+                        <h3 className="text-xl font-bold text-white mb-1">🏎️ ¡Confirma tu Apuesta!</h3>
+                        <p className="text-green-400 font-semibold">
+                          {totalPicks} picks • <CurrencyDisplay copAmount={amount} />
+                        </p>
+                        <p className="text-xs text-gray-400 mt-2">
+                          {authMode === 'signin' ? 'Inicia sesión' : 'Crea tu cuenta'} para asegurar tus picks
+                        </p>
+                      </div>
+                      
+                      {/* Auth content */}
+                      <div className="relative overflow-y-auto max-h-96">
+                        {authLoading && (
+                          <div className="absolute inset-0 bg-gray-800/80 flex items-center justify-center z-10">
+                            <div className="flex items-center gap-2 text-white">
+                              <FaSpinner className="animate-spin" />
+                              <span>Procesando...</span>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {authMode === 'signin' ? (
+                          <SignIn
+                            routing="virtual"
+                            signUpUrl="#"
+                            appearance={{
+                              variables: {
+                                colorPrimary: "#10b981",
+                                colorBackground: "#1f2937",
+                                colorText: "#f9fafb",
+                                colorTextSecondary: "#9ca3af",
+                                colorInputBackground: "#374151",
+                                colorInputText: "#f9fafb",
+                                borderRadius: "0.5rem"
+                              },
+                              elements: {
+                                rootBox: "w-full",
+                                card: "shadow-none border-0 bg-transparent px-4 pb-4",
+                                headerTitle: "hidden",
+                                headerSubtitle: "hidden",
+                                socialButtonsBlockButton: "border border-gray-600 hover:border-gray-500 bg-gray-700 hover:bg-gray-600 text-white mb-3",
+                                socialButtonsBlockButtonText: "text-white font-medium",
+                                formButtonPrimary: "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 font-semibold py-3",
+                                formFieldInput: "bg-gray-700 border-gray-600 text-white placeholder-gray-400",
+                                formFieldLabel: "text-gray-300 text-sm",
+                                identityPreviewText: "text-gray-300",
+                                formFieldInputShowPasswordButton: "text-gray-400 hover:text-gray-200",
+                                footerActionText: "hidden",
+                                footerActionLink: "hidden",
+                                dividerLine: "bg-gray-600",
+                                dividerText: "text-gray-400 text-sm"
+                              },
+                              layout: {
+                                socialButtonsPlacement: "top",
+                              }
+                            }}
+                          />
+                        ) : (
+                          <SignUp
+                            routing="virtual"
+                            signInUrl="#"
+                            appearance={{
+                              variables: {
+                                colorPrimary: "#10b981",
+                                colorBackground: "#1f2937",
+                                colorText: "#f9fafb",
+                                colorTextSecondary: "#9ca3af",
+                                colorInputBackground: "#374151",
+                                colorInputText: "#f9fafb",
+                                borderRadius: "0.5rem"
+                              },
+                              elements: {
+                                rootBox: "w-full",
+                                card: "shadow-none border-0 bg-transparent px-4 pb-4",
+                                headerTitle: "hidden",
+                                headerSubtitle: "hidden",
+                                socialButtonsBlockButton: "border border-gray-600 hover:border-gray-500 bg-gray-700 hover:bg-gray-600 text-white mb-3",
+                                socialButtonsBlockButtonText: "text-white font-medium",
+                                formButtonPrimary: "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 font-semibold py-3",
+                                formFieldInput: "bg-gray-700 border-gray-600 text-white placeholder-gray-400",
+                                formFieldLabel: "text-gray-300 text-sm",
+                                identityPreviewText: "text-gray-300",
+                                formFieldInputShowPasswordButton: "text-gray-400 hover:text-gray-200",
+                                footerActionText: "hidden",
+                                footerActionLink: "hidden",
+                                dividerLine: "bg-gray-600",
+                                dividerText: "text-gray-400 text-sm"
+                              },
+                              layout: {
+                                socialButtonsPlacement: "top",
+                              }
+                            }}
+                          />
+                        )}
+                      </div>
+                      
+                      {/* Toggle link */}
+                      <div className="px-4 pb-4 text-center border-t border-gray-700 pt-3">
+                        <button
+                          onClick={() => setAuthMode(authMode === 'signin' ? 'signup' : 'signin')}
+                          className="text-sm text-gray-400 hover:text-green-400 transition-colors"
+                          disabled={authLoading}
+                        >
+                          {authMode === 'signin' ? '¿No tienes cuenta? Regístrate aquí' : '¿Ya tienes cuenta? Inicia sesión'}
+                        </button>
+                      </div>
+                    </motion.div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               {/* Header with currency selector */}
               <div className="flex justify-between items-center mb-4 pb-2 border-b border-gray-700/50">
@@ -665,21 +639,6 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                   </button>
                 </div>
               </div>
-
-              {/* ✨ DEBUG: Detection status (remove in production) */}
-              {process.env.NODE_ENV === 'development' && (
-                <div className="mb-4 p-3 bg-gray-900/50 rounded-lg border border-yellow-500/30">
-                  <h4 className="text-xs font-bold text-yellow-400 mb-2">🔍 DEBUG - Detection Status</h4>
-                  <div className="text-xs text-gray-300 space-y-1">
-                    <div>Currency: <span className="text-cyan-400">{currency}</span></div>
-                    <div>Is Colombia: <span className={isInColombia ? 'text-green-400' : 'text-red-400'}>{isInColombia ? 'YES' : 'NO'}</span></div>
-                    <div>Payment Method: <span className="text-amber-400">{paymentMethod}</span></div>
-                    {detectionInfo && (
-                      <div>Detection: <span className="text-gray-400">{JSON.stringify(detectionInfo, null, 2)}</span></div>
-                    )}
-                  </div>
-                </div>
-              )}
 
               {/* Promo message */}
               {promo ? (
@@ -790,7 +749,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                   </div>
                 )}
 
-                {/* ✨ ENHANCED: Payment Method Selection - Only for International Users (with strict Colombia blocking) */}
+                {/* Payment Method Selection - Only for International Users */}
                 {!isInColombia && isSignedIn && paymentMethod !== 'wallet' && currency !== 'COP' && (
                   <div className="bg-gray-800/70 rounded-lg p-4">
                     <h4 className="text-sm font-semibold text-gray-300 mb-3 flex items-center gap-2">
@@ -819,13 +778,10 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                         🏦 Tarjeta de Crédito
                       </button>
                     </div>
-                    <p className="text-xs text-gray-400 mt-2 text-center">
-                      Usuarios internacionales pueden elegir su método preferido
-                    </p>
                   </div>
                 )}
 
-                {/* ✨ ENHANCED: Information banner for Colombian users */}
+                {/* Information banner for Colombian users */}
                 {(isInColombia || currency === 'COP') && isSignedIn && paymentMethod !== 'wallet' && (
                   <div className="bg-gradient-to-r from-green-800/30 to-blue-800/30 rounded-lg p-4 border border-green-700/50">
                     <div className="flex items-center gap-3">
@@ -848,7 +804,6 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                     className="w-full py-2 rounded-lg bg-gray-700/60 border border-gray-600 text-white font-semibold text-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
                     placeholder="Enter amount"
                   />
-                  {/* ✨ Only show currency status for international users who need conversion */}
                   {!isInColombia && currency !== 'COP' && (
                     <div className="flex justify-between items-center text-xs text-gray-400">
                       <CurrencyStatusIndicator />
@@ -939,7 +894,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                   )}
                 </AnimatePresence>
 
-                {/* ✨ ENHANCED: PayPal button section - with strict Colombia check and tracking */}
+                {/* PayPal button section or Regular Confirm Button */}
                 {isSignedIn && paymentMethod === 'paypal' && !isInColombia && currency !== 'COP' ? (
                   <div className="space-y-2">
                     <PayPalScriptProvider options={{ 
@@ -950,16 +905,12 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                       <PayPalButtons
                         disabled={!isValid || isProcessing}
                         createOrder={() => {
-                          // 🎯 Track InitiateCheckout for PayPal
                           trackInitiateCheckout('paypal');
                           return handlePayPalPayment();
                         }}
                         onApprove={async (data, actions) => {
                           setIsProcessing(true);
                           try {
-                            // ❌ REMOVED: InitiateCheckout tracking moved to createOrder
-
-                            // PayPal will handle the capture via webhook
                             toast.success('Pago de PayPal procesando...');
                             setQualyPicks([]); 
                             setRacePicks([]);
@@ -990,7 +941,6 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                           setIsProcessing(false);
                         }}
                         onShippingChange={() => {
-                          // Return resolved promise to avoid shipping address collection
                           return Promise.resolve();
                         }}
                         forceReRender={[amount, totalPicks]}
@@ -1018,10 +968,6 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                       <>🔐 Iniciar Sesión y Pagar <CurrencyDisplay copAmount={amount} /></>
                     ) : paymentMethod === 'wallet' ? (
                       <>🎮 Jugar <CurrencyDisplay copAmount={amount} /></> 
-                    ) : (isInColombia || currency === 'COP') ? (
-                      <>
-                        <FaDollarSign /> Confirmar y pagar <CurrencyDisplay copAmount={amount} />
-                      </>
                     ) : (
                       <>
                         <FaDollarSign /> Confirmar y Pagar <CurrencyDisplay copAmount={amount} />
