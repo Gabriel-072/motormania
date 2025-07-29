@@ -695,4 +695,4 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
       )}
     </AnimatePresence>
   );
-}
+} 
