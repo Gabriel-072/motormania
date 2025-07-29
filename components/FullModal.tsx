@@ -591,6 +591,8 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                           <SignUp
                             routing="virtual"
                             signInUrl="#"
+                            afterSignUpUrl={null}
+                            redirectUrl={null}
                             forceRedirectUrl={null}
                             fallbackRedirectUrl={null}
                             unsafeMetadata={{
