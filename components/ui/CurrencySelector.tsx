@@ -1,4 +1,4 @@
-// 📁 components/ui/CurrencySelector.tsx
+// components/ui/CurrencySelector.tsx - FIXED FOR YOUR STORE
 'use client';
 
 import React, { useState } from 'react';
@@ -44,93 +44,76 @@ export const CurrencySelector: React.FC<CurrencySelectorProps> = ({
           size={12} 
         />
       </button>
-      
+
       {/* Detection Info */}
       {showDetectionInfo && detectionInfo && (
         <div className="mt-1 text-xs text-gray-400">
-          Auto-detected via {detectionInfo.source}
+          Auto-detected via {detectionInfo.method}
         </div>
       )}
-      
+
       {/* Dropdown Menu */}
       <AnimatePresence>
         {isOpen && (
-          <>
-            {/* Backdrop */}
-            <div 
-              className="fixed inset-0 z-40"
-              onClick={() => setIsOpen(false)}
-            />
-            
-            {/* Menu */}
-            <motion.div
-              initial={{ opacity: 0, y: -10, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -10, scale: 0.95 }}
-              transition={{ duration: 0.15 }}
-              className="absolute top-full left-0 mt-2 w-72 bg-gray-800 border border-gray-600 rounded-lg shadow-xl z-50 overflow-hidden"
-            >
-              {/* Popular Currencies */}
-              <div className="p-2">
-                <div className="text-xs text-gray-400 px-2 py-1 mb-1">Popular</div>
-                <div className="grid grid-cols-2 gap-1">
-                  {POPULAR_CURRENCIES.map((curr) => {
-                    const info = CURRENCY_INFO[curr];
-                    const isSelected = curr === currency;
-                    
-                    return (
-                      <button
-                        key={curr}
-                        onClick={() => handleSelect(curr)}
-                        className={`flex items-center gap-2 px-3 py-2 rounded-md text-left transition-colors ${
-                          isSelected 
-                            ? 'bg-cyan-600 text-white' 
-                            : 'hover:bg-gray-700 text-gray-200'
-                        }`}
-                      >
-                        <span>{info.flag}</span>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium truncate">{curr}</div>
-                          <div className="text-xs text-gray-400 truncate">{info.symbol}</div>
-                        </div>
-                        {isSelected && <FaCheck size={12} />}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              
-              {/* All Currencies */}
-              <div className="border-t border-gray-700 p-2 max-h-60 overflow-y-auto">
-                <div className="text-xs text-gray-400 px-2 py-1 mb-1">All Currencies</div>
-                {ALL_CURRENCIES
-                  .filter(curr => !POPULAR_CURRENCIES.includes(curr))
-                  .map((curr) => {
-                    const info = CURRENCY_INFO[curr];
-                    const isSelected = curr === currency;
-                    
-                    return (
-                      <button
-                        key={curr}
-                        onClick={() => handleSelect(curr)}
-                        className={`flex items-center gap-2 w-full px-3 py-2 rounded-md text-left transition-colors ${
-                          isSelected 
-                            ? 'bg-cyan-600 text-white' 
-                            : 'hover:bg-gray-700 text-gray-200'
-                        }`}
-                      >
-                        <span>{info.flag}</span>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium">{curr}</div>
-                          <div className="text-xs text-gray-400 truncate">{info.name}</div>
-                        </div>
-                        {isSelected && <FaCheck size={12} />}
-                      </button>
-                    );
-                  })}
-              </div>
-            </motion.div>
-          </>
+          <motion.div
+            initial={{ opacity: 0, y: -10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.95 }}
+            transition={{ duration: 0.15 }}
+            className="absolute top-full left-0 mt-2 w-64 bg-gray-800 border border-gray-600 rounded-lg shadow-xl z-50 overflow-hidden"
+          >
+            {/* Popular Currencies */}
+            <div className="p-2 border-b border-gray-700">
+              <div className="text-xs text-gray-400 px-2 py-1 font-medium">Popular</div>
+              {POPULAR_CURRENCIES.map((curr) => {
+                const info = CURRENCY_INFO[curr];
+                return (
+                  <button
+                    key={curr}
+                    onClick={() => handleSelect(curr)}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm transition-colors ${
+                      currency === curr
+                        ? 'bg-cyan-600 text-white'
+                        : 'text-gray-200 hover:bg-gray-700'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span>{info.flag}</span>
+                      <span>{info.code}</span>
+                      <span className="text-xs text-gray-400">{info.name}</span>
+                    </div>
+                    {currency === curr && <FaCheck size={12} />}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* All Currencies */}
+            <div className="p-2 max-h-48 overflow-y-auto">
+              <div className="text-xs text-gray-400 px-2 py-1 font-medium">All Currencies</div>
+              {ALL_CURRENCIES.filter(curr => !POPULAR_CURRENCIES.includes(curr)).map((curr) => {
+                const info = CURRENCY_INFO[curr];
+                return (
+                  <button
+                    key={curr}
+                    onClick={() => handleSelect(curr)}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm transition-colors ${
+                      currency === curr
+                        ? 'bg-cyan-600 text-white'
+                        : 'text-gray-200 hover:bg-gray-700'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span>{info.flag}</span>
+                      <span>{info.code}</span>
+                      <span className="text-xs text-gray-400">{info.name}</span>
+                    </div>
+                    {currency === curr && <FaCheck size={12} />}
+                  </button>
+                );
+              })}
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>
