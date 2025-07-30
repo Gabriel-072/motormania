@@ -33,6 +33,7 @@ import { CurrencyInput } from './ui/CurrencyInput';
 import { CurrencySelector } from './ui/CurrencySelector';
 import { QuickAmountButtons } from './ui/QuickAmountButtons';
 import { CurrencyStatusIndicator } from './ui/CurrencyStatusIndicator';
+import { EmbeddedCryptoCheckout } from './EmbeddedCryptoCheckout';
 
 interface FullModalProps {
   isOpen: boolean;
@@ -103,11 +104,12 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
   // promotion
   const [promo, setPromo] = useState<Promo | null>(null);
 
-  // ✨ Payment method state - now includes crypto
+  // ✨ NEW: Payment method state - now includes crypto
   const [paymentMethod, setPaymentMethod] = useState<'bold' | 'wallet' | 'crypto'>('bold');
 
-  // ✨ NEW: Payment selector modal state
-  const [showPaymentSelector, setShowPaymentSelector] = useState(false);
+  // ✨ NEW: Embedded crypto states
+  const [showEmbeddedCrypto, setShowEmbeddedCrypto] = useState(false);
+  const [cryptoChargeId, setCryptoChargeId] = useState<string>('');
 
   // Notificaciones FOMO
   const fomoMsg = useFomoFake(2500);
@@ -254,7 +256,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     }
   }, [picks, setQualyPicks, setRacePicks]);
 
-  // ✨ NEW: Crypto payment handler
+  // ✨ UPDATED: Crypto payment handler for embedded checkout
   const handleCryptoPayment = async () => {
     if (!user?.id || isProcessing || !isValid) return;
     const email = user.primaryEmailAddress?.emailAddress;
@@ -285,17 +287,12 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
         throw new Error(e ?? 'Error creando pago crypto.');
       }
 
-      const { checkoutUrl, success } = await res.json();
+      const { chargeId, success } = await res.json();
       
-      if (success && checkoutUrl) {
-        // Open crypto checkout in new tab
-        window.open(checkoutUrl, '_blank');
-        toast.success('Redirigido a pago crypto - completa el pago en la nueva ventana');
-        
-        // Clear picks optimistically
-        setQualyPicks([]); 
-        setRacePicks([]);
-        onClose();
+      if (success && chargeId) {
+        // Show embedded checkout
+        setCryptoChargeId(chargeId);
+        setShowEmbeddedCrypto(true);
       } else {
         throw new Error('No se pudo crear el checkout crypto');
       }
@@ -697,7 +694,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                         : 'bg-gray-600/80 text-gray-400/80 cursor-not-allowed'}
                     `}
                   >
-                    Confirmar y Pagar <CurrencyDisplay copAmount={amount} />
+                    Confirmar <CurrencyDisplay copAmount={amount} />
                   </button>
                 ) : paymentMethod === 'wallet' ? (
                   // Wallet payment button
