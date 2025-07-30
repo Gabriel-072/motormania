@@ -743,7 +743,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                       `}
                     >
                       <FaDollarSign />
-                      Tarjeta
+                      Cash
                     </button>
                     
                     <button
