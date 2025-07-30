@@ -256,7 +256,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     }
   }, [picks, setQualyPicks, setRacePicks]);
 
-  // ✨ UPDATED: Crypto payment handler for embedded checkout
+  // ✨ SIMPLIFIED: Crypto payment handler (popup only)
   const handleCryptoPayment = async () => {
     if (!user?.id || isProcessing || !isValid) return;
     const email = user.primaryEmailAddress?.emailAddress;
@@ -287,23 +287,14 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
         throw new Error(e ?? 'Error creando pago crypto.');
       }
 
-      const { chargeId, checkoutUrl, success } = await res.json();
+      const { checkoutUrl, success } = await res.json();
       
-      if (success && chargeId) {
-        // Try embedded first, fallback to popup
-        if (typeof window !== 'undefined' && window.CoinbaseCommerce) {
-          setCryptoChargeId(chargeId);
-          setShowEmbeddedCrypto(true);
-        } else {
-          // Fallback to popup
-          if (checkoutUrl) {
-            window.open(checkoutUrl, '_blank');
-            toast.success('Abriendo pago crypto en nueva ventana');
-            setQualyPicks([]);
-            setRacePicks([]);
-            onClose();
-          }
-        }
+      if (success && checkoutUrl) {
+        window.open(checkoutUrl, '_blank');
+        toast.success('Abriendo pago crypto - completa en la nueva ventana');
+        setQualyPicks([]);
+        setRacePicks([]);
+        onClose();
       } else {
         throw new Error('No se pudo crear el checkout crypto');
       }
@@ -705,7 +696,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                         : 'bg-gray-600/80 text-gray-400/80 cursor-not-allowed'}
                     `}
                   >
-                    Activa el DRS! <CurrencyDisplay copAmount={amount} />
+                    Confirmar y Pagar <CurrencyDisplay copAmount={amount} />
                   </button>
                 ) : paymentMethod === 'wallet' ? (
                   // Wallet payment button

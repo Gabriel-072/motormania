@@ -39,7 +39,6 @@ export default function RootLayout({
           src="https://checkout.bold.co/library/boldPaymentButton.js"
           strategy="beforeInteractive"
         />
-        <Script src="https://js.coinbase.com/embed/v1.js" strategy="beforeInteractive" />
       </head>
       <body className={exo2.className} suppressHydrationWarning>
         <ClerkProvider
