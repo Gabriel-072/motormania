@@ -51,12 +51,6 @@ export async function POST(req:NextRequest){
     if(mode==='safety' && picks.length<3)
       return NextResponse.json({ error:'Safety requiere ≥3 picks'},{status:400});
 
-    /* 🔧 NEW: Clean up existing pending transactions for this user */
-    await sb.from('pick_transactions')
-      .delete()
-      .eq('user_id', userId)
-      .eq('payment_status', 'pending');
-
     /* 4️⃣  Cálculos */
     const multiplier   = calcMultiplier(picks.length, mode);
     const potentialWin = multiplier * amount;
