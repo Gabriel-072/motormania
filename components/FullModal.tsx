@@ -1,4 +1,4 @@
-// components/FullModal.tsx - UPDATED WITH CRYPTO PAYMENTS
+// components/FullModal.tsx - IMPROVED UX WITH SINGLE BUTTON
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -105,6 +105,9 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
 
   // ✨ Payment method state - now includes crypto
   const [paymentMethod, setPaymentMethod] = useState<'bold' | 'wallet' | 'crypto'>('bold');
+
+  // ✨ NEW: Payment selector modal state
+  const [showPaymentSelector, setShowPaymentSelector] = useState(false);
 
   // Notificaciones FOMO
   const fomoMsg = useFomoFake(2500);
@@ -449,20 +452,6 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     router.push(`/sign-up?redirect_url=${encodeURIComponent(currentUrl)}`);
   };
 
-  // ✨ Main confirm handler
-  const handleConfirm = () => {
-    if (!isSignedIn) {
-      handleAuthRequired();
-      return;
-    }
-    
-    trackInitiateCheckout(paymentMethod);
-    
-    if (paymentMethod === 'wallet') return handleWalletBet();
-    if (paymentMethod === 'crypto') return handleCryptoPayment();
-    handleBoldPayment(); // Default to Bold
-  };
-
   return (
     <AnimatePresence>
       {isOpen && (
@@ -575,89 +564,25 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
 
               {/* controls */}
               <div className="mt-4 pt-4 border-t border-gray-700/50 space-y-4">
-                {/* ✨ Payment Method Selection (only for authenticated users) */}
-                {isSignedIn && (
-                  <div className="space-y-3">
-                    {/* Wallet balance */}
-                    {wallet && (
-                      <div className="flex items-center justify-between bg-gray-800/70 rounded-lg px-4 py-2">
-                        <div className="flex items-center gap-2 text-sm text-gray-200">
-                          <FaWallet className="text-amber-400" />
-                          <span>{wallet.mmc_coins - wallet.locked_mmc} MMC Coins</span>
-                          <span className="text-gray-400">
-                            (
-                            <CurrencyDisplay copAmount={(wallet.mmc_coins - wallet.locked_mmc) * 1000} />
-                            )
-                          </span>
-                        </div>
-                        <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
-                          <input
-                            type="checkbox"
-                            checked={paymentMethod === 'wallet'}
-                            onChange={() => handlePaymentMethodChange(paymentMethod === 'wallet' ? 'bold' : 'wallet')}
-                            className="accent-amber-500"
-                          />
-                          <span>Usar saldo</span>
-                        </label>
-                      </div>
-                    )}
-
-                    {/* ✨ Payment method buttons */}
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handlePaymentMethodChange('bold')}
-                        className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg font-semibold transition-all ${
-                          paymentMethod === 'bold'
-                            ? 'bg-green-600 text-white border-2 border-green-400'
-                            : 'bg-gray-700 text-gray-300 border-2 border-gray-600 hover:bg-gray-600'
-                        }`}
-                      >
-                        <FaDollarSign size={16} />
-                        <span>Tarjeta</span>
-                      </button>
-                      
-                      <button
-                        onClick={() => handlePaymentMethodChange('crypto')}
-                        className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg font-semibold transition-all ${
-                          paymentMethod === 'crypto'
-                            ? 'bg-orange-600 text-white border-2 border-orange-400'
-                            : 'bg-gray-700 text-gray-300 border-2 border-gray-600 hover:bg-gray-600'
-                        }`}
-                      >
-                        <FaBitcoin size={16} />
-                        <span>Crypto</span>
-                      </button>
+                {/* ✨ Simplified: Just wallet toggle if available */}
+                {isSignedIn && wallet && (
+                  <div className="flex items-center justify-between bg-gray-800/70 rounded-lg px-4 py-2">
+                    <div className="flex items-center gap-2 text-sm text-gray-200">
+                      <FaWallet className="text-amber-400" />
+                      <span>{wallet.mmc_coins - wallet.locked_mmc} MMC Coins</span>
+                      <span className="text-gray-400">
+                        (<CurrencyDisplay copAmount={(wallet.mmc_coins - wallet.locked_mmc) * 1000} />)
+                      </span>
                     </div>
-                  </div>
-                )}
-
-                {/* Information banner for users */}
-                {isSignedIn && paymentMethod === 'bold' && (
-                  <div className="bg-gradient-to-r from-green-800/30 to-blue-800/30 rounded-lg p-4 border border-green-700/50">
-                    <div className="flex items-center gap-3">
-                      <div className="text-2xl">💳</div>
-                      <div>
-                        <h4 className="text-sm font-semibold text-green-400 mb-1">Pago Seguro</h4>
-                        <p className="text-xs text-gray-300">
-                          Procesamos tu pago de forma segura con tarjetas a través de Bold
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* ✨ Crypto payment info */}
-                {isSignedIn && paymentMethod === 'crypto' && (
-                  <div className="bg-gradient-to-r from-orange-800/30 to-yellow-800/30 rounded-lg p-4 border border-orange-700/50">
-                    <div className="flex items-center gap-3">
-                      <div className="text-2xl">₿</div>
-                      <div>
-                        <h4 className="text-sm font-semibold text-orange-400 mb-1">Pago Crypto</h4>
-                        <p className="text-xs text-gray-300">
-                          Paga con Bitcoin, Ethereum, USDC y otras criptomonedas
-                        </p>
-                      </div>
-                    </div>
+                    <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={paymentMethod === 'wallet'}
+                        onChange={() => handlePaymentMethodChange(paymentMethod === 'wallet' ? 'bold' : 'wallet')}
+                        className="accent-amber-500"
+                      />
+                      <span>Usar saldo</span>
+                    </label>
                   </div>
                 )}
 
@@ -759,44 +684,94 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                   )}
                 </AnimatePresence>
 
-                {/* ✨ UPDATED: Confirm Button with dynamic text */}
-                <button
-                  onClick={handleConfirm}
-                  disabled={!isValid || isProcessing}
-                  className={`
-                    w-full py-3 rounded-lg font-bold text-lg flex justify-center gap-2
-                    ${isProcessing
-                      ? 'bg-yellow-600 text-white cursor-wait'
-                      : isValid
-                        ? paymentMethod === 'crypto'
-                          ? 'bg-gradient-to-r from-orange-500 to-yellow-600 text-white'
-                          : 'bg-gradient-to-r from-green-500 to-emerald-600 text-white'
+                {/* ✨ SIMPLE: Show different buttons based on auth status */}
+                {!isSignedIn ? (
+                  // Single button for non-authenticated users
+                  <button
+                    onClick={handleAuthRequired}
+                    disabled={!isValid}
+                    className={`
+                      w-full py-3 rounded-lg font-bold text-lg flex justify-center gap-2
+                      ${isValid
+                        ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white'
                         : 'bg-gray-600/80 text-gray-400/80 cursor-not-allowed'}
-                  `}
-                >
-                  {isProcessing ? (
-                    <>
-                      <FaSpinner className="animate-spin" /> Procesando…
-                    </>
-                  ) : !isSignedIn ? (
-                    <>Confirmar y Pagar <CurrencyDisplay copAmount={amount} /></>
-                  ) : paymentMethod === 'wallet' ? (
-                    <>🎮 Jugar <CurrencyDisplay copAmount={amount} /></> 
-                  ) : paymentMethod === 'crypto' ? (
-                    <>
-                      <FaBitcoin /> Pagar con Crypto <CurrencyDisplay copAmount={amount} />
-                    </>
-                  ) : (
-                    <>
-                      <FaDollarSign /> Confirmar y Pagar <CurrencyDisplay copAmount={amount} />
-                    </>
-                  )}
-                </button>
+                    `}
+                  >
+                    Confirmar y Pagar <CurrencyDisplay copAmount={amount} />
+                  </button>
+                ) : paymentMethod === 'wallet' ? (
+                  // Wallet payment button
+                  <button
+                    onClick={() => {
+                      trackInitiateCheckout('wallet');
+                      handleWalletBet();
+                    }}
+                    disabled={!isValid || isProcessing}
+                    className={`
+                      w-full py-3 rounded-lg font-bold text-lg flex justify-center gap-2
+                      ${isProcessing
+                        ? 'bg-yellow-600 text-white cursor-wait'
+                        : isValid
+                          ? 'bg-gradient-to-r from-purple-500 to-pink-600 text-white'
+                          : 'bg-gray-600/80 text-gray-400/80 cursor-not-allowed'}
+                    `}
+                  >
+                    {isProcessing ? (
+                      <>
+                        <FaSpinner className="animate-spin" /> Procesando…
+                      </>
+                    ) : (
+                      <>🎮 Jugar <CurrencyDisplay copAmount={amount} /></>
+                    )}
+                  </button>
+                ) : (
+                  // Two payment buttons for authenticated users
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => {
+                        trackInitiateCheckout('bold');
+                        handleBoldPayment();
+                      }}
+                      disabled={!isValid || isProcessing}
+                      className={`
+                        flex-1 py-3 rounded-lg font-bold text-lg flex justify-center gap-2
+                        ${isProcessing
+                          ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                          : isValid
+                            ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700'
+                            : 'bg-gray-600/80 text-gray-400/80 cursor-not-allowed'}
+                      `}
+                    >
+                      <FaDollarSign />
+                      Tarjeta
+                    </button>
+                    
+                    <button
+                      onClick={() => {
+                        trackInitiateCheckout('crypto');
+                        handleCryptoPayment();
+                      }}
+                      disabled={!isValid || isProcessing}
+                      className={`
+                        flex-1 py-3 rounded-lg font-bold text-lg flex justify-center gap-2
+                        ${isProcessing
+                          ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                          : isValid
+                            ? 'bg-gradient-to-r from-orange-500 to-yellow-600 text-white hover:from-orange-600 hover:to-yellow-700'
+                            : 'bg-gray-600/80 text-gray-400/80 cursor-not-allowed'}
+                      `}
+                    >
+                      <FaBitcoin />
+                      Crypto
+                    </button>
+                  </div>
+                )}
               </div>
             </motion.div>
           </div>
         </motion.div>
       )}
+
     </AnimatePresence>
   );
-}  
+}
