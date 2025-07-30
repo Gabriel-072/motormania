@@ -287,12 +287,23 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
         throw new Error(e ?? 'Error creando pago crypto.');
       }
 
-      const { chargeId, success } = await res.json();
+      const { chargeId, checkoutUrl, success } = await res.json();
       
       if (success && chargeId) {
-        // Show embedded checkout
-        setCryptoChargeId(chargeId);
-        setShowEmbeddedCrypto(true);
+        // Try embedded first, fallback to popup
+        if (typeof window !== 'undefined' && window.CoinbaseCommerce) {
+          setCryptoChargeId(chargeId);
+          setShowEmbeddedCrypto(true);
+        } else {
+          // Fallback to popup
+          if (checkoutUrl) {
+            window.open(checkoutUrl, '_blank');
+            toast.success('Abriendo pago crypto en nueva ventana');
+            setQualyPicks([]);
+            setRacePicks([]);
+            onClose();
+          }
+        }
       } else {
         throw new Error('No se pudo crear el checkout crypto');
       }
@@ -694,7 +705,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                         : 'bg-gray-600/80 text-gray-400/80 cursor-not-allowed'}
                     `}
                   >
-                    Confirmar <CurrencyDisplay copAmount={amount} />
+                    Activa el DRS! <CurrencyDisplay copAmount={amount} />
                   </button>
                 ) : paymentMethod === 'wallet' ? (
                   // Wallet payment button
