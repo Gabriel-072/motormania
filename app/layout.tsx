@@ -16,6 +16,8 @@ import HotjarInit from '@/components/HotjarInit';
 import ClarityInit from '@/components/ClarityInit';
 import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from "@vercel/speed-insights/next"
+// ✨ Add currency detection
+import { CurrencyInitializer } from '@/components/CurrencyInitializer';
 
 const exo2 = Exo_2({ subsets: ["latin"] });
 
@@ -70,20 +72,24 @@ export default function RootLayout({
             },
           }}
         >
-              <ClarityInit />
+          {/* ✨ Wrap everything with currency detection */}
+          <CurrencyInitializer>
+            <ClarityInit />
 
-          {/* Single Facebook Pixel initialization */}
-          <PixelTracker />
-          <Suspense fallback={null}>
-            <RegistrationTracker />
-            <UTMTracker />
-          </Suspense>
-          <MovingBar />
-          <Header />
-          <main className="pt-20">{children}</main>
-          <Footer />
-          {process.env.NODE_ENV === 'production' && <HotjarInit />}
-          <Analytics />
+            {/* Single Facebook Pixel initialization */}
+            <PixelTracker />
+            <Suspense fallback={null}>
+              <RegistrationTracker />
+              <UTMTracker />
+            </Suspense>
+            <MovingBar />
+            <Header />
+            <main className="pt-20">{children}</main>
+            <Footer />
+            {process.env.NODE_ENV === 'production' && <HotjarInit />}
+            <Analytics />
+            <SpeedInsights />
+          </CurrencyInitializer>
         </ClerkProvider>
       </body>
     </html>

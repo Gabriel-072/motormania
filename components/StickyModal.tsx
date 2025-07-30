@@ -1,4 +1,4 @@
-//components/StickyModal.tsx
+//components/StickyModal.tsx - FIXED FOR YOUR STRUCTURE
 'use client';
 
 import React, { useEffect, useMemo } from 'react';
@@ -10,7 +10,7 @@ import { CurrencyDisplay } from './ui/CurrencyDisplay';
 // ✨ FIXED: Import tracking utility
 import { trackFBEvent } from '@/lib/trackFBEvent';
 // Import icons
-import { FaArrowRight, FaStar } from 'react-icons/fa';
+import { FaArrowRight, FaStar, FaSpinner, FaGlobeAmericas } from 'react-icons/fa';
 
 type StickyModalProps = {
   onFinish: () => Promise<void>; // Function to call when finishing picks
@@ -24,27 +24,42 @@ const StickyModal: React.FC<StickyModalProps> = ({ onFinish }) => {
   // Get state from Zustand store
   const { showSticky, multiplier, picks } = useStickyStore();
   
-  // ✨ Currency store
-  const { initializeCurrency, isInitialized, convertToCOP } = useCurrencyStore();
-  const { minimumBet, currency } = useCurrencyInfo();
+  // ✨ Currency store with auto-detection
+  const { 
+    initializeCurrency, 
+    isInitialized, 
+    isLoading,
+    convertToCOP 
+  } = useCurrencyStore();
+  
+  const { minimumBet, currency, currencyInfo } = useCurrencyInfo();
 
-  // ✨ Initialize currency system on mount
+  // ✨ Initialize currency system immediately when component mounts
   useEffect(() => {
-    if (!isInitialized) {
-      initializeCurrency();
+    if (!isInitialized && !isLoading) {
+      console.log('🚀 StickyModal: Triggering currency initialization');
+      initializeCurrency().catch((error) => {
+        console.error('❌ StickyModal currency init failed:', error);
+      });
     }
-  }, [initializeCurrency, isInitialized]);
+  }, [initializeCurrency, isInitialized, isLoading]);
 
-  // ✨ FIXED: Dynamic wager based on currency and minimum bet
+  // ✨ Dynamic wager based on currency detection
   const wager = useMemo(() => {
-    if (!isInitialized) return 20000; // Default COP fallback
+    if (!isInitialized || !minimumBet) {
+      // Show reasonable fallback while detecting
+      return currency === 'COP' ? 20000 : 20000; // Keep in COP for consistency
+    }
     
     // Use minimum bet but ensure it's at least reasonable for betting
-    const baseDisplayAmount = Math.max(minimumBet.display, currency === 'COP' ? 20 : 5);
+    const baseDisplayAmount = Math.max(
+      minimumBet.display, 
+      currency === 'COP' ? 20 : 5 // 5 units in most currencies
+    );
     
     // Convert back to COP for consistent internal processing
-    return Math.round(convertToCOP(baseDisplayAmount));
-  }, [isInitialized, minimumBet.display, currency, convertToCOP]);
+    return currency === 'COP' ? baseDisplayAmount : Math.round(convertToCOP(baseDisplayAmount));
+  }, [isInitialized, minimumBet, currency, convertToCOP]);
 
   // Calculate combined picks and counts
   const combinedPicks = [...picks.qualy, ...picks.race];
@@ -55,24 +70,28 @@ const StickyModal: React.FC<StickyModalProps> = ({ onFinish }) => {
   const isMaxPicks = totalPicks === MAX_PICKS; // Check for max picks
   const potentialWin = isValid ? wager * multiplier : 0;
 
-  // ✨ FIXED: AddToCart tracking function with dynamic currency
+  // ✨ Enhanced AddToCart tracking function with currency data
   const trackAddToCart = () => {
     console.log('🛒 StickyModal: Tracking AddToCart event', {
       totalPicks,
       wager,
       currency,
       isValid,
+      isInitialized,
       fbqAvailable: typeof window !== 'undefined' && !!window.fbq
     });
 
+    const copAmount = currency === 'COP' ? wager : convertToCOP(wager);
     const eventData = {
-      value: currency === 'COP' ? wager / 1000 : convertToCOP(wager / 1000) / 1000,
+      value: copAmount / 1000, // Convert to thousands for better tracking
       currency: 'COP', // Always track in COP for backend consistency
       content_type: 'product',
       content_category: 'sports_betting',
       content_ids: [`mmc_picks_${totalPicks}`],
       content_name: `MMC GO Picks (${totalPicks} selections)`,
       num_items: totalPicks,
+      detected_currency: currency,
+      detection_method: isInitialized ? 'auto' : 'fallback'
     };
 
     // Facebook Pixel direct tracking
@@ -120,6 +139,7 @@ const StickyModal: React.FC<StickyModalProps> = ({ onFinish }) => {
     flex items-center justify-between gap-4 /* Horizontal layout */
     transition-all duration-500 ease-out /* Smooth transition for style changes */
   `;
+  
   // Conditional container styles for normal vs max picks (using solid colors)
   const containerClasses = `
     ${containerBaseClasses}
@@ -213,7 +233,7 @@ const StickyModal: React.FC<StickyModalProps> = ({ onFinish }) => {
   return (
     <AnimatePresence>
       <motion.div
-        key="sticky-modal-currency-enabled" // Updated key
+        key="sticky-modal-auto-currency" // Updated key
         initial={{ y: "110%", opacity: 0 }}
         animate={{ y: "0%", opacity: 1 }}
         exit={{ y: "110%", opacity: 0 }}
@@ -267,34 +287,55 @@ const StickyModal: React.FC<StickyModalProps> = ({ onFinish }) => {
             </motion.span>
           </motion.div>
 
-          {/* ✨ UPDATED: Wager Wins Text with Currency Display */}
+          {/* ✨ ENHANCED: Wager Wins Text with Currency Display and Detection Status */}
           <div className="flex flex-col items-start">
-             <span className={wagerWinTextClasses}> {/* Dynamic text color */}
-               <CurrencyDisplay copAmount={wager} /> gana
-             </span>
-             <motion.span
-                key={potentialWin} // Animate when value changes
-                initial={{ opacity: 0.5, y: 5 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
-                className={`${wagerWinAmountClasses} text-lg sm:text-xl tabular-nums`} // Dynamic text color + styles
-             >
-                 <CurrencyDisplay copAmount={potentialWin} suffix="!" />
-             </motion.span>
+            <div className="flex items-center gap-1">
+              <span className={wagerWinTextClasses}> {/* Dynamic text color */}
+                <CurrencyDisplay copAmount={wager} /> gana
+              </span>
+              
+              {/* ✨ Currency detection status indicator */}
+              {isLoading && (
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                  className="text-blue-400"
+                  title="Detecting your location..."
+                >
+                  <FaSpinner className="w-3 h-3" />
+                </motion.div>
+              )}
+            </div>
+            
+            <motion.span
+               key={potentialWin} // Animate when value changes
+               initial={{ opacity: 0.5, y: 5 }}
+               animate={{ opacity: 1, y: 0 }}
+               transition={{ duration: 0.3 }}
+               className={`${wagerWinAmountClasses} text-lg sm:text-xl tabular-nums`} // Dynamic text color + styles
+            >
+                <CurrencyDisplay copAmount={potentialWin} suffix="!" />
+            </motion.span>
           </div>
         </div>
 
         {/* Right Section: Finish Button */}
         <motion.button
           onClick={async () => {
-            console.log('🚀 StickyModal button clicked!', { isValid, totalPicks });
+            console.log('🚀 StickyModal button clicked!', { 
+              isValid, 
+              totalPicks, 
+              currency, 
+              isInitialized,
+              wager 
+            });
             
             if (!isValid) {
               console.log('❌ Button click blocked - not valid');
               return;
             }
             
-            // ✨ FIXED: Track AddToCart event with better error handling
+            // ✨ Enhanced AddToCart tracking
             try {
               trackAddToCart();
             } catch (error) {
@@ -327,7 +368,6 @@ const StickyModal: React.FC<StickyModalProps> = ({ onFinish }) => {
            <span className="sm:hidden">
              {isMaxPicks ? "¡MAX!" : "Finalizar"} {/* Shorter text for small screens */}
           </span>
-          {/* <FaArrowRight className="ml-1 text-xs" /> */}
         </motion.button>
       </motion.div>
     </AnimatePresence>
