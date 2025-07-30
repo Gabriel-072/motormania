@@ -1,4 +1,4 @@
-// 📁 components/FullModal.tsx - FIXED CURRENCY ALIGNMENT
+// components/FullModal.tsx - UPDATED WITH CRYPTO PAYMENTS
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -14,7 +14,8 @@ import {
   FaDollarSign,
   FaSpinner,
   FaWallet,
-  FaGlobeAmericas
+  FaGlobeAmericas,
+  FaBitcoin // Add crypto icon
 } from 'react-icons/fa';
 import { useUser, useAuth } from '@clerk/nextjs';
 import { useStickyStore } from '@/stores/stickyStore';
@@ -77,7 +78,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
   const { getToken } = useAuth();
   const router = useRouter();
 
-  // ✨ Currency store - unified currency management
+  // ✨ Currency store
   const { initializeCurrency, isInitialized, convertToCOP } = useCurrencyStore();
   const { minimumBet, currency } = useCurrencyInfo();
 
@@ -85,10 +86,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
   const defaultAmount = useMemo(() => {
     if (!isInitialized) return 20000; // COP fallback
     
-    // Use minimum bet but ensure it's reasonable for betting
     const baseDisplayAmount = Math.max(minimumBet.display, currency === 'COP' ? 20 : 5);
-    
-    // Convert to COP for internal processing
     return Math.round(convertToCOP(baseDisplayAmount));
   }, [isInitialized, minimumBet.display, currency, convertToCOP]);
 
@@ -105,8 +103,8 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
   // promotion
   const [promo, setPromo] = useState<Promo | null>(null);
 
-  // ✨ Payment method state
-  const [paymentMethod, setPaymentMethod] = useState<'bold' | 'wallet'>('bold');
+  // ✨ Payment method state - now includes crypto
+  const [paymentMethod, setPaymentMethod] = useState<'bold' | 'wallet' | 'crypto'>('bold');
 
   // Notificaciones FOMO
   const fomoMsg = useFomoFake(2500);
@@ -140,7 +138,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
       const copAmount = currency === 'COP' ? amount : convertToCOP(amount);
       const eventData = {
         value: copAmount / 1000,
-        currency: 'COP', // Always track in COP for consistency
+        currency: 'COP',
         content_type: 'product',
         content_category: 'sports_betting',
         content_ids: [`mmc_picks_${totalPicks}`],
@@ -225,7 +223,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
   }, [combinedPicks, totalPicks, amount, mode, paymentMethod, wallet, isInitialized, minimumBet, currency, convertToCOP]);
 
   // ✨ Payment method handler
-  const handlePaymentMethodChange = useCallback((method: 'bold' | 'wallet') => {
+  const handlePaymentMethodChange = useCallback((method: 'bold' | 'wallet' | 'crypto') => {
     setPaymentMethod(method);
   }, []);
 
@@ -253,6 +251,59 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     }
   }, [picks, setQualyPicks, setRacePicks]);
 
+  // ✨ NEW: Crypto payment handler
+  const handleCryptoPayment = async () => {
+    if (!user?.id || isProcessing || !isValid) return;
+    const email = user.primaryEmailAddress?.emailAddress;
+    if (!email) { toast.error('Tu cuenta no tiene email'); return; }
+
+    setIsProcessing(true);
+    setError(null);
+
+    try {
+      const copAmount = currency === 'COP' ? amount : convertToCOP(amount);
+      const orderId = `CRYPTO-${Date.now()}-${user.id}`;
+
+      const res = await fetch('/api/crypto-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: Math.round(copAmount),
+          picks: combinedPicks,
+          mode,
+          userEmail: email,
+          userName: user.fullName ?? 'Jugador MMC',
+          orderId
+        })
+      });
+
+      if (!res.ok) {
+        const { error: e } = await res.json().catch(() => ({}));
+        throw new Error(e ?? 'Error creando pago crypto.');
+      }
+
+      const { checkoutUrl, success } = await res.json();
+      
+      if (success && checkoutUrl) {
+        // Open crypto checkout in new tab
+        window.open(checkoutUrl, '_blank');
+        toast.success('Redirigido a pago crypto - completa el pago en la nueva ventana');
+        
+        // Clear picks optimistically
+        setQualyPicks([]); 
+        setRacePicks([]);
+        onClose();
+      } else {
+        throw new Error('No se pudo crear el checkout crypto');
+      }
+
+    } catch (err: any) {
+      toast.error(err.message ?? 'Error iniciando pago crypto');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   // Wallet bet handler
   const handleWalletBet = async () => {
     if (!user?.id || !wallet) return;
@@ -263,7 +314,6 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
       if (!token) throw new Error('Token inválido');
       const sb = createAuthClient(token);
 
-      // Ensure we're sending COP amount to backend
       const copAmount = currency === 'COP' ? amount : convertToCOP(amount);
 
       const { error } = await sb.rpc('register_picks_with_wallet', {
@@ -307,7 +357,6 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     setError(null);
 
     try {
-      // Ensure we're sending COP amount to backend
       const copAmount = currency === 'COP' ? amount : convertToCOP(amount);
 
       const res = await fetch('/api/transactions/register-pick-transaction', {
@@ -386,19 +435,16 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     }
   };
 
-  // ✨ Handle auth requirement - redirect to external auth pages
+  // ✨ Handle auth requirement
   const handleAuthRequired = () => {
-    // Save picks for later
     localStorage.setItem('pendingPicks', JSON.stringify(picks));
     
-    // Suppress Hotjar exit intent
     if (typeof window !== 'undefined' && (window as any).hj) {
       try {
         (window as any).hj('event', 'auth_required_for_betting');
       } catch (e) {}
     }
     
-    // Redirect to auth page with return URL
     const currentUrl = window.location.pathname + window.location.search;
     router.push(`/sign-up?redirect_url=${encodeURIComponent(currentUrl)}`);
   };
@@ -410,10 +456,10 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
       return;
     }
     
-    // Track InitiateCheckout when payment button is clicked
     trackInitiateCheckout(paymentMethod);
     
     if (paymentMethod === 'wallet') return handleWalletBet();
+    if (paymentMethod === 'crypto') return handleCryptoPayment();
     handleBoldPayment(); // Default to Bold
   };
 
@@ -529,32 +575,64 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
 
               {/* controls */}
               <div className="mt-4 pt-4 border-t border-gray-700/50 space-y-4">
-                {/* Wallet balance */}
-                {wallet && isSignedIn && (
-                  <div className="flex items-center justify-between bg-gray-800/70 rounded-lg px-4 py-2">
-                    <div className="flex items-center gap-2 text-sm text-gray-200">
-                      <FaWallet className="text-amber-400" />
-                      <span>{wallet.mmc_coins - wallet.locked_mmc} MMC Coins</span>
-                      <span className="text-gray-400">
-                        (
-                        <CurrencyDisplay copAmount={(wallet.mmc_coins - wallet.locked_mmc) * 1000} />
-                        )
-                      </span>
+                {/* ✨ Payment Method Selection (only for authenticated users) */}
+                {isSignedIn && (
+                  <div className="space-y-3">
+                    {/* Wallet balance */}
+                    {wallet && (
+                      <div className="flex items-center justify-between bg-gray-800/70 rounded-lg px-4 py-2">
+                        <div className="flex items-center gap-2 text-sm text-gray-200">
+                          <FaWallet className="text-amber-400" />
+                          <span>{wallet.mmc_coins - wallet.locked_mmc} MMC Coins</span>
+                          <span className="text-gray-400">
+                            (
+                            <CurrencyDisplay copAmount={(wallet.mmc_coins - wallet.locked_mmc) * 1000} />
+                            )
+                          </span>
+                        </div>
+                        <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={paymentMethod === 'wallet'}
+                            onChange={() => handlePaymentMethodChange(paymentMethod === 'wallet' ? 'bold' : 'wallet')}
+                            className="accent-amber-500"
+                          />
+                          <span>Usar saldo</span>
+                        </label>
+                      </div>
+                    )}
+
+                    {/* ✨ Payment method buttons */}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handlePaymentMethodChange('bold')}
+                        className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg font-semibold transition-all ${
+                          paymentMethod === 'bold'
+                            ? 'bg-green-600 text-white border-2 border-green-400'
+                            : 'bg-gray-700 text-gray-300 border-2 border-gray-600 hover:bg-gray-600'
+                        }`}
+                      >
+                        <FaDollarSign size={16} />
+                        <span>Tarjeta</span>
+                      </button>
+                      
+                      <button
+                        onClick={() => handlePaymentMethodChange('crypto')}
+                        className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg font-semibold transition-all ${
+                          paymentMethod === 'crypto'
+                            ? 'bg-orange-600 text-white border-2 border-orange-400'
+                            : 'bg-gray-700 text-gray-300 border-2 border-gray-600 hover:bg-gray-600'
+                        }`}
+                      >
+                        <FaBitcoin size={16} />
+                        <span>Crypto</span>
+                      </button>
                     </div>
-                    <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={paymentMethod === 'wallet'}
-                        onChange={() => handlePaymentMethodChange(paymentMethod === 'wallet' ? 'bold' : 'wallet')}
-                        className="accent-amber-500"
-                      />
-                      <span>Usar saldo</span>
-                    </label>
                   </div>
                 )}
 
                 {/* Information banner for users */}
-                {isSignedIn && paymentMethod !== 'wallet' && (
+                {isSignedIn && paymentMethod === 'bold' && (
                   <div className="bg-gradient-to-r from-green-800/30 to-blue-800/30 rounded-lg p-4 border border-green-700/50">
                     <div className="flex items-center gap-3">
                       <div className="text-2xl">💳</div>
@@ -562,6 +640,21 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                         <h4 className="text-sm font-semibold text-green-400 mb-1">Pago Seguro</h4>
                         <p className="text-xs text-gray-300">
                           Procesamos tu pago de forma segura con tarjetas a través de Bold
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ✨ Crypto payment info */}
+                {isSignedIn && paymentMethod === 'crypto' && (
+                  <div className="bg-gradient-to-r from-orange-800/30 to-yellow-800/30 rounded-lg p-4 border border-orange-700/50">
+                    <div className="flex items-center gap-3">
+                      <div className="text-2xl">₿</div>
+                      <div>
+                        <h4 className="text-sm font-semibold text-orange-400 mb-1">Pago Crypto</h4>
+                        <p className="text-xs text-gray-300">
+                          Paga con Bitcoin, Ethereum, USDC y otras criptomonedas
                         </p>
                       </div>
                     </div>
@@ -666,7 +759,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                   )}
                 </AnimatePresence>
 
-                {/* Confirm Button */}
+                {/* ✨ UPDATED: Confirm Button with dynamic text */}
                 <button
                   onClick={handleConfirm}
                   disabled={!isValid || isProcessing}
@@ -675,7 +768,9 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                     ${isProcessing
                       ? 'bg-yellow-600 text-white cursor-wait'
                       : isValid
-                        ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white'
+                        ? paymentMethod === 'crypto'
+                          ? 'bg-gradient-to-r from-orange-500 to-yellow-600 text-white'
+                          : 'bg-gradient-to-r from-green-500 to-emerald-600 text-white'
                         : 'bg-gray-600/80 text-gray-400/80 cursor-not-allowed'}
                   `}
                 >
@@ -687,6 +782,10 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                     <>Confirmar y Pagar <CurrencyDisplay copAmount={amount} /></>
                   ) : paymentMethod === 'wallet' ? (
                     <>🎮 Jugar <CurrencyDisplay copAmount={amount} /></> 
+                  ) : paymentMethod === 'crypto' ? (
+                    <>
+                      <FaBitcoin /> Pagar con Crypto <CurrencyDisplay copAmount={amount} />
+                    </>
                   ) : (
                     <>
                       <FaDollarSign /> Confirmar y Pagar <CurrencyDisplay copAmount={amount} />
