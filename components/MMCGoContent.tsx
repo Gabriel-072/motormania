@@ -91,8 +91,55 @@ const driverToTeam: Readonly<Record<string, string>> = {
 const staticDrivers: ReadonlyArray<string> = Object.keys(driverToTeam);
 
 const soundManager = {
-  click: new Howl({ src: ['/sounds/f1-click.mp3'], volume: 0.4, preload: true }),
-  rev: new Howl({ src: ['/sounds/f1-rev.mp3'], volume: 0.3, preload: true }),
+  _click: null as Howl | null,
+  _rev: null as Howl | null,
+  initialized: false,
+  
+  get click() {
+    return {
+      play: () => this.play('click')
+    };
+  },
+  
+  get rev() {
+    return {
+      play: () => this.play('rev')
+    };
+  },
+  
+  async init() {
+    if (this.initialized || typeof window === 'undefined') return;
+    
+    try {
+      this._click = new Howl({
+        src: ['/sounds/f1-click.mp3'],
+        volume: 0.4,
+        preload: true,
+        html5: true
+      });
+      
+      this._rev = new Howl({
+        src: ['/sounds/f1-rev.mp3'],
+        volume: 0.3,
+        preload: true,
+        html5: true
+      });
+      
+      this.initialized = true;
+    } catch (e) {
+      console.warn('Sound initialization failed:', e);
+    }
+  },
+  
+  play(sound: 'click' | 'rev') {
+    if (!this.initialized) this.init();
+    try {
+      const soundObj = sound === 'click' ? this._click : this._rev;
+      soundObj?.play();
+    } catch (e) {
+      // Silently fail for browser compliance
+    }
+  }
 };
 
 const DynamicTutorialModal = dynamic(() => import('@/components/TutorialModal'), { // Ajusta ruta
@@ -122,6 +169,8 @@ export default function MMCGoContent() {
   const [errors, setErrors]               = useState<string[]>([]);
   const [isQualyView, setIsQualyView]     = useState(true);
   const [view, setView]                   = useState<'qualy'|'race'>('qualy');
+  const [loadingStage, setLoadingStage] = useState<'auth' | 'data' | 'complete'>('auth');
+  const [loadingProgress, setLoadingProgress] = useState(0);
   const [showFullModal, setShowFullModal] = useState(false);
   const [showRealtimeModal, setShowRealtimeModal] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -240,6 +289,22 @@ export default function MMCGoContent() {
       return () => clearTimeout(timer);
     }
   }, [highlightFirstTwoCards, isDataLoaded]);
+
+  // Loading progress management
+  useEffect(() => {
+    if (!isLoaded) {
+      setLoadingStage('auth');
+      return;
+    }
+
+    if (!isDataLoaded && errors.length === 0) {
+      setLoadingStage('data');
+    }
+
+    if (isDataLoaded && getOrderedVisibleDrivers().length > 0) {
+      setLoadingStage('complete');
+    }
+  }, [isLoaded, isDataLoaded, errors.length]);
   
 
   // FUNCTION: Fetch data (config, schedule, lines, visibility)
@@ -589,17 +654,15 @@ channelsToRemove.push(newConfigChannel);
 
   // Sounds FX:
 
-  // ■■■ CREATE CLICK SOUND ON CLIENT ■■■
-  const clickSound = useRef<Howl | null>(null);
+  // ✨ Initialize sound manager on first user interaction
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    clickSound.current = new Howl({
-      src: ['/sounds/f1-click.mp3'],
-      volume: 0.4,
-      preload: true,
-    });
-    // fuerza la carga inmediata
-    clickSound.current.load();
+    const initSounds = () => {
+      soundManager.init();
+      document.removeEventListener('click', initSounds);
+    };
+    
+    document.addEventListener('click', initSounds, { once: true });
+    return () => document.removeEventListener('click', initSounds);
   }, []);
 
   // Helper para obtener líneas de la sesión activa
@@ -672,17 +735,66 @@ useEffect(() => {
 // RENDER LOGIC
 // ──────────────────────────────────────────────────────────────────────────
 
-if (!isLoaded) {
-  return <LoadingAnimation text="Cargando autenticación…" animationDuration={4} />;
-}
-
 const mainContainerClasses =
   'min-h-screen bg-gradient-to-b from-gray-950 via-gray-900 to-black text-white font-exo2';
+
+// Enhanced loading states
+if (!isLoaded || (!isDataLoaded && errors.length === 0)) {
+  const stageConfig = {
+    auth: '🔐 Verificando acceso...',
+    data: '📊 Cargando datos del GP...',
+    complete: '🏁 ¡Listo!'
+  };
+  
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-gray-950 via-gray-900 to-black">
+      <LoadingAnimation text={stageConfig[loadingStage]} stage={loadingStage} />
+    </div>
+  );
+}
+
+// Error state
+if (errors.length > 0) {
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-gray-950 via-gray-900 to-black">
+      <div className="container mx-auto px-4 py-10 text-center">
+        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="bg-red-500/10 border border-red-500/30 rounded-xl p-6 max-w-md mx-auto">
+          <p className="text-red-400 text-lg mb-4">⚠️ Error al cargar los datos</p>
+          {errors.map((err, i) => (
+            <p key={i} className="text-red-300 text-sm mb-2">{err}</p>
+          ))}
+          <button onClick={() => { setIsDataLoaded(false); setLoadingStage('data'); fetchData(); }} className="mt-4 px-6 py-2 bg-amber-500 text-black font-semibold rounded-lg hover:bg-amber-600 transition-colors duration-200">
+            🔄 Reintentar Carga
+          </button>
+        </motion.div>
+      </div>
+    </div>
+  );
+}
+
+// Empty state
+if (orderedDriversForDisplay.length === 0 && isDataLoaded) {
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-gray-950 via-gray-900 to-black">
+      <MMCGoSubHeader onOpenTutorial={() => { soundManager.click.play(); trackFBEvent('TutorialClick', { params: { content_name: 'Boton_Tutorial_MMCGO' } }); setShowTutorial(true); }} isQualyView={isQualyView} isQualyEnabled={isQualyEnabled} isRaceEnabled={isRaceEnabled} setIsQualyView={setIsQualyView} setSession={setView} onSessionChange={setStoreSession} soundManager={soundManager} />
+      
+      <div className="container mx-auto px-4 py-20 text-center">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-md mx-auto">
+          <div className="text-6xl mb-4">🏁</div>
+          <h2 className="text-xl font-bold text-white mb-2">No hay pilotos disponibles</h2>
+          <p className="text-gray-400 text-sm">No hay pilotos disponibles para mostrar en esta sesión. Intenta cambiar entre Qualy y Carrera.</p>
+        </motion.div>
+      </div>
+    </div>
+  );
+}
+
 const driverGridClasses =
   'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4';
 
+  // Success! Main content
   return (
-    <div className={mainContainerClasses}>
+    <motion.div className={mainContainerClasses} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
               {/* Overlay mientras los botones están destacados */}
     <AnimatePresence>
       {highlightFirstTwoCards && (
@@ -699,7 +811,7 @@ const driverGridClasses =
       <MMCGoSubHeader
         /* 1️⃣  Abrir tutorial */
         onOpenTutorial={() => {
-          soundManager.click.play();
+          soundManager.play('click');
           trackFBEvent('TutorialClick', {
             params: { content_name: 'Boton_Tutorial_MMCGO' },
           });
@@ -718,30 +830,8 @@ const driverGridClasses =
 
 <FomoBar /> 
 
-    {/* Estado de Carga / Error */}
-    {!isDataLoaded && !errors.length ? (
-      <LoadingAnimation text="Cargando MMC-GO…" animationDuration={2} />
-    ) : errors.length > 0 ? (
-      <div className="container mx-auto px-4 py-10 text-center">
-        <p className="text-red-400 text-lg">Error al cargar los datos:</p>
-        {errors.map((err, i) => (
-          <p key={i} className="text-red-500 text-sm">
-            {err}
-          </p>
-        ))}
-        <button
-          onClick={() => {
-            setIsDataLoaded(false);
-            fetchData();
-          }}
-          className="mt-4 px-4 py-2 bg-amber-500 text-black font-semibold rounded hover:bg-amber-600"
-        >
-          Reintentar Carga
-        </button>
-      </div>
-    ) : (
-      /* ────────────────────── CONTENIDO PRINCIPAL ────────────────────── */
-      <main className="container mx-auto px-4 sm:px-6 lg:px-8 pb-32">
+        {/* ────────────────────── CONTENIDO PRINCIPAL ────────────────────── */}
+        <motion.main className="container mx-auto px-4 sm:px-6 lg:px-8 pb-32" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.2 }}>
         {/* Countdown */}
         <div className="mt-3 mb-4">
           <NextGpCountdown currentGp={currentGp} isQualyView={isQualyView} />
@@ -988,7 +1078,7 @@ if (isBetter) {
     <button
       key={opt}
       onClick={() => {
-        clickSound.current?.play();
+        soundManager.play('click');
         // Quitar el highlight cuando el usuario interactúe
         if (shouldHighlight) {
           setHighlightFirstTwoCards(false);
@@ -1071,7 +1161,7 @@ if (isBetter) {
           {/* === Modals === */}
           {showTutorial && ( <DynamicTutorialModal show={showTutorial} onClose={() => setShowTutorial(false)} /> )}
 <StickyModal onFinish={async () => { 
-  soundManager.click.play(); 
+  soundManager.play('click'); 
   
   // ✨ FIXED: Suppress Hotjar exit intent during betting flow
   if (typeof window !== 'undefined' && (window as any).hj) {
@@ -1114,8 +1204,7 @@ if (isBetter) {
             onRecover={() => setShowFullModal(true)}
           />
 
-        </main>
-      )} {/* End Main Content Render */}
-    </div> // End Main Container Div
-  ); // End Component Return
-} // End MMCGoContent Component
+        </motion.main>
+    </motion.div>
+  );
+}
