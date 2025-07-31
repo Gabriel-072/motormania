@@ -1,4 +1,4 @@
-// components/FullModal.tsx - IMPROVED UX WITH SINGLE BUTTON
+// components/FullModal.tsx - WITH PAYMENT SUPPORT INTEGRATION
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -34,6 +34,8 @@ import { CurrencySelector } from './ui/CurrencySelector';
 import { QuickAmountButtons } from './ui/QuickAmountButtons';
 import { CurrencyStatusIndicator } from './ui/CurrencyStatusIndicator';
 import { EmbeddedCryptoCheckout } from './EmbeddedCryptoCheckout';
+// ✨ Payment Support Modal
+import { PaymentSupportModal } from './PaymentSupportModal';
 
 interface FullModalProps {
   isOpen: boolean;
@@ -104,12 +106,12 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
   // promotion
   const [promo, setPromo] = useState<Promo | null>(null);
 
-  // ✨ NEW: Payment method state - now includes crypto
+  // ✨ Payment method state
   const [paymentMethod, setPaymentMethod] = useState<'bold' | 'wallet' | 'crypto'>('bold');
 
-  // ✨ NEW: Embedded crypto states
-  const [showEmbeddedCrypto, setShowEmbeddedCrypto] = useState(false);
-  const [cryptoChargeId, setCryptoChargeId] = useState<string>('');
+  // ✨ Payment Support Modal states
+  const [showPaymentSupport, setShowPaymentSupport] = useState(false);
+  const [paymentError, setPaymentError] = useState<string>('');
 
   // Notificaciones FOMO
   const fomoMsg = useFomoFake(2500);
@@ -256,7 +258,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     }
   }, [picks, setQualyPicks, setRacePicks]);
 
-  // ✨ SIMPLIFIED: Crypto payment handler (popup only)
+  // ✨ UPDATED: Crypto payment handler with error support
   const handleCryptoPayment = async () => {
     if (!user?.id || isProcessing || !isValid) return;
     const email = user.primaryEmailAddress?.emailAddress;
@@ -292,15 +294,16 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
       if (success && checkoutUrl) {
         window.open(checkoutUrl, '_blank');
         toast.success('Abriendo pago crypto - completa en la nueva ventana');
-        setQualyPicks([]);
-        setRacePicks([]);
+        clearDraftPicks();
         onClose();
       } else {
         throw new Error('No se pudo crear el checkout crypto');
       }
 
     } catch (err: any) {
-      toast.error(err.message ?? 'Error iniciando pago crypto');
+      // ✨ Show payment support modal on crypto error
+      setPaymentError(`Error con pago crypto: ${err.message || 'Error desconocido'}`);
+      setShowPaymentSupport(true);
     } finally {
       setIsProcessing(false);
     }
@@ -340,7 +343,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
       });
 
       toast.success('¡Jugaste usando tu saldo! 🎉');
-      setQualyPicks([]); setRacePicks([]);
+      clearDraftPicks();
       onClose();
     } catch (e: any) {
       toast.error(e.message ?? 'Error usando saldo');
@@ -349,7 +352,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     }
   };
 
-  // Bold payment handler
+  // ✨ UPDATED: Bold payment handler with error support
   const handleBoldPayment = async () => {
     if (!user?.id || isProcessing || !isValid) return;
     const email = user.primaryEmailAddress?.emailAddress;
@@ -418,11 +421,14 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
           } catch (err) {
             console.warn('consume_locked_mmc failed', err);
           }
-          setQualyPicks([]); setRacePicks([]); onClose();
+          clearDraftPicks();
+          onClose();
           setIsProcessing(false);
         },
+        // ✨ UPDATED: Show payment support modal on Bold error
         onFailed: ({ message }: { message?: string }) => {
-          toast.error(`Pago falló: ${message ?? ''}`);
+          setPaymentError(`Pago con tarjeta falló: ${message || 'Error desconocido'}`);
+          setShowPaymentSupport(true);
           setIsProcessing(false);
         },
         onPending: () => {
@@ -432,7 +438,9 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
         onClose: () => setIsProcessing(false)
       });
     } catch (err: any) {
-      toast.error(err.message ?? 'Error iniciando pago');
+      // ✨ Show payment support modal on Bold setup error
+      setPaymentError(`Error iniciando pago: ${err.message || 'Error desconocido'}`);
+      setShowPaymentSupport(true);
       setIsProcessing(false);
     }
   };
@@ -449,6 +457,59 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     
     const currentUrl = window.location.pathname + window.location.search;
     router.push(`/sign-up?redirect_url=${encodeURIComponent(currentUrl)}`);
+  };
+
+  // ✨ Handle modal close with support offer
+  const handleClose = () => {
+    // If user has valid picks but closes modal, offer support (but still close)
+    if (isValid && !isProcessing && isSignedIn) {
+      setPaymentError('¿Necesitas ayuda para completar tu pago?');
+      setShowPaymentSupport(true);
+    }
+    // Always close the modal
+    onClose();
+  };
+
+  // ✨ Save picks to localStorage on changes
+  useEffect(() => {
+    if (combinedPicks.length > 0) {
+      localStorage.setItem('mmc_draft_picks', JSON.stringify({
+        picks: { qualy: picks.qualy, race: picks.race },
+        amount,
+        mode,
+        timestamp: Date.now()
+      }));
+    }
+  }, [picks.qualy, picks.race, amount, mode, combinedPicks.length]);
+
+  // ✨ Restore picks from localStorage on mount
+  useEffect(() => {
+    if (isOpen) {
+      try {
+        const saved = localStorage.getItem('mmc_draft_picks');
+        if (saved) {
+          const data = JSON.parse(saved);
+          // Only restore if less than 24 hours old
+          if (Date.now() - data.timestamp < 24 * 60 * 60 * 1000) {
+            if (data.picks.qualy?.length || data.picks.race?.length) {
+              setQualyPicks(data.picks.qualy || []);
+              setRacePicks(data.picks.race || []);
+              setAmount(data.amount || defaultAmount);
+              setMode(data.mode || 'full');
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to restore picks:', e);
+      }
+    }
+  }, [isOpen, setQualyPicks, setRacePicks, defaultAmount]);
+
+  // ✨ Clear draft picks on successful payment
+  const clearDraftPicks = () => {
+    localStorage.removeItem('mmc_draft_picks');
+    setQualyPicks([]);
+    setRacePicks([]);
   };
 
   return (
@@ -471,7 +532,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                 <h2 className="text-xl font-bold text-amber-400">Revisa tus Picks</h2>
                 <div className="flex items-center gap-4">
                   <CurrencySelector />
-                  <button onClick={onClose} aria-label="Cerrar"
+                  <button onClick={handleClose} aria-label="Cerrar"
                     className="text-gray-400 hover:text-white p-1 rounded-full hover:bg-gray-700/60">
                     <FaTimes size={20} />
                   </button>
@@ -683,7 +744,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                   )}
                 </AnimatePresence>
 
-                {/* ✨ SIMPLE: Show different buttons based on auth status */}
+                {/* ✨ Payment buttons based on auth status */}
                 {!isSignedIn ? (
                   // Single button for non-authenticated users
                   <button
@@ -771,6 +832,15 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
         </motion.div>
       )}
 
+      {/* ✨ Payment Support Modal */}
+      <PaymentSupportModal
+        isOpen={showPaymentSupport}
+        onClose={() => {
+          setShowPaymentSupport(false);
+          setPaymentError('');
+        }}
+        errorMessage={paymentError}
+      />
     </AnimatePresence>
   );
 }
