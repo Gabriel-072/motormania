@@ -757,7 +757,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                         : 'bg-gray-600/80 text-gray-400/80 cursor-not-allowed'}
                     `}
                   >
-                    Confirmar y Pagar <CurrencyDisplay copAmount={amount} />
+                    Activar DRS <CurrencyDisplay copAmount={amount} />
                   </button>
                 ) : paymentMethod === 'wallet' ? (
                   // Wallet payment button
