@@ -94,6 +94,7 @@ const soundManager = {
   _click: null as Howl | null,
   _rev: null as Howl | null,
   initialized: false,
+  audioUnlocked: false,
   
   get click() {
     return {
@@ -107,22 +108,25 @@ const soundManager = {
     };
   },
   
-  async init() {
+  init() {
     if (this.initialized || typeof window === 'undefined') return;
     
     try {
+      // Initialize sounds immediately - browser will handle when they can play
       this._click = new Howl({
         src: ['/sounds/f1-click.mp3'],
-        volume: 0.4,
-        preload: true,
-        html5: true
+        volume: 0.3,
+        preload: false, // Don't preload to avoid autoplay issues
+        html5: true,
+        format: ['mp3']
       });
       
       this._rev = new Howl({
         src: ['/sounds/f1-rev.mp3'],
-        volume: 0.3,
-        preload: true,
-        html5: true
+        volume: 0.2,
+        preload: false,
+        html5: true,
+        format: ['mp3']
       });
       
       this.initialized = true;
@@ -131,11 +135,39 @@ const soundManager = {
     }
   },
   
-  play(sound: 'click' | 'rev') {
+  unlockAudio() {
+    if (this.audioUnlocked) return;
+    
+    // Unlock audio context on first user interaction
     if (!this.initialized) this.init();
+    
+    try {
+      // Create a silent sound to unlock the audio context
+      const unlock = new Howl({
+        src: ['data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAAAAAAAAAAAAAAAAAAAZGF0YQAAAAA='],
+        volume: 0,
+        html5: false
+      });
+      unlock.play();
+      unlock.unload();
+      
+      this.audioUnlocked = true;
+    } catch (e) {
+      // Silent fail
+    }
+  },
+  
+  play(sound: 'click' | 'rev') {
+    // Always try to unlock audio first
+    this.unlockAudio();
+    
+    if (!this.initialized) this.init();
+    
     try {
       const soundObj = sound === 'click' ? this._click : this._rev;
-      soundObj?.play();
+      if (soundObj && this.audioUnlocked) {
+        soundObj.play();
+      }
     } catch (e) {
       // Silently fail for browser compliance
     }
@@ -656,13 +688,21 @@ channelsToRemove.push(newConfigChannel);
 
   // ✨ Initialize sound manager on first user interaction
   useEffect(() => {
-    const initSounds = () => {
-      soundManager.init();
-      document.removeEventListener('click', initSounds);
+    const unlockAudio = () => {
+      soundManager.unlockAudio();
     };
     
-    document.addEventListener('click', initSounds, { once: true });
-    return () => document.removeEventListener('click', initSounds);
+    // Listen for any user interaction to unlock audio
+    const events = ['click', 'touchstart', 'keydown'];
+    events.forEach(event => {
+      document.addEventListener(event, unlockAudio, { once: true });
+    });
+    
+    return () => {
+      events.forEach(event => {
+        document.removeEventListener(event, unlockAudio);
+      });
+    };
   }, []);
 
   // Helper para obtener líneas de la sesión activa
