@@ -803,7 +803,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                       `}
                     >
                       <FaDollarSign />
-                      Cash
+                      Pagar
                     </button>
                     
                     <button
@@ -822,7 +822,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                       `}
                     >
                       <FaBitcoin />
-                      Crypto
+                      Usar crypto
                     </button>
                   </div>
                 )}
