@@ -316,7 +316,7 @@ export default function MMCGoContent() {
     if (highlightFirstTwoCards && isDataLoaded) {
       const timer = setTimeout(() => {
         setHighlightFirstTwoCards(false);
-      }, 2000);
+      }, 3000);
   
       return () => clearTimeout(timer);
     }
