@@ -85,6 +85,9 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
   const { initializeCurrency, isInitialized, convertToCOP } = useCurrencyStore();
   const { minimumBet, currency } = useCurrencyInfo();
 
+  // ✨ Hide crypto for Colombian users
+  const showCryptoOption = currency !== 'COP';
+
   // ✨ Dynamic minimum amount based on currency
   const defaultAmount = useMemo(() => {
     if (!isInitialized) return 20000; // COP fallback
@@ -757,7 +760,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                         : 'bg-gray-600/80 text-gray-400/80 cursor-not-allowed'}
                     `}
                   >
-                    Activar DRS <CurrencyDisplay copAmount={amount} />
+                    Confirmar y Pagar <CurrencyDisplay copAmount={amount} />
                   </button>
                 ) : paymentMethod === 'wallet' ? (
                   // Wallet payment button
@@ -785,8 +788,50 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                     )}
                   </button>
                 ) : (
-                  // Two payment buttons for authenticated users
-                  <div className="flex gap-3">
+                  // Payment buttons for authenticated users - hide crypto for Colombia
+                  showCryptoOption ? (
+                    // Two payment buttons (Cash + Crypto) for international users
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => {
+                          trackInitiateCheckout('bold');
+                          handleBoldPayment();
+                        }}
+                        disabled={!isValid || isProcessing}
+                        className={`
+                          flex-1 py-3 rounded-lg font-bold text-lg flex justify-center gap-2
+                          ${isProcessing
+                            ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                            : isValid
+                              ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700'
+                              : 'bg-gray-600/80 text-gray-400/80 cursor-not-allowed'}
+                        `}
+                      >
+                        <FaDollarSign />
+                        Cash
+                      </button>
+                      
+                      <button
+                        onClick={() => {
+                          trackInitiateCheckout('crypto');
+                          handleCryptoPayment();
+                        }}
+                        disabled={!isValid || isProcessing}
+                        className={`
+                          flex-1 py-3 rounded-lg font-bold text-lg flex justify-center gap-2
+                          ${isProcessing
+                            ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                            : isValid
+                              ? 'bg-gradient-to-r from-orange-500 to-yellow-600 text-white hover:from-orange-600 hover:to-yellow-700'
+                              : 'bg-gray-600/80 text-gray-400/80 cursor-not-allowed'}
+                        `}
+                      >
+                        <FaBitcoin />
+                        Crypto
+                      </button>
+                    </div>
+                  ) : (
+                    // Single Cash button for Colombian users
                     <button
                       onClick={() => {
                         trackInitiateCheckout('bold');
@@ -794,37 +839,25 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                       }}
                       disabled={!isValid || isProcessing}
                       className={`
-                        flex-1 py-3 rounded-lg font-bold text-lg flex justify-center gap-2
+                        w-full py-3 rounded-lg font-bold text-lg flex justify-center gap-2
                         ${isProcessing
-                          ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                          ? 'bg-yellow-600 text-white cursor-wait'
                           : isValid
-                            ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700'
+                            ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white'
                             : 'bg-gray-600/80 text-gray-400/80 cursor-not-allowed'}
                       `}
                     >
-                      <FaDollarSign />
-                      Pagar
+                      {isProcessing ? (
+                        <>
+                          <FaSpinner className="animate-spin" /> Procesando…
+                        </>
+                      ) : (
+                        <>
+                          <FaDollarSign /> Confirmar y Pagar <CurrencyDisplay copAmount={amount} />
+                        </>
+                      )}
                     </button>
-                    
-                    <button
-                      onClick={() => {
-                        trackInitiateCheckout('crypto');
-                        handleCryptoPayment();
-                      }}
-                      disabled={!isValid || isProcessing}
-                      className={`
-                        flex-1 py-3 rounded-lg font-bold text-lg flex justify-center gap-2
-                        ${isProcessing
-                          ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                          : isValid
-                            ? 'bg-gradient-to-r from-orange-500 to-yellow-600 text-white hover:from-orange-600 hover:to-yellow-700'
-                            : 'bg-gray-600/80 text-gray-400/80 cursor-not-allowed'}
-                      `}
-                    >
-                      <FaBitcoin />
-                      Usar crypto
-                    </button>
-                  </div>
+                  )
                 )}
               </div>
             </motion.div>
