@@ -1,10 +1,13 @@
-// 📁 components/MMCGoSubHeader.tsx
+// 📁 components/MMCGoSubHeader.tsx - WITH AUTH & TRACKING
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaWallet, FaQuestionCircle } from 'react-icons/fa';
+import { useUser } from '@clerk/nextjs';
+import { trackFBEvent } from '@/lib/trackFBEvent';
+import { MisPicksAuthModal } from './MisPicksAuthModal';
 
 type Props = {
   onOpenTutorial: () => void;
@@ -28,6 +31,38 @@ export default function MMCGoSubHeader({
   soundManager,
 }: Props) {
   const router = useRouter();
+  const { user, isSignedIn } = useUser();
+  const [showAuthModal, setShowAuthModal] = useState(false);
+
+  // Handle MIS PICKS button click with auth check
+  const handleMisPicksClick = () => {
+    // Track button click
+    trackFBEvent('MisPicksClicked', {
+      params: {
+        user_authenticated: isSignedIn,
+        section: 'subheader',
+        page: 'mmc-go'
+      },
+      email: user?.primaryEmailAddress?.emailAddress
+    });
+
+    if (typeof window !== 'undefined' && window.fbq) {
+      window.fbq('track', 'ViewContent', {
+        content_type: 'my_picks',
+        content_category: 'user_dashboard'
+      });
+    }
+
+    // Check authentication
+    if (isSignedIn) {
+      // Registered user - allow access
+      soundManager.click.play();
+      router.push('/wallet');
+    } else {
+      // Unregistered user - show auth modal
+      setShowAuthModal(true);
+    }
+  };
 
   return (
     <AnimatePresence>
@@ -42,9 +77,9 @@ export default function MMCGoSubHeader({
         {/* Contenedor para alinear con grid y countdown */}
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-2">
           <div className="flex w-full items-center justify-between gap-2 sm:gap-4 text-xs sm:text-sm font-exo2">
-            {/* BOTÓN RECARGA YA */}
+            {/* BOTÓN MIS PICKS - WITH AUTH CHECK */}
             <button
-              onClick={() => router.push('/wallet')}
+              onClick={handleMisPicksClick}
               className="flex-1 flex items-center justify-center gap-1 sm:gap-2 rounded-full bg-amber-500 px-3 sm:px-5 py-2 font-bold text-black transition hover:scale-105 hover:bg-amber-400 active:scale-95 shadow-xl min-w-0"
             >
               <FaWallet className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
@@ -129,6 +164,12 @@ export default function MMCGoSubHeader({
           </div>
         </div>
       </motion.div>
+
+      {/* Auth Modal for unregistered users */}
+      <MisPicksAuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+      />
     </AnimatePresence>
   );
 }
