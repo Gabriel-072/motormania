@@ -968,7 +968,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                     </div>
                     <div className="flex items-center gap-1">
                       <FaUsers />
-                      <span>+2,500 jugadores</span>
+                      <span>+11,500 jugadores</span>
                     </div>
                   </div>
                 )}
