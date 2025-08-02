@@ -232,7 +232,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     return sessionId;
   }, []);
 
-  // ✨ UPDATED: Validation with currency-aware minimum AND anonymous support
+  // ✨ FIXED: Validation logic for anonymous users
   useEffect(() => {
     let msg: string | null = null;
     const copAmount = currency === 'COP' ? amount : convertToCOP(amount);
@@ -247,9 +247,10 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
       msg = `Monto mínimo ${minimumBet.formatted}`;
     else if (mode === 'safety' && totalPicks < 3)
       msg = 'Safety requiere mínimo 3 picks';
-    else if (!isAuthenticated && (!email || !fullName))
+    // 🔧 FIXED: Only check email/name if guest form is shown
+    else if (!isAuthenticated && showGuestForm && (!email || !fullName))
       msg = 'Email y nombre son requeridos';
-    else if (!isAuthenticated && !email.includes('@'))
+    else if (!isAuthenticated && showGuestForm && email && !email.includes('@'))
       msg = 'Email inválido';
     else if (
       paymentMethod === 'wallet' &&
@@ -259,7 +260,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
       msg = `Saldo insuficiente: necesitas ${betMmc} MMC Coins`;
     setError(msg);
     setIsValid(!msg);
-  }, [combinedPicks, totalPicks, amount, mode, paymentMethod, wallet, isAuthenticated, email, fullName, isInitialized, minimumBet, currency, convertToCOP]);
+  }, [combinedPicks, totalPicks, amount, mode, paymentMethod, wallet, isAuthenticated, email, fullName, showGuestForm, isInitialized, minimumBet, currency, convertToCOP]);
 
   // ✨ Payment method handler
   const handlePaymentMethodChange = useCallback((method: 'bold' | 'wallet' | 'crypto') => {
@@ -868,10 +869,10 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                     </button>
                     <button
                       onClick={() => setShowGuestForm(true)}
-                      disabled={!isValid}
+                      disabled={totalPicks < 2 || combinedPicks.some(p => !p.betterOrWorse)} // 🔧 FIXED: Only check basic pick validation
                       className={`
                         w-full py-3 rounded-lg font-bold text-lg flex justify-center gap-2
-                        ${isValid
+                        ${(totalPicks >= 2 && !combinedPicks.some(p => !p.betterOrWorse))
                           ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700'
                           : 'bg-gray-600/80 text-gray-400/80 cursor-not-allowed'}
                       `}
