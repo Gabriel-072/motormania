@@ -614,16 +614,20 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                 </div>
               </div>
 
-              {/* 🆕 Guest Form (for anonymous users) */}
+              {/* 🆕 Guest Form (for anonymous users) - MOVED TO MORE VISIBLE POSITION */}
               {!isAuthenticated && showGuestForm && (
-                <div className="mb-4 space-y-4 p-4 bg-gray-800/30 rounded-lg border border-amber-500/20">
-                  <h4 className="text-lg font-semibold text-amber-400 font-exo2">
-                    Información de Contacto
+                <motion.div 
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  className="mb-6 space-y-4 p-4 bg-gradient-to-r from-amber-500/10 to-green-500/10 rounded-lg border border-amber-500/30"
+                >
+                  <h4 className="text-lg font-semibold text-amber-400 font-exo2 text-center">
+                    ✨ Completa tu Información
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Nombre Completo
+                        Nombre Completo *
                       </label>
                       <input
                         type="text"
@@ -631,11 +635,12 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                         onChange={(e) => setFullName(e.target.value)}
                         className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-amber-500 focus:outline-none"
                         placeholder="Tu nombre completo"
+                        autoFocus
                       />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Email
+                        Email *
                       </label>
                       <input
                         type="email"
@@ -646,10 +651,10 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                       />
                     </div>
                   </div>
-                  <p className="text-xs text-gray-400">
-                    Después del pago podrás crear tu cuenta para gestionar tus apuestas
+                  <p className="text-xs text-center text-gray-400">
+                    🔒 Después del pago podrás crear tu cuenta para gestionar tus apuestas
                   </p>
-                </div>
+                </motion.div>
               )}
 
               {/* Promo message */}
@@ -857,7 +862,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                   )}
                 </AnimatePresence>
 
-                {/* 🆕 Payment buttons with anonymous support */}
+                {/* 🆕 Payment buttons with anonymous support + DEBUG */}
                 {!isAuthenticated && !showGuestForm ? (
                   // Options for anonymous users: Login or Continue as Guest
                   <div className="space-y-3">
@@ -868,8 +873,11 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                       Iniciar Sesión y Continuar
                     </button>
                     <button
-                      onClick={() => setShowGuestForm(true)}
-                      disabled={totalPicks < 2 || combinedPicks.some(p => !p.betterOrWorse)} // 🔧 FIXED: Only check basic pick validation
+                      onClick={() => {
+                        console.log('🚀 Setting showGuestForm to true');
+                        setShowGuestForm(true);
+                      }}
+                      disabled={totalPicks < 2 || combinedPicks.some(p => !p.betterOrWorse)}
                       className={`
                         w-full py-3 rounded-lg font-bold text-lg flex justify-center gap-2
                         ${(totalPicks >= 2 && !combinedPicks.some(p => !p.betterOrWorse))
@@ -879,6 +887,11 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                     >
                       Continuar como Invitado
                     </button>
+                    
+                    {/* 🔧 DEBUG INFO */}
+                    <div className="text-xs text-gray-500 text-center">
+                      Debug: showGuestForm={showGuestForm.toString()}, isAuth={isAuthenticated.toString()}, picks={totalPicks}
+                    </div>
                   </div>
                 ) : isAuthenticated && paymentMethod === 'wallet' ? (
                   // Wallet payment button
