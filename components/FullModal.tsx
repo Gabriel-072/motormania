@@ -862,16 +862,10 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                   )}
                 </AnimatePresence>
 
-                {/* 🆕 Payment buttons with anonymous support + DEBUG */}
+                {/* 🆕 Optimized Payment buttons for mobile */}
                 {!isAuthenticated && !showGuestForm ? (
-                  // Options for anonymous users: Login or Continue as Guest
+                  // Simplified for anonymous users - prioritize guest flow
                   <div className="space-y-3">
-                    <button
-                      onClick={showAuthPrompt}
-                      className="w-full py-3 rounded-lg font-bold text-lg flex justify-center gap-2 bg-gradient-to-r from-amber-500 to-orange-500 text-black hover:from-amber-600 hover:to-orange-600"
-                    >
-                      Iniciar Sesión y Continuar
-                    </button>
                     <button
                       onClick={() => {
                         console.log('🚀 Setting showGuestForm to true');
@@ -885,13 +879,16 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                           : 'bg-gray-600/80 text-gray-400/80 cursor-not-allowed'}
                       `}
                     >
-                      Continuar como Invitado
+                      <FaDollarSign /> Continuar y Pagar <CurrencyDisplay copAmount={amount} />
                     </button>
                     
-                    {/* 🔧 DEBUG INFO */}
-                    <div className="text-xs text-gray-500 text-center">
-                      Debug: showGuestForm={showGuestForm.toString()}, isAuth={isAuthenticated.toString()}, picks={totalPicks}
-                    </div>
+                    {/* Smaller, less prominent login option */}
+                    <button
+                      onClick={showAuthPrompt}
+                      className="w-full py-2 text-sm text-gray-300 hover:text-white border border-gray-600 rounded-lg hover:bg-gray-700/50 transition-colors"
+                    >
+                      ¿Ya tienes cuenta? Inicia sesión
+                    </button>
                   </div>
                 ) : isAuthenticated && paymentMethod === 'wallet' ? (
                   // Wallet payment button
@@ -921,8 +918,8 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                 ) : (
                   // Cash/Crypto payment buttons (for authenticated + anonymous with guest form)
                   showCryptoOption ? (
-                    // Two payment buttons (Cash + Crypto) for international users
-                    <div className="flex gap-3">
+                    // Two payment buttons (Cash + Crypto) for international users  
+                    <div className="space-y-3 sm:space-y-0 sm:flex sm:gap-3">
                       <button
                         onClick={() => {
                           trackInitiateCheckout('bold');
@@ -930,7 +927,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                         }}
                         disabled={!isValid || isProcessing}
                         className={`
-                          flex-1 py-3 rounded-lg font-bold text-lg flex justify-center gap-2
+                          w-full sm:flex-1 py-3 rounded-lg font-bold text-base sm:text-lg flex justify-center gap-2
                           ${isProcessing
                             ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
                             : isValid
@@ -939,7 +936,8 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                         `}
                       >
                         <FaDollarSign />
-                        Cash
+                        <span className="hidden sm:inline">Cash</span>
+                        <span className="sm:hidden">Tarjeta/PSE</span>
                       </button>
                       
                       <button
@@ -949,7 +947,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                         }}
                         disabled={!isValid || isProcessing}
                         className={`
-                          flex-1 py-3 rounded-lg font-bold text-lg flex justify-center gap-2
+                          w-full sm:flex-1 py-3 rounded-lg font-bold text-base sm:text-lg flex justify-center gap-2
                           ${isProcessing
                             ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
                             : isValid
@@ -994,7 +992,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                 {/* 🆕 Helper text for anonymous users */}
                 {!isAuthenticated && showGuestForm && (
                   <p className="text-xs text-center text-gray-400">
-                    Al continuar como invitado, podrás crear tu cuenta después del pago
+                    🔒 Al continuar, podrás crear tu cuenta después del pago para gestionar tus apuestas
                   </p>
                 )}
               </div>
