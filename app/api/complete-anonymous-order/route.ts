@@ -1,4 +1,4 @@
-// app/api/complete-anonymous-order/route.ts - Link Anonymous Orders to Registered Users
+// app/api/complete-anonymous-order/route.ts - Fixed to properly update picks table
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { createClient } from '@supabase/supabase-js';
@@ -60,21 +60,27 @@ async function trackCompleteRegistration(orderData: {
 
 export async function POST(req: NextRequest) {
   try {
+    console.log('🔗 Starting complete-anonymous-order API...');
+
     /* 1. Authenticate user */
     const { userId } = await auth();
     if (!userId) {
+      console.error('❌ No authenticated user found');
       return new NextResponse('Unauthorized', { status: 401 });
     }
+
+    console.log('✅ Authenticated user:', userId);
 
     /* 2. Get session ID from request */
     const { sessionId } = await req.json();
     if (!sessionId) {
+      console.error('❌ No session ID provided');
       return NextResponse.json({ 
         error: 'Session ID required' 
       }, { status: 400 });
     }
 
-    console.log(`🔗 Linking anonymous orders for session ${sessionId} to user ${userId}`);
+    console.log('🔍 Looking for transactions with session:', sessionId);
 
     /* 3. Find paid anonymous transactions for this session */
     const { data: transactions, error: fetchError } = await sb
@@ -85,19 +91,19 @@ export async function POST(req: NextRequest) {
       .is('user_id', null);
 
     if (fetchError) {
-      console.error('Error fetching anonymous transactions:', fetchError);
+      console.error('❌ Error fetching anonymous transactions:', fetchError);
       throw new Error('Error buscando transacciones anónimas');
     }
 
+    console.log(`📊 Found ${transactions?.length || 0} transactions to link`);
+
     if (!transactions || transactions.length === 0) {
-      console.log('No paid anonymous transactions found for session:', sessionId);
+      console.log('ℹ️ No paid anonymous transactions found for session:', sessionId);
       return NextResponse.json({ 
         message: 'No paid transactions found',
         linked: 0 
       });
     }
-
-    console.log(`Found ${transactions.length} paid anonymous transactions to link`);
 
     /* 4. Get UTM data for this user (if available) */
     const { data: utmData } = await sb
@@ -108,12 +114,16 @@ export async function POST(req: NextRequest) {
       .limit(1)
       .maybeSingle();
 
+    console.log('📈 UTM data found:', utmData ? 'yes' : 'no');
+
     /* 5. Process each transaction */
     let linkedCount = 0;
-    const processedOrders = [];
+    const processedOrders: any[] = [];
 
     for (const tx of transactions) {
       try {
+        console.log(`🔄 Processing transaction ${tx.id} - ${tx.order_id}`);
+
         /* Update transaction with user_id */
         const { error: updateError } = await sb
           .from('pick_transactions')
@@ -124,37 +134,52 @@ export async function POST(req: NextRequest) {
           .eq('id', tx.id);
 
         if (updateError) {
-          console.error(`Error updating transaction ${tx.id}:`, updateError);
+          console.error(`❌ Error updating transaction ${tx.id}:`, updateError);
           continue;
         }
+
+        console.log(`✅ Updated transaction ${tx.id} with user_id`);
 
         /* Move to picks table */
+        const pickData = {
+          user_id: userId,
+          gp_name: tx.gp_name,
+          session_type: 'combined',
+          picks: tx.picks || [],
+          multiplier: Number(tx.multiplier || 0),
+          wager_amount: Number(tx.wager_amount || 0),
+          potential_win: Number(tx.potential_win || 0),
+          mode: tx.mode,
+          order_id: tx.order_id,
+          pick_transaction_id: tx.id,
+          name: tx.full_name,
+          utm_source: utmData?.utm_source,
+          utm_medium: utmData?.utm_medium,
+          utm_campaign: utmData?.utm_campaign,
+          utm_term: utmData?.utm_term,
+          utm_content: utmData?.utm_content,
+          referrer: utmData?.referrer,
+          payment_method: tx.bold_payment_id ? 'bold' : (tx.crypto_payment_id ? 'crypto' : 'unknown')
+        };
+
+        console.log('💾 Inserting pick data:', {
+          user_id: pickData.user_id,
+          order_id: pickData.order_id,
+          picks_count: pickData.picks?.length || 0,
+          wager_amount: pickData.wager_amount
+        });
+
         const { error: insertError } = await sb
           .from('picks')
-          .insert({
-            user_id: userId,
-            gp_name: tx.gp_name,
-            session_type: 'combined',
-            picks: tx.picks || [],
-            multiplier: Number(tx.multiplier || 0),
-            wager_amount: Number(tx.wager_amount || 0),
-            potential_win: Number(tx.potential_win || 0),
-            mode: tx.mode,
-            order_id: tx.order_id,
-            pick_transaction_id: tx.id,
-            utm_source: utmData?.utm_source,
-            utm_medium: utmData?.utm_medium,
-            utm_campaign: utmData?.utm_campaign,
-            utm_term: utmData?.utm_term,
-            utm_content: utmData?.utm_content,
-            referrer: utmData?.referrer,
-            payment_method: tx.bold_payment_id ? 'bold' : 'crypto'
-          });
+          .insert(pickData);
 
         if (insertError) {
-          console.error(`Error inserting pick ${tx.id}:`, insertError);
+          console.error(`❌ Error inserting pick ${tx.id}:`, insertError);
+          console.error('Pick data that failed:', pickData);
           continue;
         }
+
+        console.log(`✅ Successfully inserted pick for transaction ${tx.id}`);
 
         /* Track registration completion */
         await trackCompleteRegistration({
@@ -169,20 +194,20 @@ export async function POST(req: NextRequest) {
         linkedCount++;
         processedOrders.push({
           orderId: tx.order_id,
-          amount: tx.wager_amount,
+          amount: Number(tx.wager_amount || 0),
           mode: tx.mode,
-          picks: tx.picks?.length || 0
+          picks: (tx.picks as any[])?.length || 0
         });
 
-        console.log(`✅ Linked order ${tx.order_id} to user ${userId}`);
+        console.log(`🎉 Successfully linked order ${tx.order_id} to user ${userId}`);
 
       } catch (error) {
-        console.error(`Error processing transaction ${tx.id}:`, error);
+        console.error(`❌ Error processing transaction ${tx.id}:`, error);
       }
     }
 
-    /* 6. Clean up localStorage flag (client-side will handle this) */
-    console.log(`🎉 Successfully linked ${linkedCount} orders to user ${userId}`);
+    /* 6. Final response */
+    console.log(`🏁 Process complete. Linked ${linkedCount} orders to user ${userId}`);
 
     return NextResponse.json({
       success: true,
@@ -192,9 +217,10 @@ export async function POST(req: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Complete anonymous order error:', error);
+    console.error('❌ Complete anonymous order error:', error);
     return NextResponse.json({ 
-      error: 'Failed to complete anonymous order linking' 
+      error: 'Failed to complete anonymous order linking',
+      details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 });
   }
 }
