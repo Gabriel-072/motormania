@@ -1,10 +1,77 @@
-// app/api/crypto-payment/route.ts
+// app/api/crypto-payment/route.ts - Updated for Anonymous Users
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
+import { createClient } from '@supabase/supabase-js';
+
+const sb = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 export async function POST(request: NextRequest) {
   try {
-    const { amount, picks, mode, userEmail, userName, orderId } = await request.json();
+    /* 🆕 Auth is now optional */
+    let userId: string | null = null;
+    try {
+      const authResult = await auth();
+      userId = authResult.userId;
+    } catch (error) {
+      console.log('No authentication found, proceeding as anonymous crypto payment');
+    }
 
+    const { 
+      amount, 
+      picks, 
+      mode, 
+      userEmail, 
+      userName, 
+      orderId,
+      anonymousSessionId // 🆕 For anonymous users
+    } = await request.json();
+
+    /* 🆕 Validation for anonymous users */
+    if (!userId) {
+      if (!userEmail || !userName) {
+        return NextResponse.json({ 
+          error: 'Email y nombre son requeridos para usuarios anónimos' 
+        }, { status: 400 });
+      }
+      if (!anonymousSessionId) {
+        return NextResponse.json({ 
+          error: 'Session ID requerido para usuarios anónimos' 
+        }, { status: 400 });
+      }
+    }
+
+    /* Calculate multipliers */
+    const payoutCombos: Record<number, number> = { 2:3, 3:6, 4:10, 5:20, 6:35, 7:60, 8:100 };
+    const multiplier = payoutCombos[picks.length] || 0;
+    const potentialWin = multiplier * amount;
+
+    /* 🆕 Save pending crypto transaction */
+    const transactionData = {
+      user_id: userId, // Can be null for anonymous users
+      anonymous_session_id: anonymousSessionId || null,
+      full_name: userName,
+      email: userEmail,
+      order_id: orderId,
+      gp_name: picks[0]?.gp_name || 'Hungarian Grand Prix',
+      picks,
+      mode,
+      multiplier,
+      potential_win: potentialWin,
+      wager_amount: amount,
+      payment_status: 'pending'
+    };
+
+    const { error: dbErr } = await sb.from('pick_transactions').insert(transactionData);
+    
+    if (dbErr) {
+      console.error('Database error saving crypto transaction:', dbErr);
+      throw new Error('Error guardando transacción crypto');
+    }
+
+    /* Create Coinbase Commerce charge */
     const response = await fetch('https://api.commerce.coinbase.com/charges', {
       method: 'POST',
       headers: {
@@ -27,9 +94,13 @@ export async function POST(request: NextRequest) {
           userEmail,
           userName,
           originalAmountCOP: amount,
-          platform: 'mmc-go'
+          platform: 'mmc-go',
+          userId: userId || 'anonymous',
+          anonymousSessionId: anonymousSessionId || null
         },
-        redirect_url: `${process.env.NEXT_PUBLIC_BASE_URL}/payment-success?crypto=true`,
+        redirect_url: userId 
+          ? `${process.env.NEXT_PUBLIC_BASE_URL}/payment-success?crypto=true`
+          : `${process.env.NEXT_PUBLIC_BASE_URL}/sign-up?session=${anonymousSessionId}&order=${orderId}&redirect_url=/payment-success?crypto=true`,
         cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/mmc-go`
       })
     });
@@ -46,7 +117,9 @@ export async function POST(request: NextRequest) {
       chargeId: charge.data.id,
       checkoutUrl: charge.data.hosted_url,
       addresses: charge.data.addresses,
-      success: true
+      success: true,
+      isAnonymous: !userId,
+      sessionId: anonymousSessionId
     });
 
   } catch (error) {

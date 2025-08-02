@@ -1,4 +1,4 @@
-// 📁 app/api/webhooks/bold/route.ts
+// 📁 app/api/webhooks/bold/route.ts - Complete Version with Anonymous Support
 'use server';
 
 import { NextRequest, NextResponse }      from 'next/server';
@@ -316,31 +316,58 @@ async function handleNumberPurchase(db: SupabaseClient, data: any) {
   console.log('✅ Números extra procesados');
 }
 
-/* ───────────── HANDLER: COMPRA DE PICKS MMC-GO ─────────────── */
-async function handlePickPurchase(db: SupabaseClient, data: any) {
-  console.log('[Bold WH] Pick purchase flow - UTM TRACKING');
+/* 🆕 ANONYMOUS PAYMENT NOTIFICATION */
+async function notifyAnonymousPayment(tx: any) {
+  console.log(`📧 Anonymous payment notification: ${tx.email} - ${tx.order_id}`);
+  
+  // Send email to user about completing registration
+  if (tx.email) {
+    try {
+      const htmlBody = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #f59e0b;">¡Pago Exitoso! 🎉</h2>
+          <p>¡Hola ${tx.full_name || 'Jugador'}!</p>
+          <p>Tu pago por <strong>$${Number(tx.wager_amount || 0).toLocaleString('es-CO')}</strong> COP ha sido procesado exitosamente.</p>
+          
+          <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <h3 style="margin-top: 0; color: #374151;">Detalles de tu apuesta:</h3>
+            <ul style="list-style: none; padding: 0;">
+              <li><strong>Orden:</strong> ${tx.order_id}</li>
+              <li><strong>Picks:</strong> ${tx.picks?.length || 0} selecciones</li>
+              <li><strong>Modo:</strong> ${tx.mode === 'full' ? 'Full Throttle' : 'Safety Car'}</li>
+              <li><strong>Ganancia potencial:</strong> $${Number(tx.potential_win || 0).toLocaleString('es-CO')} COP</li>
+            </ul>
+          </div>
 
-  const ref   = data.metadata?.reference as string;
-  const payId = data.payment_id          as string;
-  const total = data.amount?.total       as number;
+          <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0;">
+            <p style="margin: 0;"><strong>¡Un paso más!</strong></p>
+            <p style="margin: 5px 0 0 0;">Para gestionar tus apuestas y ver los resultados, completa tu registro haciendo clic en el enlace que te enviamos por separado.</p>
+          </div>
 
-  if (!ref || !payId) throw new Error('Referencia o payId faltante');
+          <p>¡Gracias por apostar en MMC GO!</p>
+          <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;"/>
+          <p style="font-size: 12px; color: #6b7280;">¿Necesitas ayuda? Escríbenos a ${SUPPORT_EMAIL}</p>
+        </div>
+      `;
 
-  /* 1. localizar transacción pendiente */
-  const { data: tx } = await db
-    .from('pick_transactions')
-    .select('*')
-    .eq('order_id', ref)
-    .maybeSingle();
-  if (!tx) { console.warn('pick_transactions no encontrada'); return; }
-  if (tx.payment_status === 'paid') { console.info('pick ya pagada'); return; }
+      await resend.emails.send({
+        from: FROM_EMAIL,
+        to: tx.email,
+        subject: '🎉 Pago confirmado - Completa tu registro',
+        html: htmlBody
+      });
+      console.log('📧 Anonymous payment notification sent to', tx.email);
+    } catch (error) {
+      console.error('Failed to send anonymous payment notification:', error);
+    }
+  }
+}
 
-  /* 2. marcar pagada */
-  await db.from('pick_transactions')
-    .update({ payment_status: 'paid', bold_payment_id: payId })
-    .eq('id', tx.id);
+/* 🆕 PROCESS AUTHENTICATED ORDER */
+async function processAuthenticatedOrder(db: SupabaseClient, tx: any) {
+  console.log(`🔐 Processing authenticated order: ${tx.order_id}`);
 
-  /* 🎯 3. Get recent UTM data for this user */
+  // Get recent UTM data for this user
   let utmData = null;
   if (tx.user_id) {
     const { data: recentTraffic } = await db
@@ -356,7 +383,7 @@ async function handlePickPurchase(db: SupabaseClient, data: any) {
     // Log attribution if found
     if (utmData?.utm_source || utmData?.utm_campaign) {
       console.log(`🎯 Purchase attributed to UTM:`, {
-        orderId: ref,
+        orderId: tx.order_id,
         utm_source: utmData.utm_source,
         utm_campaign: utmData.utm_campaign,
         amount: tx.wager_amount
@@ -364,7 +391,7 @@ async function handlePickPurchase(db: SupabaseClient, data: any) {
     }
   }
 
-  /* 🎯 4. mover a tabla picks WITH UTM data */
+  // Move to picks table
   await db.from('picks').insert({
     user_id            : tx.user_id,
     gp_name            : tx.gp_name,
@@ -375,18 +402,19 @@ async function handlePickPurchase(db: SupabaseClient, data: any) {
     potential_win      : tx.potential_win ?? 0,
     name               : tx.full_name,
     mode               : tx.mode,
-    order_id           : ref,
+    order_id           : tx.order_id,
     pick_transaction_id: tx.id,
-    // 🎯 NEW: Include UTM attribution from recent traffic
+    // Include UTM attribution from recent traffic
     utm_source: utmData?.utm_source,
     utm_medium: utmData?.utm_medium,
     utm_campaign: utmData?.utm_campaign,
     utm_term: utmData?.utm_term,
     utm_content: utmData?.utm_content,
-    referrer: utmData?.referrer
+    referrer: utmData?.referrer,
+    payment_method: 'bold'
   });
 
-  /* 5. wallet (si aplica) */
+  // Update wallet if applicable
   if (tx.wager_amount) {
     const mmc  = Math.round(tx.wager_amount / 1000);
     const fuel = tx.wager_amount;
@@ -400,7 +428,53 @@ async function handlePickPurchase(db: SupabaseClient, data: any) {
     if (rpcErr) console.warn('RPC wallet error', rpcErr.message);
   }
 
-  /* 🎯 6. ENHANCED FACEBOOK PURCHASE TRACKING with UTM */
+  console.log(`✅ Authenticated order processed: ${tx.order_id}`);
+}
+
+/* ───────────── HANDLER: COMPRA DE PICKS MMC-GO (UPDATED for Anonymous) ─────────────── */
+async function handlePickPurchase(db: SupabaseClient, data: any) {
+  console.log('[Bold WH] Pick purchase flow - ANONYMOUS SUPPORT + UTM TRACKING');
+
+  const ref   = data.metadata?.reference as string;
+  const payId = data.payment_id          as string;
+  const total = data.amount?.total       as number;
+
+  if (!ref || !payId) throw new Error('Referencia o payId faltante');
+
+  /* 1. Find pending transaction */
+  const { data: tx } = await db
+    .from('pick_transactions')
+    .select('*')
+    .eq('order_id', ref)
+    .maybeSingle();
+    
+  if (!tx) { 
+    console.warn('pick_transactions no encontrada para order_id:', ref); 
+    return; 
+  }
+  
+  if (tx.payment_status === 'paid') { 
+    console.info('pick ya pagada para order_id:', ref); 
+    return; 
+  }
+
+  /* 2. Mark as paid */
+  await db.from('pick_transactions')
+    .update({ payment_status: 'paid', bold_payment_id: payId })
+    .eq('id', tx.id);
+
+  /* 🆕 3. Handle based on user status */
+  if (tx.user_id) {
+    // Authenticated user - process immediately
+    console.log(`👤 Authenticated user payment: ${tx.user_id}`);
+    await processAuthenticatedOrder(db, tx);
+  } else {
+    // Anonymous user - wait for registration
+    console.log(`🕶️ Anonymous payment completed: ${ref}. Awaiting registration.`);
+    await notifyAnonymousPayment(tx);
+  }
+
+  /* 4. Track purchase event with enhanced data */
   try {
     await trackPurchaseEvent({
       orderId: ref,
@@ -410,14 +484,14 @@ async function handlePickPurchase(db: SupabaseClient, data: any) {
       userId: tx.user_id,
       picks: tx.picks || [],
       mode: tx.mode,
-      utmData: utmData
+      utmData: null // Will be enriched later if user registers
     });
   } catch (trackingError) {
     console.error('❌ Purchase tracking failed (non-blocking):', trackingError);
     // Continue processing even if tracking fails
   }
 
-  console.log('✅ Pick flow finished for', ref);
+  console.log('✅ Pick purchase processed for', ref);
 }
 
 /* ──────────────────── ENTRYPOINT WEBHOOK ───────────────────── */

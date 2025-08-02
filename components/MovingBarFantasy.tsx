@@ -10,7 +10,7 @@ export default function MovingBarFantasy() {
 
   /* ─── mensaje + separador ─── */
   const message =
-  '¡Accede y participa por un viaje a la F1!';
+  'Gana hasta 100X con MotorManía GO';
   const separator = ' • ';
 
   /* ─── duplicamos texto para el loop ─── */
