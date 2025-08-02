@@ -664,7 +664,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                     </p>
                   ) : (
                     <p>
-                      🎉 Con tu apuesta recibes bonus adicional!
+                      🎉 Bono del 100% activo!
                     </p>
                   )}
                 </div>
