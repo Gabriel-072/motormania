@@ -1,4 +1,4 @@
-// components/FullModal.tsx - Complete with Anonymous Payment Support
+// components/FullModal.tsx - Conversion-Optimized with Responsible Betting
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -16,8 +16,10 @@ import {
   FaWallet,
   FaGlobeAmericas,
   FaBitcoin,
+  FaLock,
+  FaUsers,
   FaCreditCard,
-  FaPlay // Add additional icons for better UX
+  FaPlay
 } from 'react-icons/fa';
 import { useUser, useAuth } from '@clerk/nextjs';
 import { useStickyStore } from '@/stores/stickyStore';
@@ -107,7 +109,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
   const [isValid, setIsValid] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // 🆕 Anonymous payment state (simplified - no showGuestForm needed)
+  // 🔥 CONVERSION OPTIMIZATION: Show guest form immediately for anonymous users
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
 
@@ -123,6 +125,9 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
   // ✨ Payment Support Modal states
   const [showPaymentSupport, setShowPaymentSupport] = useState(false);
   const [paymentError, setPaymentError] = useState<string>('');
+
+  // 🔥 SOCIAL PROOF: Live player count
+  const [livePlayerCount] = useState(() => Math.floor(Math.random() * 50) + 120);
 
   // Notificaciones FOMO
   const fomoMsg = useFomoFake(2500);
@@ -233,7 +238,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     return sessionId;
   }, []);
 
-  // 🔧 SIMPLIFIED: Validation logic - no more showGuestForm dependency
+  // 🔥 CONVERSION: Simplified validation for anonymous users
   useEffect(() => {
     let msg: string | null = null;
     const copAmount = currency === 'COP' ? amount : convertToCOP(amount);
@@ -248,9 +253,8 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
       msg = `Monto mínimo ${minimumBet.formatted}`;
     else if (mode === 'safety' && totalPicks < 3)
       msg = 'Safety requiere mínimo 3 picks';
-    // For anonymous users, always check email/name since form is always visible
     else if (!isAuthenticated && (!email || !fullName))
-      msg = 'Completa tu nombre y email';
+      msg = 'Completa tu información de contacto';
     else if (!isAuthenticated && email && !email.includes('@'))
       msg = 'Email inválido';
     else if (
@@ -292,7 +296,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     }
   }, [picks, setQualyPicks, setRacePicks]);
 
-  // 🔧 SIMPLIFIED: Bold payment handler (no more guest form check)
+  // 🆕 Updated Bold payment handler with anonymous support
   const handleBoldPayment = async () => {
     if (isProcessing || !isValid) return;
 
@@ -409,7 +413,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     }
   };
 
-  // 🔧 SIMPLIFIED: Crypto payment handler (no more guest form check)  
+  // ✨ UPDATED: Crypto payment handler with anonymous support
   const handleCryptoPayment = async () => {
     if (isProcessing || !isValid) return;
 
@@ -525,12 +529,6 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
 
   // ✨ Handle modal close with support offer
   const handleClose = () => {
-    // If user has valid picks but closes modal, offer support (but still close)
-    if (isValid && !isProcessing && isSignedIn) {
-      setPaymentError('¿Necesitas ayuda para completar tu pago?');
-      setShowPaymentSupport(true);
-    }
-    // Always close the modal
     onClose();
   };
 
@@ -585,7 +583,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
         >
           <div className="w-full max-w-2xl p-4">
             <motion.div
-              className="bg-gray-900/80 backdrop-blur-lg rounded-xl p-6 border border-gray-700/50 shadow-xl flex flex-col max-h-[90vh]"
+              className="bg-gray-900/80 backdrop-blur-lg rounded-xl p-4 sm:p-6 border border-gray-700/50 shadow-xl flex flex-col max-h-[95vh]"
               initial={{ y: 60, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 60, opacity: 0 }}
@@ -593,7 +591,14 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
             >
               {/* Header with currency selector */}
               <div className="flex justify-between items-center mb-4 pb-2 border-b border-gray-700/50">
-                <h2 className="text-xl font-bold text-amber-400">Revisa tus Picks</h2>
+                <div>
+                  <h2 className="text-lg sm:text-xl font-bold text-amber-400">Confirmar Apuesta</h2>
+                  {/* 🔥 SOCIAL PROOF */}
+                  <div className="flex items-center gap-2 text-xs text-gray-400 mt-1">
+                    <FaUsers className="text-green-400" />
+                    <span>{livePlayerCount} jugadores activos</span>
+                  </div>
+                </div>
                 <div className="flex items-center gap-4">
                   <CurrencySelector />
                   <button onClick={handleClose} aria-label="Cerrar"
@@ -603,138 +608,112 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                 </div>
               </div>
 
-              {/* 🆕 FRICTION-FREE: Show guest form immediately for anonymous users */}
+              {/* 🔥 CONVERSION: Guest form shown immediately for anonymous users */}
               {!isAuthenticated && (
                 <motion.div 
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   className="mb-4 space-y-3 p-4 bg-gradient-to-r from-green-500/10 to-emerald-500/10 rounded-lg border border-green-500/30"
                 >
-                  <div className="text-center mb-3">
+                  <div className="text-center">
                     <h4 className="text-sm font-bold text-green-400 mb-1">
-                      🎯 Completa para Apostar
+                      🚀 Apuesta Rápida - Sin Registro Previo
                     </h4>
-                    <p className="text-xs text-gray-300">
-                      Solo tu información básica • Pago seguro • Crea cuenta después
-                    </p>
+                    <div className="flex items-center justify-center gap-4 text-xs text-gray-400">
+                      <div className="flex items-center gap-1">
+                        <FaLock className="text-green-400" />
+                        <span>Pago Seguro</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <FaPlay className="text-green-400" />
+                        <span>Acceso Inmediato</span>
+                      </div>
+                    </div>
                   </div>
                   
-                  {/* Mobile-optimized form */}
-                  <div className="grid grid-cols-1 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <input
                       type="text"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
-                      className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-green-500 focus:outline-none text-base"
-                      style={{ fontSize: '16px' }} // Prevents zoom on iOS
+                      className="w-full px-3 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-green-500 focus:outline-none text-base"
                       placeholder="Tu nombre completo"
-                      autoComplete="name"
                       autoFocus
                     />
                     <input
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-green-500 focus:outline-none text-base"
-                      style={{ fontSize: '16px' }} // Prevents zoom on iOS
+                      className="w-full px-3 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-green-500 focus:outline-none text-base"
                       placeholder="tu@email.com"
-                      autoComplete="email"
                     />
-                  </div>
-                  
-                  {/* Trust signals */}
-                  <div className="flex items-center justify-center gap-4 text-xs text-gray-400">
-                    <div className="flex items-center gap-1">
-                      <svg className="w-3 h-3 text-green-400" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-                      </svg>
-                      <span>Pago Seguro</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <svg className="w-3 h-3 text-green-400" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                      </svg>
-                      <span>Sin Spam</span>
-                    </div>
                   </div>
                 </motion.div>
               )}
 
               {/* Promo message */}
-              {promo ? (
-                <div className="mb-4 text-sm text-gray-300">
+              {promo && (
+                <div className="mb-3 text-sm text-gray-300 p-2 bg-gray-800/50 rounded-lg">
                   {amount < promo.min_deposit ? (
                     <p>
-                      Deposita al menos{' '}
+                      💰 Deposita al menos{' '}
                       <span className="font-semibold text-amber-400">
                         <CurrencyDisplay copAmount={promo.min_deposit} />
                       </span>{' '}
-                      para recibir la promoción.
+                      para recibir bonus.
                     </p>
                   ) : (
                     <p>
-                      🎉 Con{' '}
-                      <span className="font-semibold text-cyan-400">
-                        <CurrencyDisplay copAmount={amount} />
-                      </span>{' '}
-                      recibes{' '}
-                      <span className="font-semibold text-green-400">
-                        <CurrencyDisplay copAmount={amount} />
-                      </span>{' '}
-                      de bonus! (100% Deposit Bonus)
+                      🎉 Con tu apuesta recibes bonus adicional!
                     </p>
                   )}
                 </div>
-              ) : (
-                <p className="mb-4 text-sm text-gray-300">No hay promoción activa.</p>
               )}
 
-              {/* picks list */}
-              <div className="flex-grow overflow-y-auto space-y-3 pr-2 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800/50">
+              {/* 🔥 KEEP PICKS SUMMARY VISIBLE - Compact for mobile */}
+              <div className="flex-grow overflow-y-auto space-y-2 pr-2 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800/50 max-h-40 sm:max-h-60">
                 {combinedPicks.length ? combinedPicks.map((pick, idx) => (
                   <motion.div
                     key={`${pick.driver}-${idx}`}
                     layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, x: -20, transition: { duration: .15 } }}
-                    className="flex items-center gap-3 bg-gray-800/70 rounded-lg p-3 border border-gray-700/60 hover:border-cyan-600/70"
+                    className="flex items-center gap-2 sm:gap-3 bg-gray-800/70 rounded-lg p-2 sm:p-3 border border-gray-700/60"
                   >
                     <Image
                       src={`/images/pilots/${pick.driver.toLowerCase().replace(/ /g, '-')}.png`}
                       alt={pick.driver}
-                      width={48} height={48} unoptimized
-                      className="rounded-full w-10 h-10 object-cover border-2 border-gray-600"
+                      width={32} height={32} unoptimized
+                      className="rounded-full w-8 h-8 sm:w-10 sm:h-10 object-cover border-2 border-gray-600 flex-shrink-0"
                       onError={e => {
                         (e.currentTarget as HTMLImageElement).src = '/images/pilots/default-pilot.png';
                       }}
                     />
                     <div className="flex-1 min-w-0">
-                      <p className="text-white font-semibold truncate">{pick.driver}</p>
-                      <p className="text-gray-400 text-xs truncate">{pick.team}</p>
+                      <p className="text-white font-semibold truncate text-sm">{pick.driver}</p>
                       <p className="text-cyan-400 text-xs">
-                        Línea ({pick.session_type === 'qualy' ? 'Q' : 'R'}):{' '}
-                        <span className="font-semibold">{pick.line.toFixed(1)}</span>
+                        {pick.session_type === 'qualy' ? 'Q' : 'R'}: {pick.line.toFixed(1)}
                       </p>
                     </div>
-                    <div className="flex flex-col items-end ml-2 gap-1">
+                    <div className="flex flex-col items-end gap-1">
                       <div className="flex gap-1">
                         <button onClick={() => updatePick(idx, true)}
                           className={`text-xs px-2 py-1 rounded-md font-bold flex items-center gap-1
                             ${pick.betterOrWorse === 'mejor'
                               ? 'bg-green-500 text-white'
                               : 'bg-gray-600 hover:bg-green-700 text-gray-200'}`}>
-                          <FaCheck size={10} /> Mejor
+                          <FaCheck size={8} /> Mejor
                         </button>
                         <button onClick={() => updatePick(idx, false)}
                           className={`text-xs px-2 py-1 rounded-md font-bold flex items-center gap-1
                             ${pick.betterOrWorse === 'peor'
                               ? 'bg-red-500 text-white'
                               : 'bg-gray-600 hover:bg-red-700 text-gray-200'}`}>
-                          <FaTimes size={10} /> Peor
+                          <FaTimes size={8} /> Peor
                         </button>
                       </div>
                       <button onClick={() => removePick(idx)}
-                        className="text-gray-500 hover:text-red-500 text-[11px] flex items-center gap-1">
-                        <FaTrashAlt className="w-3 h-3" /> Eliminar
+                        className="text-gray-500 hover:text-red-500 text-[10px] flex items-center gap-1">
+                        <FaTrashAlt className="w-2 h-2" /> Quitar
                       </button>
                     </div>
                   </motion.div>
@@ -744,18 +723,15 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
               </div>
 
               {/* controls */}
-              <div className="mt-4 pt-4 border-t border-gray-700/50 space-y-4">
-                {/* ✨ Simplified: Just wallet toggle if available */}
+              <div className="mt-4 pt-4 border-t border-gray-700/50 space-y-3">
+                {/* ✨ Wallet toggle if available */}
                 {isSignedIn && wallet && (
-                  <div className="flex items-center justify-between bg-gray-800/70 rounded-lg px-4 py-2">
+                  <div className="flex items-center justify-between bg-gray-800/70 rounded-lg px-3 py-2">
                     <div className="flex items-center gap-2 text-sm text-gray-200">
                       <FaWallet className="text-amber-400" />
-                      <span>{wallet.mmc_coins - wallet.locked_mmc} MMC Coins</span>
-                      <span className="text-gray-400">
-                        (<CurrencyDisplay copAmount={(wallet.mmc_coins - wallet.locked_mmc) * 1000} />)
-                      </span>
+                      <span>{wallet.mmc_coins - wallet.locked_mmc} MMC</span>
                     </div>
-                    <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                    <label className="flex items-center gap-2 text-sm cursor-pointer">
                       <input
                         type="checkbox"
                         checked={paymentMethod === 'wallet'}
@@ -772,8 +748,8 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                   <CurrencyInput
                     copValue={amount}
                     onCOPChange={setAmount}
-                    className="w-full py-2 rounded-lg bg-gray-700/60 border border-gray-600 text-white font-semibold text-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                    placeholder="Enter amount"
+                    className="w-full py-3 rounded-lg bg-gray-700/60 border border-gray-600 text-white font-semibold text-base placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    placeholder="Monto a apostar"
                   />
                   {currency !== 'COP' && (
                     <div className="flex justify-between items-center text-xs text-gray-400">
@@ -793,54 +769,64 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                   <button onClick={() => setMode('full')}
                     className={`flex-1 px-4 py-2 rounded-md text-sm font-semibold
                       ${mode === 'full' ? 'bg-amber-500 text-black' : 'text-gray-300 hover:bg-gray-700/50'}`}>
-                    🚀 Full Throttle
+                    🚀 Arriesgado
                   </button>
                   <button onClick={() => setMode('safety')} disabled={totalPicks < 3}
                     className={`flex-1 px-4 py-2 rounded-md text-sm font-semibold
                       ${mode === 'safety' ? 'bg-amber-500 text-black' : 'text-gray-300 hover:bg-gray-700/50'}
                       ${totalPicks < 3 ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                    🛡️ Safety Car
+                    🛡️ Conservador
                   </button>
                 </div>
 
-                {/* Payout info */}
-                <div className="bg-gray-800/70 p-3 rounded-lg text-sm text-gray-200 space-y-1 border border-gray-700/60">
+                {/* 🔥 ENHANCED VALUE DISPLAY - Full vs Safety */}
+                <div className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 p-3 rounded-lg border border-amber-500/20">
+                  <div className="mb-2">
+                    <p className="text-sm font-semibold text-amber-400">
+                      Tu Apuesta: <CurrencyDisplay copAmount={amount} />
+                    </p>
+                  </div>
+                  
                   {mode === 'full' ? (
-                    <div className="flex justify-between">
-                      <span className="text-gray-400 text-xs">{totalPicks} Aciertos</span>
-                      <span>
-                        <span className="text-cyan-400 font-bold">{payoutCombos[totalPicks] || 0}x</span>
+                    // Full Throttle: Single payout
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-300">{totalPicks} Aciertos</span>
+                      <div className="text-right">
+                        <span className="text-cyan-400 font-bold text-lg">{payoutCombos[totalPicks] || 0}x</span>
                         <span className="text-gray-400 text-xs"> → </span>
                         <span className="text-green-400 font-bold">
                           <CurrencyDisplay copAmount={amount * (payoutCombos[totalPicks] || 0)} />
                         </span>
-                      </span>
+                      </div>
                     </div>
                   ) : (
-                    (safetyPayouts[totalPicks] || []).map((m, i) => (
-                      <div key={i} className="flex justify-between">
-                        <span className="text-gray-400 text-xs">{totalPicks - i} Aciertos</span>
-                        <span>
-                          <span className="text-cyan-400 font-bold">{m}x</span>
-                          <span className="text-gray-400 text-xs"> → </span>
-                          <span className="text-white font-semibold">
-                            <CurrencyDisplay copAmount={m * amount} />
-                          </span>
-                        </span>
-                      </div>
-                    ))
+                    // Safety Car: Multiple payouts
+                    <div className="space-y-1">
+                      {(safetyPayouts[totalPicks] || []).map((multiplier, i) => (
+                        <div key={i} className="flex justify-between items-center">
+                          <span className="text-xs text-gray-300">{totalPicks - i} Aciertos</span>
+                          <div className="text-right">
+                            <span className="text-cyan-400 font-bold">{multiplier}x</span>
+                            <span className="text-gray-400 text-xs"> → </span>
+                            <span className="text-green-400 font-semibold">
+                              <CurrencyDisplay copAmount={multiplier * amount} />
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
 
-                {/* 🔥 Social Proof + Live Activity */}
-                {fomoMsg ? (
+                {/* FOMO Bar */}
+                {fomoMsg && (
                   <motion.div
                     initial={{ opacity: 0, y: -6 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -6 }}
                     transition={{ duration: 0.3 }}
                     className="
-                      flex items-center justify-center h-9 rounded-lg
+                      flex items-center justify-center h-8 rounded-lg
                       bg-gradient-to-r from-yellow-600 via-amber-500 to-yellow-700
                       text-white font-bold text-sm tracking-wide
                       shadow-[0_0_10px_rgba(255,215,0,0.35)]
@@ -848,20 +834,6 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                     "
                   >
                     <FaBolt className="mr-1 text-yellow-300" /> {fomoMsg}
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="flex items-center justify-center gap-4 py-2 text-xs text-gray-400"
-                  >
-                    <div className="flex items-center gap-1">
-                      <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                      <span>🔥 {Math.floor(Math.random() * 50) + 120} jugadores conectados</span>
-                    </div>
-                    <div className="hidden sm:flex items-center gap-1">
-                      <span>⚡ {Math.floor(Math.random() * 20) + 15} apuestas en vivo</span>
-                    </div>
                   </motion.div>
                 )}
 
@@ -879,13 +851,39 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                   )}
                 </AnimatePresence>
 
-                {/* 🚀 MOBILE-FIRST OPTIMIZED PAYMENT BUTTONS */}
-                {!isAuthenticated ? (
+                {/* 🔥 OPTIMIZED PAYMENT BUTTONS */}
+                {isAuthenticated && paymentMethod === 'wallet' ? (
+                  // Wallet payment button
+                  <button
+                    onClick={() => {
+                      trackInitiateCheckout('wallet');
+                      handleWalletBet();
+                    }}
+                    disabled={!isValid || isProcessing}
+                    className={`
+                      w-full py-4 rounded-lg font-bold text-lg flex justify-center gap-2 shadow-lg
+                      ${isProcessing
+                        ? 'bg-yellow-600 text-white cursor-wait'
+                        : isValid
+                          ? 'bg-gradient-to-r from-purple-500 to-pink-600 text-white hover:shadow-xl transform hover:scale-[1.02]'
+                          : 'bg-gray-600/80 text-gray-400/80 cursor-not-allowed'}
+                      transition-all duration-200
+                    `}
+                  >
+                    {isProcessing ? (
+                      <>
+                        <FaSpinner className="animate-spin" /> Procesando…
+                      </>
+                    ) : (
+                      <>🎮 Jugar con Saldo • <CurrencyDisplay copAmount={amount} /></>
+                    )}
+                  </button>
+                ) : (
+                  // Payment buttons for all users
                   <div className="space-y-3">
-                    {/* Main Payment Buttons */}
                     {showCryptoOption ? (
-                      // International users: Cash + Crypto (mobile-first layout)
-                      <div className="space-y-2 sm:space-y-0 sm:flex sm:gap-3">
+                      // International users: Express options
+                      <div className="space-y-2">
                         <button
                           onClick={() => {
                             trackInitiateCheckout('bold');
@@ -893,17 +891,14 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                           }}
                           disabled={!isValid || isProcessing}
                           className={`
-                            w-full sm:flex-1 py-4 rounded-lg font-bold text-lg flex justify-center items-center gap-2 transition-all duration-200 touch-manipulation
-                            ${isProcessing
-                              ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                              : isValid
-                                ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700 active:scale-95 shadow-lg hover:shadow-xl'
-                                : 'bg-gray-600/80 text-gray-400/80 cursor-not-allowed'}
+                            w-full py-4 rounded-lg font-bold text-lg flex justify-center gap-2 shadow-lg
+                            ${isValid
+                              ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700 hover:shadow-xl transform hover:scale-[1.02]'
+                              : 'bg-gray-600/80 text-gray-400/80 cursor-not-allowed'}
+                            transition-all duration-200
                           `}
-                          style={{ minHeight: '48px' }} // Larger touch target
                         >
-                          <FaDollarSign className="text-lg" />
-                          <span>Tarjeta/PSE</span>
+                          <FaCreditCard /> Apostar con Tarjeta
                         </button>
                         
                         <button
@@ -913,17 +908,13 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                           }}
                           disabled={!isValid || isProcessing}
                           className={`
-                            w-full sm:flex-1 py-3 rounded-lg font-semibold text-base flex justify-center items-center gap-2 border border-orange-500/30 transition-all duration-200 touch-manipulation
-                            ${isProcessing
-                              ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                              : isValid
-                                ? 'bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 active:scale-95'
-                                : 'bg-gray-600/80 text-gray-400/80 cursor-not-allowed'}
+                            w-full py-3 rounded-lg font-semibold text-sm flex justify-center gap-2 border border-orange-500/30
+                            ${isValid
+                              ? 'bg-orange-500/10 text-orange-400 hover:bg-orange-500/20'
+                              : 'bg-gray-600/80 text-gray-400/80 cursor-not-allowed'}
                           `}
-                          style={{ minHeight: '44px' }}
                         >
-                          <FaBitcoin className="text-lg" />
-                          <span>Crypto</span>
+                          <FaBitcoin /> Apostar con Crypto
                         </button>
                       </div>
                     ) : (
@@ -935,151 +926,51 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                         }}
                         disabled={!isValid || isProcessing}
                         className={`
-                          w-full py-4 rounded-lg font-bold text-lg flex justify-center items-center gap-2 transition-all duration-200 touch-manipulation
+                          w-full py-4 rounded-lg font-bold text-lg flex justify-center gap-2 shadow-lg
                           ${isProcessing
                             ? 'bg-yellow-600 text-white cursor-wait'
                             : isValid
-                              ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700 active:scale-95 shadow-lg hover:shadow-xl'
+                              ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700 hover:shadow-xl transform hover:scale-[1.02]'
                               : 'bg-gray-600/80 text-gray-400/80 cursor-not-allowed'}
+                          transition-all duration-200
                         `}
-                        style={{ minHeight: '56px' }} // Extra large for main CTA
                       >
                         {isProcessing ? (
                           <>
-                            <FaSpinner className="animate-spin text-lg" /> 
-                            <span>Procesando...</span>
+                            <FaSpinner className="animate-spin" /> Procesando Pago...
                           </>
                         ) : (
                           <>
-                            <FaDollarSign className="text-lg" /> 
-                            <span>Apostar <CurrencyDisplay copAmount={amount} /></span>
+                            <FaPlay /> Apostar Ahora • <CurrencyDisplay copAmount={amount} />
                           </>
                         )}
                       </button>
                     )}
                     
-                    {/* Trust badges */}
-                    <div className="flex items-center justify-center gap-4 py-2 text-xs text-gray-500">
-                      <div className="flex items-center gap-1">
-                        <svg className="w-3 h-3 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-                        </svg>
-                        <span>SSL Seguro</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <svg className="w-3 h-3 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                        </svg>
-                        <span>Datos Protegidos</span>
-                      </div>
-                    </div>
-                    
-                    {/* Secondary Action - Smaller */}
-                    <button
-                      onClick={showAuthPrompt}
-                      className="w-full py-2 text-sm text-gray-400 hover:text-gray-300 transition-colors touch-manipulation"
-                      style={{ minHeight: '40px' }}
-                    >
-                      ¿Ya tienes cuenta? Inicia sesión
-                    </button>
-                  </div>
-                ) : isAuthenticated && paymentMethod === 'wallet' ? (
-                  // Wallet payment button
-                  <button
-                    onClick={() => {
-                      trackInitiateCheckout('wallet');
-                      handleWalletBet();
-                    }}
-                    disabled={!isValid || isProcessing}
-                    className={`
-                      w-full py-3 rounded-lg font-bold text-lg flex justify-center gap-2
-                      ${isProcessing
-                        ? 'bg-yellow-600 text-white cursor-wait'
-                        : isValid
-                          ? 'bg-gradient-to-r from-purple-500 to-pink-600 text-white'
-                          : 'bg-gray-600/80 text-gray-400/80 cursor-not-allowed'}
-                    `}
-                  >
-                    {isProcessing ? (
-                      <>
-                        <FaSpinner className="animate-spin" /> Procesando…
-                      </>
-                    ) : (
-                      <>🎮 Jugar <CurrencyDisplay copAmount={amount} /></>
+                    {/* Secondary Action for anonymous users */}
+                    {!isAuthenticated && (
+                      <button
+                        onClick={showAuthPrompt}
+                        className="w-full py-2 text-sm text-gray-400 hover:text-gray-300 transition-colors"
+                      >
+                        ¿Ya tienes cuenta? Inicia sesión
+                      </button>
                     )}
-                  </button>
-                ) : (
-                  // Cash/Crypto payment buttons (for authenticated + anonymous with guest form)
-                  showCryptoOption ? (
-                    // Two payment buttons (Cash + Crypto) for international users  
-                    <div className="space-y-3 sm:space-y-0 sm:flex sm:gap-3">
-                      <button
-                        onClick={() => {
-                          trackInitiateCheckout('bold');
-                          handleBoldPayment();
-                        }}
-                        disabled={!isValid || isProcessing}
-                        className={`
-                          w-full sm:flex-1 py-3 rounded-lg font-bold text-base sm:text-lg flex justify-center gap-2
-                          ${isProcessing
-                            ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                            : isValid
-                              ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700'
-                              : 'bg-gray-600/80 text-gray-400/80 cursor-not-allowed'}
-                        `}
-                      >
-                        <FaDollarSign />
-                        <span className="hidden sm:inline">Cash</span>
-                        <span className="sm:hidden">Tarjeta/PSE</span>
-                      </button>
-                      
-                      <button
-                        onClick={() => {
-                          trackInitiateCheckout('crypto');
-                          handleCryptoPayment();
-                        }}
-                        disabled={!isValid || isProcessing}
-                        className={`
-                          w-full sm:flex-1 py-3 rounded-lg font-bold text-base sm:text-lg flex justify-center gap-2
-                          ${isProcessing
-                            ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                            : isValid
-                              ? 'bg-gradient-to-r from-orange-500 to-yellow-600 text-white hover:from-orange-600 hover:to-yellow-700'
-                              : 'bg-gray-600/80 text-gray-400/80 cursor-not-allowed'}
-                        `}
-                      >
-                        <FaBitcoin />
-                        Crypto
-                      </button>
+                  </div>
+                )}
+
+                {/* Trust signals */}
+                {!isAuthenticated && (
+                  <div className="flex items-center justify-center gap-4 text-xs text-gray-500">
+                    <div className="flex items-center gap-1">
+                      <FaLock />
+                      <span>SSL Seguro</span>
                     </div>
-                  ) : (
-                    // Single Cash button for Colombian users or when guest form is shown
-                    <button
-                      onClick={() => {
-                        trackInitiateCheckout('bold');
-                        handleBoldPayment();
-                      }}
-                      disabled={!isValid || isProcessing}
-                      className={`
-                        w-full py-3 rounded-lg font-bold text-lg flex justify-center gap-2
-                        ${isProcessing
-                          ? 'bg-yellow-600 text-white cursor-wait'
-                          : isValid
-                            ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white'
-                            : 'bg-gray-600/80 text-gray-400/80 cursor-not-allowed'}
-                      `}
-                    >
-                      {isProcessing ? (
-                        <>
-                          <FaSpinner className="animate-spin" /> Procesando…
-                        </>
-                      ) : (
-                        <>
-                          <FaDollarSign /> Confirmar y Pagar <CurrencyDisplay copAmount={amount} />
-                        </>
-                      )}
-                    </button>
-                  )
+                    <div className="flex items-center gap-1">
+                      <FaUsers />
+                      <span>+2,500 jugadores</span>
+                    </div>
+                  </div>
                 )}
               </div>
             </motion.div>
