@@ -1,4 +1,4 @@
-// components/FullModal.tsx - WITH PAYMENT SUPPORT INTEGRATION
+// components/FullModal.tsx - Complete with Anonymous Payment Support
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -47,6 +47,8 @@ type RegisterPickApiResponse = {
   amount: string;
   callbackUrl: string;
   integrityKey: string;
+  isAnonymous?: boolean;
+  sessionId?: string;
 };
 
 type Promo = {
@@ -103,6 +105,11 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
   const [isValid, setIsValid] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
+  // 🆕 Anonymous payment state
+  const [email, setEmail] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [showGuestForm, setShowGuestForm] = useState(false);
+
   // wallet
   const [wallet, setWallet] = useState<Wallet | null>(null);
 
@@ -126,6 +133,9 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
   ];
   const totalPicks = combinedPicks.length;
 
+  // 🆕 Check if user is authenticated
+  const isAuthenticated = !!user?.id;
+
   // ✨ Initialize currency system
   useEffect(() => {
     if (isOpen && !isInitialized) {
@@ -139,6 +149,14 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
       setAmount(defaultAmount);
     }
   }, [isInitialized, defaultAmount]);
+
+  // 🆕 Pre-fill user data if authenticated
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      setEmail(user.primaryEmailAddress?.emailAddress || '');
+      setFullName(user.fullName || '');
+    }
+  }, [isAuthenticated, user]);
 
   // ✨ InitiateCheckout tracking helper
   const trackInitiateCheckout = useCallback((paymentMethodUsed: string) => {
@@ -207,7 +225,14 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     })();
   }, [getToken]);
 
-  // ✨ UPDATED: Validation with currency-aware minimum
+  // 🆕 Generate anonymous session ID
+  const generateAnonymousSession = useCallback(() => {
+    const sessionId = `anon_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    localStorage.setItem('anonymousSession', sessionId);
+    return sessionId;
+  }, []);
+
+  // ✨ UPDATED: Validation with currency-aware minimum AND anonymous support
   useEffect(() => {
     let msg: string | null = null;
     const copAmount = currency === 'COP' ? amount : convertToCOP(amount);
@@ -222,6 +247,10 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
       msg = `Monto mínimo ${minimumBet.formatted}`;
     else if (mode === 'safety' && totalPicks < 3)
       msg = 'Safety requiere mínimo 3 picks';
+    else if (!isAuthenticated && (!email || !fullName))
+      msg = 'Email y nombre son requeridos';
+    else if (!isAuthenticated && !email.includes('@'))
+      msg = 'Email inválido';
     else if (
       paymentMethod === 'wallet' &&
       wallet &&
@@ -230,7 +259,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
       msg = `Saldo insuficiente: necesitas ${betMmc} MMC Coins`;
     setError(msg);
     setIsValid(!msg);
-  }, [combinedPicks, totalPicks, amount, mode, paymentMethod, wallet, isInitialized, minimumBet, currency, convertToCOP]);
+  }, [combinedPicks, totalPicks, amount, mode, paymentMethod, wallet, isAuthenticated, email, fullName, isInitialized, minimumBet, currency, convertToCOP]);
 
   // ✨ Payment method handler
   const handlePaymentMethodChange = useCallback((method: 'bold' | 'wallet' | 'crypto') => {
@@ -261,18 +290,157 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     }
   }, [picks, setQualyPicks, setRacePicks]);
 
-  // ✨ UPDATED: Crypto payment handler with error support
-  const handleCryptoPayment = async () => {
-    if (!user?.id || isProcessing || !isValid) return;
-    const email = user.primaryEmailAddress?.emailAddress;
-    if (!email) { toast.error('Tu cuenta no tiene email'); return; }
+  // 🆕 Updated Bold payment handler with anonymous support
+  const handleBoldPayment = async () => {
+    if (isProcessing || !isValid) return;
+    
+    // If not authenticated, show guest form first
+    if (!isAuthenticated && !showGuestForm) {
+      setShowGuestForm(true);
+      return;
+    }
+
+    // For authenticated users, check email
+    if (isAuthenticated) {
+      const userEmail = user?.primaryEmailAddress?.emailAddress;
+      if (!userEmail) { 
+        toast.error('Tu cuenta no tiene email'); 
+        return; 
+      }
+    }
 
     setIsProcessing(true);
     setError(null);
 
     try {
       const copAmount = currency === 'COP' ? amount : convertToCOP(amount);
-      const orderId = `CRYPTO-${Date.now()}-${user.id}`;
+      const sessionId = !isAuthenticated ? generateAnonymousSession() : null;
+
+      const res = await fetch('/api/transactions/register-pick-transaction', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          picks: combinedPicks,
+          mode,
+          amount: Math.round(copAmount),
+          gpName: combinedPicks[0]?.gp_name ?? 'GP',
+          fullName: isAuthenticated ? user?.fullName : fullName,
+          email: isAuthenticated ? user?.primaryEmailAddress?.emailAddress : email,
+          anonymousSessionId: sessionId
+        })
+      });
+      
+      if (!res.ok) {
+        const { error: e } = await res.json().catch(() => ({}));
+        throw new Error(e ?? 'Error registrando jugada.');
+      }
+      
+      const { orderId, amount: amtStr, callbackUrl, integrityKey, isAnonymous } =
+        (await res.json()) as RegisterPickApiResponse;
+
+      // Store session for anonymous users
+      if (isAnonymous && sessionId) {
+        localStorage.setItem('pendingPayment', JSON.stringify({
+          orderId, amountStr: amtStr, callbackUrl, integrityKey, sessionId
+        }));
+      }
+
+      openBoldCheckout({
+        apiKey: process.env.NEXT_PUBLIC_BOLD_BUTTON_KEY!,
+        orderId,
+        amount: amtStr,
+        currency: 'COP',
+        description: `MMC GO (${totalPicks} picks) - ${mode === 'full' ? 'Full' : 'Safety'}`,
+        redirectionUrl: callbackUrl,
+        integritySignature: integrityKey,
+        customerData: JSON.stringify({ 
+          email: isAuthenticated ? user?.primaryEmailAddress?.emailAddress : email, 
+          fullName: isAuthenticated ? user?.fullName ?? 'Jugador MMC' : fullName 
+        }),
+        renderMode: 'embedded',
+        onSuccess: async () => {
+          if (typeof window !== 'undefined' && window.fbq) {
+            const eventId = `purchase_${orderId}_${user?.id || 'anonymous'}`;
+            window.fbq('track', 'Purchase', {
+              value: copAmount / 1000,
+              currency: 'COP',
+              content_type: 'product',
+              content_category: 'sports_betting',
+              content_ids: [`mmc_picks_${totalPicks}`],
+              content_name: `MMC GO ${mode === 'full' ? 'Full Throttle' : 'Safety Car'} (${totalPicks} picks)`,
+              num_items: totalPicks,
+              eventID: eventId,
+            });
+          }
+
+          toast.success('Pago recibido, procesando…');
+          
+          // Only consume locked MMC for authenticated users
+          if (isAuthenticated && user?.id) {
+            try {
+              const token = await getToken({ template: 'supabase' });
+              if (token) {
+                const sb = createAuthClient(token);
+                await sb.rpc('consume_locked_mmc', {
+                  p_user_id: user.id,
+                  p_bet_mmc: Math.round(copAmount / 1000)
+                });
+              }
+            } catch (err) {
+              console.warn('consume_locked_mmc failed', err);
+            }
+          }
+          
+          clearDraftPicks();
+          onClose();
+          setIsProcessing(false);
+        },
+        onFailed: ({ message }: { message?: string }) => {
+          setPaymentError(`Pago con tarjeta falló: ${message || 'Error desconocido'}`);
+          setShowPaymentSupport(true);
+          setIsProcessing(false);
+        },
+        onPending: () => {
+          toast.info('Pago pendiente de confirmación.');
+          setIsProcessing(false);
+        },
+        onClose: () => setIsProcessing(false)
+      });
+    } catch (err: any) {
+      setPaymentError(`Error iniciando pago: ${err.message || 'Error desconocido'}`);
+      setShowPaymentSupport(true);
+      setIsProcessing(false);
+    }
+  };
+
+  // ✨ UPDATED: Crypto payment handler with anonymous support
+  const handleCryptoPayment = async () => {
+    if (isProcessing || !isValid) return;
+    
+    // If not authenticated, show guest form first
+    if (!isAuthenticated && !showGuestForm) {
+      setShowGuestForm(true);
+      return;
+    }
+
+    // For authenticated users, check email
+    if (isAuthenticated) {
+      const userEmail = user?.primaryEmailAddress?.emailAddress;
+      if (!userEmail) { 
+        toast.error('Tu cuenta no tiene email'); 
+        return; 
+      }
+    }
+
+    setIsProcessing(true);
+    setError(null);
+
+    try {
+      const copAmount = currency === 'COP' ? amount : convertToCOP(amount);
+      const sessionId = !isAuthenticated ? generateAnonymousSession() : null;
+      const orderId = !isAuthenticated 
+        ? `CRYPTO-ANON-${Date.now()}`
+        : `CRYPTO-${Date.now()}-${user?.id}`;
 
       const res = await fetch('/api/crypto-payment', {
         method: 'POST',
@@ -281,9 +449,10 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
           amount: Math.round(copAmount),
           picks: combinedPicks,
           mode,
-          userEmail: email,
-          userName: user.fullName ?? 'Jugador MMC',
-          orderId
+          userEmail: isAuthenticated ? user?.primaryEmailAddress?.emailAddress : email,
+          userName: isAuthenticated ? user?.fullName ?? 'Jugador MMC' : fullName,
+          orderId,
+          anonymousSessionId: sessionId
         })
       });
 
@@ -295,6 +464,11 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
       const { checkoutUrl, success } = await res.json();
       
       if (success && checkoutUrl) {
+        // Store session for anonymous users
+        if (!isAuthenticated && sessionId) {
+          localStorage.setItem('cryptoOrderId', orderId);
+        }
+        
         window.open(checkoutUrl, '_blank');
         toast.success('Abriendo pago crypto - completa en la nueva ventana');
         clearDraftPicks();
@@ -304,7 +478,6 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
       }
 
     } catch (err: any) {
-      // ✨ Show payment support modal on crypto error
       setPaymentError(`Error con pago crypto: ${err.message || 'Error desconocido'}`);
       setShowPaymentSupport(true);
     } finally {
@@ -312,7 +485,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     }
   };
 
-  // Wallet bet handler
+  // Wallet bet handler (authenticated users only)
   const handleWalletBet = async () => {
     if (!user?.id || !wallet) return;
     setIsProcessing(true);
@@ -355,111 +528,9 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     }
   };
 
-  // ✨ UPDATED: Bold payment handler with error support
-  const handleBoldPayment = async () => {
-    if (!user?.id || isProcessing || !isValid) return;
-    const email = user.primaryEmailAddress?.emailAddress;
-    if (!email) { toast.error('Tu cuenta no tiene email'); return; }
-
-    setIsProcessing(true);
-    setError(null);
-
-    try {
-      const copAmount = currency === 'COP' ? amount : convertToCOP(amount);
-
-      const res = await fetch('/api/transactions/register-pick-transaction', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          picks: combinedPicks,
-          mode,
-          amount: Math.round(copAmount),
-          gpName: combinedPicks[0]?.gp_name ?? 'GP',
-          fullName: user.fullName,
-          email
-        })
-      });
-      if (!res.ok) {
-        const { error: e } = await res.json().catch(() => ({}));
-        throw new Error(e ?? 'Error registrando jugada.');
-      }
-      const { orderId, amount: amtStr, callbackUrl, integrityKey } =
-        (await res.json()) as RegisterPickApiResponse;
-
-      openBoldCheckout({
-        apiKey: process.env.NEXT_PUBLIC_BOLD_BUTTON_KEY!,
-        orderId,
-        amount: amtStr,
-        currency: 'COP',
-        description: `MMC GO (${totalPicks} picks) - ${mode === 'full' ? 'Full' : 'Safety'}`,
-        redirectionUrl: callbackUrl,
-        integritySignature: integrityKey,
-        customerData: JSON.stringify({ email, fullName: user.fullName ?? 'Jugador MMC' }),
-        renderMode: 'embedded',
-        onSuccess: async () => {
-          if (typeof window !== 'undefined' && window.fbq) {
-            const eventId = `purchase_${orderId}_${user.id}`;
-            window.fbq('track', 'Purchase', {
-              value: copAmount / 1000,
-              currency: 'COP',
-              content_type: 'product',
-              content_category: 'sports_betting',
-              content_ids: [`mmc_picks_${totalPicks}`],
-              content_name: `MMC GO ${mode === 'full' ? 'Full Throttle' : 'Safety Car'} (${totalPicks} picks)`,
-              num_items: totalPicks,
-              eventID: eventId,
-            });
-          }
-
-          toast.success('Pago recibido, procesando…');
-          try {
-            const token = await getToken({ template: 'supabase' });
-            if (token) {
-              const sb = createAuthClient(token);
-              await sb.rpc('consume_locked_mmc', {
-                p_user_id: user.id,
-                p_bet_mmc: Math.round(copAmount / 1000)
-              });
-            }
-          } catch (err) {
-            console.warn('consume_locked_mmc failed', err);
-          }
-          clearDraftPicks();
-          onClose();
-          setIsProcessing(false);
-        },
-        // ✨ UPDATED: Show payment support modal on Bold error
-        onFailed: ({ message }: { message?: string }) => {
-          setPaymentError(`Pago con tarjeta falló: ${message || 'Error desconocido'}`);
-          setShowPaymentSupport(true);
-          setIsProcessing(false);
-        },
-        onPending: () => {
-          toast.info('Pago pendiente de confirmación.');
-          setIsProcessing(false);
-        },
-        onClose: () => setIsProcessing(false)
-      });
-    } catch (err: any) {
-      // ✨ Show payment support modal on Bold setup error
-      setPaymentError(`Error iniciando pago: ${err.message || 'Error desconocido'}`);
-      setShowPaymentSupport(true);
-      setIsProcessing(false);
-    }
-  };
-
-  // ✨ Handle auth requirement
-  const handleAuthRequired = () => {
-    localStorage.setItem('pendingPicks', JSON.stringify(picks));
-    
-    if (typeof window !== 'undefined' && (window as any).hj) {
-      try {
-        (window as any).hj('event', 'auth_required_for_betting');
-      } catch (e) {}
-    }
-    
-    const currentUrl = window.location.pathname + window.location.search;
-    router.push(`/sign-up?redirect_url=${encodeURIComponent(currentUrl)}`);
+  // Show authentication prompt (for existing auth flow)
+  const showAuthPrompt = () => {
+    router.push(`/sign-in?redirect_url=${encodeURIComponent('/mmc-go')}`);
   };
 
   // ✨ Handle modal close with support offer
@@ -541,6 +612,44 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                   </button>
                 </div>
               </div>
+
+              {/* 🆕 Guest Form (for anonymous users) */}
+              {!isAuthenticated && showGuestForm && (
+                <div className="mb-4 space-y-4 p-4 bg-gray-800/30 rounded-lg border border-amber-500/20">
+                  <h4 className="text-lg font-semibold text-amber-400 font-exo2">
+                    Información de Contacto
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Nombre Completo
+                      </label>
+                      <input
+                        type="text"
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-amber-500 focus:outline-none"
+                        placeholder="Tu nombre completo"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Email
+                      </label>
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-amber-500 focus:outline-none"
+                        placeholder="tu@email.com"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-400">
+                    Después del pago podrás crear tu cuenta para gestionar tus apuestas
+                  </p>
+                </div>
+              )}
 
               {/* Promo message */}
               {promo ? (
@@ -747,22 +856,30 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                   )}
                 </AnimatePresence>
 
-                {/* ✨ Payment buttons based on auth status */}
-                {!isSignedIn ? (
-                  // Single button for non-authenticated users
-                  <button
-                    onClick={handleAuthRequired}
-                    disabled={!isValid}
-                    className={`
-                      w-full py-3 rounded-lg font-bold text-lg flex justify-center gap-2
-                      ${isValid
-                        ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white'
-                        : 'bg-gray-600/80 text-gray-400/80 cursor-not-allowed'}
-                    `}
-                  >
-                    Confirmar y Pagar <CurrencyDisplay copAmount={amount} />
-                  </button>
-                ) : paymentMethod === 'wallet' ? (
+                {/* 🆕 Payment buttons with anonymous support */}
+                {!isAuthenticated && !showGuestForm ? (
+                  // Options for anonymous users: Login or Continue as Guest
+                  <div className="space-y-3">
+                    <button
+                      onClick={showAuthPrompt}
+                      className="w-full py-3 rounded-lg font-bold text-lg flex justify-center gap-2 bg-gradient-to-r from-amber-500 to-orange-500 text-black hover:from-amber-600 hover:to-orange-600"
+                    >
+                      Iniciar Sesión y Continuar
+                    </button>
+                    <button
+                      onClick={() => setShowGuestForm(true)}
+                      disabled={!isValid}
+                      className={`
+                        w-full py-3 rounded-lg font-bold text-lg flex justify-center gap-2
+                        ${isValid
+                          ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700'
+                          : 'bg-gray-600/80 text-gray-400/80 cursor-not-allowed'}
+                      `}
+                    >
+                      Continuar como Invitado
+                    </button>
+                  </div>
+                ) : isAuthenticated && paymentMethod === 'wallet' ? (
                   // Wallet payment button
                   <button
                     onClick={() => {
@@ -788,7 +905,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                     )}
                   </button>
                 ) : (
-                  // Payment buttons for authenticated users - hide crypto for Colombia
+                  // Cash/Crypto payment buttons (for authenticated + anonymous with guest form)
                   showCryptoOption ? (
                     // Two payment buttons (Cash + Crypto) for international users
                     <div className="flex gap-3">
@@ -831,7 +948,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                       </button>
                     </div>
                   ) : (
-                    // Single Cash button for Colombian users
+                    // Single Cash button for Colombian users or when guest form is shown
                     <button
                       onClick={() => {
                         trackInitiateCheckout('bold');
@@ -858,6 +975,13 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                       )}
                     </button>
                   )
+                )}
+
+                {/* 🆕 Helper text for anonymous users */}
+                {!isAuthenticated && showGuestForm && (
+                  <p className="text-xs text-center text-gray-400">
+                    Al continuar como invitado, podrás crear tu cuenta después del pago
+                  </p>
                 )}
               </div>
             </motion.div>
