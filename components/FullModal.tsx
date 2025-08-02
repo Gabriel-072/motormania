@@ -238,11 +238,23 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     return sessionId;
   }, []);
 
+  // 🔧 FIXED: Auto-switch away from wallet if insufficient funds
+  useEffect(() => {
+    if (paymentMethod === 'wallet' && wallet) {
+      const copAmount = currency === 'COP' ? amount : convertToCOP(amount);
+      const betMmc = Math.round(copAmount / 1000);
+      
+      // If insufficient wallet balance, switch to Bold payment
+      if (betMmc > wallet.mmc_coins - wallet.locked_mmc) {
+        setPaymentMethod('bold');
+      }
+    }
+  }, [paymentMethod, wallet, amount, currency, convertToCOP]);
+
   // 🔥 CONVERSION: Simplified validation for anonymous users
   useEffect(() => {
     let msg: string | null = null;
     const copAmount = currency === 'COP' ? amount : convertToCOP(amount);
-    const betMmc = Math.round(copAmount / 1000);
     const minCOPAmount = isInitialized ? convertToCOP(minimumBet.display) : 20000;
     
     if (totalPicks < 2) msg = 'Elige al menos 2 picks';
@@ -257,15 +269,11 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
       msg = 'Completa tu información de contacto';
     else if (!isAuthenticated && email && !email.includes('@'))
       msg = 'Email inválido';
-    else if (
-      paymentMethod === 'wallet' &&
-      wallet &&
-      betMmc > wallet.mmc_coins - wallet.locked_mmc
-    )
-      msg = `Saldo insuficiente: necesitas ${betMmc} MMC Coins`;
+    // 🔧 REMOVED: Wallet insufficient balance check (handled automatically now)
+    
     setError(msg);
     setIsValid(!msg);
-  }, [combinedPicks, totalPicks, amount, mode, paymentMethod, wallet, isAuthenticated, email, fullName, isInitialized, minimumBet, currency, convertToCOP]);
+  }, [combinedPicks, totalPicks, amount, mode, isAuthenticated, email, fullName, isInitialized, minimumBet, currency, convertToCOP]);
 
   // ✨ Payment method handler
   const handlePaymentMethodChange = useCallback((method: 'bold' | 'wallet' | 'crypto') => {
@@ -664,7 +672,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                     </p>
                   ) : (
                     <p>
-                      🎉 Bono del 100% activo!
+                      🎉 Con tu apuesta recibes bonus adicional!
                     </p>
                   )}
                 </div>
@@ -724,22 +732,39 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
 
               {/* controls */}
               <div className="mt-4 pt-4 border-t border-gray-700/50 space-y-3">
-                {/* ✨ Wallet toggle if available */}
+                {/* ✨ Wallet toggle - only if sufficient balance */}
                 {isSignedIn && wallet && (
                   <div className="flex items-center justify-between bg-gray-800/70 rounded-lg px-3 py-2">
                     <div className="flex items-center gap-2 text-sm text-gray-200">
                       <FaWallet className="text-amber-400" />
                       <span>{wallet.mmc_coins - wallet.locked_mmc} MMC</span>
+                      <span className="text-gray-400">
+                        (<CurrencyDisplay copAmount={(wallet.mmc_coins - wallet.locked_mmc) * 1000} />)
+                      </span>
                     </div>
-                    <label className="flex items-center gap-2 text-sm cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={paymentMethod === 'wallet'}
-                        onChange={() => handlePaymentMethodChange(paymentMethod === 'wallet' ? 'bold' : 'wallet')}
-                        className="accent-amber-500"
-                      />
-                      <span>Usar saldo</span>
-                    </label>
+                    
+                    {/* Only show toggle if user has sufficient balance */}
+                    {(() => {
+                      const copAmount = currency === 'COP' ? amount : convertToCOP(amount);
+                      const betMmc = Math.round(copAmount / 1000);
+                      const hasEnoughBalance = betMmc <= wallet.mmc_coins - wallet.locked_mmc;
+                      
+                      return hasEnoughBalance ? (
+                        <label className="flex items-center gap-2 text-sm cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={paymentMethod === 'wallet'}
+                            onChange={() => handlePaymentMethodChange(paymentMethod === 'wallet' ? 'bold' : 'wallet')}
+                            className="accent-amber-500"
+                          />
+                          <span>Usar saldo</span>
+                        </label>
+                      ) : (
+                        <span className="text-xs text-red-400">
+                          Insuficiente (necesitas {betMmc} MMC)
+                        </span>
+                      );
+                    })()}
                   </div>
                 )}
 
@@ -748,7 +773,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                   <CurrencyInput
                     copValue={amount}
                     onCOPChange={setAmount}
-                    className="w-full py-3 rounded-lg bg-gray-700/60 border border-gray-600 text-white font-semibold text-base placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    className="w-full py-3 rounded-lg bg-gray-700/60 border border-gray-600 text-white font-semibold text-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
                     placeholder="Monto a apostar"
                   />
                   {currency !== 'COP' && (
@@ -769,13 +794,13 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                   <button onClick={() => setMode('full')}
                     className={`flex-1 px-4 py-2 rounded-md text-sm font-semibold
                       ${mode === 'full' ? 'bg-amber-500 text-black' : 'text-gray-300 hover:bg-gray-700/50'}`}>
-                    🚀 Arriesgado
+                    🚀 Full Throttle
                   </button>
                   <button onClick={() => setMode('safety')} disabled={totalPicks < 3}
                     className={`flex-1 px-4 py-2 rounded-md text-sm font-semibold
                       ${mode === 'safety' ? 'bg-amber-500 text-black' : 'text-gray-300 hover:bg-gray-700/50'}
                       ${totalPicks < 3 ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                    🛡️ Conservador
+                    🛡️ Safety Car
                   </button>
                 </div>
 
@@ -852,77 +877,21 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                 </AnimatePresence>
 
                 {/* 🔥 OPTIMIZED PAYMENT BUTTONS */}
-                {isAuthenticated && paymentMethod === 'wallet' ? (
-                  // Wallet payment button
-                  <button
-                    onClick={() => {
-                      trackInitiateCheckout('wallet');
-                      handleWalletBet();
-                    }}
-                    disabled={!isValid || isProcessing}
-                    className={`
-                      w-full py-4 rounded-lg font-bold text-lg flex justify-center gap-2 shadow-lg
-                      ${isProcessing
-                        ? 'bg-yellow-600 text-white cursor-wait'
-                        : isValid
-                          ? 'bg-gradient-to-r from-purple-500 to-pink-600 text-white hover:shadow-xl transform hover:scale-[1.02]'
-                          : 'bg-gray-600/80 text-gray-400/80 cursor-not-allowed'}
-                      transition-all duration-200
-                    `}
-                  >
-                    {isProcessing ? (
-                      <>
-                        <FaSpinner className="animate-spin" /> Procesando…
-                      </>
-                    ) : (
-                      <>🎮 Jugar con Saldo • <CurrencyDisplay copAmount={amount} /></>
-                    )}
-                  </button>
-                ) : (
-                  // Payment buttons for all users
-                  <div className="space-y-3">
-                    {showCryptoOption ? (
-                      // International users: Express options
-                      <div className="space-y-2">
-                        <button
-                          onClick={() => {
-                            trackInitiateCheckout('bold');
-                            handleBoldPayment();
-                          }}
-                          disabled={!isValid || isProcessing}
-                          className={`
-                            w-full py-4 rounded-lg font-bold text-lg flex justify-center gap-2 shadow-lg
-                            ${isValid
-                              ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700 hover:shadow-xl transform hover:scale-[1.02]'
-                              : 'bg-gray-600/80 text-gray-400/80 cursor-not-allowed'}
-                            transition-all duration-200
-                          `}
-                        >
-                          <FaCreditCard /> Apostar con Tarjeta
-                        </button>
-                        
-                        <button
-                          onClick={() => {
-                            trackInitiateCheckout('crypto');
-                            handleCryptoPayment();
-                          }}
-                          disabled={!isValid || isProcessing}
-                          className={`
-                            w-full py-3 rounded-lg font-semibold text-sm flex justify-center gap-2 border border-orange-500/30
-                            ${isValid
-                              ? 'bg-orange-500/10 text-orange-400 hover:bg-orange-500/20'
-                              : 'bg-gray-600/80 text-gray-400/80 cursor-not-allowed'}
-                          `}
-                        >
-                          <FaBitcoin /> Apostar con Crypto
-                        </button>
-                      </div>
-                    ) : (
-                      // Colombian users: Single optimized button
+                {(() => {
+                  // Check if wallet payment is available and sufficient
+                  const copAmount = currency === 'COP' ? amount : convertToCOP(amount);
+                  const betMmc = Math.round(copAmount / 1000);
+                  const walletAvailable = isAuthenticated && wallet && 
+                    (betMmc <= wallet.mmc_coins - wallet.locked_mmc) && 
+                    paymentMethod === 'wallet';
+
+                  if (walletAvailable) {
+                    // Wallet payment button
+                    return (
                       <button
                         onClick={() => {
-                          trackInitiateCheckout('bold');
-                          handleBoldPayment();
+                          trackInitiateCheckout('wallet');
+                          handleWalletBet();
                         }}
                         disabled={!isValid || isProcessing}
                         className={`
@@ -930,34 +899,103 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                           ${isProcessing
                             ? 'bg-yellow-600 text-white cursor-wait'
                             : isValid
-                              ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700 hover:shadow-xl transform hover:scale-[1.02]'
+                              ? 'bg-gradient-to-r from-purple-500 to-pink-600 text-white hover:shadow-xl transform hover:scale-[1.02]'
                               : 'bg-gray-600/80 text-gray-400/80 cursor-not-allowed'}
                           transition-all duration-200
                         `}
                       >
                         {isProcessing ? (
                           <>
-                            <FaSpinner className="animate-spin" /> Procesando Pago...
+                            <FaSpinner className="animate-spin" /> Procesando…
                           </>
                         ) : (
-                          <>
-                            <FaPlay /> Apostar Ahora • <CurrencyDisplay copAmount={amount} />
-                          </>
+                          <>🎮 Jugar con Saldo • <CurrencyDisplay copAmount={amount} /></>
                         )}
                       </button>
-                    )}
-                    
-                    {/* Secondary Action for anonymous users */}
-                    {!isAuthenticated && (
-                      <button
-                        onClick={showAuthPrompt}
-                        className="w-full py-2 text-sm text-gray-400 hover:text-gray-300 transition-colors"
-                      >
-                        ¿Ya tienes cuenta? Inicia sesión
-                      </button>
-                    )}
-                  </div>
-                )}
+                    );
+                  } else {
+                    // Regular payment buttons
+                    return (
+                      <div className="space-y-3">
+                        {showCryptoOption ? (
+                          // International users: Express options
+                          <div className="space-y-2">
+                            <button
+                              onClick={() => {
+                                trackInitiateCheckout('bold');
+                                handleBoldPayment();
+                              }}
+                              disabled={!isValid || isProcessing}
+                              className={`
+                                w-full py-4 rounded-lg font-bold text-lg flex justify-center gap-2 shadow-lg
+                                ${isValid
+                                  ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700 hover:shadow-xl transform hover:scale-[1.02]'
+                                  : 'bg-gray-600/80 text-gray-400/80 cursor-not-allowed'}
+                                transition-all duration-200
+                              `}
+                            >
+                              <FaCreditCard /> Apostar con Tarjeta
+                            </button>
+                            
+                            <button
+                              onClick={() => {
+                                trackInitiateCheckout('crypto');
+                                handleCryptoPayment();
+                              }}
+                              disabled={!isValid || isProcessing}
+                              className={`
+                                w-full py-3 rounded-lg font-semibold text-sm flex justify-center gap-2 border border-orange-500/30
+                                ${isValid
+                                  ? 'bg-orange-500/10 text-orange-400 hover:bg-orange-500/20'
+                                  : 'bg-gray-600/80 text-gray-400/80 cursor-not-allowed'}
+                              `}
+                            >
+                              <FaBitcoin /> Apostar con Crypto
+                            </button>
+                          </div>
+                        ) : (
+                          // Colombian users: Single optimized button
+                          <button
+                            onClick={() => {
+                              trackInitiateCheckout('bold');
+                              handleBoldPayment();
+                            }}
+                            disabled={!isValid || isProcessing}
+                            className={`
+                              w-full py-4 rounded-lg font-bold text-lg flex justify-center gap-2 shadow-lg
+                              ${isProcessing
+                                ? 'bg-yellow-600 text-white cursor-wait'
+                                : isValid
+                                  ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700 hover:shadow-xl transform hover:scale-[1.02]'
+                                  : 'bg-gray-600/80 text-gray-400/80 cursor-not-allowed'}
+                              transition-all duration-200
+                            `}
+                          >
+                            {isProcessing ? (
+                              <>
+                                <FaSpinner className="animate-spin" /> Procesando Pago...
+                              </>
+                            ) : (
+                              <>
+                                <FaPlay /> Apostar Ahora • <CurrencyDisplay copAmount={amount} />
+                              </>
+                            )}
+                          </button>
+                        )}
+                        
+                        {/* Secondary Action for anonymous users */}
+                        {!isAuthenticated && (
+                          <button
+                            onClick={showAuthPrompt}
+                            className="w-full py-2 text-sm text-gray-400 hover:text-gray-300 transition-colors"
+                          >
+                            ¿Ya tienes cuenta? Inicia sesión
+                          </button>
+                        )}
+                      </div>
+                    );
+                  }
+                })()}
 
                 {/* Trust signals */}
                 {!isAuthenticated && (
@@ -968,7 +1006,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                     </div>
                     <div className="flex items-center gap-1">
                       <FaUsers />
-                      <span>+11,500 jugadores</span>
+                      <span>+2,500 jugadores</span>
                     </div>
                   </div>
                 )}
