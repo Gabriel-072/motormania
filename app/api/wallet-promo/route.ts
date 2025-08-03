@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
   // 1. Wallet
   const { data: wallet, error: wErr } = await supabase
     .from('wallet')
-    .select('balance_cop,withdrawable_cop,mmc_coins,locked_mmc,fuel_coins,locked_fuel')
+    .select('balance_cop,withdrawable_cop')
     .eq('user_id', userId)
     .single();
   if (wErr) return new NextResponse(wErr.message, { status: 500 });

@@ -75,11 +75,9 @@ export async function POST(req: NextRequest) {
   }
 
   // 5. Incrementar wallet
-  const { error: rpcErr } = await supabase.rpc('increment_wallet_balances', {
-    uid         : userId,
-    mmc_amount  : promo.mmc_amount,
-    fuel_amount : promo.fuel_amount,
-    cop_amount  : 0
+  const { error: rpcErr } = await supabase.rpc('update_wallet_balance', {
+    p_user_id: userId,
+    p_description: `Código promocional: ${code}`
   });
   if (rpcErr) {
     return NextResponse.json({ error: 'Error actualizando billetera' }, { status: 500 });

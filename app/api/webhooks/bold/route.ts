@@ -195,7 +195,7 @@ async function handleWalletDeposit(db: SupabaseClient, data: any) {
   /* 4. Trae datos para el e-mail (wallet + usuario) */
   const [{ data: walletRow, error: walletErr }, { data: userRow }] = await Promise.all([
     db.from('wallet')
-      .select('balance_cop,fuel_coins')
+      .select('balance_cop')
       .eq('user_id', userId)
       .single(),
     db.from('clerk_users')
@@ -214,7 +214,6 @@ async function handleWalletDeposit(db: SupabaseClient, data: any) {
       <p>Ahora tu saldo es:</p>
       <ul>
         <li><strong>$${walletRow.balance_cop.toLocaleString('es-CO')}</strong> COP disponibles</li>
-        <li><strong>${walletRow.fuel_coins.toLocaleString('es-CO')}</strong> Fuel Coins (FC)</li>
       </ul>
       <p>¡Gracias por jugar en MMC&nbsp;GO!</p>
       <hr/>
