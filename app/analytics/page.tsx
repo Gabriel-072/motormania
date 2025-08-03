@@ -126,7 +126,7 @@ export default function AnalyticsPage() {
 
   const handlePasswordSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (password === 'gamot62.72') {
+    if (password === 'motormania1billon') {
       setIsAuthenticated(true);
     } else {
       toast.error('Contraseña incorrecta');
