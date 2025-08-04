@@ -99,10 +99,6 @@ export async function POST(req: NextRequest) {
         html: `
           <p>Hola ${userRow.full_name || 'Jugador'},</p>
           <p>Tu código promocional <strong>${code}</strong> ha sido aplicado con éxito.</p>
-          <ul>
-            <li>+${promo.fuel_amount} Fuel Coins</li>
-            <li>+${promo.mmc_amount} MMC Coins</li>
-          </ul>
           <p>Ya puedes ver tu saldo actualizado en tu <a href="${SITE_URL}/wallet">billetera</a>.</p>
           <p>¡Gracias por jugar con MotorMania!</p>
         `

@@ -116,8 +116,8 @@ export async function POST(req: Request) {
             // 3. Upsert to wallet table
             await supabase.from("wallet").upsert({
                 user_id: clerk_id,
-                mmc_coins: 0,
-                fuel_coins: 0,
+                balance_cop: 0,
+                withdrawable_cop: 0,
             }, { onConflict: "user_id" });
 
             // ─────────────────────────────────────────────────────────────────
