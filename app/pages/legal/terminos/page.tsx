@@ -6,9 +6,9 @@ export default function TerminosPage() {
         Al acceder y participar en la plataforma MotorManía Colombia, usted acepta cumplir con los siguientes Términos y Condiciones.
       </p>
       
-      <h2 className="text-2xl font-semibold mt-8 mb-4">1. Sistema de Apuestas</h2>
+      <h2 className="text-2xl font-semibold mt-8 mb-4">1. Sistema de Picks</h2>
       <p className="mb-4">
-        Las apuestas se realizan únicamente en pesos colombianos (COP). Todos los depósitos, retiros y transacciones se manejan en moneda real. No utilizamos monedas virtuales o tokens.
+        Las jugadas se realizan únicamente en pesos colombianos (COP). Todos los depósitos, retiros y transacciones se manejan en moneda real. No utilizamos monedas virtuales o tokens.
       </p>
       
       <h2 className="text-2xl font-semibold mt-8 mb-4">2. Wallet y Transacciones</h2>

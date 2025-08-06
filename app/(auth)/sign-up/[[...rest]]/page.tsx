@@ -95,7 +95,7 @@ export default function SignUpPage() {
                 🎉 ¡Pago Exitoso!
               </h2>
               <p className="text-sm text-gray-300 font-exo2 mb-3">
-                Tu apuesta ha sido procesada. Completa tu registro para gestionar tus picks.
+                Tu jugada ha sido procesada. Completa tu registro para gestionar tus picks.
               </p>
               <div className="bg-gray-800/50 p-3 rounded-lg">
                 <div className="flex justify-between items-center text-sm">
@@ -130,7 +130,7 @@ export default function SignUpPage() {
             
             {sessionId && (
               <p className="text-gray-400 text-sm text-center mb-4 font-exo2">
-                Un paso más para acceder a tus apuestas
+                Un paso más para acceder a tus jugadas
               </p>
             )}
 

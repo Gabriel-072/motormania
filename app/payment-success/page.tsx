@@ -101,7 +101,7 @@ function PaymentSuccessContent() {
             transition={{ delay: 0.6 }}
             className="text-xl text-gray-300"
           >
-            Tu apuesta ha sido confirmada
+            Tu jugada ha sido confirmada
           </motion.p>
         </motion.div>
 
@@ -112,7 +112,7 @@ function PaymentSuccessContent() {
           transition={{ delay: 0.8 }}
           className="bg-gradient-to-r from-gray-800 to-gray-900 rounded-xl p-6 border border-gray-700 mb-6"
         >
-          <h3 className="text-lg font-semibold text-amber-400 mb-4">Detalles de tu Apuesta</h3>
+          <h3 className="text-lg font-semibold text-amber-400 mb-4">Detalles de tu Jugada</h3>
           
           <div className="space-y-3">
             {orderId && (
@@ -198,7 +198,7 @@ function PaymentSuccessContent() {
             href="/mmc-go"
             className="flex-1 bg-gray-700 text-white font-bold py-3 px-6 rounded-lg hover:bg-gray-600 transition-all text-center"
           >
-            Hacer Otra Apuesta
+            Hacer Otra Jugada
           </Link>
         </motion.div>
 

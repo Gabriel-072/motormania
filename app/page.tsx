@@ -443,7 +443,7 @@ export default function Home() {
                {/* Flex + Justify between pushes button to bottom */}
                <div className="p-6 bg-gradient-to-br from-gray-950 to-black rounded-xl shadow-lg backdrop-blur-sm h-full flex flex-col justify-between">
                  <div>
-                    <h3 className="text-amber-400 text-xl sm:text-2xl font-bold mb-2">MMC-GO: ¡Apuesta por la Velocidad!</h3>
+                    <h3 className="text-amber-400 text-xl sm:text-2xl font-bold mb-2">MMC-GO: ¡Juega por la Velocidad!</h3>
                     <p className="text-gray-300 text-sm sm:text-base mb-6">
                       Participa en nuestro juego exclusivo, elige tus picks y vive la adrenalina. <span className="text-xs text-gray-500">(¡Próximamente!)</span> {/* Added clarification */}
                     </p>

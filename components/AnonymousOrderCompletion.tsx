@@ -59,7 +59,7 @@ export default function AnonymousOrderCompletion({ onComplete }: AnonymousOrderC
 
         if (data.linked > 0) {
           setLinkedOrders(data.orders || []);
-          toast.success(`¡Perfecto! ${data.linked} apuesta${data.linked > 1 ? 's' : ''} vinculada${data.linked > 1 ? 's' : ''} a tu cuenta`, {
+          toast.success(`¡Perfecto! ${data.linked} jugada${data.linked > 1 ? 's' : ''} vinculada${data.linked > 1 ? 's' : ''} a tu cuenta`, {
             duration: 5000
           });
 
@@ -91,8 +91,8 @@ export default function AnonymousOrderCompletion({ onComplete }: AnonymousOrderC
 
       } catch (err: any) {
         console.error('Error linking anonymous orders:', err);
-        setError(err.message || 'Error vinculando apuestas');
-        toast.error('Error vinculando tus apuestas. Contacta soporte.');
+        setError(err.message || 'Error vinculando jugada');
+        toast.error('Error vinculando tus picks. Contacta soporte.');
       } finally {
         setIsProcessing(false);
       }
@@ -123,7 +123,7 @@ export default function AnonymousOrderCompletion({ onComplete }: AnonymousOrderC
               Finalizando tu registro...
             </h3>
             <p className="text-gray-300 text-sm font-exo2">
-              Estamos vinculando tus apuestas a tu nueva cuenta
+              Estamos vinculando tus jugadas a tu nueva cuenta
             </p>
           </div>
         )}
@@ -139,7 +139,7 @@ export default function AnonymousOrderCompletion({ onComplete }: AnonymousOrderC
               ¡Registro Completado!
             </h3>
             <p className="text-gray-300 text-sm mb-4 font-exo2">
-              Tus apuestas han sido vinculadas exitosamente
+              Tus picks han sido vinculados exitosamente
             </p>
             
             <div className="space-y-2">

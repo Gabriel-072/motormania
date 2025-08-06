@@ -378,7 +378,7 @@ const AdminPromotionsDashboard = () => {
           <div>
             {/* Actions Bar */}
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-semibold">Bonos Directos de Apuesta</h2>
+              <h2 className="text-xl font-semibold">Bonos Directos</h2>
               <button
                 onClick={() => setShowCreateBonus(true)}
                 className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2"
@@ -400,7 +400,7 @@ const AdminPromotionsDashboard = () => {
                         Bono %
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                        Apuesta Mín.
+                        Jugada Mín.
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                         Vigencia
@@ -702,7 +702,7 @@ const CreateDirectBonusModal = ({ onClose, onSubmit }: {
           </div>
           
           <div>
-            <label className="block text-sm font-medium mb-2">Apuesta Mínima (COP)</label>
+            <label className="block text-sm font-medium mb-2">Jugada Mínima (COP)</label>
             <input
               type="number"
               value={formData.min_bet_amount}

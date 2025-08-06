@@ -181,7 +181,7 @@ function generateAbandonmentEmail({
                 <span>${mode === 'full' ? '🚀 Full Throttle' : '🛡️ Safety Car'}</span>
               </div>
               <div style="display: flex; justify-content: space-between; margin: 8px 0;">
-                <span><strong>Apuesta:</strong></span>
+                <span><strong>Jugada:</strong></span>
                 <span>$${wager_amount?.toLocaleString('es-CO')} COP</span>
               </div>
               <div style="display: flex; justify-content: space-between; margin: 8px 0; color: #16a34a; font-weight: bold;">
@@ -204,7 +204,7 @@ function generateAbandonmentEmail({
         </div>
         
         <div class="footer">
-          <p style="margin: 0;">MotorMania GO - La experiencia definitiva de apuestas F1</p>
+          <p style="margin: 0;">MotorMania GO - La experiencia definitiva de F1</p>
           <p style="margin: 8px 0 0 0; font-size: 12px;">
             <a href="${process.env.NEXT_PUBLIC_SITE_URL}/unsubscribe" style="color: #6b7280;">Desuscribirse</a>
           </p>

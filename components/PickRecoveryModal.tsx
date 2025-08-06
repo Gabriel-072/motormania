@@ -166,7 +166,7 @@ export default function PickRecoveryModal({
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-400">Apuesta:</span>
+                    <span className="text-gray-400">Jugada:</span>
                     <span className="text-white">
                       ${recoveryData.wager_amount.toLocaleString('es-CO')} COP
                     </span>

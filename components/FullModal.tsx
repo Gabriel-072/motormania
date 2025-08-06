@@ -681,7 +681,7 @@ export default function FullModal({ isOpen, onClose, currentGp = 'GP' }: FullMod
               {/* Header with currency selector */}
               <div className="flex justify-between items-center mb-4 pb-2 border-b border-gray-700/50">
                 <div>
-                  <h2 className="text-lg sm:text-xl font-bold text-amber-400">Confirmar Apuesta</h2>
+                  <h2 className="text-lg sm:text-xl font-bold text-amber-400">Confirmar Jugada</h2>
                   {/* 🔥 SOCIAL PROOF */}
                   <div className="flex items-center gap-2 text-xs text-gray-400 mt-1">
                     <FaUsers className="text-green-400" />
@@ -706,7 +706,7 @@ export default function FullModal({ isOpen, onClose, currentGp = 'GP' }: FullMod
                 >
                   <div className="text-center">
                     <h4 className="text-sm font-bold text-green-400 mb-1">
-                      🚀 Apuesta Rápida - Sin Registro Previo
+                      🚀 Jugada Rápida - Sin Registro Previo
                     </h4>
                     <div className="flex items-center justify-center gap-4 text-xs text-gray-400">
                       <div className="flex items-center gap-1">
@@ -773,7 +773,7 @@ export default function FullModal({ isOpen, onClose, currentGp = 'GP' }: FullMod
                       </div>
                       <div className="space-y-1 text-sm">
                         <div className="flex justify-between">
-                          <span className="text-gray-300">Tu apuesta:</span>
+                          <span className="text-gray-300">Tu Jugada:</span>
                           <span className="text-white font-semibold">
                             <CurrencyDisplay copAmount={amount} />
                           </span>
@@ -800,7 +800,7 @@ export default function FullModal({ isOpen, onClose, currentGp = 'GP' }: FullMod
                   ) : (
                     <div className="text-center">
                       <p className="text-sm text-amber-400">
-                        💰 Habilita el bono para duplicar tu poder de apuesta
+                        💰 Habilita el bono para duplicar tu poder de jugada
                       </p>
                     </div>
                   )}
@@ -921,9 +921,9 @@ export default function FullModal({ isOpen, onClose, currentGp = 'GP' }: FullMod
                   <div className="mb-2">
                     <p className="text-sm font-semibold text-amber-400">
                       {bonusAmount > 0 ? (
-                        <>Apuesta Total: <CurrencyDisplay copAmount={effectiveWager} /></>
+                        <>Jugada Total: <CurrencyDisplay copAmount={effectiveWager} /></>
                       ) : (
-                        <>Tu Apuesta: <CurrencyDisplay copAmount={amount} /></>
+                        <>Tu Jugada: <CurrencyDisplay copAmount={amount} /></>
                       )}
                     </p>
                     {bonusAmount > 0 && (

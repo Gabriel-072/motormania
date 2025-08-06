@@ -403,7 +403,7 @@ async function processAnonymousOrder(db: SupabaseClient, tx: any) {
         `<div style="background: #d1fae5; border-left: 4px solid #10b981; padding: 15px; margin: 20px 0;">
           <p style="margin: 0; color: #059669;"><strong>🎁 ¡Promoción Aplicada!</strong></p>
           <p style="margin: 5px 0 0 0; color: #059669;">
-            Tu apuesta se procesó con el bono incluido.<br/>
+            Tu jugada se procesó con el bono incluido.<br/>
             <strong>Monto efectivo: $${Number(tx.promotion_total_effective || tx.wager_amount).toLocaleString('es-CO')} COP</strong>
           </p>
         </div>` : '';
@@ -412,7 +412,7 @@ async function processAnonymousOrder(db: SupabaseClient, tx: any) {
       
       const htmlBody = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #1f2937;">🏁 ¡Apuesta confirmada en MMC GO!</h2>
+          <h2 style="color: #1f2937;">🏁 ¡Jugada confirmada en MMC GO!</h2>
           
           <p>¡Hola ${tx.full_name || 'Piloto'}!</p>
           <p>Tu pago por <strong>$${Number(tx.wager_amount || 0).toLocaleString('es-CO')}</strong> COP fue confirmado exitosamente.</p>
@@ -420,7 +420,7 @@ async function processAnonymousOrder(db: SupabaseClient, tx: any) {
           ${promoText}
           
           <div style="background: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0;">
-            <h3 style="margin-top: 0; color: #374151;">📋 Resumen de tu apuesta:</h3>
+            <h3 style="margin-top: 0; color: #374151;">📋 Resumen de tu jugada:</h3>
             <ul style="margin: 10px 0;">
               <li><strong>Orden:</strong> ${tx.order_id}</li>
               <li><strong>GP:</strong> ${tx.gp_name}</li>
@@ -432,7 +432,7 @@ async function processAnonymousOrder(db: SupabaseClient, tx: any) {
 
           <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0;">
             <p style="margin: 0;"><strong>¡Un paso más!</strong></p>
-            <p style="margin: 5px 0 0 0;">Para gestionar tus apuestas y ver resultados, completa tu registro haciendo clic en el enlace que te enviamos por separado.</p>
+            <p style="margin: 5px 0 0 0;">Para gestionar tus jugadas y ver resultados, completa tu registro haciendo clic en el enlace que te enviamos por separado.</p>
           </div>
 
           <p>¡Gracias por apostar en MMC GO!</p>

@@ -36,7 +36,7 @@ const DepositModal  = dynamic(() => import('@/components/DepositModal'));
 const WithdrawModal = dynamic(() => import('@/components/WithdrawModal'));
 
 // Simplified transaction types (cash only)
-type TxType = 'recarga'|'apuesta'|'ganancia'|'reembolso'|'retiro_pending'|'retiro'|'gasto'|'promo_bonus';
+type TxType = 'recarga'|'jugada'|'ganancia'|'reembolso'|'retiro_pending'|'retiro'|'gasto'|'promo_bonus';
 
 // 🔥 FIXED: Simplified wallet interface (cash only)
 interface WalletRow {
@@ -251,7 +251,7 @@ function WalletContent() {
   const getTransactionIcon = (type: TxType) => {
     switch (type) {
       case 'recarga': return <FaArrowUp className="text-green-400" />;
-      case 'apuesta': case 'gasto': return <FaPlay className="text-blue-400" />;
+      case 'jugada': case 'gasto': return <FaPlay className="text-blue-400" />;
       case 'ganancia': return <FaCheckCircle className="text-emerald-400" />;
       case 'retiro': case 'retiro_pending': return <FaArrowDown className="text-red-400" />;
       case 'promo_bonus': return <FaGift className="text-purple-400" />;
@@ -267,7 +267,7 @@ function WalletContent() {
           <div className="font-medium">{tx.description}</div>
           {tx.original_amount && tx.total_effective && (
             <div className="text-xs text-gray-400">
-              Apuesta: ${tx.original_amount.toLocaleString('es-CO')} → 
+              Jugada: ${tx.original_amount.toLocaleString('es-CO')} → 
               Efectivo: ${tx.total_effective.toLocaleString('es-CO')}
             </div>
           )}

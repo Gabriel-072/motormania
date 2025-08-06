@@ -25,7 +25,7 @@ export default function ReglasDeLaCasa() {
           <h2 className="text-xl font-semibold text-cyan-400">2. Promociones &amp; Bonos</h2>
           <p>
             Los bonos (por ejemplo, duplicar o triplicar el primer depósito) están sujetos
-            a requisitos de apuesta (<em>play-through</em>) y caducan 30&nbsp;días después
+            a requisitos de jugada (<em>play-through</em>) y caducan 30&nbsp;días después
             de otorgarse, salvo que se indique lo contrario en la promoción específica.
           </p>
 

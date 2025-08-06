@@ -180,7 +180,7 @@ export default function LoadingAnimation({
               >
                 {stage === 'auth' && '🔄 Conectando con el servidor...'}
                 {stage === 'data' && '📊 Sincronizando información...'}
-                {stage === 'drivers' && '🎯 Cargando líneas de apuestas...'}
+                {stage === 'drivers' && '🎯 Cargando líneas de picks...'}
                 {stage === 'complete' && '🚀 Iniciando experiencia MMC GO...'}
               </motion.div>
             </motion.div>

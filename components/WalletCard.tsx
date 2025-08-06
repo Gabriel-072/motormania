@@ -92,7 +92,7 @@ export default function WalletCard({
               <span className="text-xl font-bold text-yellow-300">{fmtCop(lockedAmount)}</span>
             </div>
             <p className="text-sm text-gray-400 pl-7">
-              Fondos temporalmente bloqueados (apuestas pendientes, bonos en proceso, etc.)
+              Fondos temporalmente bloqueados (jugadas pendientes, bonos en proceso, etc.)
             </p>
           </div>
         )}
