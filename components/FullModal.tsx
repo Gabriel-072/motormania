@@ -828,7 +828,7 @@ export default function FullModal({ isOpen, onClose, currentGp = 'GP' }: FullMod
                     <div className="flex-1 min-w-0">
                       <p className="text-white font-semibold truncate text-sm">{pick.driver}</p>
                       <p className="text-cyan-400 text-xs">
-                        {pick.session_type === 'qualy' ? 'Q' : 'R'}: {pick.line.toFixed(1)}
+                        {pick.session_type === 'qualy' ? 'QUALY' : 'RACE'}: {pick.line.toFixed(1)}
                       </p>
                     </div>
                     <div className="flex flex-col items-end gap-1">
