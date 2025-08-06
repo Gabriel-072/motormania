@@ -1,4 +1,4 @@
-// 📁 app/api/webhooks/bold/route.ts - Complete Version with Promotional System & Cash-Only
+// 📁 app/api/webhooks/bold/route.ts - Updated with New Promotional System
 'use server';
 
 import { NextRequest, NextResponse }      from 'next/server';
@@ -61,7 +61,10 @@ async function trackPurchaseEvent(orderData: {
   picks?: any[];
   mode?: string;
   utmData?: any;
-  promotionData?: any;
+  // 🔥 NEW: Promotional tracking data
+  promotionApplied?: boolean;
+  bonusAmount?: number;
+  campaignName?: string;
 }) {
   const eventId = `purchase_${orderData.orderId}_${Date.now()}`;
   
@@ -72,6 +75,7 @@ async function trackPurchaseEvent(orderData: {
       ? crypto.createHash('sha256').update(orderData.email.toLowerCase().trim()).digest('hex')
       : undefined;
     
+    // Prepare Facebook Purchase event data
     const purchaseData = {
       value: (orderData.amount / 1000),
       currency: orderData.currency,
@@ -79,7 +83,7 @@ async function trackPurchaseEvent(orderData: {
       content_category: 'sports_betting',
       content_ids: [`mmc_picks_${orderData.picks?.length || 0}`],
       content_name: `MMC GO ${orderData.mode === 'full' ? 'Full Throttle' : 'Safety Car'} (${orderData.picks?.length || 0} picks)${
-        orderData.promotionData?.applied ? ` + ${orderData.promotionData.campaignName}` : ''
+        orderData.promotionApplied ? ` + ${orderData.campaignName}` : ''
       }`,
       num_items: orderData.picks?.length || 1,
       order_id: orderData.orderId,
@@ -88,12 +92,12 @@ async function trackPurchaseEvent(orderData: {
       utm_medium: orderData.utmData?.utm_medium,
       utm_campaign: orderData.utmData?.utm_campaign,
       // 🔥 NEW: Promotional tracking
-      promotion_applied: orderData.promotionData?.applied || false,
-      promotion_name: orderData.promotionData?.campaignName || '',
-      bonus_amount: orderData.promotionData?.bonusAmount || 0,
-      total_effective_amount: orderData.promotionData?.totalEffectiveAmount || orderData.amount
+      promotion_applied: orderData.promotionApplied || false,
+      bonus_amount: orderData.bonusAmount || 0,
+      campaign_name: orderData.campaignName || ''
     };
 
+    // Send to Facebook Conversions API
     const response = await fetch(`${SITE_URL}/api/fb-track`, {
       method: 'POST',
       headers: {
@@ -120,40 +124,16 @@ async function trackPurchaseEvent(orderData: {
 
     const responseData = await response.json();
     console.log(`✅ Purchase event tracked successfully:`, responseData);
-    
-    // Track VIP event for high-value purchases
-    if (orderData.amount >= 100000) {
-      await fetch(`${SITE_URL}/api/fb-track`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-internal-key': INTERNAL_KEY
-        },
-        body: JSON.stringify({
-          event_name: 'VIP_HighValuePurchase',
-          event_id: `vip_${eventId}`,
-          event_source_url: `${SITE_URL}/mmc-go`,
-          user_data: {
-            em: hashedEmail,
-            external_id: orderData.userId,
-          },
-          custom_data: {
-            ...purchaseData,
-            vip_tier: orderData.amount >= 200000 ? 'platinum' : 'gold',
-          },
-        }),
-      });
-      console.log(`🏆 VIP event tracked for high-value purchase: ${orderData.orderId}`);
-    }
 
   } catch (error) {
     console.error(`❌ Failed to track Purchase event for ${orderData.orderId}:`, error);
+    // Don't throw - tracking failure shouldn't break the webhook
   }
 }
 
-/* 🔥 SIMPLIFIED: Cash-only deposit handler */
+/* ────────────────── HANDLER: DEPÓSITO WALLET ────────────────── */
 async function handleWalletDeposit(db: SupabaseClient, data: any) {
-  console.log('[Bold WH] Wallet deposit flow - CASH ONLY');
+  console.log('[Bold WH] Wallet deposit flow');
 
   const ref   = data.metadata?.reference as string;
   const total = data.amount?.total       as number;
@@ -169,7 +149,7 @@ async function handleWalletDeposit(db: SupabaseClient, data: any) {
   const userId = parts[2];
   console.log(`[WH Dep] user=${userId} COP=${total}`);
 
-  // Check for duplicate processing
+  /* 1. Idempotencia */
   const desc = `Depósito wallet Bold (Ref:${ref}, BoldID:${payId})`;
   const { data: already } = await db.from('transactions')
     .select('id')
@@ -180,69 +160,64 @@ async function handleWalletDeposit(db: SupabaseClient, data: any) {
     return;
   }
 
-  // 🔥 SIMPLIFIED: Use cash-only wallet update
-  const { data: walletResult, error: walletErr } = await db.rpc('update_wallet_balance', {
-    p_user_id: userId,
-    p_amount_cop: total,
-    p_description: desc
+  /* 2. Aplica promo (RPC decide si hay promo activa) */
+  const { error: rpcErr } = await db.rpc('apply_deposit_promo', {
+    p_user_id    : userId,
+    p_amount_cop : total
   });
-  
-  if (walletErr) {
-    console.error('Wallet update failed:', walletErr);
-    throw walletErr;
-  }
+  if (rpcErr) throw rpcErr;
 
-  // Get user data for email  
-  const { data: userRow } = await db
-    .from('clerk_users')
-    .select('email, full_name')
-    .eq('clerk_id', userId)
-    .maybeSingle();
+  /* 3. Registra transacción de depósito */
+  await db.from('transactions').insert({
+    user_id   : userId,
+    type      : 'recarga',
+    amount    : total,
+    description: desc
+  });
 
-  // Send confirmation email
-  if (userRow?.email && walletResult?.[0]?.success) {
-    const newBalance = walletResult[0].new_balance;
+  /* 4. Trae datos para el e-mail (wallet + usuario) */
+  const [{ data: walletRow, error: walletErr }, { data: userRow }] = await Promise.all([
+    db.from('wallet')
+      .select('balance_cop,fuel_coins')
+      .eq('user_id', userId)
+      .single(),
+    db.from('clerk_users')
+      .select('email, full_name')
+      .eq('clerk_id', userId)
+      .maybeSingle()
+  ]);
+
+  if (walletErr) console.warn('Wallet fetch error', walletErr.message);
+
+  /* 5. Envía correo de confirmación, si hay email */
+  if (userRow?.email && walletRow) {
     const htmlBody = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #10b981;">💰 ¡Depósito Confirmado!</h2>
-        <p>¡Hola ${userRow.full_name || 'Jugador'}!</p>
-        <p>Tu depósito por <strong>$${total.toLocaleString('es-CO')}</strong> COP fue confirmado exitosamente.</p>
-        
-        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 20px; margin: 20px 0;">
-          <h3 style="color: #166534; margin-top: 0;">💳 Nuevo Saldo</h3>
-          <p style="font-size: 24px; font-weight: bold; color: #166534; margin: 10px 0;">
-            $${newBalance.toLocaleString('es-CO')} COP
-          </p>
-        </div>
-
-        <p>Ya puedes usar tu saldo para apostar en MMC GO o retirarlo cuando quieras.</p>
-        
-        <div style="text-align: center; margin: 30px 0;">
-          <a href="${SITE_URL}/mmc-go" style="background: #10b981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
-            Apostar Ahora
-          </a>
-        </div>
-
-        <p>¡Gracias por confiar en MMC GO!</p>
-        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;"/>
-        <p style="font-size: 12px; color: #6b7280;">¿Necesitas ayuda? Escríbenos a ${SUPPORT_EMAIL}</p>
-      </div>
+      <p>¡Hola ${userRow.full_name || 'Jugador'}!</p>
+      <p>Tu depósito por <strong>$${total.toLocaleString('es-CO')}</strong> COP fue confirmado ✅.</p>
+      <p>Ahora tu saldo es:</p>
+      <ul>
+        <li><strong>$${walletRow.balance_cop.toLocaleString('es-CO')}</strong> COP disponibles</li>
+        <li><strong>${walletRow.fuel_coins.toLocaleString('es-CO')}</strong> Fuel Coins (FC)</li>
+      </ul>
+      <p>¡Gracias por jugar en MMC&nbsp;GO!</p>
+      <hr/>
+      <p style="font-size:12px;color:#666;">¿Necesitas ayuda? Escríbenos a ${SUPPORT_EMAIL}</p>
     `;
 
     try {
       await resend.emails.send({
-        from: FROM_EMAIL,
-        to: userRow.email,
-        subject: '💰 Depósito confirmado - Saldo actualizado',
-        html: htmlBody
+        from   : FROM_EMAIL,
+        to     : userRow.email,
+        subject: 'Depósito confirmado',
+        html   : htmlBody
       });
-      console.log('📧 Deposit confirmation sent to', userRow.email);
+      console.log('📧 Depósito email sent to', userRow.email);
     } catch (err) {
-      console.error('✉️ Error sending deposit email:', err);
+      console.error('✉️  Error enviando e-mail de depósito:', err);
     }
   }
 
-  console.log(`✅ Cash-only deposit processed: ${total} COP for user ${userId}`);
+  console.log('✅ Depósito aplicado + promo registrada + email');
 }
 
 /* ────────────── HANDLER: COMPRA DE NÚMEROS EXTRA ────────────── */
@@ -261,26 +236,20 @@ async function handleNumberPurchase(db: SupabaseClient, data: any) {
 
   const userId = parts[2];
 
-  // Check for duplicate processing
+  /* Idempotencia */
   const desc = `Compra de ${EXTRA_COUNT} números extra via Bold (Ref:${ref}, BoldID:${payId})`;
   const { data: already } = await db.from('transactions')
     .select('id')
     .eq('description', desc)
     .maybeSingle();
-  if (already) { 
-    console.info('↩️ ya procesado'); 
-    return; 
-  }
+  if (already) { console.info('↩️ ya procesado'); return; }
 
-  // Record transaction
+  /* 1. Transacción */
   await db.from('transactions').insert({
-    user_id: userId, 
-    type: 'recarga', 
-    amount: total, 
-    description: desc
+    user_id: userId, type: 'recarga', amount: total, description: desc
   });
 
-  // Generate extra numbers
+  /* 2. Números extra */
   const { data: entry } = await db.from('entries')
     .select('numbers, paid_numbers_count')
     .eq('user_id', userId)
@@ -294,7 +263,7 @@ async function handleNumberPurchase(db: SupabaseClient, data: any) {
     paid_numbers_count: (entry.paid_numbers_count ?? 0) + EXTRA_COUNT
   }, { onConflict: 'user_id' });
 
-  // Send confirmation email
+  /* 3. E-mail confirmación números extra */
   const { data: userRow } = await db.from('clerk_users')
     .select('email, full_name')
     .eq('clerk_id', userId)
@@ -330,17 +299,89 @@ async function handleNumberPurchase(db: SupabaseClient, data: any) {
   console.log('✅ Números extra procesados');
 }
 
-/* 🔥 NEW: Process Authenticated Order with Promotional System */
-async function processAuthenticatedOrderWithPromotion(db: SupabaseClient, tx: any) {
-  console.log(`🔐 Processing authenticated order with promotional system: ${tx.order_id}`);
-  
-  let promoApplicationId = null;
-  let effectiveAmount = tx.wager_amount;
-  let promotionData = null;
+/* 🔥 UPDATED: HANDLER COMPRA DE PICKS CON SISTEMA PROMOCIONAL */
+async function handlePickPurchase(db: SupabaseClient, data: any) {
+  console.log('[Bold WH] Pick purchase flow - WITH PROMOTIONAL SYSTEM');
 
-  // 🔥 Apply promotion if requested
+  const ref   = data.metadata?.reference as string;
+  const payId = data.payment_id          as string;
+  const total = data.amount?.total       as number;
+
+  if (!ref || !payId) throw new Error('Referencia o payId faltante');
+
+  /* 1. localizar transacción pendiente */
+  const { data: tx } = await db
+    .from('pick_transactions')
+    .select('*')
+    .eq('order_id', ref)
+    .maybeSingle();
+  if (!tx) { 
+    console.warn('❌ pick_transactions no encontrada para', ref); 
+    return; 
+  }
+  if (tx.payment_status === 'paid') { 
+    console.info('↩️ pick ya pagada:', ref); 
+    return; 
+  }
+
+  console.log('🔍 Transaction found:', {
+    orderId: tx.order_id,
+    userId: tx.user_id,
+    amount: tx.wager_amount,
+    promotionApplied: tx.promotion_applied,
+    bonusAmount: tx.promotion_bonus_amount
+  });
+
+  /* 2. marcar pagada */
+  await db.from('pick_transactions')
+    .update({ 
+      payment_status: 'paid', 
+      bold_payment_id: payId,
+      bold_webhook_received_at: new Date().toISOString()
+    })
+    .eq('id', tx.id);
+
+  /* 🔥 UPDATED: Handle based on user authentication status */
+  if (tx.user_id) {
+    // Authenticated user - process with promotional system
+    await processAuthenticatedPickOrderWithPromotion(db, tx, ref);
+  } else {
+    // Anonymous user - mark as paid, wait for registration
+    console.log(`💡 Anonymous payment completed: ${ref}. Awaiting registration.`);
+    await notifyAnonymousPaymentWithPromotion(tx);
+  }
+
+  /* 4. Track purchase event with promotional data */
+  await trackPurchaseEvent({
+    orderId: ref,
+    amount: tx.wager_amount || total || 0,
+    currency: 'COP',
+    email: tx.email,
+    userId: tx.user_id,
+    picks: tx.picks || [],
+    mode: tx.mode,
+    utmData: null, // Will be enriched during processing
+    // 🔥 NEW: Promotional tracking
+    promotionApplied: tx.promotion_applied || false,
+    bonusAmount: tx.promotion_bonus_amount || 0,
+    campaignName: tx.promotion_campaign_name || ''
+  });
+
+  console.log('✅ Pick flow finished for', ref);
+}
+
+/* 🔥 NEW: PROCESS AUTHENTICATED PICK ORDER WITH PROMOTIONAL SYSTEM */
+async function processAuthenticatedPickOrderWithPromotion(db: SupabaseClient, tx: any, ref: string) {
+  console.log(`🔐 Processing authenticated order with promotional system: ${ref}`);
+
+  let promoApplicationId = null;
+  let effectiveAmount = tx.wager_amount; // Default to original amount
+
+  /* 🔥 NEW: Apply promotional bonus using RPC system */
   if (tx.promotion_applied && tx.user_id) {
     try {
+      console.log(`🎁 Applying promotional bonus for user ${tx.user_id}`);
+      
       const { data: bonusResult, error: bonusError } = await db.rpc('apply_picks_promotion', {
         p_user_id: tx.user_id,
         p_transaction_id: tx.order_id,
@@ -352,7 +393,7 @@ async function processAuthenticatedOrderWithPromotion(db: SupabaseClient, tx: an
         if (result.success) {
           effectiveAmount = result.total_effective_amount;
           
-          // Get the promo application ID
+          // Get the promo application ID for reference
           const { data: promoApp } = await db
             .from('user_promo_applications')
             .select('id')
@@ -364,28 +405,24 @@ async function processAuthenticatedOrderWithPromotion(db: SupabaseClient, tx: an
             promoApplicationId = promoApp.id;
           }
           
-          promotionData = {
-            applied: true,
-            campaignName: result.campaign_name,
-            bonusAmount: result.bonus_amount,
-            totalEffectiveAmount: result.total_effective_amount
-          };
-          
-          console.log(`🎁 Promotion applied:`, {
+          console.log(`🎉 Promotional bonus applied successfully:`, {
             campaignName: result.campaign_name,
             bonusAmount: result.bonus_amount,
             effectiveAmount: effectiveAmount
           });
         } else {
-          console.warn(`❌ Promotion application failed: ${result.error_message}`);
+          console.warn(`❌ Promotional bonus application failed: ${result.error_message}`);
         }
+      } else {
+        console.warn('No promotional bonus result or error:', bonusError);
       }
     } catch (error) {
-      console.error('Error applying promotion (continuing without):', error);
+      console.error('Error applying promotional bonus (continuing without):', error);
+      // Continue without promotional bonus if system fails
     }
   }
 
-  // Get UTM data for attribution
+  /* Get recent UTM data for this user */
   let utmData = null;
   if (tx.user_id) {
     const { data: recentTraffic } = await db
@@ -398,9 +435,10 @@ async function processAuthenticatedOrderWithPromotion(db: SupabaseClient, tx: an
     
     utmData = recentTraffic;
     
+    // Log attribution if found
     if (utmData?.utm_source || utmData?.utm_campaign) {
-      console.log(`🎯 Purchase with promotion attributed to UTM:`, {
-        orderId: tx.order_id,
+      console.log(`🎯 Purchase attributed to UTM:`, {
+        orderId: ref,
         utm_source: utmData.utm_source,
         utm_campaign: utmData.utm_campaign,
         originalAmount: tx.wager_amount,
@@ -409,24 +447,24 @@ async function processAuthenticatedOrderWithPromotion(db: SupabaseClient, tx: an
     }
   }
 
-  // 🔥 Move to picks table with promotional data
+  /* 🔥 UPDATED: Move to picks table WITH promotional and UTM data */
   const pickData = {
-    user_id: tx.user_id,
-    gp_name: tx.gp_name,
-    session_type: 'combined',
-    picks: tx.picks ?? [],
-    multiplier: Number(tx.multiplier ?? 0),
-    wager_amount: effectiveAmount, // Use effective amount for calculations
-    potential_win: tx.potential_win ?? 0,
-    name: tx.full_name,
-    mode: tx.mode,
-    order_id: tx.order_id,
+    user_id            : tx.user_id,
+    gp_name            : tx.gp_name,
+    session_type       : 'combined',
+    picks              : tx.picks ?? [],
+    multiplier         : Number(tx.multiplier ?? 0),
+    wager_amount       : effectiveAmount, // Use effective amount for calculations
+    potential_win      : tx.potential_win ?? 0, // Should be calculated with effective amount
+    name               : tx.full_name,
+    mode               : tx.mode,
+    order_id           : ref,
     pick_transaction_id: tx.id,
     
-    // 🔥 Promotional reference
+    // 🔥 NEW: Promotional reference
     promo_application_id: promoApplicationId,
     
-    // UTM attribution
+    // UTM attribution from recent traffic
     utm_source: utmData?.utm_source,
     utm_medium: utmData?.utm_medium,
     utm_campaign: utmData?.utm_campaign,
@@ -438,7 +476,7 @@ async function processAuthenticatedOrderWithPromotion(db: SupabaseClient, tx: an
 
   await db.from('picks').insert(pickData);
   
-  // 🔥 Update promo status if applied
+  /* 🔥 NEW: Update promo application status to redeemed */
   if (promoApplicationId) {
     await db
       .from('user_promo_applications')
@@ -448,159 +486,70 @@ async function processAuthenticatedOrderWithPromotion(db: SupabaseClient, tx: an
       })
       .eq('id', promoApplicationId);
   }
-  
-  // Clean up transaction record
+
+  /* Remove from pick_transactions (cleanup) */
   await db.from('pick_transactions').delete().eq('id', tx.id);
-  
-  console.log(`✅ Pick with promotion moved to picks table: ${tx.order_id} (effective amount: ${effectiveAmount})`);
-  
-  return { promotionData, utmData };
+
+  console.log(`✅ Authenticated pick order with promotion processed: ${ref} (effective: ${effectiveAmount})`);
 }
 
-/* 🔥 NEW: Anonymous Payment Notification with Promotion Info */
+/* 🔥 UPDATED: NOTIFY ANONYMOUS PAYMENT WITH PROMOTIONAL INFO */
 async function notifyAnonymousPaymentWithPromotion(tx: any) {
-  console.log(`📧 Anonymous payment notification: ${tx.email} - ${tx.order_id}`);
+  console.log(`📧 Anonymous payment notification with promotion: ${tx.email} - ${tx.order_id}`);
   
-  if (tx.email) {
-    try {
-      const promoText = tx.promotion_applied ? 
-        `<div style="background: #d1fae5; border-left: 4px solid #10b981; padding: 15px; margin: 20px 0;">
-          <p style="margin: 0; color: #059669;"><strong>🎁 ¡Promoción Aplicada!</strong></p>
-          <p style="margin: 5px 0 0 0; color: #059669;">
-            Tu apuesta se procesó con el bono incluido.<br/>
-            <strong>Monto efectivo: $${Number(tx.promotion_total_effective || tx.wager_amount).toLocaleString('es-CO')} COP</strong>
-          </p>
-        </div>` : '';
-
-      const htmlBody = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #f59e0b;">🏁 ¡Apuesta Confirmada!</h2>
-          <p>¡Hola ${tx.full_name || 'Piloto'}!</p>
-          <p>Tu pago por <strong>$${Number(tx.wager_amount || 0).toLocaleString('es-CO')}</strong> COP fue confirmado exitosamente.</p>
-          
-          ${promoText}
-          
-          <div style="background: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0;">
-            <h3 style="margin-top: 0; color: #374151;">📋 Resumen de tu apuesta:</h3>
-            <ul style="margin: 10px 0;">
-              <li><strong>Orden:</strong> ${tx.order_id}</li>
-              <li><strong>GP:</strong> ${tx.gp_name}</li>
-              <li><strong>Picks:</strong> ${(tx.picks || []).length} selecciones</li>
-              <li><strong>Modo:</strong> ${tx.mode === 'full' ? 'Full Throttle' : 'Safety Car'}</li>
-              <li><strong>Ganancia potencial:</strong> $${Number(tx.potential_win || 0).toLocaleString('es-CO')} COP</li>
-            </ul>
-          </div>
-
-          <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0;">
-            <p style="margin: 0;"><strong>¡Un paso más!</strong></p>
-            <p style="margin: 5px 0 0 0;">Para gestionar tus apuestas y ver resultados${tx.promotion_applied ? ', y acceder a futuros bonos' : ''}, completa tu registro haciendo clic en el enlace que te enviamos por separado.</p>
-          </div>
-
-          <p>¡Gracias por apostar en MMC GO!</p>
-          <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;"/>
-          <p style="font-size: 12px; color: #6b7280;">¿Necesitas ayuda? Escríbenos a ${SUPPORT_EMAIL}</p>
-        </div>
-      `;
-
-      await resend.emails.send({
-        from: FROM_EMAIL,
-        to: tx.email,
-        subject: '🎉 Pago confirmado - Completa tu registro',
-        html: htmlBody
-      });
-      console.log('📧 Anonymous payment notification sent to', tx.email);
-    } catch (error) {
-      console.error('Failed to send anonymous payment notification:', error);
-    }
-  }
-}
-
-/* 🔥 UPDATED: Pick Purchase Handler with Promotional System */
-async function handlePickPurchase(db: SupabaseClient, data: any) {
-  console.log('[Bold WH] Pick purchase flow - PROMOTIONAL SYSTEM + ANONYMOUS SUPPORT');
-
-  const ref   = data.metadata?.reference as string;
-  const payId = data.payment_id          as string;
-  const total = data.amount?.total       as number;
-
-  if (!ref || !payId) throw new Error('Referencia o payId faltante');
-
-  // 1. Find pending transaction
-  const { data: tx } = await db
-    .from('pick_transactions')
-    .select('*')
-    .eq('order_id', ref)
-    .maybeSingle();
-    
-  if (!tx) { 
-    console.warn('pick_transactions no encontrada para order_id:', ref); 
-    return; 
-  }
-  
-  if (tx.payment_status === 'paid') { 
-    console.info('pick ya pagada para order_id:', ref); 
-    return; 
-  }
-
-  // 2. Mark as paid
-  await db.from('pick_transactions')
-    .update({ 
-      payment_status: 'paid', 
-      bold_payment_id: payId,
-      bold_webhook_received_at: new Date().toISOString()
-    })
-    .eq('id', tx.id);
-
-  // 3. Process based on user status
-  let promotionData = null;
-  let utmData = null;
-
-  if (tx.user_id) {
-    // Authenticated user - process immediately with promotions
-    console.log(`👤 Authenticated user payment: ${tx.user_id}`);
-    const result = await processAuthenticatedOrderWithPromotion(db, tx);
-    promotionData = result.promotionData;
-    utmData = result.utmData;
-  } else {
-    // Anonymous user - mark as processed, wait for registration
-    console.log(`🕶️ Anonymous payment completed: ${ref}. Awaiting registration.`);
-    await db.from('pick_transactions')
-      .update({ 
-        processed_at: new Date().toISOString()
-      })
-      .eq('id', tx.id);
-    
-    await notifyAnonymousPaymentWithPromotion(tx);
-    
-    // Prepare promotion data for tracking
-    if (tx.promotion_applied) {
-      promotionData = {
-        applied: true,
-        campaignName: tx.promotion_campaign_name || 'Promoción aplicada',
-        bonusAmount: tx.promotion_bonus_amount || 0,
-        totalEffectiveAmount: tx.promotion_total_effective || tx.wager_amount
-      };
-    }
-  }
-
-  // 4. Track purchase event with promotional data
   try {
-    await trackPurchaseEvent({
-      orderId: ref,
-      amount: tx.wager_amount || total || 0,
-      currency: 'COP',
-      email: tx.email,
-      userId: tx.user_id,
-      picks: tx.picks || [],
-      mode: tx.mode,
-      utmData: utmData,
-      promotionData: promotionData
-    });
-  } catch (trackingError) {
-    console.error('❌ Purchase tracking failed (non-blocking):', trackingError);
-  }
+    const promoText = tx.promotion_applied ? 
+      `<div style="background: #d1fae5; border-left: 4px solid #10b981; padding: 15px; margin: 20px 0;">
+        <p style="margin: 0; color: #059669;"><strong>🎁 ¡Bono Aplicado!</strong></p>
+        <p style="margin: 5px 0 0 0; color: #059669;">
+          Tu apuesta se procesó con el bono incluido.<br/>
+          • Apuesta: $${Number(tx.wager_amount || 0).toLocaleString('es-CO')} COP<br/>
+          • Bono: $${Number(tx.promotion_bonus_amount || 0).toLocaleString('es-CO')} COP<br/>
+          • <strong>Total efectivo: $${Number(tx.promotion_total_effective || tx.wager_amount).toLocaleString('es-CO')} COP</strong>
+        </p>
+      </div>` : '';
 
-  console.log('✅ Pick purchase with promotional system processed for', ref);
+    const htmlBody = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #1f2937;">🏁 ¡Apuesta confirmada en MMC GO!</h2>
+        
+        <p>¡Hola ${tx.full_name || 'Piloto'}!</p>
+        <p>Tu pago por <strong>$${Number(tx.wager_amount || 0).toLocaleString('es-CO')}</strong> COP fue confirmado exitosamente.</p>
+        
+        ${promoText}
+        
+        <div style="background: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0;">
+          <h3 style="margin-top: 0; color: #374151;">📋 Resumen de tu apuesta:</h3>
+          <ul style="margin: 10px 0;">
+            <li><strong>Orden:</strong> ${tx.order_id}</li>
+            <li><strong>GP:</strong> ${tx.gp_name}</li>
+            <li><strong>Picks:</strong> ${(tx.picks || []).length} selecciones</li>
+            <li><strong>Modo:</strong> ${tx.mode === 'full' ? 'Full Throttle' : 'Safety Car'}</li>
+            <li><strong>Ganancia potencial:</strong> $${Number(tx.potential_win || 0).toLocaleString('es-CO')} COP</li>
+          </ul>
+        </div>
+
+        <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0;">
+          <p style="margin: 0;"><strong>¡Un paso más!</strong></p>
+          <p style="margin: 5px 0 0 0;">Para gestionar tus apuestas y ver resultados${tx.promotion_applied ? ', y que tu bono se aplique completamente' : ''}, completa tu registro haciendo clic en el enlace que te enviamos por separado.</p>
+        </div>
+
+        <p>¡Gracias por apostar en MMC GO!</p>
+        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;"/>
+        <p style="font-size: 12px; color: #6b7280;">¿Necesitas ayuda? Escríbenos a ${SUPPORT_EMAIL}</p>
+      </div>
+    `;
+
+    await resend.emails.send({
+      from   : FROM_EMAIL,
+      to     : tx.email,
+      subject: '🎉 Pago confirmado - Completa tu registro',
+      html   : htmlBody
+    });
+    console.log('📧 Anonymous payment with promotion notification sent to', tx.email);
+  } catch (error) {
+    console.error('Failed to send anonymous payment notification:', error);
+  }
 }
 
 /* ──────────────────── ENTRYPOINT WEBHOOK ───────────────────── */
