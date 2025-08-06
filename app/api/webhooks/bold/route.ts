@@ -148,9 +148,9 @@ async function trackPurchaseEvent(orderData: {
   }
 }
 
-/* ────────────────── HANDLER: DEPÓSITO WALLET ────────────────── */
+/* 🔥 FIXED: Simplified deposit handler (cash only) */
 async function handleWalletDeposit(db: SupabaseClient, data: any) {
-  console.log('[Bold WH] Wallet deposit flow');
+  console.log('[Bold WH] Wallet deposit flow - CASH ONLY');
 
   const ref   = data.metadata?.reference as string;
   const total = data.amount?.total       as number;
@@ -177,63 +177,53 @@ async function handleWalletDeposit(db: SupabaseClient, data: any) {
     return;
   }
 
-  /* 2. Aplica promo (RPC decide si hay promo activa) */
-  const { error: rpcErr } = await db.rpc('apply_deposit_promo', {
-    p_user_id    : userId,
-    p_amount_cop : total
+  // 2. 🔥 FIXED: Use simple cash-only wallet update
+  const { error: walletErr } = await db.rpc('update_wallet_balance', {
+    p_user_id: userId,
+    p_amount_cop: total,
+    p_description: desc
   });
-  if (rpcErr) throw rpcErr;
+  if (walletErr) throw walletErr;
 
-  /* 3. Registra transacción de depósito */
-  await db.from('transactions').insert({
-    user_id   : userId,
-    type      : 'recarga',
-    amount    : total,
-    description: desc
-  });
+  // 3. Get user data for email  
+  const { data: userRow } = await db
+    .from('clerk_users')
+    .select('email, full_name')
+    .eq('clerk_id', userId)
+    .maybeSingle();
 
-  /* 4. Trae datos para el e-mail (wallet + usuario) */
-  const [{ data: walletRow, error: walletErr }, { data: userRow }] = await Promise.all([
-    db.from('wallet')
-      .select('balance_cop')
-      .eq('user_id', userId)
-      .single(),
-    db.from('clerk_users')
-      .select('email, full_name')
-      .eq('clerk_id', userId)
-      .maybeSingle()
-  ]);
+  // 4. Get updated wallet balance
+  const { data: walletRow } = await db
+    .from('wallet')
+    .select('balance_cop')
+    .eq('user_id', userId)
+    .single();
 
-  if (walletErr) console.warn('Wallet fetch error', walletErr.message);
-
-  /* 5. Envía correo de confirmación, si hay email */
+  // 5. Send confirmation email
   if (userRow?.email && walletRow) {
     const htmlBody = `
       <p>¡Hola ${userRow.full_name || 'Jugador'}!</p>
       <p>Tu depósito por <strong>$${total.toLocaleString('es-CO')}</strong> COP fue confirmado ✅.</p>
-      <p>Ahora tu saldo es:</p>
-      <ul>
-        <li><strong>$${walletRow.balance_cop.toLocaleString('es-CO')}</strong> COP disponibles</li>
-      </ul>
-      <p>¡Gracias por jugar en MMC&nbsp;GO!</p>
+      <p>Tu nuevo saldo es: <strong>$${walletRow.balance_cop.toLocaleString('es-CO')}</strong> COP</p>
+      <p>¡Gracias por jugar en MMC GO!</p>
       <hr/>
-      <p style="font-size:12px;color:#666;">¿Necesitas ayuda? Escríbenos a ${SUPPORT_EMAIL}</p>
+      <p style="font-size:12px;color:#666;">¿Necesitas ayuda? Escríbenos a support@mmcgo.com</p>
     `;
 
     try {
       await resend.emails.send({
-        from   : FROM_EMAIL,
-        to     : userRow.email,
+        from: FROM_EMAIL,
+        to: userRow.email,
         subject: 'Depósito confirmado',
-        html   : htmlBody
+        html: htmlBody
       });
-      console.log('📧 Depósito email sent to', userRow.email);
+      console.log('📧 Deposit confirmation sent to', userRow.email);
     } catch (err) {
-      console.error('✉️  Error enviando e-mail de depósito:', err);
+      console.error('✉️ Error sending deposit email:', err);
     }
   }
 
-  console.log('✅ Depósito aplicado + promo registrada + email');
+  console.log(`✅ Cash-only deposit processed: ${total} COP for user ${userId}`);
 }
 
 /* ────────────── HANDLER: COMPRA DE NÚMEROS EXTRA ────────────── */
@@ -412,20 +402,6 @@ async function processAuthenticatedOrder(db: SupabaseClient, tx: any) {
     referrer: utmData?.referrer,
     payment_method: 'bold'
   });
-
-  // Update wallet if applicable
-  if (tx.wager_amount) {
-    const mmc  = Math.round(tx.wager_amount / 1000);
-    const fuel = tx.wager_amount;
-    const cop  = Math.round(tx.wager_amount);
-    const { error: rpcErr } = await db.rpc('increment_wallet_balances', {
-      uid        : tx.user_id,
-      mmc_amount : mmc,
-      fuel_amount: fuel,
-      cop_amount : cop
-    });
-    if (rpcErr) console.warn('RPC wallet error', rpcErr.message);
-  }
 
   console.log(`✅ Authenticated order processed: ${tx.order_id}`);
 }

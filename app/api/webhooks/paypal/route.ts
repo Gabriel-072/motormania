@@ -229,20 +229,8 @@ export async function POST(req: NextRequest) {
         referrer: utmData?.referrer
       });
 
-      // Add wallet rewards
-      if (tx.wager_amount) {
-        const mmc = Math.round(tx.wager_amount / 1000);
-        const fuel = tx.wager_amount;
-        const cop = Math.round(tx.wager_amount);
-        
-        const { error: rpcErr } = await sb.rpc('increment_wallet_balances', {
-          uid: tx.user_id,
-          mmc_amount: mmc,
-          fuel_amount: fuel,
-          cop_amount: cop
-        });
-        if (rpcErr) console.warn('RPC wallet error', rpcErr.message);
-      }
+      // 🔥 CASH-ONLY SYSTEM: No automatic wallet rewards
+      // Picks are paid with cash directly, no coin conversions
 
       // 🎯 Track Facebook Purchase event with UTM
       await trackPurchaseEvent({
