@@ -309,7 +309,7 @@ export default function FullModal({ isOpen, onClose, currentGp = 'GP' }: FullMod
     let msg: string | null = null;
     const copAmount = currency === 'COP' ? amount : convertToCOP(amount);
     const betMmc = Math.round(copAmount / 1000);
-    const minCOPAmount = isInitialized ? convertToCOP(minimumBet.display) : 5000;
+    const minCOPAmount = isInitialized ? convertToCOP(minimumBet.display) : 20000;
     
     if (totalPicks < 2) msg = 'Elige al menos 2 picks';
     else if (totalPicks > 8) msg = 'Máximo 8 picks por jugada';
@@ -1120,7 +1120,7 @@ export default function FullModal({ isOpen, onClose, currentGp = 'GP' }: FullMod
                     </div>
                     <div className="flex items-center gap-1">
                       <FaUsers />
-                      <span>+2,500 jugadores</span>
+                      <span>+9567 jugadores</span>
                     </div>
                   </div>
                 )}
