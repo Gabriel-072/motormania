@@ -505,7 +505,7 @@ export default function DashboardPage() {
               >
                 <Dialog.Panel className="mx-auto max-w-sm rounded-xl bg-gradient-to-br from-gray-800 to-black p-6 text-center text-white shadow-xl">
                   <Dialog.Title className="text-2xl font-bold text-cyan-400 mb-2">
-                    ¡Ya tienes tus 5 números para nuestros sorteos!
+                    ¡Felicitaciones, ya jugaste!
                   </Dialog.Title>
                   <p className="text-gray-300 mb-4">
                     Envía tus predicciones para el siguiente GP!!
