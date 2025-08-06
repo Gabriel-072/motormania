@@ -1,4 +1,4 @@
-// app/api/transactions/register-pick-transaction/route.ts - Fixed & More Robust
+// app/api/transactions/register-pick-transaction/route.ts - Aligned with new DB structure
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { createClient } from '@supabase/supabase-js';
@@ -22,161 +22,83 @@ function calcMultiplier(cnt: number, mode: 'full' | 'safety') {
 }
 
 export async function POST(req: NextRequest) {
-  console.log('🚀 register-pick-transaction API called');
-  
   try {
-    /* Auth - optional */
+    /* Auth is now optional - get userId if available */
     let userId: string | null = null;
     try {
       const authResult = await auth();
       userId = authResult.userId;
-      console.log('👤 User ID:', userId || 'anonymous');
     } catch (error) {
       console.log('No authentication found, proceeding as anonymous');
     }
 
-    /* Parse body */
-    const body = await req.json();
-    console.log('📥 Request body:', JSON.stringify(body, null, 2));
+    /* Body validation */
+    interface Body {
+      picks: any[];
+      mode: 'full' | 'safety';
+      amount: number;
+      gpName: string;
+      fullName?: string;
+      email?: string;
+      anonymousSessionId?: string;
+    }
     
-    const { 
-      picks, 
-      mode = 'full', 
-      amount, 
-      gpName, 
-      fullName, 
-      email, 
-      anonymousSessionId,
-      // NEW promotional system
-      applyPromotion = false,
-      // OLD system compatibility
-      bonusAmount: oldBonusAmount,
-      effectiveWager: oldEffectiveWager
-    } = body;
+    const body: Body = await req.json();
+    const { picks, mode = 'full', amount, gpName, fullName, email, anonymousSessionId } = body;
 
-    /* Basic validation */
+    /* Validation */
     if (!Array.isArray(picks) || picks.length < 2 || picks.length > 8) {
-      console.error('❌ Invalid picks count:', picks?.length);
       return NextResponse.json({ error: 'Nº de picks inválido' }, { status: 400 });
     }
-    if (!amount || amount < 10000) {
-      console.error('❌ Invalid amount:', amount);
+    if (amount < 10000) {
       return NextResponse.json({ error: 'Monto mínimo $10.000' }, { status: 400 });
     }
     if (mode === 'safety' && picks.length < 3) {
-      console.error('❌ Safety mode needs 3+ picks');
       return NextResponse.json({ error: 'Safety requiere ≥3 picks' }, { status: 400 });
-    }
-    if (!gpName) {
-      console.error('❌ Missing gpName');
-      return NextResponse.json({ error: 'GP name required' }, { status: 400 });
     }
 
     /* Anonymous user validation */
     if (!userId) {
       if (!email || !fullName) {
-        console.error('❌ Anonymous user missing email/name');
         return NextResponse.json({ 
           error: 'Email y nombre son requeridos para usuarios anónimos' 
         }, { status: 400 });
       }
       if (!email.includes('@')) {
-        console.error('❌ Invalid email:', email);
         return NextResponse.json({ error: 'Email inválido' }, { status: 400 });
       }
       if (!anonymousSessionId) {
-        console.error('❌ Missing anonymous session ID');
         return NextResponse.json({ 
           error: 'Session ID requerido para usuarios anónimos' 
         }, { status: 400 });
       }
     }
 
-    console.log('✅ Validation passed');
-
     /* Clean up existing pending transactions */
-    try {
-      if (userId) {
-        const { error: cleanupError } = await sb.from('pick_transactions')
-          .delete()
-          .eq('user_id', userId)
-          .eq('payment_status', 'pending');
-        if (cleanupError) console.warn('Cleanup error for user:', cleanupError);
-      } else {
-        const { error: cleanupError } = await sb.from('pick_transactions')
-          .delete()
-          .eq('anonymous_session_id', anonymousSessionId)
-          .eq('payment_status', 'pending');
-        if (cleanupError) console.warn('Cleanup error for anonymous:', cleanupError);
-      }
-      console.log('✅ Cleanup completed');
-    } catch (cleanupErr) {
-      console.warn('Cleanup failed:', cleanupErr);
+    if (userId) {
+      await sb.from('pick_transactions')
+        .delete()
+        .eq('user_id', userId)
+        .eq('payment_status', 'pending');
+    } else {
+      await sb.from('pick_transactions')
+        .delete()
+        .eq('anonymous_session_id', anonymousSessionId)
+        .eq('payment_status', 'pending');
     }
 
-    /* Promotional bonus calculation */
-    let promotionDetails = null;
-    let totalEffectiveAmount = amount;
-    let bonusAmount = 0;
-
-    // Check if we're using OLD system compatibility
-    if (oldBonusAmount !== undefined && oldEffectiveWager !== undefined) {
-      console.log('🔄 Using OLD promotional system compatibility');
-      bonusAmount = oldBonusAmount;
-      totalEffectiveAmount = oldEffectiveWager;
-    } 
-    // Or NEW promotional system
-    else if (applyPromotion && userId) {
-      console.log('🎁 Attempting to apply NEW promotional system');
-      try {
-        const { data: promoData, error: promoError } = await sb.rpc('get_active_picks_promotion', {
-          p_user_id: userId,
-          p_bet_amount: amount
-        });
-
-        if (!promoError && promoData && promoData.length > 0) {
-          const promo = promoData[0];
-          bonusAmount = promo.calculated_bonus_amount || 0;
-          totalEffectiveAmount = promo.total_effective_amount || amount;
-          
-          promotionDetails = {
-            campaignId: promo.campaign_id,
-            campaignName: promo.campaign_name,
-            bonusPercentage: promo.bonus_percentage,
-            bonusAmount,
-            totalEffectiveAmount,
-            userRemainingUses: promo.user_remaining_uses
-          };
-          
-          console.log('✅ Promotion applied:', promotionDetails);
-        } else {
-          console.log('ℹ️ No active promotion found:', promoError);
-        }
-      } catch (error) {
-        console.warn('⚠️ Promotion system error (continuing without):', error);
-      }
-    }
-
-    /* Calculate multiplier and potential win */
+    /* Calculations */
     const multiplier = calcMultiplier(picks.length, mode);
-    const potentialWin = multiplier * totalEffectiveAmount;
+    const potentialWin = multiplier * amount;
     
-    console.log('💰 Calculations:', {
-      originalAmount: amount,
-      bonusAmount,
-      totalEffectiveAmount,
-      multiplier,
-      potentialWin
-    });
-    
-    /* Generate order ID */
+    /* Order ID generation */
     const orderId = userId 
       ? `MMC-${userId}-${Date.now()}`
       : `MMC-ANON-${Date.now()}`;
     
-    const amountStr = String(amount); // Payment amount (original)
+    const amountStr = String(amount);
 
-    /* Bold signature */
+    // Bold signature
     const integrityKey = crypto
       .createHash('sha256')
       .update(`${orderId}${amountStr}${CURRENCY}${BOLD_SECRET}`)
@@ -186,88 +108,95 @@ export async function POST(req: NextRequest) {
       ? `${SITE_URL}/dashboard?bold_order_id=${orderId}`
       : `${SITE_URL}/sign-up?session=${anonymousSessionId}&order=${orderId}&redirect_url=/payment-success`;
 
-    /* Prepare transaction data */
+    /* 🔥 CHECK FOR ACTIVE PROMOTIONS */
+    let promotionApplied = false;
+    let promotionBonusAmount = 0;
+    let promotionTotalEffective = amount;
+    let promotionCampaignName = null;
+
+    try {
+      // Check if there's an active promotion
+      const { data: activePromo } = await sb
+        .from('promotions')
+        .select('*')
+        .eq('is_active', true)
+        .gte('valid_until', new Date().toISOString())
+        .lte('valid_from', new Date().toISOString())
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (activePromo && amount >= (activePromo.min_bet_amount || 0)) {
+        promotionApplied = true;
+        promotionCampaignName = activePromo.campaign_name;
+        
+        if (activePromo.bonus_type === 'percentage') {
+          promotionBonusAmount = Math.round(amount * (activePromo.bonus_value / 100));
+        } else if (activePromo.bonus_type === 'fixed') {
+          promotionBonusAmount = activePromo.bonus_value;
+        }
+        
+        // Cap bonus to max_bonus_amount if specified
+        if (activePromo.max_bonus_amount && promotionBonusAmount > activePromo.max_bonus_amount) {
+          promotionBonusAmount = activePromo.max_bonus_amount;
+        }
+        
+        promotionTotalEffective = amount + promotionBonusAmount;
+        
+        console.log(`🎉 Promotion applied: ${promotionCampaignName}, bonus: ${promotionBonusAmount}`);
+      }
+    } catch (error) {
+      console.error('Error checking promotions:', error);
+      // Continue without promotion if there's an error
+    }
+
+    /* Save transaction with new promotion fields */
     const transactionData = {
-      // Core fields
       user_id: userId,
       anonymous_session_id: anonymousSessionId || null,
       full_name: fullName ?? 'Jugador MMC',
       email: email,
       order_id: orderId,
       gp_name: gpName,
-      picks: JSON.stringify(picks), // Ensure it's stringified
+      picks,
       mode,
       multiplier,
-      wager_amount: amount,
       potential_win: potentialWin,
+      wager_amount: amount,
       payment_status: 'pending',
-      created_at: new Date().toISOString(),
-      
-      // Promotional fields (nullable, safe to add)
-      promotion_applied: bonusAmount > 0 ? true : null,
-      promotion_bonus_amount: bonusAmount > 0 ? bonusAmount : null,
-      promotion_total_effective: totalEffectiveAmount !== amount ? totalEffectiveAmount : null,
-      promotion_campaign_name: promotionDetails?.campaignName || null
+      promotion_applied: promotionApplied,
+      promotion_bonus_amount: promotionBonusAmount,
+      promotion_total_effective: promotionTotalEffective,
+      promotion_campaign_name: promotionCampaignName
     };
 
-    console.log('💾 Saving transaction data:', JSON.stringify(transactionData, null, 2));
-
-    /* Save to database */
-    const { data: insertedData, error: dbErr } = await sb
-      .from('pick_transactions')
-      .insert(transactionData)
-      .select()
-      .single();
+    const { error: dbErr } = await sb.from('pick_transactions').insert(transactionData);
     
     if (dbErr) {
-      console.error('❌ Database error:', dbErr);
-      
-      // Check if it's a table/column issue
-      if (dbErr.message?.includes('relation') || dbErr.message?.includes('column')) {
-        return NextResponse.json({ 
-          error: 'Database schema issue. Please run migration first.',
-          details: dbErr.message
-        }, { status: 500 });
-      }
-      
-      throw new Error(`Database error: ${dbErr.message}`);
+      console.error('Database error:', dbErr);
+      throw new Error('Error guardando transacción');
     }
 
-    console.log('✅ Transaction saved:', insertedData);
-
     /* Response */
-    const response = {
+    return NextResponse.json({
       orderId,
       amount: amountStr,
       callbackUrl,
       integrityKey,
       isAnonymous: !userId,
       sessionId: anonymousSessionId,
-      promotion: promotionDetails ? {
+      promotion: promotionApplied ? {
         applied: true,
-        campaignName: promotionDetails.campaignName,
-        bonusAmount: promotionDetails.bonusAmount,
-        totalEffectiveAmount: promotionDetails.totalEffectiveAmount,
-        originalAmount: amount
-      } : {
-        applied: false,
-        bonusAmount: 0,
-        totalEffectiveAmount: amount,
-        originalAmount: amount
-      }
-    };
-
-    console.log('✅ API Success:', response);
-    return NextResponse.json(response);
+        bonusAmount: promotionBonusAmount,
+        totalEffective: promotionTotalEffective,
+        campaignName: promotionCampaignName
+      } : { applied: false }
+    });
 
   } catch (err: any) {
-    console.error('❌ API Error:', err);
-    console.error('Stack trace:', err.stack);
-    
+    console.error('register-pick-transaction error:', err);
     return NextResponse.json({ 
-      error: 'Internal server error',
-      message: err.message,
-      timestamp: new Date().toISOString()
+      error: err.message || 'Internal server error' 
     }, { status: 500 });
   }
 }
