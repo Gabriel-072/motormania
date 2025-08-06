@@ -1,4 +1,4 @@
-// components/FullModal.tsx - Final Cash-Only Version with Promotional System
+// components/FullModal.tsx - FIXED: Original UI + Promotional Features
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -44,6 +44,7 @@ import { PaymentSupportModal } from './PaymentSupportModal';
 interface FullModalProps {
   isOpen: boolean;
   onClose: () => void;
+  currentGp?: string; // Current GP name for the picks
 }
 
 type RegisterPickApiResponse = {
@@ -62,13 +63,22 @@ type RegisterPickApiResponse = {
   };
 };
 
-// 🔥 SIMPLIFIED: Wallet interface (cash only)
-type Wallet = {
-  balance_cop: number;
-  withdrawable_cop: number;
+type Promo = {
+  name: string;
+  type: 'multiplier' | 'percentage';
+  factor: number;
+  min_deposit: number;
+  max_bonus_mmc: number;
+  max_bonus_fuel: number;
 };
 
-// 🔥 SIMPLIFIED: Promotional offer interface  
+type Wallet = {
+  mmc_coins: number;
+  fuel_coins: number;
+  locked_mmc: number;
+};
+
+// 🔥 NEW: Simple promotional offer interface
 interface SimplePromotionalOffer {
   campaignId: string;
   campaignName: string;
@@ -88,7 +98,7 @@ const safetyPayouts: Record<number, number[]> = {
   8: [50, 5, 1.5]
 };
 
-export default function FullModal({ isOpen, onClose }: FullModalProps) {
+export default function FullModal({ isOpen, onClose, currentGp }: FullModalProps) {
   // stores & auth
   const { picks, setQualyPicks, setRacePicks } = useStickyStore();
   const { user, isSignedIn } = useUser();
@@ -121,13 +131,11 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
 
-  // 🔥 SIMPLIFIED: Wallet state (cash only)
+  // wallet
   const [wallet, setWallet] = useState<Wallet | null>(null);
 
-  // 🔥 SIMPLIFIED: Promotional state
-  const [promotionalOffer, setPromotionalOffer] = useState<SimplePromotionalOffer | null>(null);
-  const [promotionEnabled, setPromotionEnabled] = useState(true);
-  const [loadingPromotion, setLoadingPromotion] = useState(false);
+  // promotion
+  const [promo, setPromo] = useState<Promo | null>(null);
 
   // ✨ Payment method state
   const [paymentMethod, setPaymentMethod] = useState<'bold' | 'wallet' | 'crypto'>('bold');
@@ -135,6 +143,11 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
   // ✨ Payment Support Modal states
   const [showPaymentSupport, setShowPaymentSupport] = useState(false);
   const [paymentError, setPaymentError] = useState<string>('');
+
+  // 🔥 NEW: Promotional state
+  const [promotionalOffer, setPromotionalOffer] = useState<SimplePromotionalOffer | null>(null);
+  const [promotionEnabled, setPromotionEnabled] = useState(true);
+  const [loadingPromotion, setLoadingPromotion] = useState(false);
 
   // 🔥 SOCIAL PROOF: Live player count
   const [livePlayerCount] = useState(() => Math.floor(Math.random() * 50) + 120);
@@ -151,12 +164,6 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
 
   // 🆕 Check if user is authenticated
   const isAuthenticated = !!user?.id;
-
-  // 🔥 FIXED: Clear picks function
-  const clearDraftPicks = useCallback(() => {
-    setQualyPicks([]);
-    setRacePicks([]);
-  }, [setQualyPicks, setRacePicks]);
 
   // ✨ Initialize currency system
   useEffect(() => {
@@ -180,39 +187,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     }
   }, [isAuthenticated, user]);
 
-  // 🔥 SIMPLIFIED: Fetch wallet balance (cash only)
-  useEffect(() => {
-    if (!isOpen || !user?.id) return;
-    (async () => {
-      try {
-        const token = await getToken({ template: 'supabase' });
-        if (!token) return;
-        const sb = createAuthClient(token);
-        const { data } = await sb
-          .from('wallet')
-          .select('balance_cop,withdrawable_cop')
-          .eq('user_id', user.id)
-          .single();
-        if (data) setWallet(data as Wallet);
-      } catch (e) {
-        console.warn('No se pudo leer saldo wallet', e);
-      }
-    })();
-  }, [isOpen, user, getToken]);
-
-  // 🔥 SIMPLIFIED: Auto-switch away from wallet if insufficient funds
-  useEffect(() => {
-    if (paymentMethod === 'wallet' && wallet) {
-      const copAmount = currency === 'COP' ? amount : convertToCOP(amount);
-      
-      // Check if user has sufficient cash balance
-      if (copAmount > wallet.balance_cop) {
-        setPaymentMethod('bold');
-      }
-    }
-  }, [paymentMethod, wallet, amount, currency, convertToCOP]);
-
-  // 🔥 SIMPLIFIED: Fetch promotional offer
+  // 🔥 NEW: Fetch promotional offer
   const fetchPromotionalOffer = useCallback(async () => {
     if (!isAuthenticated || !user?.id || amount < 10000) {
       setPromotionalOffer(null);
@@ -240,7 +215,6 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
           totalEffectiveAmount: promo.total_effective_amount,
           userRemainingUses: promo.user_remaining_uses
         });
-        console.log('🎁 Promotional offer found:', promo.campaign_name);
       } else {
         setPromotionalOffer(null);
       }
@@ -252,7 +226,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     }
   }, [isAuthenticated, user?.id, amount, getToken]);
 
-  // Fetch promotional offer when modal opens or amount changes
+  // Fetch promotional offer when amount changes
   useEffect(() => {
     if (isOpen) {
       const timer = setTimeout(fetchPromotionalOffer, 500);
@@ -260,7 +234,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     }
   }, [isOpen, amount, fetchPromotionalOffer]);
 
-  // 🔥 SIMPLIFIED: Bonus calculation
+  // 🔥 NEW: Bonus calculation
   const bonusCalculation = useMemo(() => {
     const baseAmount = amount;
     const hasValidPromo = promotionalOffer && promotionEnabled && promotionalOffer.userRemainingUses > 0;
@@ -283,56 +257,6 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
       campaignName: ''
     };
   }, [amount, promotionalOffer, promotionEnabled]);
-
-  // 🔥 SIMPLIFIED: Potential win calculation
-  const enhancedPotentialWin = useMemo(() => {
-    const combo = payoutCombos[totalPicks] || 0;
-    const safetyArray = safetyPayouts[totalPicks] || [0];
-    
-    if (mode === 'full') {
-      return bonusCalculation.totalEffectiveAmount * combo;
-    } else {
-      return safetyArray.map(multiplier => 
-        bonusCalculation.totalEffectiveAmount * multiplier
-      );
-    }
-  }, [totalPicks, mode, bonusCalculation.totalEffectiveAmount]);
-
-  // 🆕 Generate anonymous session ID
-  const generateAnonymousSession = useCallback(() => {
-    const sessionId = `anon_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    localStorage.setItem('anonymousSession', sessionId);
-    return sessionId;
-  }, []);
-
-  // 🔥 SIMPLIFIED: Register pick transaction
-  const registerPickTransaction = async () => {
-    try {
-      const response = await fetch('/api/transactions/register-pick-transaction', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          picks: combinedPicks,
-          mode,
-          amount: bonusCalculation.baseAmount,
-          gpName: 'Current GP', // You might want to get this from your store
-          fullName: isAuthenticated ? user?.fullName : fullName,
-          email: isAuthenticated ? user?.primaryEmailAddress?.emailAddress : email,
-          anonymousSessionId: !isAuthenticated ? generateAnonymousSession() : undefined,
-          applyPromotion: promotionEnabled && bonusCalculation.bonusAmount > 0
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to register transaction');
-      }
-
-      return await response.json() as RegisterPickApiResponse;
-    } catch (error) {
-      console.error('Error registering pick transaction:', error);
-      throw error;
-    }
-  };
 
   // ✨ InitiateCheckout tracking helper
   const trackInitiateCheckout = useCallback((paymentMethodUsed: string) => {
@@ -361,174 +285,117 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     }
   }, [amount, totalPicks, mode, user, currency, convertToCOP]);
 
-  // 🔥 SIMPLIFIED: Wallet payment handler (cash only)
-  const handleWalletBet = async () => {
-    if (isProcessing || !isValid || !wallet || !user?.id) return;
-
-    const copAmount = currency === 'COP' ? bonusCalculation.baseAmount : convertToCOP(bonusCalculation.baseAmount);
-    
-    // Check sufficient balance
-    if (copAmount > wallet.balance_cop) {
-      toast.error('Saldo insuficiente en wallet');
-      return;
-    }
-
-    setIsProcessing(true);
-    setError(null);
-
-    try {
-      // Register the pick transaction first
-      const pickData = await registerPickTransaction();
-      const { orderId, promotion } = pickData;
-
-      // 🔥 UPDATED: Process wallet payment using simplified RPC
-      const token = await getToken({ template: 'supabase' });
-      if (!token) throw new Error('No auth token');
-      
-      const sb = createAuthClient(token);
-      const { data: paymentResult, error: paymentError } = await sb.rpc('process_bet_payment', {
-        p_user_id: user.id,
-        p_bet_amount: copAmount,
-        p_order_id: orderId
-      });
-
-      if (paymentError || !paymentResult?.[0]?.success) {
-        throw new Error(paymentResult?.[0]?.error_message || 'Error processing wallet payment');
+  // Fetch wallet balance
+  useEffect(() => {
+    if (!isOpen || !user?.id) return;
+    (async () => {
+      try {
+        const token = await getToken({ template: 'supabase' });
+        if (!token) return;
+        const sb = createAuthClient(token);
+        const { data } = await sb
+          .from('wallet')
+          .select('mmc_coins,fuel_coins,locked_mmc')
+          .eq('user_id', user.id)
+          .single();
+        if (data) setWallet(data as Wallet);
+      } catch (e) {
+        console.warn('No se pudo leer saldo wallet', e);
       }
+    })();
+  }, [isOpen, user, getToken]);
 
-      // Track Purchase event
-      if (typeof window !== 'undefined' && window.fbq) {
-        const eventId = `purchase_${orderId}_${user.id}`;
-        window.fbq('track', 'Purchase', {
-          value: copAmount / 1000,
-          currency: 'COP',
-          content_type: 'product',
-          content_category: 'sports_betting',
-          content_ids: [`mmc_picks_${totalPicks}`],
-          content_name: `MMC GO ${mode === 'full' ? 'Full Throttle' : 'Safety Car'} (${totalPicks} picks)${
-            promotion?.applied ? ` + ${bonusCalculation.campaignName}` : ''
-          }`,
-          num_items: totalPicks,
-          eventID: eventId,
-          custom_data: {
-            payment_method: 'wallet',
-            promotion_applied: promotion?.applied || false,
-            bonus_amount: promotion?.bonusAmount || 0
-          }
-        });
+  // Fetch active promo
+  useEffect(() => {
+    (async () => {
+      try {
+        const token = await getToken({ template: 'supabase' });
+        if (!token) return;
+        const supabase = createAuthClient(token);
+        const { data: pr } = await supabase
+          .from('deposit_promos')
+          .select('name,type,factor,min_deposit,max_bonus_mmc,max_bonus_fuel')
+          .eq('is_active', true)
+          .limit(1)
+          .single();
+        if (pr) setPromo(pr as Promo);
+      } catch (e) {
+        console.warn('Failed to fetch promo:', e);
       }
+    })();
+  }, [getToken]);
 
-      // Apply promotion if enabled (same as Bold webhook would do)
-      if (promotion?.applied && user?.id) {
-        try {
-          await sb.rpc('apply_picks_promotion', {
-            p_user_id: user.id,
-            p_transaction_id: orderId,
-            p_original_amount: copAmount
-          });
-        } catch (promoError) {
-          console.warn('Promotion application failed:', promoError);
-          // Continue - payment was successful
-        }
-      }
+  // 🆕 Generate anonymous session ID
+  const generateAnonymousSession = useCallback(() => {
+    const sessionId = `anon_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    localStorage.setItem('anonymousSession', sessionId);
+    return sessionId;
+  }, []);
 
-      const successMessage = promotion?.applied 
-        ? `🎉 ¡Apuesta exitosa + ${bonusCalculation.campaignName}!`
-        : '✅ ¡Apuesta exitosa con saldo de wallet!';
-      
-      toast.success(successMessage);
-      clearDraftPicks();
-      onClose();
-      setIsProcessing(false);
-
-    } catch (err: any) {
-      setError(`Error con pago de wallet: ${err.message || 'Error desconocido'}`);
-      setIsProcessing(false);
-    }
+  // Handle payment method change
+  const handlePaymentMethodChange = (method: 'bold' | 'wallet' | 'crypto') => {
+    setPaymentMethod(method);
   };
 
-  // ✨ EXISTING: Bold payment handler
-  const handleBoldPayment = async () => {
-    if (isProcessing || !isValid) return;
+  // Clear draft picks function
+  const clearDraftPicks = useCallback(() => {
+    setQualyPicks([]);
+    setRacePicks([]);
+  }, [setQualyPicks, setRacePicks]);
 
-    setIsProcessing(true);
-    setError(null);
-
-    try {
-      const pickData = await registerPickTransaction();
-      const { orderId, amount: amountStr, callbackUrl, integrityKey, promotion } = pickData;
-
-      // Use original amount for payment
-      const copAmount = currency === 'COP' ? bonusCalculation.baseAmount : convertToCOP(bonusCalculation.baseAmount);
-
-      // Track InitiateCheckout
-      trackInitiateCheckout('bold');
-
-      const { openBoldCheckout } = await import('@/lib/bold');
+  // 🔧 FIXED: Auto-switch away from wallet if insufficient funds
+  useEffect(() => {
+    if (paymentMethod === 'wallet' && wallet) {
+      const copAmount = currency === 'COP' ? amount : convertToCOP(amount);
+      const betMmc = Math.round(copAmount / 1000);
       
-      openBoldCheckout({
-        apiKey: process.env.NEXT_PUBLIC_BOLD_API_KEY!,
-        orderId,
-        amount: amountStr,
-        currency: 'COP',
-        description: `MMC GO ${mode === 'full' ? 'Full Throttle' : 'Safety Car'} • ${totalPicks} picks${
-          promotion?.applied ? ` + ${promotion.campaignName}` : ''
-        }`,
-        redirectionUrl: callbackUrl,
-        integritySignature: integrityKey,
-        customerData: JSON.stringify({
-          email: isAuthenticated ? user?.primaryEmailAddress?.emailAddress : email,
-          fullName: isAuthenticated ? user?.fullName : fullName
-        }),
-        renderMode: 'embedded',
-        onSuccess: async () => {
-          // Track Purchase
-          if (typeof window !== 'undefined' && window.fbq) {
-            const eventId = `purchase_${orderId}_${user?.id || 'anonymous'}`;
-            window.fbq('track', 'Purchase', {
-              value: copAmount / 1000,
-              currency: 'COP',
-              content_type: 'product',
-              content_category: 'sports_betting',
-              content_ids: [`mmc_picks_${totalPicks}`],
-              content_name: `MMC GO ${mode === 'full' ? 'Full Throttle' : 'Safety Car'} (${totalPicks} picks)${
-                promotion?.applied ? ` + ${bonusCalculation.campaignName}` : ''
-              }`,
-              num_items: totalPicks,
-              eventID: eventId,
-              custom_data: {
-                promotion_applied: promotion?.applied || false,
-                promotion_name: bonusCalculation.campaignName || '',
-                bonus_amount: promotion?.bonusAmount || 0,
-                total_effective_amount: promotion?.totalEffectiveAmount || bonusCalculation.baseAmount
-              }
-            });
-          }
+      // If insufficient wallet balance, switch to Bold payment
+      if (betMmc > wallet.mmc_coins - wallet.locked_mmc) {
+        setPaymentMethod('bold');
+      }
+    }
+  }, [paymentMethod, wallet, amount, currency, convertToCOP]);
 
-          const successMessage = promotion?.applied 
-            ? `🎉 ¡Pago exitoso + ${bonusCalculation.campaignName}!`
-            : '✅ ¡Pago exitoso!';
-          
-          toast.success(successMessage);
-          clearDraftPicks();
-          onClose();
-          setIsProcessing(false);
-        },
-        onFailed: ({ message }: { message?: string }) => {
-          setPaymentError(`Pago falló: ${message || 'Error desconocido'}`);
-          setShowPaymentSupport(true);
-          setIsProcessing(false);
-        },
-        onPending: () => {
-          toast.info('Pago pendiente de confirmación.');
-          setIsProcessing(false);
-        },
-        onClose: () => setIsProcessing(false)
+  // 🔥 UPDATED: Potential win calculation with bonus
+  const enhancedPotentialWin = useMemo(() => {
+    const combo = payoutCombos[totalPicks] || 0;
+    const safetyArray = safetyPayouts[totalPicks] || [0];
+    
+    if (mode === 'full') {
+      return bonusCalculation.totalEffectiveAmount * combo;
+    } else {
+      return safetyArray.map(multiplier => 
+        bonusCalculation.totalEffectiveAmount * multiplier
+      );
+    }
+  }, [totalPicks, mode, bonusCalculation.totalEffectiveAmount]);
+
+  // 🔥 UPDATED: Register pick handler with bonus data
+  const registerPickTransaction = async () => {
+    try {
+      const response = await fetch('/api/transactions/register-pick-transaction', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          picks: combinedPicks,
+          mode,
+          amount: bonusCalculation.baseAmount,
+          gpName: currentGp || 'Current GP',
+          fullName: isAuthenticated ? user?.fullName : fullName,
+          email: isAuthenticated ? user?.primaryEmailAddress?.emailAddress : email,
+          anonymousSessionId: !isAuthenticated ? generateAnonymousSession() : undefined,
+          applyPromotion: promotionEnabled && bonusCalculation.bonusAmount > 0
+        })
       });
-    } catch (err: any) {
-      setPaymentError(`Error iniciando pago: ${err.message || 'Error desconocido'}`);
-      setShowPaymentSupport(true);
-      setIsProcessing(false);
+
+      if (!response.ok) {
+        throw new Error('Failed to register transaction');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error registering pick transaction:', error);
+      throw error;
     }
   };
 
@@ -556,7 +423,178 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
     setIsValid(!msg);
   }, [totalPicks, mode, amount, email, fullName, isAuthenticated, currency, convertToCOP, minimumBet, isInitialized]);
 
-  // 🔥 SIMPLIFIED: Promotional Display Component
+  // 🔥 UPDATED: Wallet payment handler
+  const handleWalletBet = async () => {
+    if (isProcessing || !isValid || !isAuthenticated || !user?.id) return;
+
+    setIsProcessing(true);
+    setError(null);
+
+    try {
+      const pickData = await registerPickTransaction();
+      const { orderId, promotion } = pickData;
+      const copAmount = currency === 'COP' ? bonusCalculation.baseAmount : convertToCOP(bonusCalculation.baseAmount);
+
+      // Use consume_locked_mmc for wallet payments
+      const token = await getToken({ template: 'supabase' });
+      if (!token) throw new Error('Authentication required');
+
+      const sb = createAuthClient(token);
+      const { error: walletError } = await sb.rpc('consume_locked_mmc', {
+        p_user_id: user.id,
+        p_bet_mmc: Math.round(bonusCalculation.totalEffectiveAmount / 1000)
+      });
+
+      if (walletError) {
+        throw new Error(walletError.message || 'Error processing wallet payment');
+      }
+
+      // Track Purchase event
+      if (typeof window !== 'undefined' && window.fbq) {
+        const eventId = `purchase_${orderId}_${user.id}`;
+        window.fbq('track', 'Purchase', {
+          value: copAmount / 1000,
+          currency: 'COP',
+          content_type: 'product',
+          content_category: 'sports_betting',
+          content_ids: [`mmc_picks_${totalPicks}`],
+          content_name: `MMC GO ${mode === 'full' ? 'Full Throttle' : 'Safety Car'} (${totalPicks} picks)${
+            promotion?.applied ? ` + ${bonusCalculation.campaignName}` : ''
+          }`,
+          num_items: totalPicks,
+          eventID: eventId,
+          custom_data: {
+            payment_method: 'wallet',
+            promotion_applied: promotion?.applied || false,
+            bonus_amount: promotion?.bonusAmount || 0
+          }
+        });
+      }
+
+      // Apply promotion if enabled
+      if (promotion?.applied && user?.id) {
+        try {
+          await sb.rpc('apply_picks_promotion', {
+            p_user_id: user.id,
+            p_transaction_id: orderId,
+            p_original_amount: copAmount
+          });
+        } catch (promoError) {
+          console.warn('Promotion application failed:', promoError);
+        }
+      }
+
+      const successMessage = promotion?.applied 
+        ? `🎉 ¡Apuesta exitosa + ${bonusCalculation.campaignName}!`
+        : '✅ ¡Apuesta exitosa con saldo de wallet!';
+      
+      toast.success(successMessage);
+      clearDraftPicks();
+      onClose();
+      setIsProcessing(false);
+
+    } catch (err: any) {
+      setError(`Error con pago de wallet: ${err.message || 'Error desconocido'}`);
+      setIsProcessing(false);
+    }
+  };
+
+  // ✨ UPDATED: Bold payment handler with bonus
+  const handleBoldPayment = async () => {
+    if (isProcessing || !isValid) return;
+
+    setIsProcessing(true);
+    setError(null);
+
+    try {
+      const pickData = await registerPickTransaction();
+      const { orderId, amount: amountStr, callbackUrl, integrityKey, promotion } = pickData;
+
+      const copAmount = currency === 'COP' ? bonusCalculation.baseAmount : convertToCOP(bonusCalculation.baseAmount);
+
+      trackInitiateCheckout('bold');
+
+      const { openBoldCheckout } = await import('@/lib/bold');
+      
+      openBoldCheckout({
+        apiKey: process.env.NEXT_PUBLIC_BOLD_API_KEY!,
+        orderId,
+        amount: amountStr,
+        currency: 'COP',
+        description: `MMC GO ${mode === 'full' ? 'Full Throttle' : 'Safety Car'} • ${totalPicks} picks${promotion?.applied ? ` + ${promotion.campaignName}` : ''}`,
+        redirectionUrl: callbackUrl,
+        integritySignature: integrityKey,
+        customerData: JSON.stringify({
+          email: isAuthenticated ? user?.primaryEmailAddress?.emailAddress : email,
+          fullName: isAuthenticated ? user?.fullName : fullName
+        }),
+        renderMode: 'embedded',
+        onSuccess: async () => {
+          if (typeof window !== 'undefined' && window.fbq) {
+            const eventId = `purchase_${orderId}_${user?.id || 'anonymous'}`;
+            window.fbq('track', 'Purchase', {
+              value: copAmount / 1000,
+              currency: 'COP',
+              content_type: 'product',
+              content_category: 'sports_betting',
+              content_ids: [`mmc_picks_${totalPicks}`],
+              content_name: `MMC GO ${mode === 'full' ? 'Full Throttle' : 'Safety Car'} (${totalPicks} picks)${promotion?.applied ? ` + ${bonusCalculation.campaignName}` : ''}`,
+              num_items: totalPicks,
+              eventID: eventId,
+              custom_data: {
+                promotion_applied: promotion?.applied || false,
+                promotion_name: bonusCalculation.campaignName || '',
+                bonus_amount: promotion?.bonusAmount || 0,
+                total_effective_amount: promotion?.totalEffectiveAmount || bonusCalculation.baseAmount
+              }
+            });
+          }
+
+          const successMessage = promotion?.applied 
+            ? `🎉 Pago recibido + ${bonusCalculation.campaignName} aplicado!`
+            : '✅ Pago recibido y procesado!';
+          
+          toast.success(successMessage);
+          
+          // Only consume locked MMC for authenticated users
+          if (isAuthenticated && user?.id) {
+            try {
+              const token = await getToken({ template: 'supabase' });
+              if (token) {
+                const sb = createAuthClient(token);
+                await sb.rpc('consume_locked_mmc', {
+                  p_user_id: user.id,
+                  p_bet_mmc: Math.round(bonusCalculation.totalEffectiveAmount / 1000)
+                });
+              }
+            } catch (err) {
+              console.warn('consume_locked_mmc failed', err);
+            }
+          }
+          
+          clearDraftPicks();
+          onClose();
+          setIsProcessing(false);
+        },
+        onFailed: ({ message }: { message?: string }) => {
+          setPaymentError(`Pago con tarjeta falló: ${message || 'Error desconocido'}`);
+          setShowPaymentSupport(true);
+          setIsProcessing(false);
+        },
+        onPending: () => {
+          toast.info('Pago pendiente de confirmación.');
+          setIsProcessing(false);
+        },
+        onClose: () => setIsProcessing(false)
+      });
+    } catch (err: any) {
+      setPaymentError(`Error iniciando pago: ${err.message || 'Error desconocido'}`);
+      setShowPaymentSupport(true);
+      setIsProcessing(false);
+    }
+  };
+
+  // 🔥 NEW: Promotional Display Component  
   const PromotionalDisplay = () => {
     if (loadingPromotion) {
       return (
@@ -579,7 +617,6 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
           ? 'bg-gradient-to-r from-green-900/20 to-emerald-900/20 border-green-500/30' 
           : 'bg-gray-800/20 border-gray-600/30'
       }`}>
-        
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <span className={`font-bold ${isEnabled ? 'text-green-400' : 'text-gray-400'}`}>
@@ -696,28 +733,31 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                 />
               </div>
 
-              {/* Promotional Display */}
+              {/* 🔥 NEW: Promotional Display */}
               <PromotionalDisplay />
 
-              {/* 🔥 SIMPLIFIED: Wallet toggle - cash only */}
+              {/* Wallet Toggle */}
               {isSignedIn && wallet && (
                 <div className="flex items-center justify-between bg-gray-800/70 rounded-lg px-3 py-2">
                   <div className="flex items-center gap-2 text-sm text-gray-200">
-                    <FaWallet className="text-green-400" />
-                    <span>Balance: ${wallet.balance_cop.toLocaleString('es-CO')}</span>
+                    <FaWallet className="text-amber-400" />
+                    <span>{wallet.mmc_coins - wallet.locked_mmc} MMC</span>
+                    <span className="text-gray-400">
+                      (<CurrencyDisplay copAmount={(wallet.mmc_coins - wallet.locked_mmc) * 1000} />)
+                    </span>
                   </div>
                   
-                  {/* Only show toggle if user has sufficient balance */}
                   {(() => {
                     const copAmount = currency === 'COP' ? amount : convertToCOP(amount);
-                    const hasEnoughBalance = copAmount <= wallet.balance_cop;
+                    const betMmc = Math.round(copAmount / 1000);
+                    const hasEnoughBalance = betMmc <= wallet.mmc_coins - wallet.locked_mmc;
                     
                     return hasEnoughBalance ? (
                       <label className="flex items-center gap-2 text-sm cursor-pointer">
                         <input
                           type="checkbox"
                           checked={paymentMethod === 'wallet'}
-                          onChange={() => setPaymentMethod(paymentMethod === 'wallet' ? 'bold' : 'wallet')}
+                          onChange={() => handlePaymentMethodChange(paymentMethod === 'wallet' ? 'bold' : 'wallet')}
                           className="w-4 h-4 text-green-500 rounded focus:ring-green-400"
                         />
                         <span className="text-green-300">Usar saldo</span>
@@ -791,28 +831,26 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                 </div>
               )}
 
-              {/* 🔥 SIMPLIFIED: Payment Button Logic */}
+              {/* Payment Button */}
               {(() => {
-                const copAmount = currency === 'COP' ? bonusCalculation.baseAmount : convertToCOP(bonusCalculation.baseAmount);
+                const copAmount = currency === 'COP' ? amount : convertToCOP(amount);
+                const betMmc = Math.round(copAmount / 1000);
                 const walletAvailable = isAuthenticated && wallet && 
-                  (copAmount <= wallet.balance_cop) && 
+                  (betMmc <= wallet.mmc_coins - wallet.locked_mmc) && 
                   paymentMethod === 'wallet';
 
                 if (walletAvailable) {
                   // Wallet payment button
                   return (
                     <button
-                      onClick={() => {
-                        trackInitiateCheckout('wallet');
-                        handleWalletBet();
-                      }}
+                      onClick={handleWalletBet}
                       disabled={!isValid || isProcessing}
                       className={`
                         w-full py-4 rounded-lg font-bold text-lg flex justify-center gap-2 shadow-lg
                         ${isProcessing
                           ? 'bg-yellow-600 text-white cursor-wait'
                           : isValid
-                            ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:shadow-xl transform hover:scale-[1.02]'
+                            ? 'bg-gradient-to-r from-purple-500 to-pink-600 text-white hover:shadow-xl transform hover:scale-[1.02]'
                             : 'bg-gray-600/80 text-gray-400/80 cursor-not-allowed'}
                         transition-all duration-200
                       `}
@@ -822,12 +860,12 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                           <FaSpinner className="animate-spin" /> Procesando…
                         </>
                       ) : (
-                        <>🎮 Apostar con Saldo • <CurrencyDisplay copAmount={bonusCalculation.baseAmount} /></>
+                        <>🎮 Jugar con Saldo • <CurrencyDisplay copAmount={bonusCalculation.totalEffectiveAmount} /></>
                       )}
                     </button>
                   );
                 } else {
-                  // Regular payment button (Bold/Crypto)
+                  // Bold payment button
                   return (
                     <button
                       onClick={handleBoldPayment}
@@ -837,7 +875,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
                         ${isProcessing
                           ? 'bg-yellow-600 text-white cursor-wait'
                           : isValid
-                            ? 'bg-gradient-to-r from-blue-500 to-cyan-600 text-white hover:shadow-xl transform hover:scale-[1.02]'
+                            ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:shadow-xl transform hover:scale-[1.02]'
                             : 'bg-gray-600/80 text-gray-400/80 cursor-not-allowed'}
                         transition-all duration-200
                       `}
