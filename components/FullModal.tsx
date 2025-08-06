@@ -1,4 +1,4 @@
-// components/FullModal.tsx - Fixed TypeScript Errors
+// components/FullModal.tsx - Final Cash-Only Version with Promotional System
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -315,7 +315,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
           picks: combinedPicks,
           mode,
           amount: bonusCalculation.baseAmount,
-          gpName: 'Current GP', // You might want to get this from somewhere
+          gpName: 'Current GP', // You might want to get this from your store
           fullName: isAuthenticated ? user?.fullName : fullName,
           email: isAuthenticated ? user?.primaryEmailAddress?.emailAddress : email,
           anonymousSessionId: !isAuthenticated ? generateAnonymousSession() : undefined,
@@ -381,7 +381,7 @@ export default function FullModal({ isOpen, onClose }: FullModalProps) {
       const pickData = await registerPickTransaction();
       const { orderId, promotion } = pickData;
 
-      // Process wallet payment using simplified RPC
+      // 🔥 UPDATED: Process wallet payment using simplified RPC
       const token = await getToken({ template: 'supabase' });
       if (!token) throw new Error('No auth token');
       
