@@ -191,7 +191,7 @@ export const useCurrencyStore = create<CurrencyState>()(
       // Get minimum bet in current currency
       getMinimumBet: () => {
         const { currency, convertFromCOP } = get();
-        const copAmount = 20000; // Minimum bet in COP
+        const copAmount = 2000; // Minimum bet in COP
         
         if (currency === 'COP') {
           return {
