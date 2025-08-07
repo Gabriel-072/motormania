@@ -1,4 +1,4 @@
-// app/api/complete-anonymous-order/route.ts - Fixed Version
+// app/api/complete-anonymous-order/route.ts - Enhanced Version
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { createClient } from '@supabase/supabase-js';
@@ -16,12 +16,14 @@ export async function POST(req: NextRequest) {
     // Get authenticated user
     const { userId } = await auth();
     if (!userId) {
+      console.error('❌ No authenticated user found');
       return NextResponse.json({ error: 'User not authenticated' }, { status: 401 });
     }
 
     // Get session ID from request
     const { sessionId } = await req.json();
     if (!sessionId) {
+      console.error('❌ Session ID missing in request');
       return NextResponse.json({ error: 'Session ID required' }, { status: 400 });
     }
 
@@ -37,15 +39,15 @@ export async function POST(req: NextRequest) {
 
     if (fetchError) {
       console.error('❌ Error fetching transactions:', fetchError);
-      return NextResponse.json({ error: 'Database error' }, { status: 500 });
+      return NextResponse.json({ error: 'Database error', details: fetchError.message }, { status: 500 });
     }
 
     if (!transactions || transactions.length === 0) {
       console.log('❌ No paid transactions found for session');
-      return NextResponse.json({ 
-        success: true, 
-        linked: 0, 
-        message: 'No paid orders found to link' 
+      return NextResponse.json({
+        success: true,
+        linked: 0,
+        message: 'No paid orders found to link'
       });
     }
 
@@ -58,6 +60,16 @@ export async function POST(req: NextRequest) {
     for (const tx of transactions) {
       try {
         console.log(`🔄 Processing transaction: ${tx.order_id}`);
+
+        // Validate required fields
+        if (!tx.gp_name || !tx.order_id || !tx.picks || !Array.isArray(tx.picks)) {
+          console.error(`❌ Invalid transaction data for ${tx.order_id}:`, {
+            gp_name: tx.gp_name,
+            order_id: tx.order_id,
+            picks: tx.picks
+          });
+          throw new Error('Missing or invalid required fields');
+        }
 
         // Handle promotional application if it was requested
         let promoApplicationId = null;
@@ -81,14 +93,16 @@ export async function POST(req: NextRequest) {
                 effectiveAmount = result.total_effective_amount;
                 
                 // Get the promo application ID
-                const { data: promoApp } = await supabase
+                const { data: promoApp, error: promoAppError } = await supabase
                   .from('user_promo_applications')
                   .select('id')
                   .eq('user_id', userId)
                   .eq('transaction_id', tx.order_id)
                   .single();
                 
-                if (promoApp) {
+                if (promoAppError) {
+                  console.error(`❌ Error fetching promo application for ${tx.order_id}:`, promoAppError);
+                } else if (promoApp) {
                   promoApplicationId = promoApp.id;
                 }
                 
@@ -97,7 +111,11 @@ export async function POST(req: NextRequest) {
                   bonusAmount: result.bonus_amount,
                   effectiveAmount: effectiveAmount
                 });
+              } else {
+                console.warn(`❌ Promotion application failed for ${tx.order_id}: ${result.error_message}`);
               }
+            } else if (bonusError) {
+              console.error(`❌ Error fetching promotion for ${tx.order_id}:`, bonusError);
             }
           } catch (promoError) {
             console.error('❌ Error applying promotion:', promoError);
@@ -114,19 +132,19 @@ export async function POST(req: NextRequest) {
           .limit(1)
           .maybeSingle();
 
-        // 🔥 FIX: Insert the data into picks table
+        // Prepare data for insertion into picks table
         const pickData = {
-          user_id: userId, // Now we have the authenticated user ID
+          user_id: userId,
           gp_name: tx.gp_name,
           session_type: 'combined',
           picks: Array.isArray(tx.picks) ? tx.picks : [],
-          multiplier: Number(tx.multiplier ?? 0),
-          potential_win: tx.potential_win ?? 0,
+          multiplier: Math.round(Number(tx.multiplier ?? 0)), // Ensure integer multiplier
+          potential_win: Number(tx.potential_win ?? 0),
           mode: tx.mode ?? 'full',
-          wager_amount: effectiveAmount,
+          wager_amount: Number(effectiveAmount),
           order_id: tx.order_id,
-          pick_transaction_id: tx.id,
-          payment_method: 'bold',
+          pick_transaction_id: tx.id, // Changed from tx.id to align with transaction reference
+          payment_method: tx.bold_payment_id ? 'bold' : 'crypto',
           ...(promoApplicationId && { promo_application_id: promoApplicationId }),
           ...(recentTraffic && {
             utm_source: recentTraffic.utm_source,
@@ -138,32 +156,56 @@ export async function POST(req: NextRequest) {
           })
         };
 
+        // Log the data before insertion for debugging
+        console.log('Attempting to insert pickData:', JSON.stringify(pickData, null, 2));
+
         // Insert into picks table
         const { error: insertError } = await supabase
           .from('picks')
           .insert(pickData);
 
         if (insertError) {
-          console.error(`❌ Failed to insert pick for order ${tx.order_id}:`, insertError);
-          throw insertError;
+          console.error(`❌ Failed to insert pick for order ${tx.order_id}:`, {
+            message: insertError.message,
+            details: insertError.details,
+            hint: insertError.hint,
+            pickData
+          });
+          throw new Error(`Insertion failed: ${insertError.message}`);
         }
 
         // Update promo application status if used
         if (promoApplicationId) {
-          await supabase
+          const { error: promoUpdateError } = await supabase
             .from('user_promo_applications')
             .update({ 
               status: 'used',
               used_at: new Date().toISOString()
             })
             .eq('id', promoApplicationId);
+          if (promoUpdateError) {
+            console.error(`❌ Failed to update promo application ${promoApplicationId}:`, {
+              message: promoUpdateError.message,
+              details: promoUpdateError.details,
+              hint: promoUpdateError.hint
+            });
+            throw new Error(`Promo update failed: ${promoUpdateError.message}`);
+          }
         }
 
-        // Delete the transaction from pick_transactions table
-        await supabase
+        // Delete the transaction from pick_transactions table only after successful insertion
+        const { error: deleteError } = await supabase
           .from('pick_transactions')
           .delete()
           .eq('id', tx.id);
+        if (deleteError) {
+          console.error(`❌ Failed to delete transaction ${tx.id}:`, {
+            message: deleteError.message,
+            details: deleteError.details,
+            hint: deleteError.hint
+          });
+          throw new Error(`Deletion failed: ${deleteError.message}`);
+        }
 
         console.log(`✅ Successfully moved transaction ${tx.order_id} to picks table`);
 
