@@ -20,6 +20,7 @@ export default function SignUpPage() {
     amount: string;
     mode: string;
   } | null>(null);
+  const [isLinking, setIsLinking] = useState(false);
 
   // Get URL parameters
   const sessionId = searchParams.get('session');
@@ -30,6 +31,8 @@ export default function SignUpPage() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
+    console.log('SignUp page loaded with params:', { sessionId, orderId, redirectUrl });
+
     const pendingPayment = localStorage.getItem('pendingPayment');
     if (pendingPayment && sessionId) {
       try {
@@ -37,11 +40,14 @@ export default function SignUpPage() {
         setPendingOrderInfo({
           orderId: paymentData.orderId || orderId || 'N/A',
           amount: paymentData.amountStr || '0',
-          mode: 'full' // Default, will be updated from transaction data
+          mode: paymentData.mode || 'full'
         });
+        console.log('Parsed pending payment data:', pendingOrderInfo);
       } catch (error) {
         console.error('Error parsing pending payment data:', error);
       }
+    } else if (!sessionId) {
+      console.warn('No sessionId found, anonymous order linking will not proceed');
     }
   }, [sessionId, orderId]);
 
@@ -49,9 +55,12 @@ export default function SignUpPage() {
   useEffect(() => {
     if (!isLoaded) return;
 
+    console.log('User state:', { isLoaded, userId: user?.id, sessionId });
+
     // If user just signed up and we have a session, show order completion
     if (user?.id && sessionId && !showOrderCompletion) {
       setShowOrderCompletion(true);
+      console.log('Triggering AnonymousOrderCompletion with session:', sessionId);
     }
     
     // If user is already signed in and no session, redirect
@@ -61,15 +70,16 @@ export default function SignUpPage() {
   }, [isLoaded, user?.id, sessionId, showOrderCompletion, redirectUrl, router]);
 
   const handleOrderCompletionFinish = () => {
-    setShowOrderCompletion(false);
-    // Small delay to let the user see the success message
+    setIsLinking(true);
+    console.log('Order completion finished, preparing to redirect to:', redirectUrl);
     setTimeout(() => {
+      setShowOrderCompletion(false);
+      setIsLinking(false);
       router.push(redirectUrl);
-    }, 1500);
+    }, 1500); // Delay to show success feedback
   };
 
   useEffect(() => {
-    console.log('SignUp page loaded with redirect_url:', redirectUrl);
     const timer = setTimeout(() => {
       wrapperControls.start({ opacity: 1, transition: { duration: 0.6 } });
       borderControls.start({
@@ -78,7 +88,7 @@ export default function SignUpPage() {
       });
     }, 100);
     return () => clearTimeout(timer);
-  }, [wrapperControls, borderControls, redirectUrl]);
+  }, [wrapperControls, borderControls]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-950 to-gray-900 flex items-center justify-center p-4 sm:p-8 relative overflow-hidden">
@@ -192,6 +202,13 @@ export default function SignUpPage() {
       {/* Anonymous Order Completion Modal */}
       {showOrderCompletion && (
         <AnonymousOrderCompletion onComplete={handleOrderCompletionFinish} />
+      )}
+      {isLinking && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="text-center">
+            <p className="text-white">Vinculando tu jugada...</p>
+          </div>
+        </div>
       )}
     </div>
   );

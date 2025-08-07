@@ -5,7 +5,7 @@ import React, { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { motion } from 'framer-motion';
-import { FaCheckCircle, FaTrophy, FaArrowRight, FaSpinner } from 'react-icons/fa';
+import { FaCheckCircle, FaTrophy, FaArrowRight, FaSpinner, FaUserPlus } from 'react-icons/fa';
 import Link from 'next/link';
 
 function PaymentSuccessContent() {
@@ -15,11 +15,13 @@ function PaymentSuccessContent() {
   
   const [isProcessing, setIsProcessing] = useState(true);
   const [orderDetails, setOrderDetails] = useState<any>(null);
-  
+  const [showRegisterPrompt, setShowRegisterPrompt] = useState(false);
+
   // Get URL parameters
   const isCrypto = searchParams.get('crypto') === 'true';
   const boldOrderId = searchParams.get('bold_order_id');
   const orderId = searchParams.get('order') || boldOrderId;
+  const sessionId = searchParams.get('session') || localStorage.getItem('anonymousSession');
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -27,12 +29,12 @@ function PaymentSuccessContent() {
     // Simulate processing time for better UX
     const timer = setTimeout(() => {
       setIsProcessing(false);
-      
+
       // Try to get order details from localStorage for anonymous users
       try {
         const pendingPayment = localStorage.getItem('pendingPayment');
         const cryptoOrderId = localStorage.getItem('cryptoOrderId');
-        
+
         if (pendingPayment) {
           const paymentData = JSON.parse(pendingPayment);
           setOrderDetails(paymentData);
@@ -40,25 +42,53 @@ function PaymentSuccessContent() {
         } else if (cryptoOrderId) {
           setOrderDetails({ orderId: cryptoOrderId });
           localStorage.removeItem('cryptoOrderId');
+        } else if (orderId) {
+          setOrderDetails({ orderId });
         }
       } catch (error) {
         console.warn('Error parsing payment data:', error);
       }
+
+      // Show register prompt if anonymous
+      if (!user?.id && sessionId) {
+        setShowRegisterPrompt(true);
+        console.log('🔍 Detected anonymous session:', sessionId, 'for order:', orderId);
+      }
     }, 2000);
 
     return () => clearTimeout(timer);
-  }, [isLoaded]);
+  }, [isLoaded, user?.id, orderId, sessionId]);
 
-  // Auto-redirect after success
+  // Auto-redirect or link order after success
   useEffect(() => {
-    if (!isProcessing && user?.id) {
+    if (!isProcessing && user?.id && sessionId) {
+      const linkOrder = async () => {
+        try {
+          console.log('🔗 Attempting to link anonymous order with session:', sessionId);
+          const response = await fetch('/api/complete-anonymous-order', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId }),
+          });
+          const data = await response.json();
+          console.log('🔗 Link order response:', data);
+          if (response.ok && data.linked > 0) {
+            router.push('/dashboard');
+          } else {
+            console.warn('🔗 Order linking failed or no orders found:', data);
+          }
+        } catch (error) {
+          console.error('❌ Error linking anonymous order:', error);
+        }
+      };
+      linkOrder();
+
       const redirectTimer = setTimeout(() => {
         router.push('/dashboard');
       }, 8000); // 8 seconds to read success message
-
       return () => clearTimeout(redirectTimer);
     }
-  }, [isProcessing, user?.id, router]);
+  }, [isProcessing, user?.id, sessionId, router]);
 
   if (!isLoaded || isProcessing) {
     return (
@@ -180,20 +210,29 @@ function PaymentSuccessContent() {
           </div>
         </motion.div>
 
-        {/* Action Buttons */}
+        {/* Action Buttons or Register Prompt */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 1.2 }}
           className="flex flex-col sm:flex-row gap-4"
         >
-          <Link
-            href="/dashboard"
-            className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold py-3 px-6 rounded-lg hover:from-green-600 hover:to-emerald-700 transition-all flex items-center justify-center gap-2"
-          >
-            Ver Mi Dashboard <FaArrowRight />
-          </Link>
-          
+          {user?.id ? (
+            <Link
+              href="/dashboard"
+              className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold py-3 px-6 rounded-lg hover:from-green-600 hover:to-emerald-700 transition-all flex items-center justify-center gap-2"
+            >
+              Ver Mi Dashboard <FaArrowRight />
+            </Link>
+          ) : showRegisterPrompt && sessionId ? (
+            <Link
+              href={`/sign-up?session=${sessionId}&order=${orderId}&redirect_url=/payment-success`}
+              className="flex-1 bg-gradient-to-r from-amber-500 to-yellow-600 text-white font-bold py-3 px-6 rounded-lg hover:from-amber-600 hover:to-yellow-700 transition-all flex items-center justify-center gap-2"
+            >
+              Completar Registro <FaUserPlus />
+            </Link>
+          ) : null}
+
           <Link
             href="/mmc-go"
             className="flex-1 bg-gray-700 text-white font-bold py-3 px-6 rounded-lg hover:bg-gray-600 transition-all text-center"
