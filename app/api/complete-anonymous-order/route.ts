@@ -1,19 +1,16 @@
-// app/api/complete-anonymous-order/route.ts - Fixed to properly update picks table
+// app/api/complete-anonymous-order/route.ts - Updated for Promotional System
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { createClient } from '@supabase/supabase-js';
-import crypto from 'crypto';
 
-const sb = createClient(
+const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  { auth: { persistSession: false } }
 );
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL!;
-const INTERNAL_KEY = process.env.INTERNAL_API_KEY!;
-
-/* ───────────── FACEBOOK TRACKING FOR COMPLETED REGISTRATION ─────────────── */
-async function trackCompleteRegistration(orderData: {
+// Track completion for analytics
+async function trackCompleteRegistration(data: {
   orderId: string;
   amount: number;
   email: string;
@@ -21,171 +18,165 @@ async function trackCompleteRegistration(orderData: {
   picks: any[];
   mode: string;
 }) {
-  const eventId = `complete_registration_${orderData.orderId}_${Date.now()}`;
-  
   try {
-    const hashedEmail = crypto.createHash('sha256')
-      .update(orderData.email.toLowerCase().trim())
-      .digest('hex');
+    console.log('📊 Tracking CompleteRegistration for:', data.orderId);
     
-    await fetch(`${SITE_URL}/api/fb-track`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-internal-key': INTERNAL_KEY
-      },
-      body: JSON.stringify({
-        event_name: 'CompleteRegistration',
-        event_id: eventId,
-        event_source_url: `${SITE_URL}/sign-up`,
-        user_data: {
-          em: hashedEmail,
-          external_id: orderData.userId,
-        },
-        custom_data: {
-          content_name: `Post-Payment Registration - ${orderData.mode}`,
-          content_category: 'user_registration',
-          value: orderData.amount / 1000,
-          currency: 'COP',
-          num_items: orderData.picks.length
-        },
-      }),
-    });
-
-    console.log(`✅ CompleteRegistration event tracked: ${orderData.orderId}`);
+    // You can add Facebook Pixel or other tracking here
+    if (typeof window !== 'undefined' && window.fbq) {
+      window.fbq('track', 'CompleteRegistration', {
+        content_name: 'Anonymous Order Completion',
+        value: data.amount / 1000,
+        currency: 'COP',
+        content_ids: [data.orderId],
+        num_items: data.picks.length
+      });
+    }
   } catch (error) {
-    console.error(`❌ Failed to track CompleteRegistration event:`, error);
+    console.warn('Analytics tracking failed:', error);
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
-    console.log('🔗 Starting complete-anonymous-order API...');
+    console.log('🔗 Starting anonymous order completion process');
 
-    /* 1. Authenticate user */
+    // Get authenticated user
     const { userId } = await auth();
     if (!userId) {
-      console.error('❌ No authenticated user found');
-      return new NextResponse('Unauthorized', { status: 401 });
+      return NextResponse.json({ error: 'User not authenticated' }, { status: 401 });
     }
 
-    console.log('✅ Authenticated user:', userId);
-
-    /* 2. Get session ID from request */
+    // Get session ID from request
     const { sessionId } = await req.json();
     if (!sessionId) {
-      console.error('❌ No session ID provided');
-      return NextResponse.json({ 
-        error: 'Session ID required' 
-      }, { status: 400 });
+      return NextResponse.json({ error: 'Session ID required' }, { status: 400 });
     }
 
-    console.log('🔍 Looking for transactions with session:', sessionId);
+    console.log(`🔍 Looking for paid transactions for session: ${sessionId}`);
 
-    /* 3. Find paid anonymous transactions for this session */
-    const { data: transactions, error: fetchError } = await sb
+    // 🔥 UPDATED: Find paid pick_transactions for this session
+    const { data: transactions, error: fetchError } = await supabase
       .from('pick_transactions')
       .select('*')
       .eq('anonymous_session_id', sessionId)
       .eq('payment_status', 'paid')
-      .is('user_id', null);
+      .order('created_at', { ascending: false });
 
     if (fetchError) {
-      console.error('❌ Error fetching anonymous transactions:', fetchError);
-      throw new Error('Error buscando transacciones anónimas');
+      console.error('❌ Error fetching transactions:', fetchError);
+      return NextResponse.json({ error: 'Database error' }, { status: 500 });
     }
 
-    console.log(`📊 Found ${transactions?.length || 0} transactions to link`);
-
     if (!transactions || transactions.length === 0) {
-      console.log('ℹ️ No paid anonymous transactions found for session:', sessionId);
+      console.log('❌ No paid transactions found for session');
       return NextResponse.json({ 
-        message: 'No paid transactions found',
-        linked: 0 
+        success: true, 
+        linked: 0, 
+        message: 'No paid orders found to link' 
       });
     }
 
-    /* 4. Get UTM data for this user (if available) */
-    const { data: utmData } = await sb
-      .from('traffic_sources')
-      .select('utm_source, utm_medium, utm_campaign, utm_term, utm_content, referrer')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    console.log(`📋 Found ${transactions.length} paid transaction(s) to process`);
 
-    console.log('📈 UTM data found:', utmData ? 'yes' : 'no');
-
-    /* 5. Process each transaction */
     let linkedCount = 0;
-    const processedOrders: any[] = [];
+    const processedOrders = [];
 
+    // Process each transaction
     for (const tx of transactions) {
       try {
-        console.log(`🔄 Processing transaction ${tx.id} - ${tx.order_id}`);
+        console.log(`🔄 Processing transaction: ${tx.order_id}`);
 
-        /* Update transaction with user_id */
-        const { error: updateError } = await sb
-          .from('pick_transactions')
-          .update({ 
-            user_id: userId, 
-            user_registered_at: new Date().toISOString()
-          })
-          .eq('id', tx.id);
+        // 🔥 UPDATED: Check if this transaction needs promotional processing
+        let promoApplicationId = null;
+        if (tx.promotion_applied) {
+          try {
+            // Apply promotional bonus using RPC function
+            const { data: bonusResult, error: bonusError } = await supabase.rpc('apply_picks_promotion', {
+              p_user_id: userId,
+              p_transaction_id: tx.order_id,
+              p_original_amount: tx.wager_amount
+            });
 
-        if (updateError) {
-          console.error(`❌ Error updating transaction ${tx.id}:`, updateError);
-          continue;
+            if (!bonusError && bonusResult && bonusResult.length > 0) {
+              const result = bonusResult[0];
+              if (result.success) {
+                console.log(`🎁 Promotional bonus applied: ${result.campaign_name}`);
+                
+                // Get the promo application ID
+                const { data: promoApp } = await supabase
+                  .from('user_promo_applications')
+                  .select('id')
+                  .eq('user_id', userId)
+                  .eq('transaction_id', tx.order_id)
+                  .single();
+                
+                if (promoApp) {
+                  promoApplicationId = promoApp.id;
+                }
+              }
+            }
+          } catch (promoError) {
+            console.warn('⚠️ Promotional processing failed, continuing without bonus:', promoError);
+          }
         }
 
-        console.log(`✅ Updated transaction ${tx.id} with user_id`);
-
-        /* Move to picks table */
+        // 🔥 UPDATED: Create pick record with promotional data
         const pickData = {
           user_id: userId,
-          gp_name: tx.gp_name,
+          gp_name: tx.gp_name || 'Current GP',
           session_type: 'combined',
           picks: tx.picks || [],
           multiplier: Number(tx.multiplier || 0),
-          wager_amount: Number(tx.wager_amount || 0),
-          potential_win: Number(tx.potential_win || 0),
-          mode: tx.mode,
+          
+          // 🔥 UPDATED: Use promotional amounts if available
+          wager_amount: tx.promotion_total_effective || tx.wager_amount,
+          original_wager_amount: tx.wager_amount, // Store original payment amount
+          potential_win: tx.potential_win || 0,
+          mode: tx.mode || 'full',
+          
+          // 🔥 NEW: Promotional reference
+          promo_application_id: promoApplicationId,
+          
+          // Additional metadata
           order_id: tx.order_id,
-          pick_transaction_id: tx.id,
-          name: tx.full_name,
-          utm_source: utmData?.utm_source,
-          utm_medium: utmData?.utm_medium,
-          utm_campaign: utmData?.utm_campaign,
-          utm_term: utmData?.utm_term,
-          utm_content: utmData?.utm_content,
-          referrer: utmData?.referrer,
-          payment_method: tx.bold_payment_id ? 'bold' : (tx.crypto_payment_id ? 'crypto' : 'unknown')
+          created_at: new Date().toISOString()
         };
 
         console.log('💾 Inserting pick data:', {
           user_id: pickData.user_id,
           order_id: pickData.order_id,
           picks_count: pickData.picks?.length || 0,
-          wager_amount: pickData.wager_amount
+          wager_amount: pickData.wager_amount,
+          promotional_bonus: !!promoApplicationId
         });
 
-        const { error: insertError } = await sb
+        const { error: insertError } = await supabase
           .from('picks')
           .insert(pickData);
 
         if (insertError) {
           console.error(`❌ Error inserting pick ${tx.id}:`, insertError);
-          console.error('Pick data that failed:', pickData);
           continue;
         }
 
         console.log(`✅ Successfully inserted pick for transaction ${tx.id}`);
 
-        /* Track registration completion */
+        // 🔥 UPDATED: Update promo application status if applied
+        if (promoApplicationId) {
+          await supabase
+            .from('user_promo_applications')
+            .update({ 
+              status: 'used',
+              used_at: new Date().toISOString()
+            })
+            .eq('id', promoApplicationId);
+        }
+
+        // Track completion
         await trackCompleteRegistration({
           orderId: tx.order_id,
           amount: Number(tx.wager_amount || 0),
-          email: tx.email,
+          email: tx.email || '',
           userId: userId,
           picks: tx.picks || [],
           mode: tx.mode || 'full'
@@ -195,25 +186,41 @@ export async function POST(req: NextRequest) {
         processedOrders.push({
           orderId: tx.order_id,
           amount: Number(tx.wager_amount || 0),
-          mode: tx.mode,
-          picks: (tx.picks as any[])?.length || 0
+          mode: tx.mode || 'full',
+          picks: (tx.picks as any[])?.length || 0,
+          promotionApplied: !!promoApplicationId
         });
 
         console.log(`🎉 Successfully linked order ${tx.order_id} to user ${userId}`);
 
       } catch (error) {
         console.error(`❌ Error processing transaction ${tx.id}:`, error);
+        continue; // Continue with next transaction
       }
     }
 
-    /* 6. Final response */
+    // 🔥 UPDATED: Clean up processed transactions
+    if (linkedCount > 0) {
+      const processedIds = processedOrders.map(o => o.orderId);
+      const { error: deleteError } = await supabase
+        .from('pick_transactions')
+        .delete()
+        .in('order_id', processedIds);
+
+      if (deleteError) {
+        console.warn('⚠️ Warning: Could not clean up processed transactions:', deleteError);
+      } else {
+        console.log(`🧹 Cleaned up ${linkedCount} processed transactions`);
+      }
+    }
+
     console.log(`🏁 Process complete. Linked ${linkedCount} orders to user ${userId}`);
 
     return NextResponse.json({
       success: true,
       linked: linkedCount,
       orders: processedOrders,
-      message: `Successfully linked ${linkedCount} paid orders to your account`
+      message: `Successfully linked ${linkedCount} paid order${linkedCount === 1 ? '' : 's'} to your account`
     });
 
   } catch (error) {
