@@ -18,6 +18,7 @@ const isPublicRoute = createRouteMatcher([
   '/pricing(.*)',
   '/investigacion-rn365(.*)',
   '/plataforma-viral(.*)',
+  '/api/fb-track',  
 ]);
 
 const isProtectedRoute = createRouteMatcher([

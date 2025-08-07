@@ -14,6 +14,7 @@ const SITE_URL            = process.env.NEXT_PUBLIC_SITE_URL!;
 const INTERNAL_KEY        = process.env.INTERNAL_API_KEY!;
 const RESEND_API_KEY      = process.env.RESEND_API_KEY!;
 
+
 /* ──────────────────────── CLIENTES ───────────────────────────── */
 const sb     = createClient(supabaseUrl, supabaseServiceKey, { auth: { persistSession: false } });
 const resend = new Resend(RESEND_API_KEY);
