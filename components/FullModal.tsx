@@ -40,6 +40,18 @@ import { CurrencyStatusIndicator } from './ui/CurrencyStatusIndicator';
 import { EmbeddedCryptoCheckout } from './EmbeddedCryptoCheckout';
 import { PaymentSupportModal } from './PaymentSupportModal';
 
+// ───── helper: sesión anónima única ─────
+function getOrCreateAnonymousSession(): string {
+  if (typeof window === 'undefined') return '';
+  const KEY = 'anonymousSession';
+  let id = localStorage.getItem(KEY);
+  if (!id) {
+    id = `anon_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    localStorage.setItem(KEY, id);
+  }
+  return id;
+}
+
 interface FullModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -304,12 +316,6 @@ export default function FullModal({ isOpen, onClose, currentGp = 'GP' }: FullMod
     })();
   }, [isOpen, user, getToken]);
 
-  // 🆕 Generate anonymous session ID
-  const generateAnonymousSession = useCallback(() => {
-    const sessionId = `anon_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    localStorage.setItem('anonymousSession', sessionId);
-    return sessionId;
-  }, []);
 
   // 🔥 CONVERSION: Simplified validation for anonymous users
   useEffect(() => {
@@ -387,7 +393,7 @@ export default function FullModal({ isOpen, onClose, currentGp = 'GP' }: FullMod
 
     try {
       const copAmount = currency === 'COP' ? amount : convertToCOP(amount);
-      const sessionId = !isAuthenticated ? generateAnonymousSession() : null;
+      const sessionId = !isAuthenticated ? getOrCreateAnonymousSession() : undefined;
 
       const res = await fetch('/api/transactions/register-pick-transaction', {
         method: 'POST',
@@ -521,7 +527,7 @@ export default function FullModal({ isOpen, onClose, currentGp = 'GP' }: FullMod
 
     try {
       const copAmount = currency === 'COP' ? amount : convertToCOP(amount);
-      const sessionId = !isAuthenticated ? generateAnonymousSession() : null;
+      const sessionId = !isAuthenticated ? getOrCreateAnonymousSession() : undefined;
       const orderId = !isAuthenticated 
         ? `CRYPTO-ANON-${Date.now()}`
         : `CRYPTO-${Date.now()}-${user?.id}`;
