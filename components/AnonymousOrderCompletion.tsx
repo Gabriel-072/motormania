@@ -25,6 +25,10 @@ export default function AnonymousOrderCompletion({ onComplete }: AnonymousOrderC
   
   const [isProcessing, setIsProcessing] = useState(false);
   const [linkedOrders, setLinkedOrders] = useState<LinkedOrder[]>([]);
+  const [promotionalSummary, setPromotionalSummary] = useState<{
+    ordersWithPromotion: number;
+    totalBonusApplied: number;
+  } | null>(null); // 🔥 NEW: Track promotional results
   const [error, setError] = useState<string | null>(null);
   const [hasProcessed, setHasProcessed] = useState(false);
 
@@ -59,16 +63,27 @@ export default function AnonymousOrderCompletion({ onComplete }: AnonymousOrderC
 
         if (data.linked > 0) {
           setLinkedOrders(data.orders || []);
-          toast.success(`¡Perfecto! ${data.linked} jugada${data.linked > 1 ? 's' : ''} vinculada${data.linked > 1 ? 's' : ''} a tu cuenta`, {
+          setPromotionalSummary(data.promotionalSummary || null); // 🔥 NEW: Store promotional summary
+          
+          // 🔥 UPDATED: Enhanced success message with promotional info
+          const promoText = data.promotionalSummary?.ordersWithPromotion > 0 
+            ? ` (${data.promotionalSummary.ordersWithPromotion} con bono aplicado)`
+            : '';
+          
+          toast.success(`¡Perfecto! ${data.linked} jugada${data.linked > 1 ? 's' : ''} vinculada${data.linked > 1 ? 's' : ''}${promoText}`, {
             duration: 5000
           });
 
-          // Track successful completion
+          // 🔥 UPDATED: Track successful completion with promotional data
           if (typeof window !== 'undefined' && window.fbq) {
             window.fbq('track', 'CompleteRegistration', {
               content_name: 'Anonymous Order Completion',
-              value: data.orders?.reduce((sum: number, order: LinkedOrder) => sum + order.amount, 0) / 1000 || 0,
-              currency: 'COP'
+              value: data.orders?.reduce((sum: number, order: any) => sum + order.effectiveAmount, 0) / 1000 || 0,
+              currency: 'COP',
+              custom_data: {
+                orders_with_promotion: data.promotionalSummary?.ordersWithPromotion || 0,
+                total_bonus_applied: data.promotionalSummary?.totalBonusApplied || 0
+              }
             });
           }
         } else {
@@ -123,7 +138,7 @@ export default function AnonymousOrderCompletion({ onComplete }: AnonymousOrderC
               Finalizando tu registro...
             </h3>
             <p className="text-gray-300 text-sm font-exo2">
-              Estamos vinculando tus jugadas a tu nueva cuenta
+              Estamos vinculando tus jugadas y aplicando bonos
             </p>
           </div>
         )}
@@ -142,20 +157,32 @@ export default function AnonymousOrderCompletion({ onComplete }: AnonymousOrderC
               Tus picks han sido vinculados exitosamente
             </p>
             
+            {/* 🔥 NEW: Show promotional summary */}
+            {promotionalSummary && promotionalSummary.ordersWithPromotion > 0 && (
+              <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3 mb-4">
+                <p className="text-green-400 text-sm font-semibold">
+                  🎁 {promotionalSummary.ordersWithPromotion} jugada{promotionalSummary.ordersWithPromotion > 1 ? 's' : ''} con bono aplicado
+                </p>
+                <p className="text-green-300 text-xs">
+                  Bono total: ${promotionalSummary.totalBonusApplied.toLocaleString()} COP
+                </p>
+              </div>
+            )}
+            
             <div className="space-y-2">
-              {linkedOrders.map((order, index) => (
+              {linkedOrders.map((order: any, index: number) => (
                 <div key={index} className="bg-gray-800/50 p-3 rounded-lg text-left">
                   <div className="flex justify-between items-center">
                     <span className="text-white font-medium text-sm">
                       {order.picks} picks - {order.mode === 'full' ? 'Full Throttle' : 'Safety Car'}
+                      {order.promotionApplied && (
+                        <span className="text-green-400 text-xs ml-2">+ Bono</span>
+                      )}
                     </span>
                     <span className="text-amber-400 font-bold text-sm">
-                      ${order.amount.toLocaleString()} COP
+                      ${(order.effectiveAmount || order.amount).toLocaleString()} COP
                     </span>
                   </div>
-                  <p className="text-xs text-gray-400 mt-1">
-                    ID: {order.orderId.slice(-8)}
-                  </p>
                 </div>
               ))}
             </div>

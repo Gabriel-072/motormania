@@ -204,43 +204,50 @@ export default function FullModal({ isOpen, onClose, currentGp = 'GP' }: FullMod
 
   // 🔥 NEW: Fetch promotional offer
   const fetchPromotionalOffer = useCallback(async () => {
-    if (!isAuthenticated || !user?.id || amount < 10000) {
-      setPromotionalOffer(null);
-      return;
-    }
+  // Don't require authentication - let anonymous users see promotions too
+  if (amount < 10000) {
+    setPromotionalOffer(null);
+    return;
+  }
 
-    setLoadingPromotion(true);
-    try {
-      const token = await getToken({ template: 'supabase' });
-      if (!token) return;
+  setLoadingPromotion(true);
+  try {
+    // For anonymous users, we can still check for active promotions
+    // We'll use a placeholder user ID or check for global promotions
+    
+    const token = await getToken({ template: 'supabase' });
+    if (!token && isAuthenticated) return; // Only return if authenticated user has no token
+    
+    const supabase = createAuthClient(token);
+    
+    // 🔥 NEW: Allow anonymous users to see promotions
+    const { data, error } = await supabase.rpc('get_active_picks_promotion', {
+      p_user_id: user?.id || 'anonymous_user', // Use placeholder for anonymous
+      p_bet_amount: amount
+    });
 
-      const supabase = createAuthClient(token);
-      const { data, error } = await supabase.rpc('get_active_picks_promotion', {
-        p_user_id: user.id,
-        p_bet_amount: amount
+    if (!error && data && data.length > 0) {
+      const promo = data[0];
+      setPromotionalOffer({
+        campaignId: promo.campaign_id,
+        campaignName: promo.campaign_name,
+        bonusPercentage: promo.bonus_percentage,
+        calculatedBonusAmount: promo.calculated_bonus_amount,
+        totalEffectiveAmount: promo.total_effective_amount,
+        userRemainingUses: promo.user_remaining_uses
       });
-
-      if (!error && data && data.length > 0) {
-        const promo = data[0];
-        setPromotionalOffer({
-          campaignId: promo.campaign_id,
-          campaignName: promo.campaign_name,
-          bonusPercentage: promo.bonus_percentage,
-          calculatedBonusAmount: promo.calculated_bonus_amount,
-          totalEffectiveAmount: promo.total_effective_amount,
-          userRemainingUses: promo.user_remaining_uses
-        });
-        console.log('🎁 Promotional offer found:', promo.campaign_name);
-      } else {
-        setPromotionalOffer(null);
-      }
-    } catch (error) {
-      console.error('Error fetching promotional offer:', error);
+      console.log('🎁 Promotional offer found for anonymous user:', promo.campaign_name);
+    } else {
       setPromotionalOffer(null);
-    } finally {
-      setLoadingPromotion(false);
     }
-  }, [isAuthenticated, user?.id, amount, getToken]);
+  } catch (error) {
+    console.error('Error fetching promotional offer:', error);
+    setPromotionalOffer(null);
+  } finally {
+    setLoadingPromotion(false);
+  }
+}, [isAuthenticated, user?.id, amount, getToken]); // Removed isAuthenticated dependency
+
 
   // Fetch promotional offer when modal opens or amount changes
   useEffect(() => {

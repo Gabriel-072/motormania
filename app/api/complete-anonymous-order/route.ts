@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
 
     console.log(`🔍 Looking for paid transactions for session: ${sessionId}`);
 
-    // 🔥 UPDATED: Find paid pick_transactions for this session
+    // Find paid pick_transactions for this session
     const { data: transactions, error: fetchError } = await supabase
       .from('pick_transactions')
       .select('*')
@@ -86,13 +86,18 @@ export async function POST(req: NextRequest) {
       try {
         console.log(`🔄 Processing transaction: ${tx.order_id}`);
 
-        // 🔥 UPDATED: Check if this transaction needs promotional processing
+        // 🔥 UPDATED: Handle promotional application for anonymous users
         let promoApplicationId = null;
+        let effectiveAmount = tx.wager_amount;
+
+        // Check if promotion was requested during payment
         if (tx.promotion_applied) {
           try {
+            console.log(`🎁 Applying promotional bonus for anonymous order: ${tx.order_id}`);
+            
             // Apply promotional bonus using RPC function
             const { data: bonusResult, error: bonusError } = await supabase.rpc('apply_picks_promotion', {
-              p_user_id: userId,
+              p_user_id: userId, // Now we have the real user ID
               p_transaction_id: tx.order_id,
               p_original_amount: tx.wager_amount
             });
@@ -100,9 +105,9 @@ export async function POST(req: NextRequest) {
             if (!bonusError && bonusResult && bonusResult.length > 0) {
               const result = bonusResult[0];
               if (result.success) {
-                console.log(`🎁 Promotional bonus applied: ${result.campaign_name}`);
+                effectiveAmount = result.total_effective_amount;
                 
-                // Get the promo application ID
+                // Get the promo application ID for reference
                 const { data: promoApp } = await supabase
                   .from('user_promo_applications')
                   .select('id')
@@ -113,55 +118,74 @@ export async function POST(req: NextRequest) {
                 if (promoApp) {
                   promoApplicationId = promoApp.id;
                 }
+                
+                console.log(`✅ Promotional bonus applied successfully:`, {
+                  campaignName: result.campaign_name,
+                  bonusAmount: result.bonus_amount,
+                  effectiveAmount: effectiveAmount
+                });
+              } else {
+                console.warn(`❌ Promotion application failed: ${result.error_message}`);
               }
+            } else {
+              console.warn(`❌ Promotion RPC failed:`, bonusError);
             }
           } catch (promoError) {
-            console.warn('⚠️ Promotional processing failed, continuing without bonus:', promoError);
+            console.error('❌ Error applying promotion:', promoError);
+            // Continue without promotion - don't fail the entire process
           }
         }
 
-        // 🔥 UPDATED: Create pick record with promotional data
+        // Get UTM data if available
+        let utmData = null;
+        const { data: recentTraffic } = await supabase
+          .from('traffic_sources')
+          .select('utm_source, utm_medium, utm_campaign, utm_term, utm_content, referrer')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        
+        if (recentTraffic) {
+          utmData = recentTraffic;
+        }
+
+        // 🔥 UPDATED: Move to picks table with promotional data
         const pickData = {
           user_id: userId,
-          gp_name: tx.gp_name || 'Current GP',
+          gp_name: tx.gp_name,
           session_type: 'combined',
-          picks: tx.picks || [],
-          multiplier: Number(tx.multiplier || 0),
+          picks: tx.picks ?? [],
+          multiplier: Number(tx.multiplier ?? 0),
+          potential_win: tx.potential_win ?? 0,
+          mode: tx.mode ?? 'full',
           
-          // 🔥 UPDATED: Use promotional amounts if available
-          wager_amount: tx.promotion_total_effective || tx.wager_amount,
-          original_wager_amount: tx.wager_amount, // Store original payment amount
-          potential_win: tx.potential_win || 0,
-          mode: tx.mode || 'full',
+          // 🔥 IMPORTANT: Use effective amount (includes bonus)
+          wager_amount: effectiveAmount,
           
-          // 🔥 NEW: Promotional reference
+          // 🔥 NEW: Store promotional reference
           promo_application_id: promoApplicationId,
           
-          // Additional metadata
-          order_id: tx.order_id,
-          created_at: new Date().toISOString()
+          // UTM attribution
+          utm_source: utmData?.utm_source,
+          utm_medium: utmData?.utm_medium,
+          utm_campaign: utmData?.utm_campaign,
+          utm_term: utmData?.utm_term,
+          utm_content: utmData?.utm_content,
+          referrer: utmData?.referrer
         };
 
-        console.log('💾 Inserting pick data:', {
-          user_id: pickData.user_id,
-          order_id: pickData.order_id,
-          picks_count: pickData.picks?.length || 0,
-          wager_amount: pickData.wager_amount,
-          promotional_bonus: !!promoApplicationId
-        });
-
-        const { error: insertError } = await supabase
+        // Insert into picks table
+        const { error: pickError } = await supabase
           .from('picks')
           .insert(pickData);
 
-        if (insertError) {
-          console.error(`❌ Error inserting pick ${tx.id}:`, insertError);
+        if (pickError) {
+          console.error(`❌ Error inserting pick for ${tx.order_id}:`, pickError);
           continue;
         }
 
-        console.log(`✅ Successfully inserted pick for transaction ${tx.id}`);
-
-        // 🔥 UPDATED: Update promo application status if applied
+        // 🔥 UPDATED: Update promo status if applied
         if (promoApplicationId) {
           await supabase
             .from('user_promo_applications')
@@ -172,23 +196,15 @@ export async function POST(req: NextRequest) {
             .eq('id', promoApplicationId);
         }
 
-        // Track completion
-        await trackCompleteRegistration({
-          orderId: tx.order_id,
-          amount: Number(tx.wager_amount || 0),
-          email: tx.email || '',
-          userId: userId,
-          picks: tx.picks || [],
-          mode: tx.mode || 'full'
-        });
-
         linkedCount++;
         processedOrders.push({
           orderId: tx.order_id,
-          amount: Number(tx.wager_amount || 0),
+          amount: tx.wager_amount,
+          effectiveAmount: effectiveAmount, // Include effective amount
           mode: tx.mode || 'full',
-          picks: (tx.picks as any[])?.length || 0,
-          promotionApplied: !!promoApplicationId
+          picks: (tx.picks || []).length,
+          promotionApplied: !!promoApplicationId,
+          campaignName: tx.promotion_campaign_name
         });
 
         console.log(`🎉 Successfully linked order ${tx.order_id} to user ${userId}`);
@@ -199,7 +215,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 🔥 UPDATED: Clean up processed transactions
+    // Clean up processed transactions
     if (linkedCount > 0) {
       const processedIds = processedOrders.map(o => o.orderId);
       const { error: deleteError } = await supabase
@@ -220,7 +236,14 @@ export async function POST(req: NextRequest) {
       success: true,
       linked: linkedCount,
       orders: processedOrders,
-      message: `Successfully linked ${linkedCount} paid order${linkedCount === 1 ? '' : 's'} to your account`
+      message: `Successfully linked ${linkedCount} paid order${linkedCount === 1 ? '' : 's'} to your account`,
+      // 🔥 NEW: Include promotional summary
+      promotionalSummary: {
+        ordersWithPromotion: processedOrders.filter(o => o.promotionApplied).length,
+        totalBonusApplied: processedOrders.reduce((sum, o) => 
+          o.promotionApplied ? sum + (o.effectiveAmount - o.amount) : sum, 0
+        )
+      }
     });
 
   } catch (error) {
