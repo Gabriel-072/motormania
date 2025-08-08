@@ -103,7 +103,7 @@ async function trackPurchaseEvent(orderData: {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-internal-key': INTERNAL_KEY
+        'x-webhook-source': 'bold'
       },
       body: JSON.stringify({
         event_name: 'Purchase',
@@ -128,16 +128,6 @@ async function trackPurchaseEvent(orderData: {
         orderId: orderData.orderId
       });
       
-      // 🔥 FIX: Log to database for manual retry
-      const { error: logError } = await sb.from('tracking_failures').insert({
-        order_id: orderData.orderId,
-        event_type: 'Purchase',
-        error_message: errorText,
-        payload: purchaseData,
-        created_at: new Date().toISOString()
-      });
-      if (logError) console.error('Failed to log tracking failure:', logError);
-      
       throw new Error(`Facebook tracking failed: ${response.status}`);
     }
 
@@ -148,33 +138,12 @@ async function trackPurchaseEvent(orderData: {
       value: purchaseData.value,
       fb_trace_id: result.fbtrace_id
     });
-    
-    // 🔥 FIX: Mark as tracked in database
-    const { error: updateError } = await sb.from('pick_transactions')
-      .update({ 
-        tracking_completed: true,
-        tracking_event_id: eventId,
-        tracking_completed_at: new Date().toISOString()
-      })
-      .eq('order_id', orderData.orderId);
-    if (updateError) console.error('Failed to mark tracking complete:', updateError);
 
   } catch (error) {
     console.error(`❌ [TRACKING] Failed for ${orderData.orderId}:`, {
       error: error instanceof Error ? error.message : error,
       stack: error instanceof Error ? error.stack : undefined
     });
-    
-    // 🔥 FIX: Don't fail the webhook for tracking errors - Log for manual processing
-    const { error: logError } = await sb.from('tracking_failures').insert({
-      order_id: orderData.orderId,
-      event_type: 'Purchase',
-      error_message: error instanceof Error ? error.message : 'Unknown error',
-      created_at: new Date().toISOString()
-    });
-    if (logError) {
-      console.error(`❌ [TRACKING] Failed to log tracking failure for ${orderData.orderId}:`, logError);
-    }
   }
 }
 
@@ -557,27 +526,12 @@ async function handlePickPurchase(db: SupabaseClient, data: any) {
     
   if (existingPick) {
     console.info(`↩️ [WH] Order already processed: ${ref}`);
-    // Still update tracking if not done
-    if (!tx.tracking_completed) {
-      await trackPurchaseEvent({
-        orderId: ref,
-        amount: tx.wager_amount || total || 0,
-        currency: 'COP',
-        email: tx.email,
-        userId: tx.user_id,
-        picks: tx.picks || [],
-        mode: tx.mode,
-        promotionApplied: tx.promotion_applied || false,
-        bonusAmount: tx.promotion_bonus_amount || 0,
-        campaignName: tx.promotion_campaign_name || ''
-      });
-    }
     return;
   }
   
   // Check if already marked as paid (duplicate webhook)
-  if (tx.payment_status === 'paid' && tx.bold_webhook_received_at && tx.tracking_completed) {
-    console.info(`↩️ [WH] Already processed and tracked: ${ref}`);
+  if (tx.payment_status === 'paid' && tx.bold_webhook_received_at) {
+    console.info(`↩️ [WH] Already processed: ${ref}`);
     return;
   }
 
@@ -585,8 +539,7 @@ async function handlePickPurchase(db: SupabaseClient, data: any) {
     orderId: tx.order_id,
     userId: tx.user_id,
     amount: tx.wager_amount,
-    isAnonymous: !tx.user_id,
-    alreadyTracked: tx.tracking_completed
+    isAnonymous: !tx.user_id
   });
 
   // Mark as paid FIRST
@@ -606,24 +559,19 @@ async function handlePickPurchase(db: SupabaseClient, data: any) {
   }
 
   // 🔥 FIX: Track purchase event with better error handling
-  // Only track if not already tracked
-  if (!tx.tracking_completed) {
-    await trackPurchaseEvent({
-      orderId: ref,
-      amount: tx.wager_amount || total || 0,
-      currency: 'COP',
-      email: tx.email,
-      userId: tx.user_id,
-      picks: tx.picks || [],
-      mode: tx.mode,
-      utmData: null,
-      promotionApplied: tx.promotion_applied || false,
-      bonusAmount: tx.promotion_bonus_amount || 0,
-      campaignName: tx.promotion_campaign_name || ''
-    });
-  } else {
-    console.log(`ℹ️ [WH] Tracking already completed for: ${ref}`);
-  }
+  await trackPurchaseEvent({
+    orderId: ref,
+    amount: tx.wager_amount || total || 0,
+    currency: 'COP',
+    email: tx.email,
+    userId: tx.user_id,
+    picks: tx.picks || [],
+    mode: tx.mode,
+    utmData: null,
+    promotionApplied: tx.promotion_applied || false,
+    bonusAmount: tx.promotion_bonus_amount || 0,
+    campaignName: tx.promotion_campaign_name || ''
+  });
 
   console.log(`✅ [WH] Pick flow completed: ${ref}`);
 }

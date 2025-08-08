@@ -203,8 +203,41 @@ export async function POST(req: NextRequest) {
           promotionApplied: tx.promotion_applied || false
         });
 
-        // Track analytics
-        console.log('📊 Tracking CompleteRegistration for:', tx.order_id);
+        // Track Purchase event for linked order
+        console.log('🎯 Tracking Purchase event for linked order:', tx.order_id);
+        try {
+          await fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/fb-track`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-webhook-source': 'anonymous_completion'
+            },
+            body: JSON.stringify({
+              event_name: 'Purchase',
+              event_id: `completion_${tx.order_id}_${Date.now()}`,
+              event_source_url: `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard`,
+              user_data: {
+                em: tx.email,
+                external_id: userId,
+              },
+              custom_data: {
+                value: effectiveAmount / 1000,
+                currency: 'COP',
+                content_type: 'product',
+                content_category: 'sports_betting',
+                content_ids: [`mmc_picks_${tx.picks?.length || 0}`],
+                content_name: `MMC GO ${tx.mode === 'full' ? 'Full Throttle' : 'Safety Car'} (${tx.picks?.length || 0} picks)`,
+                num_items: tx.picks?.length || 1,
+                order_id: tx.order_id,
+                tracking_source: 'anonymous_completion',
+                conversion_type: 'delayed_registration'
+              },
+            }),
+          });
+          console.log('✅ Purchase tracking sent for linked order:', tx.order_id);
+        } catch (trackingError) {
+          console.error('❌ Purchase tracking failed for linked order:', tx.order_id, trackingError);
+        }
 
       } catch (txError) {
         console.error(`❌ Error processing transaction ${tx.order_id}:`, txError);
