@@ -48,7 +48,7 @@ const StickyModal: React.FC<StickyModalProps> = ({ onFinish }) => {
   const wager = useMemo(() => {
     if (!isInitialized || !minimumBet) {
       // Show reasonable fallback while detecting
-      return currency === 'COP' ? 2000 : 2000; // Keep in COP for consistency
+      return currency === 'COP' ? 20000 : 20000; // Keep in COP for consistency
     }
     
     // Use minimum bet but ensure it's at least reasonable for betting
