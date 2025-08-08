@@ -38,6 +38,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Relax referer check for internal webhook calls
   const referer = req.headers.get('referer') || '';
   const allowedDomains = [
     'https://motormania.app',
@@ -45,8 +46,8 @@ export async function POST(req: NextRequest) {
     'http://localhost:3000',
     'https://mmc.ngrok.app',
   ];
-
-  if (!allowedDomains.some(domain => referer.startsWith(domain))) {
+  const isWebhookCall = req.headers.get('x-webhook-source') === 'bold'; // Custom header to identify Bold webhook
+  if (!isWebhookCall && !allowedDomains.some(domain => referer.startsWith(domain))) {
     return new NextResponse(
       JSON.stringify({ error: 'Acceso no autorizado' }),
       { status: 403, headers: corsHeaders }
@@ -68,7 +69,7 @@ export async function POST(req: NextRequest) {
         event_name: body.event_name || 'CustomEvent',
         event_time: Math.floor(Date.now() / 1000),
         event_id: body.event_id || undefined,
-        event_source_url: body.event_source_url || referer,
+        event_source_url: body.event_source_url || referer || 'https://www.motormania.app',
         action_source: 'website',
         user_data: {
           client_user_agent: userAgent,
@@ -89,7 +90,7 @@ export async function POST(req: NextRequest) {
     user_data_keys: Object.keys(eventData.data[0].user_data).filter(k => (eventData.data[0].user_data as any)[k])
   });
 
-  const fbRes = await fetch(`https://graph.facebook.com/v18.0/${pixelId}/events`, {
+  const fbRes = await fetch(`https://graph.facebook.com/v20.0/${pixelId}/events`, { // Updated to v20.0
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ ...eventData, access_token: accessToken }),

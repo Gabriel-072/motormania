@@ -193,22 +193,6 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // Delete the transaction from pick_transactions table only after successful insertion
-        const { error: deleteError } = await supabase
-          .from('pick_transactions')
-          .delete()
-          .eq('id', tx.id);
-        if (deleteError) {
-          console.error(`❌ Failed to delete transaction ${tx.id}:`, {
-            message: deleteError.message,
-            details: deleteError.details,
-            hint: deleteError.hint
-          });
-          throw new Error(`Deletion failed: ${deleteError.message}`);
-        }
-
-        console.log(`✅ Successfully moved transaction ${tx.order_id} to picks table`);
-
         linkedCount++;
         processedOrders.push({
           orderId: tx.order_id,

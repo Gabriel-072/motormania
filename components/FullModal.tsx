@@ -434,7 +434,7 @@ export default function FullModal({ isOpen, onClose, currentGp = 'GP' }: FullMod
         description: `MMC GO (${totalPicks} picks) - ${mode === 'full' ? 'Full' : 'Safety'}${
           promotion?.applied ? ` + ${promotion.campaignName}` : ''
         }`,
-        redirectionUrl: callbackUrl,
+        redirectionUrl: `${callbackUrl}?orderId=${orderId}&amount=${amtStr}`,
         integritySignature: integrityKey,
         customerData: JSON.stringify({ 
           email: isAuthenticated ? user?.primaryEmailAddress?.emailAddress : email, 
@@ -442,34 +442,11 @@ export default function FullModal({ isOpen, onClose, currentGp = 'GP' }: FullMod
         }),
         renderMode: 'embedded',
         onSuccess: async () => {
-          if (typeof window !== 'undefined' && window.fbq) {
-            const eventId = `purchase_${orderId}_${user?.id || 'anonymous'}`;
-            window.fbq('track', 'Purchase', {
-              value: copAmount / 1000,
-              currency: 'COP',
-              content_type: 'product',
-              content_category: 'sports_betting',
-              content_ids: [`mmc_picks_${totalPicks}`],
-              content_name: `MMC GO ${mode === 'full' ? 'Full Throttle' : 'Safety Car'} (${totalPicks} picks)${
-                promotion?.applied ? ` + ${bonusCalculation.campaignName}` : ''
-              }`,
-              num_items: totalPicks,
-              eventID: eventId,
-              // 🔥 NEW: Promotional tracking
-              custom_data: {
-                promotion_applied: promotion?.applied || false,
-                promotion_name: bonusCalculation.campaignName || '',
-                bonus_amount: promotion?.bonusAmount || 0,
-                total_effective_amount: promotion?.totalEffectiveAmount || amount
-              }
-            });
-          }
-
-          const successMessage = promotion?.applied 
-            ? `🎉 ¡Pago exitoso + ${bonusCalculation.campaignName}!`
-            : '¡Pago recibido, procesando…!';
-          
-          toast.success(successMessage);
+        const successMessage = promotion?.applied 
+        ? `🎉 ¡Pago exitoso + ${bonusCalculation.campaignName}!`
+        : '¡Pago recibido, procesando…!';
+    
+        toast.success(successMessage);
           
           // Only consume locked MMC for authenticated users
           if (isAuthenticated && user?.id) {

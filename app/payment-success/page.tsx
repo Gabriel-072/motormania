@@ -1,4 +1,3 @@
-// app/payment-success/page.tsx
 'use client';
 
 import React, { useEffect, useState, Suspense } from 'react';
@@ -22,11 +21,50 @@ function PaymentSuccessContent() {
   const boldOrderId = searchParams.get('bold_order_id');
   const orderId = searchParams.get('order') || boldOrderId;
   const sessionId = searchParams.get('session') || localStorage.getItem('anonymousSession');
+  const amount = searchParams.get('amount'); // In COP cents from Bold callback
 
+  // Track Purchase event with bulletproofing, logging, and TypeScript fix
+  useEffect(() => {
+    if (!orderId || !amount || isNaN(parseInt(amount, 10))) {
+      console.error('Invalid orderId or amount for tracking', { orderId, amount });
+      return;
+    }
+
+    if (typeof window !== 'undefined' && window.fbq && !localStorage.getItem(`purchase_tracked_${orderId}`)) {
+      const trackPurchase = () => {
+        console.log('Attempting to track Purchase event', { orderId, amount });
+        const value = parseInt(amount, 10) / 1000; // Convert from cents to thousands
+        const eventId = `purchase_${orderId}_${user?.id || 'anonymous'}_${Date.now()}`;
+        if (typeof window.fbq === 'function') { // Type guard for TypeScript
+          window.fbq('track', 'Purchase', {
+            value: value,
+            currency: 'COP',
+            event_id: eventId,
+          });
+          console.log('🎯 Purchase event tracked successfully', { eventId, value, orderId });
+          localStorage.setItem(`purchase_tracked_${orderId}`, 'true');
+        } else {
+          console.warn('fbq is not a function, tracking skipped', { eventId });
+        }
+      };
+
+      try {
+        trackPurchase();
+      } catch (error) {
+        console.error('Tracking failed, retrying...', error);
+        setTimeout(trackPurchase, 1000); // Retry after 1 second
+      }
+    } else if (localStorage.getItem(`purchase_tracked_${orderId}`)) {
+      console.log('Purchase event already tracked for this order', { orderId });
+    } else if (!window.fbq) {
+      console.warn('Facebook Pixel (fbq) is not available, tracking skipped');
+    }
+  }, [orderId, amount, user?.id]);
+
+  // Simulate processing time for better UX
   useEffect(() => {
     if (!isLoaded) return;
 
-    // Simulate processing time for better UX
     const timer = setTimeout(() => {
       setIsProcessing(false);
 
@@ -68,7 +106,7 @@ function PaymentSuccessContent() {
           const response = await fetch('/api/complete-anonymous-order', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sessionId }),
+            body: JSON.stringify({ sessionId, orderId, amount }),
           });
           const data = await response.json();
           console.log('🔗 Link order response:', data);
@@ -88,7 +126,7 @@ function PaymentSuccessContent() {
       }, 8000); // 8 seconds to read success message
       return () => clearTimeout(redirectTimer);
     }
-  }, [isProcessing, user?.id, sessionId, router]);
+  }, [isProcessing, user?.id, sessionId, router, orderId, amount]);
 
   if (!isLoaded || isProcessing) {
     return (
