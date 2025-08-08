@@ -25,13 +25,40 @@ export default function SignUpPage() {
   // Get URL parameters
   const sessionId = searchParams.get('session');
   const orderId = searchParams.get('order');
+  const amount = searchParams.get('amount'); // New: Get amount from query
   const redirectUrl = searchParams.get('redirect_url') || '/dashboard';
+
+  // Track Purchase event as fallback (avoid duplicates)
+  useEffect(() => {
+    if (orderId && amount && typeof window !== 'undefined' && window.fbq && !localStorage.getItem(`purchase_tracked_${orderId}`)) {
+      const trackPurchase = () => {
+        console.log('Attempting fallback Purchase event in sign-up', { orderId, amount });
+        const value = parseInt(amount, 10) / 1000; // Adjust based on your amount unit
+        const eventId = `purchase_${orderId}_signup_${Date.now()}`;
+        if (typeof window.fbq === 'function') {
+          window.fbq('track', 'Purchase', {
+            value: value,
+            currency: 'COP',
+            event_id: eventId,
+          });
+          console.log('🎯 Fallback Purchase event tracked successfully', { eventId, value, orderId });
+          localStorage.setItem(`purchase_tracked_${orderId}`, 'true');
+        } else {
+          console.warn('fbq is not a function in sign-up, tracking skipped', { eventId });
+        }
+      };
+
+      trackPurchase();
+    } else if (localStorage.getItem(`purchase_tracked_${orderId}`)) {
+      console.log('Purchase event already tracked, skipping fallback in sign-up', { orderId });
+    }
+  }, [orderId, amount]);
 
   // Check for pending order info in localStorage
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    console.log('SignUp page loaded with params:', { sessionId, orderId, redirectUrl });
+    console.log('SignUp page loaded with params:', { sessionId, orderId, amount, redirectUrl });
 
     const pendingPayment = localStorage.getItem('pendingPayment');
     if (pendingPayment && sessionId) {
@@ -39,7 +66,7 @@ export default function SignUpPage() {
         const paymentData = JSON.parse(pendingPayment);
         setPendingOrderInfo({
           orderId: paymentData.orderId || orderId || 'N/A',
-          amount: paymentData.amountStr || '0',
+          amount: paymentData.amountStr || amount || '0',
           mode: paymentData.mode || 'full'
         });
         console.log('Parsed pending payment data:', pendingOrderInfo);
@@ -49,7 +76,7 @@ export default function SignUpPage() {
     } else if (!sessionId) {
       console.warn('No sessionId found, anonymous order linking will not proceed');
     }
-  }, [sessionId, orderId]);
+  }, [sessionId, orderId, amount]);
 
   // Handle user registration completion
   useEffect(() => {
