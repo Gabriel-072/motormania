@@ -116,14 +116,14 @@ export default function FullModal({ isOpen, onClose, currentGp = 'GP' }: FullMod
 
   // ✨ Dynamic minimum amount based on currency
   const defaultAmount = useMemo(() => {
-    if (!isInitialized) return 2000; // COP fallback
+    if (!isInitialized) return 20000; // COP fallback
     
     const baseDisplayAmount = Math.max(minimumBet.display, currency === 'COP' ? 20 : 5);
     return Math.round(convertToCOP(baseDisplayAmount));
   }, [isInitialized, minimumBet.display, currency, convertToCOP]);
 
   // local state
-  const [amount, setAmount] = useState(2000);
+  const [amount, setAmount] = useState(20000);
   const [mode, setMode] = useState<'full' | 'safety'>('full');
   const [error, setError] = useState<string | null>(null);
   const [isValid, setIsValid] = useState(false);
@@ -322,7 +322,7 @@ export default function FullModal({ isOpen, onClose, currentGp = 'GP' }: FullMod
     let msg: string | null = null;
     const copAmount = currency === 'COP' ? amount : convertToCOP(amount);
     const betMmc = Math.round(copAmount / 1000);
-    const minCOPAmount = isInitialized ? convertToCOP(minimumBet.display) : 2000;
+    const minCOPAmount = isInitialized ? convertToCOP(minimumBet.display) : 20000;
     
     if (totalPicks < 2) msg = 'Elige al menos 2 picks';
     else if (totalPicks > 8) msg = 'Máximo 8 picks por jugada';

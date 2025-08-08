@@ -1,3 +1,4 @@
+//app/payment-success/page.tsx
 'use client';
 
 import React, { useEffect, useState, Suspense } from 'react';
@@ -20,45 +21,10 @@ function PaymentSuccessContent() {
   const urlParams = new URLSearchParams(window.location.search);
   const isCrypto = urlParams.get('crypto') === 'true';
   const boldOrderId = urlParams.get('bold_order_id');
-  const orderId = urlParams.get('order') || boldOrderId || localStorage.getItem('cryptoOrderId'); // Fallback
+  const orderId = urlParams.get('order') || boldOrderId || localStorage.getItem('cryptoOrderId');
   const sessionId = urlParams.get('session') || localStorage.getItem('anonymousSession');
   const amountParam = urlParams.get('amount');
-  const amount = amountParam ? amountParam.split('?')[0] : null; // Fix for malformed amount
-
-  // Track Purchase event with bulletproofing, logging, and delay
-  useEffect(() => {
-    if (!orderId || !amount || isNaN(parseInt(amount, 10))) {
-      console.error('Invalid orderId or amount for tracking', { orderId, amount, amountParam });
-      return;
-    }
-
-    if (typeof window !== 'undefined' && window.fbq && !localStorage.getItem(`purchase_tracked_${orderId}`)) {
-      const trackPurchase = () => {
-        console.log('Attempting to track Purchase event', { orderId, amount });
-        const value = parseInt(amount, 10) / 1000; // Convert from cents to thousands
-        const eventId = `purchase_${orderId}_${user?.id || 'anonymous'}_${Date.now()}`;
-        if (typeof window.fbq === 'function') {
-          window.fbq('track', 'Purchase', {
-            value: value,
-            currency: 'COP',
-            event_id: eventId,
-          });
-          console.log('🎯 Purchase event tracked successfully', { eventId, value, orderId });
-          localStorage.setItem(`purchase_tracked_${orderId}`, 'true');
-        } else {
-          console.warn('fbq is not a function, tracking skipped', { eventId });
-        }
-      };
-
-      // Increase delay to ensure tracking before redirect
-      const delay = setTimeout(trackPurchase, 1500); // 1.5-second delay
-      return () => clearTimeout(delay); // Cleanup timeout
-    } else if (localStorage.getItem(`purchase_tracked_${orderId}`)) {
-      console.log('Purchase event already tracked for this order', { orderId });
-    } else if (!window.fbq) {
-      console.warn('Facebook Pixel (fbq) is not available, tracking skipped');
-    }
-  }, [orderId, amount, user?.id]);
+  const amount = amountParam ? amountParam.split('?')[0] : null;
 
   // Simulate processing time for better UX
   useEffect(() => {

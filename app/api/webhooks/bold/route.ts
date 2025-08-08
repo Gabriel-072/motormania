@@ -1,4 +1,4 @@
-// 📁 app/api/webhooks/bold/route.ts - Updated with Fixed Pick Processing
+// 📁 app/api/webhooks/bold/route.ts - Enhanced with Fixed Pick Processing & Tracking
 'use server';
 
 import { NextRequest, NextResponse }      from 'next/server';
@@ -13,7 +13,6 @@ const BOLD_WEBHOOK_SECRET = process.env.BOLD_WEBHOOK_SECRET_KEY!;
 const SITE_URL            = process.env.NEXT_PUBLIC_SITE_URL!;
 const INTERNAL_KEY        = process.env.INTERNAL_API_KEY!;
 const RESEND_API_KEY      = process.env.RESEND_API_KEY!;
-
 
 /* ──────────────────────── CLIENTES ───────────────────────────── */
 const sb     = createClient(supabaseUrl, supabaseServiceKey, { auth: { persistSession: false } });
@@ -52,7 +51,7 @@ async function uniqueSix(existing: string[], n: number): Promise<string[]> {
   return out;
 }
 
-/* ──────────────────── FACEBOOK TRACKING UTILITY ────────────────── */
+/* 🔥 ENHANCED FACEBOOK TRACKING UTILITY ────────────────── */
 async function trackPurchaseEvent(orderData: {
   orderId: string;
   amount: number;
@@ -69,7 +68,7 @@ async function trackPurchaseEvent(orderData: {
   const eventId = `purchase_${orderData.orderId}_${Date.now()}`;
   
   try {
-    console.log(`🎯 Tracking Purchase event for order: ${orderData.orderId}`);
+    console.log(`🎯 [TRACKING] Starting Purchase event for: ${orderData.orderId}`);
     
     const hashedEmail = orderData.email 
       ? crypto.createHash('sha256').update(orderData.email.toLowerCase().trim()).digest('hex')
@@ -92,8 +91,13 @@ async function trackPurchaseEvent(orderData: {
       utm_campaign: orderData.utmData?.utm_campaign,
       promotion_applied: orderData.promotionApplied || false,
       bonus_amount: orderData.bonusAmount || 0,
-      campaign_name: orderData.campaignName || ''
+      campaign_name: orderData.campaignName || '',
+      tracking_source: 'bold_webhook'
     };
+
+    // 🔥 FIX: Add timeout and better error handling
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
 
     const response = await fetch(`${SITE_URL}/api/fb-track`, {
       method: 'POST',
@@ -111,17 +115,66 @@ async function trackPurchaseEvent(orderData: {
         },
         custom_data: purchaseData,
       }),
+      signal: controller.signal
     });
+
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`❌ Facebook API response:`, errorText);
-      throw new Error(`Facebook tracking failed: ${response.status} - ${errorText}`);
+      console.error(`❌ [TRACKING] Facebook API failed:`, {
+        status: response.status,
+        error: errorText,
+        orderId: orderData.orderId
+      });
+      
+      // 🔥 FIX: Log to database for manual retry
+      const { error: logError } = await sb.from('tracking_failures').insert({
+        order_id: orderData.orderId,
+        event_type: 'Purchase',
+        error_message: errorText,
+        payload: purchaseData,
+        created_at: new Date().toISOString()
+      });
+      if (logError) console.error('Failed to log tracking failure:', logError);
+      
+      throw new Error(`Facebook tracking failed: ${response.status}`);
     }
 
-    console.log(`✅ Purchase event tracked successfully`);
+    const result = await response.json();
+    console.log(`✅ [TRACKING] Purchase event tracked:`, {
+      orderId: orderData.orderId,
+      eventId,
+      value: purchaseData.value,
+      fb_trace_id: result.fbtrace_id
+    });
+    
+    // 🔥 FIX: Mark as tracked in database
+    const { error: updateError } = await sb.from('pick_transactions')
+      .update({ 
+        tracking_completed: true,
+        tracking_event_id: eventId,
+        tracking_completed_at: new Date().toISOString()
+      })
+      .eq('order_id', orderData.orderId);
+    if (updateError) console.error('Failed to mark tracking complete:', updateError);
+
   } catch (error) {
-    console.error(`❌ Failed to track Purchase event for ${orderData.orderId}:`, error);
+    console.error(`❌ [TRACKING] Failed for ${orderData.orderId}:`, {
+      error: error instanceof Error ? error.message : error,
+      stack: error instanceof Error ? error.stack : undefined
+    });
+    
+    // 🔥 FIX: Don't fail the webhook for tracking errors - Log for manual processing
+    const { error: logError } = await sb.from('tracking_failures').insert({
+      order_id: orderData.orderId,
+      event_type: 'Purchase',
+      error_message: error instanceof Error ? error.message : 'Unknown error',
+      created_at: new Date().toISOString()
+    });
+    if (logError) {
+      console.error(`❌ [TRACKING] Failed to log tracking failure for ${orderData.orderId}:`, logError);
+    }
   }
 }
 
@@ -286,7 +339,7 @@ async function handleNumberPurchase(db: SupabaseClient, data: any) {
 
 /* 🔥 FIXED: Process Authenticated Order - Clean & Consistent */
 async function processAuthenticatedOrder(db: SupabaseClient, tx: any) {
-  console.log(`🔐 Processing authenticated order: ${tx.order_id}`);
+  console.log(`🔐 [WH] Processing authenticated order: ${tx.order_id}`);
   
   let promoApplicationId = null;
   let effectiveAmount = tx.wager_amount; // Default to original amount
@@ -315,13 +368,13 @@ async function processAuthenticatedOrder(db: SupabaseClient, tx: any) {
             promoApplicationId = promoApp.id;
           }
           
-          console.log(`🎁 Promotion applied:`, {
+          console.log(`🎁 [WH] Promotion applied:`, {
             campaignName: result.campaign_name,
             bonusAmount: result.bonus_amount,
             effectiveAmount: effectiveAmount
           });
         } else {
-          console.warn(`❌ Promotion application failed: ${result.error_message}`);
+          console.warn(`❌ [WH] Promotion application failed: ${result.error_message}`);
         }
       }
     } catch (error) {
@@ -346,6 +399,7 @@ async function processAuthenticatedOrder(db: SupabaseClient, tx: any) {
     user_id: tx.user_id,
     gp_name: tx.gp_name,
     session_type: 'combined',
+    order_id: tx.order_id,
     picks: Array.isArray(tx.picks) ? tx.picks : [],
     multiplier: Number(tx.multiplier ?? 0),
     potential_win: tx.potential_win ?? 0,
@@ -381,12 +435,12 @@ async function processAuthenticatedOrder(db: SupabaseClient, tx: any) {
   
   await db.from('pick_transactions').delete().eq('id', tx.id);
   
-  console.log(`✅ Pick moved to picks table: ${tx.order_id} (effective amount: ${effectiveAmount})`);
+  console.log(`✅ [WH] Pick moved to picks table: ${tx.order_id} (effective amount: ${effectiveAmount})`);
 }
 
 /* 🔥 FIXED: Process Anonymous Order - Now inserts into picks table */
 async function processAnonymousOrder(db: SupabaseClient, tx: any) {
-  console.log(`👤 Processing anonymous order: ${tx.order_id}`);
+  console.log(`👤 [WH] Processing anonymous order: ${tx.order_id}`);
   
   // Check if already processed (moved to picks)
   const { data: existingPick } = await db
@@ -396,7 +450,7 @@ async function processAnonymousOrder(db: SupabaseClient, tx: any) {
     .single();
     
   if (existingPick) {
-    console.log(`✅ Order ${tx.order_id} already in picks table`);
+    console.log(`✅ [WH] Order ${tx.order_id} already in picks table`);
     return;
   }
   
@@ -412,8 +466,8 @@ async function processAnonymousOrder(db: SupabaseClient, tx: any) {
   // They will be moved to picks table when user signs up
   // BUT we need to mark them properly
   
-  console.log(`✅ Anonymous order marked as paid: ${tx.order_id}`);
-  console.log(`📝 Order will be moved to picks table when user completes registration`);
+  console.log(`✅ [WH] Anonymous order marked as paid: ${tx.order_id}`);
+  console.log(`📝 [WH] Order will be moved to picks table when user completes registration`);
   
   // Send email notification if email exists
   if (tx.email) {
@@ -472,15 +526,15 @@ async function processAnonymousOrder(db: SupabaseClient, tx: any) {
   }
 }
 
-/* 🔥 UPDATED: Main handler with better duplicate detection */
+/* 🔥 ENHANCED: Pick Purchase Handler with better tracking */
 async function handlePickPurchase(db: SupabaseClient, data: any) {
-  console.log('[Bold WH] Pick purchase flow - WITH FIXED PROCESSING');
+  console.log('[Bold WH] 🏁 Pick purchase flow - ENHANCED VERSION');
 
   const ref = data.metadata?.reference as string;
   const payId = data.payment_id as string;
   const total = data.amount?.total as number;
 
-  if (!ref || !payId) throw new Error('Referencia o payId faltante');
+  if (!ref || !payId) throw new Error('Missing reference or payId');
 
   // Get transaction
   const { data: tx } = await db
@@ -490,11 +544,11 @@ async function handlePickPurchase(db: SupabaseClient, data: any) {
     .maybeSingle();
     
   if (!tx) { 
-    console.warn('❌ pick_transactions no encontrada para', ref); 
+    console.warn(`❌ [WH] Transaction not found: ${ref}`); 
     return; 
   }
-  
-  // 🔥 FIX: Check if already in picks table (for duplicates)
+
+  // 🔥 FIX: Better duplicate detection
   const { data: existingPick } = await db
     .from('picks')
     .select('id')
@@ -502,38 +556,40 @@ async function handlePickPurchase(db: SupabaseClient, data: any) {
     .single();
     
   if (existingPick) {
-    console.info('↩️ Order already in picks table:', ref);
-    // Still update the transaction status if needed
-    if (tx.payment_status !== 'paid') {
-      await db.from('pick_transactions')
-        .update({ 
-          payment_status: 'paid', 
-          bold_payment_id: payId,
-          bold_webhook_received_at: new Date().toISOString()
-        })
-        .eq('id', tx.id);
+    console.info(`↩️ [WH] Order already processed: ${ref}`);
+    // Still update tracking if not done
+    if (!tx.tracking_completed) {
+      await trackPurchaseEvent({
+        orderId: ref,
+        amount: tx.wager_amount || total || 0,
+        currency: 'COP',
+        email: tx.email,
+        userId: tx.user_id,
+        picks: tx.picks || [],
+        mode: tx.mode,
+        promotionApplied: tx.promotion_applied || false,
+        bonusAmount: tx.promotion_bonus_amount || 0,
+        campaignName: tx.promotion_campaign_name || ''
+      });
     }
     return;
   }
   
   // Check if already marked as paid (duplicate webhook)
-  if (tx.payment_status === 'paid' && tx.bold_webhook_received_at) {
-    console.info('↩️ Transaction already marked as paid:', ref);
-    // For authenticated users, still try to move to picks if not there yet
-    if (tx.user_id) {
-      await processAuthenticatedOrder(db, tx);
-    }
+  if (tx.payment_status === 'paid' && tx.bold_webhook_received_at && tx.tracking_completed) {
+    console.info(`↩️ [WH] Already processed and tracked: ${ref}`);
     return;
   }
 
-  console.log('🔍 Transaction found:', {
+  console.log(`🔍 [WH] Processing transaction:`, {
     orderId: tx.order_id,
     userId: tx.user_id,
     amount: tx.wager_amount,
-    isAnonymous: !tx.user_id
+    isAnonymous: !tx.user_id,
+    alreadyTracked: tx.tracking_completed
   });
 
-  // Mark as paid
+  // Mark as paid FIRST
   await db.from('pick_transactions')
     .update({ 
       payment_status: 'paid', 
@@ -549,42 +605,56 @@ async function handlePickPurchase(db: SupabaseClient, data: any) {
     await processAnonymousOrder(db, tx);
   }
 
-  // Track purchase event
-  await trackPurchaseEvent({
-    orderId: ref,
-    amount: tx.wager_amount || total || 0,
-    currency: 'COP',
-    email: tx.email,
-    userId: tx.user_id,
-    picks: tx.picks || [],
-    mode: tx.mode,
-    utmData: null,
-    promotionApplied: tx.promotion_applied || false,
-    bonusAmount: tx.promotion_bonus_amount || 0,
-    campaignName: tx.promotion_campaign_name || ''
-  });
+  // 🔥 FIX: Track purchase event with better error handling
+  // Only track if not already tracked
+  if (!tx.tracking_completed) {
+    await trackPurchaseEvent({
+      orderId: ref,
+      amount: tx.wager_amount || total || 0,
+      currency: 'COP',
+      email: tx.email,
+      userId: tx.user_id,
+      picks: tx.picks || [],
+      mode: tx.mode,
+      utmData: null,
+      promotionApplied: tx.promotion_applied || false,
+      bonusAmount: tx.promotion_bonus_amount || 0,
+      campaignName: tx.promotion_campaign_name || ''
+    });
+  } else {
+    console.log(`ℹ️ [WH] Tracking already completed for: ${ref}`);
+  }
 
-  console.log('✅ Pick flow finished for', ref);
+  console.log(`✅ [WH] Pick flow completed: ${ref}`);
 }
 
-/* ──────────────────── ENTRYPOINT WEBHOOK ───────────────────── */
+/* ──────────────────── MAIN WEBHOOK HANDLER ───────────────────── */
 export async function POST(req: NextRequest) {
   const startTime = Date.now();
-  console.log(`🔔 Bold webhook received at ${new Date().toISOString()}`);
+  console.log(`🔔 [WEBHOOK] Bold webhook received at ${new Date().toISOString()}`);
   
   const raw = await req.text();
   const sig = req.headers.get('x-bold-signature') ?? '';
 
+  // 🔥 FIX: Better signature verification logging
   if (!verify(sig, raw)) {
-    console.error('❌ Invalid webhook signature');
+    console.error('❌ [WEBHOOK] Invalid signature:', {
+      receivedSig: sig.substring(0, 10) + '...',
+      bodyLength: raw.length,
+      timestamp: new Date().toISOString()
+    });
     return new NextResponse('Bad signature', { status: 401 });
   }
 
   const evt = JSON.parse(raw);
-  console.log(`📦 Event type: ${evt.type}, ref: ${evt.data?.metadata?.reference}`);
+  console.log(`📦 [WEBHOOK] Event:`, {
+    type: evt.type,
+    ref: evt.data?.metadata?.reference,
+    paymentId: evt.data?.payment_id
+  });
   
   if (evt.type !== 'SALE_APPROVED') {
-    console.log(`ℹ️  Event ${evt.type} ignored`);
+    console.log(`ℹ️ [WEBHOOK] Event ${evt.type} ignored`);
     return NextResponse.json({ ok: true, ignored: true });
   }
 
@@ -594,10 +664,13 @@ export async function POST(req: NextRequest) {
     if      (ref.startsWith('MM-EXTRA-')) await handleNumberPurchase(sb, evt.data);
     else if (ref.startsWith('MMC-'))      await handlePickPurchase(sb, evt.data);
     else if (ref.startsWith('MM-DEP-'))   await handleWalletDeposit(sb, evt.data);
-    else   console.warn('⚠️  Referencia desconocida:', ref);
+    else {
+      console.warn(`⚠️ [WEBHOOK] Unknown reference format: ${ref}`);
+      return NextResponse.json({ error: 'Unknown reference format' }, { status: 400 });
+    }
 
     const duration = Date.now() - startTime;
-    console.log(`✅ Webhook processed successfully in ${duration}ms`);
+    console.log(`✅ [WEBHOOK] Processed successfully in ${duration}ms`);
     
     return NextResponse.json({ 
       ok: true, 
@@ -608,8 +681,13 @@ export async function POST(req: NextRequest) {
     
   } catch (e: any) {
     const duration = Date.now() - startTime;
-    console.error(`🔥 Webhook error after ${duration}ms:`, e);
-    
+    console.error(`🔥 [WEBHOOK] Error after ${duration}ms:`, {
+      error: e.message,
+      reference: ref,
+      stack: e.stack
+    });
+
+    // Try to log webhook error
     try {
       await fetch(`${SITE_URL}/api/admin/webhook-error`, {
         method: 'POST',

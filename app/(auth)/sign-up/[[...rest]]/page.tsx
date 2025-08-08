@@ -25,34 +25,27 @@ export default function SignUpPage() {
   // Get URL parameters
   const sessionId = searchParams.get('session');
   const orderId = searchParams.get('order');
-  const amount = searchParams.get('amount'); // New: Get amount from query
+  const amount = searchParams.get('amount');
   const redirectUrl = searchParams.get('redirect_url') || '/dashboard';
 
-  // Track Purchase event as fallback (avoid duplicates)
+  // Track CompleteRegistration event when user signs up
   useEffect(() => {
-    if (orderId && amount && typeof window !== 'undefined' && window.fbq && !localStorage.getItem(`purchase_tracked_${orderId}`)) {
-      const trackPurchase = () => {
-        console.log('Attempting fallback Purchase event in sign-up', { orderId, amount });
-        const value = parseInt(amount, 10) / 1000; // Adjust based on your amount unit
-        const eventId = `purchase_${orderId}_signup_${Date.now()}`;
-        if (typeof window.fbq === 'function') {
-          window.fbq('track', 'Purchase', {
-            value: value,
-            currency: 'COP',
-            event_id: eventId,
-          });
-          console.log('🎯 Fallback Purchase event tracked successfully', { eventId, value, orderId });
-          localStorage.setItem(`purchase_tracked_${orderId}`, 'true');
-        } else {
-          console.warn('fbq is not a function in sign-up, tracking skipped', { eventId });
-        }
-      };
-
-      trackPurchase();
-    } else if (localStorage.getItem(`purchase_tracked_${orderId}`)) {
-      console.log('Purchase event already tracked, skipping fallback in sign-up', { orderId });
+    if (user?.id && !localStorage.getItem(`registration_tracked_${user.id}`)) {
+      console.log('🎯 Tracking CompleteRegistration event for user:', user.id);
+      
+      if (typeof window !== 'undefined' && window.fbq) {
+        const eventId = `registration_${user.id}_${Date.now()}`;
+        window.fbq('track', 'CompleteRegistration', {
+          event_id: eventId,
+          content_name: 'MMC_GO_Registration',
+          content_category: 'account_creation',
+          has_pending_order: !!sessionId
+        });
+        console.log('✅ CompleteRegistration event tracked:', { eventId, userId: user.id });
+        localStorage.setItem(`registration_tracked_${user.id}`, 'true');
+      }
     }
-  }, [orderId, amount]);
+  }, [user?.id, sessionId]);
 
   // Check for pending order info in localStorage
   useEffect(() => {
