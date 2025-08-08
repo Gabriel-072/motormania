@@ -15,7 +15,6 @@ function PaymentSuccessContent() {
   const [isProcessing, setIsProcessing] = useState(true);
   const [orderDetails, setOrderDetails] = useState<any>(null);
   const [showRegisterPrompt, setShowRegisterPrompt] = useState(false);
-  const [isTrackingComplete, setIsTrackingComplete] = useState(false); // New state for tracking status
 
   // Get URL parameters
   const isCrypto = searchParams.get('crypto') === 'true';
@@ -28,7 +27,6 @@ function PaymentSuccessContent() {
   useEffect(() => {
     if (!orderId || !amount || isNaN(parseInt(amount, 10))) {
       console.error('Invalid orderId or amount for tracking', { orderId, amount });
-      setIsTrackingComplete(true); // Allow redirect even if invalid
       return;
     }
 
@@ -37,7 +35,7 @@ function PaymentSuccessContent() {
         console.log('Attempting to track Purchase event', { orderId, amount });
         const value = parseInt(amount, 10) / 1000; // Convert from cents to thousands
         const eventId = `purchase_${orderId}_${user?.id || 'anonymous'}_${Date.now()}`;
-        if (typeof window.fbq === 'function') {
+        if (typeof window.fbq === 'function') { // Type guard for TypeScript
           window.fbq('track', 'Purchase', {
             value: value,
             currency: 'COP',
@@ -45,10 +43,8 @@ function PaymentSuccessContent() {
           });
           console.log('🎯 Purchase event tracked successfully', { eventId, value, orderId });
           localStorage.setItem(`purchase_tracked_${orderId}`, 'true');
-          setIsTrackingComplete(true); // Mark tracking as complete
         } else {
           console.warn('fbq is not a function, tracking skipped', { eventId });
-          setIsTrackingComplete(true); // Allow redirect even if fbq fails
         }
       };
 
@@ -60,10 +56,8 @@ function PaymentSuccessContent() {
       }
     } else if (localStorage.getItem(`purchase_tracked_${orderId}`)) {
       console.log('Purchase event already tracked for this order', { orderId });
-      setIsTrackingComplete(true); // Allow redirect if already tracked
     } else if (!window.fbq) {
       console.warn('Facebook Pixel (fbq) is not available, tracking skipped');
-      setIsTrackingComplete(true); // Allow redirect if fbq is unavailable
     }
   }, [orderId, amount, user?.id]);
 
@@ -103,9 +97,9 @@ function PaymentSuccessContent() {
     return () => clearTimeout(timer);
   }, [isLoaded, user?.id, orderId, sessionId]);
 
-  // Auto-redirect or link order after tracking is complete
+  // Auto-redirect or link order after success
   useEffect(() => {
-    if (!isProcessing && isTrackingComplete && user?.id && sessionId) {
+    if (!isProcessing && user?.id && sessionId) {
       const linkOrder = async () => {
         try {
           console.log('🔗 Attempting to link anonymous order with session:', sessionId);
@@ -129,12 +123,10 @@ function PaymentSuccessContent() {
 
       const redirectTimer = setTimeout(() => {
         router.push('/dashboard');
-      }, 8000); // Fallback redirect after 8 seconds
+      }, 8000); // 8 seconds to read success message
       return () => clearTimeout(redirectTimer);
-    } else if (!isProcessing && isTrackingComplete && !user?.id && showRegisterPrompt) {
-      router.push(`/sign-up?session=${sessionId}&order=${orderId}&redirect_url=/dashboard`);
     }
-  }, [isProcessing, isTrackingComplete, user?.id, sessionId, router, orderId, amount, showRegisterPrompt]);
+  }, [isProcessing, user?.id, sessionId, router, orderId, amount]);
 
   if (!isLoaded || isProcessing) {
     return (
@@ -272,7 +264,7 @@ function PaymentSuccessContent() {
             </Link>
           ) : showRegisterPrompt && sessionId ? (
             <Link
-              href={`/sign-up?session=${sessionId}&order=${orderId}&redirect_url=/dashboard`}
+              href={`/sign-up?session=${sessionId}&order=${orderId}&redirect_url=/payment-success`}
               className="flex-1 bg-gradient-to-r from-amber-500 to-yellow-600 text-white font-bold py-3 px-6 rounded-lg hover:from-amber-600 hover:to-yellow-700 transition-all flex items-center justify-center gap-2"
             >
               Completar Registro <FaUserPlus />
@@ -288,17 +280,7 @@ function PaymentSuccessContent() {
         </motion.div>
 
         {/* Auto-redirect notice */}
-        {user?.id && !isTrackingComplete && (
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 1.4 }}
-            className="text-center text-gray-500 text-sm mt-6"
-          >
-            Esperando confirmación de tracking antes de redirigir...
-          </motion.p>
-        )}
-        {user?.id && isTrackingComplete && (
+        {user?.id && (
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
