@@ -150,10 +150,9 @@ export async function POST(req: NextRequest) {
       .update(`${orderId}${amountStr}${CURRENCY}${BOLD_SECRET}`)
       .digest('hex');
 
-    const callbackUrl = userId 
-      ? `${SITE_URL}/dashboard?bold_order_id=${orderId}`
-      : `${SITE_URL}/sign-up?session=${anonymousSessionId}&order=${orderId}&redirect_url=/payment-success`;
-
+    // Unified callbackUrl to /payment-success for all users
+    const callbackUrl = `${SITE_URL}/payment-success?orderId=${orderId}&amount=${amountStr}`;
+    
     // 🔥 FIXED: Store transaction with existing fields only
     const transactionData = {
       // Existing fields
