@@ -876,7 +876,7 @@ export default function FullModal({ isOpen, onClose, currentGp = 'GP' }: FullMod
                     copValue={amount}
                     onCOPChange={setAmount}
                     className="w-full py-3 rounded-lg bg-gray-700/60 border border-gray-600 text-white font-semibold text-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                    placeholder="Monto a apostar"
+                    placeholder="Monto a jugar"
                   />
                   {currency !== 'COP' && (
                     <div className="flex justify-between items-center text-xs text-gray-400">
@@ -1034,7 +1034,7 @@ export default function FullModal({ isOpen, onClose, currentGp = 'GP' }: FullMod
                             transition-all duration-200
                           `}
                         >
-                          <FaCreditCard /> Apostar con Tarjeta
+                          <FaCreditCard /> Activar DRS
                           {bonusAmount > 0 && (
                             <span className="text-green-300 ml-2">+ {bonusCalculation.campaignName}</span>
                           )}
@@ -1053,7 +1053,7 @@ export default function FullModal({ isOpen, onClose, currentGp = 'GP' }: FullMod
                               : 'bg-gray-600/80 text-gray-400/80 cursor-not-allowed'}
                           `}
                         >
-                          <FaBitcoin /> Apostar con Crypto
+                          <FaBitcoin /> Jugar con Crypto
                         </button>
                       </div>
                     ) : (
@@ -1080,7 +1080,7 @@ export default function FullModal({ isOpen, onClose, currentGp = 'GP' }: FullMod
                           </>
                         ) : (
                           <>
-                            <FaPlay /> Apostar Ahora • <CurrencyDisplay copAmount={amount} />
+                            <FaPlay /> Activa DRS • <CurrencyDisplay copAmount={amount} />
                             {bonusAmount > 0 && (
                               <span className="text-green-300 ml-2">+ {bonusCalculation.campaignName}</span>
                             )}
