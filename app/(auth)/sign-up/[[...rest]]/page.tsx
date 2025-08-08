@@ -30,53 +30,60 @@ export default function SignUpPage() {
 
   // Track Purchase event as fallback (avoid duplicates)
   useEffect(() => {
-    if (orderId && amount && typeof window !== 'undefined' && window.fbq && !localStorage.getItem(`purchase_tracked_${orderId}`)) {
-      const trackPurchase = () => {
-        console.log('Attempting fallback Purchase event in sign-up', { orderId, amount });
-        const value = parseInt(amount, 10) / 1000; // Adjust based on your amount unit
-        const eventId = `purchase_${orderId}_signup_${Date.now()}`;
-        if (typeof window.fbq === 'function') {
-          window.fbq('track', 'Purchase', {
-            value: value,
-            currency: 'COP',
-            event_id: eventId,
-          });
-          console.log('🎯 Fallback Purchase event tracked successfully', { eventId, value, orderId });
-          localStorage.setItem(`purchase_tracked_${orderId}`, 'true');
-        } else {
-          console.warn('fbq is not a function in sign-up, tracking skipped', { eventId });
-        }
-      };
+  if (orderId && amount && typeof window !== 'undefined' && window.fbq && !localStorage.getItem(`purchase_tracked_${orderId}`)) {
+    const trackPurchase = () => {
+      console.log('Attempting fallback Purchase event in sign-up', { orderId, amount });
+      const value = parseInt(amount, 10) / 1000; // Adjust based on your amount unit
+      const eventId = `purchase_${orderId}_signup_${Date.now()}`;
+      if (typeof window.fbq === 'function') {
+        window.fbq('track', 'Purchase', {
+          value,
+          currency: 'COP',
+          event_id: eventId,
+        });
+        console.log('🎯 Fallback Purchase event tracked successfully', { eventId, value, orderId });
+        localStorage.setItem(`purchase_tracked_${orderId}`, 'true');
+      } else {
+        console.warn('fbq is not a function in sign-up, tracking skipped', { eventId });
+      }
+    };
 
-      trackPurchase();
-    } else if (localStorage.getItem(`purchase_tracked_${orderId}`)) {
-      console.log('Purchase event already tracked, skipping fallback in sign-up', { orderId });
-    }
-  }, [orderId, amount]);
-
-  // Check for pending order info in localStorage
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    console.log('SignUp page loaded with params:', { sessionId, orderId, amount, redirectUrl });
-
+    trackPurchase();
+  } else if (!orderId || !amount) {
+    // Fallback to localStorage or session data
     const pendingPayment = localStorage.getItem('pendingPayment');
     if (pendingPayment && sessionId) {
       try {
         const paymentData = JSON.parse(pendingPayment);
-        setPendingOrderInfo({
-          orderId: paymentData.orderId || orderId || 'N/A',
-          amount: paymentData.amountStr || amount || '0',
-          mode: paymentData.mode || 'full'
-        });
-        console.log('Parsed pending payment data:', pendingOrderInfo);
+        const fallbackOrderId = paymentData.orderId || `MMC-ANON-${Date.now()}`; // Default if missing
+        const fallbackAmount = paymentData.amountStr || '2000'; // Default amount
+        if (!localStorage.getItem(`purchase_tracked_${fallbackOrderId}`)) {
+          const trackPurchase = () => {
+            console.log('Attempting fallback Purchase event from localStorage', { fallbackOrderId, fallbackAmount });
+            const value = parseInt(fallbackAmount, 10) / 1000;
+            const eventId = `purchase_${fallbackOrderId}_signup_${Date.now()}`;
+            if (typeof window.fbq === 'function') {
+              window.fbq('track', 'Purchase', {
+                value,
+                currency: 'COP',
+                event_id: eventId,
+              });
+              console.log('🎯 Fallback Purchase event tracked successfully', { eventId, value, fallbackOrderId });
+              localStorage.setItem(`purchase_tracked_${fallbackOrderId}`, 'true');
+            } else {
+              console.warn('fbq is not a function in sign-up, tracking skipped', { eventId });
+            }
+          };
+          trackPurchase();
+        }
       } catch (error) {
-        console.error('Error parsing pending payment data:', error);
+        console.error('Error parsing pending payment for fallback:', error);
       }
-    } else if (!sessionId) {
-      console.warn('No sessionId found, anonymous order linking will not proceed');
     }
-  }, [sessionId, orderId, amount]);
+  } else if (localStorage.getItem(`purchase_tracked_${orderId}`)) {
+    console.log('Purchase event already tracked, skipping fallback in sign-up', { orderId });
+  }
+}, [orderId, amount, sessionId]);
 
   // Handle user registration completion
   useEffect(() => {

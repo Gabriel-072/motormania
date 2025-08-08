@@ -13,8 +13,8 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL!;
 const CURRENCY = 'COP';
 
 // Existing multiplier tables (unchanged)
-const payoutCombos: Record<number, number> = { 2:3, 3:6, 4:10, 5:20, 6:35, 7:60, 8:100 };
-const safetyPayouts: Record<number, number[]> = { 3:[2], 4:[5], 5:[10], 6:[20], 7:[30], 8:[50] };
+const payoutCombos: Record<number, number> = { 2: 3, 3: 6, 4: 10, 5: 20, 6: 35, 7: 60, 8: 100 };
+const safetyPayouts: Record<number, number[]> = { 3: [2], 4: [5], 5: [10], 6: [20], 7: [30], 8: [50] };
 
 function calcMultiplier(cnt: number, mode: 'full' | 'safety') {
   return mode === 'full' ? (payoutCombos[cnt] ?? 0) : (safetyPayouts[cnt]?.[0] ?? 0);
@@ -59,8 +59,8 @@ export async function POST(req: NextRequest) {
     if (!Array.isArray(picks) || picks.length < 2 || picks.length > 8) {
       return NextResponse.json({ error: 'Nº de picks inválido' }, { status: 400 });
     }
-    if (amount < 2000) {
-      return NextResponse.json({ error: 'Monto mínimo $20.000' }, { status: 400 });
+    if (amount < 10000) {
+      return NextResponse.json({ error: 'Monto mínimo $10.000' }, { status: 400 });
     }
     if (mode === 'safety' && picks.length < 3) {
       return NextResponse.json({ error: 'Safety requiere ≥3 picks' }, { status: 400 });
@@ -152,6 +152,7 @@ export async function POST(req: NextRequest) {
 
     // Unified callbackUrl to /payment-success for all users
     const callbackUrl = `${SITE_URL}/payment-success?orderId=${orderId}&amount=${amountStr}`;
+    console.log('Generated callbackUrl:', callbackUrl); // Line 163
 
     // 🔥 FIXED: Store transaction with existing fields only
     const transactionData = {
